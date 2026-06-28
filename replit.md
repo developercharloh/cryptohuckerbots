@@ -63,6 +63,39 @@ _Populate as you build — explicit user instructions worth remembering across s
 - Web push notifications require `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` env vars
 - Set `ADMIN_ACCOUNT_PASSWORD` env var to override the default admin password
 
+## Vercel Deployment
+
+Each app is a **separate Vercel project** pointing at the same GitHub repo (`developercharloh/cryptohuckerbots`). Set **Root Directory** to the path shown below for each project — Vercel will pick up the `vercel.json` inside that directory automatically.
+
+| Vercel project | Root Directory | Framework |
+|---|---|---|
+| VIXUS AI (user app) | `artifacts/user-app` | Other (no framework) |
+| VIXUS AI Admin | `artifacts/admin-app` | Other (no framework) |
+| VIXUS AI API | `artifacts/api-server` | Other (no framework) |
+
+### Steps (do once per project on vercel.com)
+
+1. **Import** the GitHub repo → pick the project name & root directory from the table above.
+2. **Override build settings** — Vercel auto-detects the `vercel.json`; no manual overrides needed.
+3. **Add environment variables** (Settings → Environment Variables):
+
+   **All three projects need:**
+   - `DATABASE_URL` — your PostgreSQL connection string
+
+   **API Server project also needs:**
+   - `ADMIN_ACCOUNT_PASSWORD` — admin panel password (default `Admin@VIXUS2027!`)
+   - `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` — for web push notifications (optional)
+
+   **User App & Admin App projects need:**
+   - `VITE_API_BASE_URL` — the deployed API server URL (e.g. `https://vixus-api.vercel.app`)
+
+4. **Deploy** — click Deploy. After first deploy, every push to `main` auto-deploys.
+
+### How the API server works on Vercel
+
+The API server runs as a **Vercel Serverless Function**. The build command (`pnpm --filter @workspace/api-server run build`) bundles the entire Express app (including all workspace libraries) into a self-contained `dist/vercel-handler.mjs` file. On each cold start, Vercel runs database migrations and seeds in the background before serving requests.
+
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- Vercel config lives in `vercel.json` inside each artifact directory; `build.mjs` builds both `dist/index.mjs` (regular server) and `dist/vercel-handler.mjs` (Vercel entry)
