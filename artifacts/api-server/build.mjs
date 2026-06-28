@@ -100,6 +100,9 @@ async function buildAll() {
       "puppeteer",
       "puppeteer-core",
       "electron",
+      // web-push loads heavy CJS crypto deps at module init time; keep it
+      // external so it only loads on first sendPushToAllAdmins() call.
+      "web-push",
     ],
     sourcemap: "linked",
     plugins: [

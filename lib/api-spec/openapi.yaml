@@ -1,22 +1,30 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Quantum FX Bot API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+  - name: auth
+  - name: dashboard
+  - name: bots
+  - name: cashier
+  - name: trade
+  - name: team
+  - name: profile
+  - name: notifications
+  - name: support
+  - name: admin
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +32,1493 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # Auth
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /auth/forgot-password:
+    post:
+      operationId: forgotPassword
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForgotPasswordInput"
+      responses:
+        "200":
+          description: Reset link sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /auth/reset-password:
+    post:
+      operationId: resetPassword
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordInput"
+      responses:
+        "200":
+          description: Password reset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # Dashboard
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      responses:
+        "200":
+          description: Dashboard summary stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/earnings-chart:
+    get:
+      operationId: getEarningsChart
+      tags: [dashboard]
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Earnings chart data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChartPoint"
+
+  /dashboard/profit-by-bot:
+    get:
+      operationId: getProfitByBot
+      tags: [dashboard]
+      responses:
+        "200":
+          description: Profit breakdown by bot
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BotProfitItem"
+
+  /dashboard/recent-activity:
+    get:
+      operationId: getRecentActivity
+      tags: [dashboard]
+      responses:
+        "200":
+          description: Recent activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+  # Bots
+  /bots:
+    get:
+      operationId: listBots
+      tags: [bots]
+      responses:
+        "200":
+          description: User bots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Bot"
+
+  /bots/{id}:
+    get:
+      operationId: getBot
+      tags: [bots]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Bot details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BotDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /bots/{id}/toggle:
+    post:
+      operationId: toggleBot
+      tags: [bots]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Bot status toggled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bot"
+
+  /bots/{id}/analytics/{period}:
+    get:
+      operationId: getBotAnalytics
+      tags: [bots]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: period
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Bot analytics chart data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChartPoint"
+
+  /marketplace/bots:
+    get:
+      operationId: listMarketplaceBots
+      tags: [bots]
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Marketplace bots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MarketplaceBot"
+
+  /marketplace/bots/{id}/purchase:
+    post:
+      operationId: purchaseBot
+      tags: [bots]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Bot purchased
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # Cashier
+  /cashier/deposit:
+    post:
+      operationId: createDeposit
+      tags: [cashier]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DepositInput"
+      responses:
+        "201":
+          description: Deposit initiated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+        "400":
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /cashier/deposit/session:
+    post:
+      operationId: createDepositSession
+      tags: [cashier]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDepositSessionInput"
+      responses:
+        "201":
+          description: Deposit session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DepositSession"
+
+  /cashier/deposit/session/{id}:
+    get:
+      operationId: getDepositSession
+      tags: [cashier]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deposit session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DepositSession"
+
+  /cashier/deposit/session/{id}/txid:
+    post:
+      operationId: submitDepositTxid
+      tags: [cashier]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitTxidInput"
+      responses:
+        "200":
+          description: TXID submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DepositSession"
+
+  /admin/deposit-sessions:
+    get:
+      operationId: adminListDepositSessions
+      tags: [admin]
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deposit sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminDepositSession"
+
+  /admin/deposit-sessions/{id}/review:
+    post:
+      operationId: adminReviewDepositSession
+      tags: [admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminReviewDepositInput"
+      responses:
+        "200":
+          description: Updated deposit session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminDepositSession"
+
+  /cashier/withdraw:
+    post:
+      operationId: createWithdrawal
+      tags: [cashier]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WithdrawInput"
+      responses:
+        "201":
+          description: Withdrawal initiated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+        "400":
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /cashier/transactions:
+    get:
+      operationId: listTransactions
+      tags: [cashier]
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [all, deposit, withdrawal]
+      responses:
+        "200":
+          description: Transaction list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Transaction"
+
+  /cashier/payment-methods:
+    get:
+      operationId: listPaymentMethods
+      tags: [cashier]
+      responses:
+        "200":
+          description: Payment methods
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PaymentMethod"
+
+  # Trade
+  /trade/signals:
+    get:
+      operationId: listTradeSignals
+      tags: [trade]
+      responses:
+        "200":
+          description: AI trading signals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TradeSignal"
+
+  /trade/execute:
+    post:
+      operationId: executeTrade
+      tags: [trade]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExecuteTradeInput"
+      responses:
+        "200":
+          description: Opened trade position
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TradePosition"
+        "400":
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /trade/positions:
+    get:
+      operationId: listTradePositions
+      tags: [trade]
+      responses:
+        "200":
+          description: User trade positions (open and closed)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TradePosition"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /trade/positions/{id}/close:
+    post:
+      operationId: closeTradePosition
+      tags: [trade]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Closed trade position
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TradePosition"
+        "400":
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # Team
+  /team/referral:
+    get:
+      operationId: getReferralInfo
+      tags: [team]
+      responses:
+        "200":
+          description: Referral info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralInfo"
+
+  /team/members:
+    get:
+      operationId: listTeamMembers
+      tags: [team]
+      responses:
+        "200":
+          description: Team members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TeamMember"
+
+  /team/earnings-overview:
+    get:
+      operationId: getTeamEarningsOverview
+      tags: [team]
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [this_month, last_month, all_time]
+      responses:
+        "200":
+          description: Team earnings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamEarnings"
+
+  # Profile
+  /profile:
+    get:
+      operationId: getProfile
+      tags: [profile]
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+    patch:
+      operationId: updateProfile
+      tags: [profile]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileUpdate"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+
+  /profile/change-password:
+    post:
+      operationId: changePassword
+      tags: [profile]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordInput"
+      responses:
+        "200":
+          description: Password changed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /profile/2fa:
+    get:
+      operationId: get2FA
+      tags: [profile]
+      responses:
+        "200":
+          description: 2FA status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TwoFAStatus"
+    post:
+      operationId: toggle2FA
+      tags: [profile]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TwoFAToggleInput"
+      responses:
+        "200":
+          description: 2FA toggled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TwoFAStatus"
+
+  /profile/kyc:
+    get:
+      operationId: getKYC
+      tags: [profile]
+      responses:
+        "200":
+          description: KYC status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KYCStatus"
+    post:
+      operationId: submitKYC
+      tags: [profile]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KYCInput"
+      responses:
+        "200":
+          description: KYC submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KYCStatus"
+
+  /profile/kyc/session:
+    post:
+      operationId: createKycSession
+      tags: [profile]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KYCSessionInput"
+      responses:
+        "200":
+          description: Didit verification session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KYCSession"
+
+  /profile/notification-settings:
+    get:
+      operationId: getNotificationSettings
+      tags: [profile]
+      responses:
+        "200":
+          description: Notification settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationSettings"
+    patch:
+      operationId: updateNotificationSettings
+      tags: [profile]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationSettingsUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationSettings"
+
+  /profile/sessions:
+    get:
+      operationId: listSessions
+      tags: [profile]
+      responses:
+        "200":
+          description: Active sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Session"
+
+  /profile/sessions/{id}:
+    delete:
+      operationId: revokeSession
+      tags: [profile]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Session revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  # Notifications
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      responses:
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+
+  /notifications/{id}:
+    delete:
+      operationId: deleteNotification
+      tags: [notifications]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /notifications/{id}/read:
+    post:
+      operationId: markNotificationRead
+      tags: [notifications]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Marked as read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /notifications/read-all:
+    post:
+      operationId: markAllNotificationsRead
+      tags: [notifications]
+      responses:
+        "200":
+          description: All marked as read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  # Support
+  /support/tickets:
+    get:
+      operationId: listSupportTickets
+      tags: [support]
+      responses:
+        "200":
+          description: Support tickets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SupportTicket"
+    post:
+      operationId: createSupportTicket
+      tags: [support]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupportTicketInput"
+      responses:
+        "201":
+          description: Ticket created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportTicket"
+
+  /support/faq:
+    get:
+      operationId: listFAQ
+      tags: [support]
+      responses:
+        "200":
+          description: FAQ items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FAQItem"
+
+  /admin/overview:
+    get:
+      operationId: adminGetOverview
+      tags: [admin]
+      responses:
+        "200":
+          description: Admin dashboard overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminOverview"
+
+  /admin/users:
+    get:
+      operationId: adminListUsers
+      tags: [admin]
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminUser"
+
+  /admin/users/{id}:
+    get:
+      operationId: adminGetUser
+      tags: [admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUserDetail"
+
+  /admin/users/{id}/status:
+    post:
+      operationId: adminSetUserStatus
+      tags: [admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminUserStatusInput"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUser"
+
+  /admin/users/{id}/reset-password:
+    post:
+      operationId: adminResetUserPassword
+      tags: [admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Temporary password
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminResetPasswordResult"
+
+  /admin/users/{id}/adjust-balance:
+    post:
+      operationId: adminAdjustBalance
+      tags: [admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminBalanceAdjustInput"
+      responses:
+        "200":
+          description: Adjusted user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUser"
+
+  /admin/refund-by-uid:
+    post:
+      operationId: adminRefundByUid
+      tags: [admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminRefundByUidInput"
+      responses:
+        "200":
+          description: Updated user after refund
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUser"
+
+  /admin/kyc:
+    get:
+      operationId: adminListKyc
+      tags: [admin]
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: KYC submissions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminKycItem"
+
+  /admin/kyc/{userId}/review:
+    post:
+      operationId: adminReviewKyc
+      tags: [admin]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminKycReviewInput"
+      responses:
+        "200":
+          description: Reviewed KYC
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminKycItem"
+
+  /admin/bots:
+    get:
+      operationId: adminListBots
+      tags: [admin]
+      responses:
+        "200":
+          description: Bots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminBot"
+    post:
+      operationId: adminCreateBot
+      tags: [admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminBotInput"
+      responses:
+        "201":
+          description: Created bot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminBot"
+
+  /admin/bots/{id}:
+    patch:
+      operationId: adminUpdateBot
+      tags: [admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminBotUpdate"
+      responses:
+        "200":
+          description: Updated bot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminBot"
+    delete:
+      operationId: adminDeleteBot
+      tags: [admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /admin/bots/{id}/toggle:
+    post:
+      operationId: adminToggleBot
+      tags: [admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Toggled bot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminBot"
+
+  /admin/bots/{id}/assign:
+    post:
+      operationId: adminAssignBot
+      tags: [admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminAssignBotInput"
+      responses:
+        "200":
+          description: Assigned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /admin/transactions:
+    get:
+      operationId: adminListTransactions
+      tags: [admin]
+      parameters:
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminTransaction"
+
+  /admin/transactions/{id}/review:
+    post:
+      operationId: adminReviewTransaction
+      tags: [admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminTxnReviewInput"
+      responses:
+        "200":
+          description: Reviewed transaction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminTransaction"
+
+  /admin/tickets:
+    get:
+      operationId: adminListTickets
+      tags: [admin]
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Tickets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminTicket"
+
+  /admin/tickets/{id}/reply:
+    post:
+      operationId: adminReplyTicket
+      tags: [admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminTicketReplyInput"
+      responses:
+        "200":
+          description: Replied ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminTicket"
+
+  /admin/tickets/{id}/close:
+    post:
+      operationId: adminCloseTicket
+      tags: [admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Closed ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminTicket"
+
+  /support/chat:
+    get:
+      operationId: getChatMessages
+      tags: [support]
+      responses:
+        "200":
+          description: Chat messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChatMessage"
+    post:
+      operationId: sendChatMessage
+      tags: [support]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendChatMessageInput"
+      responses:
+        "201":
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatMessage"
+
+  /admin/chat:
+    get:
+      operationId: adminListChats
+      tags: [admin]
+      responses:
+        "200":
+          description: Chat conversations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChatConversation"
+
+  /admin/chat/{userId}:
+    get:
+      operationId: adminGetChat
+      tags: [admin]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Messages for a user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChatMessage"
+    post:
+      operationId: adminSendChatMessage
+      tags: [admin]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendChatMessageInput"
+      responses:
+        "201":
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatMessage"
+
+  /admin/settings:
+    get:
+      operationId: adminGetSettings
+      tags: [admin]
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSettings"
+    put:
+      operationId: adminUpdateSettings
+      tags: [admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminSettingsInput"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSettings"
+
+  /admin/broadcast:
+    post:
+      operationId: adminBroadcast
+      tags: [admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminBroadcastInput"
+      responses:
+        "200":
+          description: Broadcast sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /admin/broadcasts:
+    get:
+      operationId: adminListBroadcasts
+      tags: [admin]
+      responses:
+        "200":
+          description: List of sent broadcasts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminBroadcast"
+
+  /admin/broadcasts/{id}:
+    delete:
+      operationId: adminDeleteBroadcast
+      tags: [admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Broadcast deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +1526,1012 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+
+    SuccessResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required: [message]
+
+    # Trade
+    TradeSignal:
+      type: object
+      properties:
+        id:
+          type: string
+        pair:
+          type: string
+        direction:
+          type: string
+        market:
+          type: string
+        confidence:
+          type: number
+        timeframe:
+          type: string
+        suggestedTp:
+          type: number
+        suggestedSl:
+          type: number
+      required: [id, pair, direction, market, confidence, timeframe, suggestedTp, suggestedSl]
+
+    ExecuteTradeInput:
+      type: object
+      properties:
+        signalId:
+          type: string
+        botId:
+          type: integer
+        targetProfit:
+          type: number
+        stopLoss:
+          type: number
+        stake:
+          type: number
+      required: [signalId, botId, targetProfit, stopLoss, stake]
+
+    TradeResult:
+      type: object
+      properties:
+        outcome:
+          type: string
+        pair:
+          type: string
+        direction:
+          type: string
+        botName:
+          type: string
+        amount:
+          type: number
+        stake:
+          type: number
+        availableBalance:
+          type: number
+        message:
+          type: string
+      required: [outcome, pair, direction, botName, amount, stake, availableBalance, message]
+
+    TradePosition:
+      type: object
+      properties:
+        id:
+          type: integer
+        signalId:
+          type: string
+        pair:
+          type: string
+        direction:
+          type: string
+        market:
+          type: string
+        botId:
+          type: integer
+        botName:
+          type: string
+        stake:
+          type: number
+        targetProfit:
+          type: number
+        stopLoss:
+          type: number
+        status:
+          type: string
+        pnl:
+          type: number
+        openedAt:
+          type: string
+        closedAt:
+          type: ["string", "null"]
+        elapsedMs:
+          type: integer
+      required: [id, signalId, pair, direction, market, botId, botName, stake, targetProfit, stopLoss, status, pnl, openedAt, closedAt, elapsedMs]
+
+    # Auth
+    RegisterInput:
+      type: object
+      properties:
+        fullName:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        referralCode:
+          type: ["string", "null"]
+      required: [fullName, email, password]
+
+    LoginInput:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required: [email, password]
+
+    ForgotPasswordInput:
+      type: object
+      properties:
+        email:
+          type: string
+      required: [email]
+
+    ResetPasswordInput:
+      type: object
+      properties:
+        token:
+          type: string
+        password:
+          type: string
+      required: [token, password]
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+      required: [token, user]
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        fullName:
+          type: string
+        email:
+          type: string
+        avatarUrl:
+          type: ["string", "null"]
+        kycStatus:
+          type: string
+        createdAt:
+          type: string
+      required: [id, fullName, email, kycStatus, createdAt]
+
+    # Dashboard
+    DashboardSummary:
+      type: object
+      properties:
+        totalBalance:
+          type: number
+        availableBalance:
+          type: number
+        todayProfit:
+          type: number
+        todayProfitPercent:
+          type: number
+        totalEarnings:
+          type: number
+        totalProfit:
+          type: number
+        earningsChangePercent:
+          type: number
+        activeBots:
+          type: integer
+        totalBots:
+          type: integer
+        winRate:
+          type: number
+        roi:
+          type: number
+        totalTrades:
+          type: integer
+      required: [totalBalance, availableBalance, todayProfit, todayProfitPercent, totalEarnings, totalProfit, earningsChangePercent, activeBots, totalBots, winRate, roi, totalTrades]
+
+    ChartPoint:
+      type: object
+      properties:
+        date:
+          type: string
+        label:
+          type: string
+        profit:
+          type: number
+        cumulative:
+          type: number
+      required: [date, label, profit, cumulative]
+
+    BotProfitItem:
+      type: object
+      properties:
+        botId:
+          type: integer
+        botName:
+          type: string
+        profit:
+          type: number
+        percentage:
+          type: number
+        color:
+          type: string
+      required: [botId, botName, profit, percentage, color]
+
+    ActivityItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+        description:
+          type: string
+        amount:
+          type: number
+        status:
+          type: string
+        createdAt:
+          type: string
+      required: [id, type, description, amount, status, createdAt]
+
+    # Bots
+    Bot:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        status:
+          type: string
+        profitToday:
+          type: number
+        winRate:
+          type: number
+        totalTrades:
+          type: integer
+        iconUrl:
+          type: ["string", "null"]
+        category:
+          type: string
+      required: [id, name, status, profitToday, winRate, totalTrades, category]
+
+    BotDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        status:
+          type: string
+        profitToday:
+          type: number
+        profitTotal:
+          type: number
+        winRate:
+          type: number
+        totalTrades:
+          type: integer
+        iconUrl:
+          type: ["string", "null"]
+        category:
+          type: string
+        description:
+          type: string
+        performance:
+          type: number
+      required: [id, name, status, profitToday, profitTotal, winRate, totalTrades, category, description, performance]
+
+    MarketplaceBot:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        price:
+          type: number
+        winRate:
+          type: number
+        category:
+          type: string
+        riskLevel:
+          type: string
+        description:
+          type: string
+        iconUrl:
+          type: ["string", "null"]
+        isPurchased:
+          type: boolean
+      required: [id, name, price, winRate, category, riskLevel, description, isPurchased]
+
+    # Cashier
+    DepositInput:
+      type: object
+      properties:
+        amount:
+          type: number
+        paymentMethod:
+          type: string
+        walletAddress:
+          type: ["string", "null"]
+      required: [amount, paymentMethod]
+
+    WithdrawInput:
+      type: object
+      properties:
+        amount:
+          type: number
+        paymentMethod:
+          type: string
+        walletAddress:
+          type: string
+      required: [amount, paymentMethod, walletAddress]
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+        amount:
+          type: number
+        status:
+          type: string
+        paymentMethod:
+          type: string
+        createdAt:
+          type: string
+        walletAddress:
+          type: ["string", "null"]
+      required: [id, type, amount, status, paymentMethod, createdAt]
+
+    PaymentMethod:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        icon:
+          type: string
+        type:
+          type: string
+        network:
+          type: ["string", "null"]
+        depositAddress:
+          type: ["string", "null"]
+      required: [id, name, icon, type]
+
+    # Team
+    ReferralInfo:
+      type: object
+      properties:
+        referralCode:
+          type: string
+        referralLink:
+          type: string
+        totalReferrals:
+          type: integer
+        totalEarnings:
+          type: number
+      required: [referralCode, referralLink, totalReferrals, totalEarnings]
+
+    TeamMember:
+      type: object
+      properties:
+        id:
+          type: integer
+        fullName:
+          type: string
+        email:
+          type: string
+        joinedAt:
+          type: string
+        earnings:
+          type: number
+        status:
+          type: string
+      required: [id, fullName, email, joinedAt, earnings, status]
+
+    TeamEarnings:
+      type: object
+      properties:
+        period:
+          type: string
+        totalEarnings:
+          type: number
+        chart:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChartPoint"
+      required: [period, totalEarnings, chart]
+
+    # Profile
+    Profile:
+      type: object
+      properties:
+        id:
+          type: integer
+        accountUid:
+          type: string
+        fullName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: ["string", "null"]
+        country:
+          type: ["string", "null"]
+        avatarUrl:
+          type: ["string", "null"]
+        kycStatus:
+          type: string
+        twoFAEnabled:
+          type: boolean
+        createdAt:
+          type: string
+      required: [id, accountUid, fullName, email, kycStatus, twoFAEnabled, createdAt]
+
+    ProfileUpdate:
+      type: object
+      properties:
+        fullName:
+          type: string
+        phone:
+          type: string
+        country:
+          type: string
+
+    ChangePasswordInput:
+      type: object
+      properties:
+        currentPassword:
+          type: string
+        newPassword:
+          type: string
+      required: [currentPassword, newPassword]
+
+    TwoFAStatus:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        qrCode:
+          type: ["string", "null"]
+      required: [enabled]
+
+    TwoFAToggleInput:
+      type: object
+      properties:
+        enable:
+          type: boolean
+        code:
+          type: ["string", "null"]
+      required: [enable]
+
+    KYCStatus:
+      type: object
+      properties:
+        status:
+          type: string
+        submittedAt:
+          type: ["string", "null"]
+        reviewedAt:
+          type: ["string", "null"]
+        rejectionReason:
+          type: ["string", "null"]
+      required: [status]
+
+    KYCSessionInput:
+      type: object
+      properties:
+        firstName: { type: string }
+        lastName: { type: string }
+        country: { type: string }
+        documentType: { type: string }
+      required: [firstName, lastName, country, documentType]
+
+    KYCSession:
+      type: object
+      properties:
+        url: { type: string }
+        sessionId: { type: string }
+      required: [url, sessionId]
+
+    KYCInput:
+      type: object
+      properties:
+        documentType:
+          type: string
+        documentFrontUrl:
+          type: string
+        selfieUrl:
+          type: string
+        proofOfAddressUrl:
+          type: ["string", "null"]
+      required: [documentType, documentFrontUrl, selfieUrl]
+
+    NotificationSettings:
+      type: object
+      properties:
+        emailNotifications:
+          type: boolean
+        botAlerts:
+          type: boolean
+        depositWithdrawal:
+          type: boolean
+        promotions:
+          type: boolean
+      required: [emailNotifications, botAlerts, depositWithdrawal, promotions]
+
+    NotificationSettingsUpdate:
+      type: object
+      properties:
+        emailNotifications:
+          type: boolean
+        botAlerts:
+          type: boolean
+        depositWithdrawal:
+          type: boolean
+        promotions:
+          type: boolean
+
+    Session:
+      type: object
+      properties:
+        id:
+          type: integer
+        device:
+          type: string
+        ip:
+          type: string
+        location:
+          type: ["string", "null"]
+        lastActive:
+          type: string
+        isCurrent:
+          type: boolean
+      required: [id, device, ip, lastActive, isCurrent]
+
+    # Notifications
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+        title:
+          type: string
+        message:
+          type: string
+        isRead:
+          type: boolean
+        createdAt:
+          type: string
+      required: [id, type, title, message, isRead, createdAt]
+
+    # Support
+    SupportTicket:
+      type: object
+      properties:
+        id:
+          type: integer
+        subject:
+          type: string
+        message:
+          type: string
+        status:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, subject, message, status, createdAt, updatedAt]
+
+    SupportTicketInput:
+      type: object
+      properties:
+        subject:
+          type: string
+        message:
+          type: string
+        category:
+          type: string
+      required: [subject, message, category]
+
+    FAQItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        question:
+          type: string
+        answer:
+          type: string
+        category:
+          type: string
+      required: [id, question, answer, category]
+
+    # Admin
+    AdminChartPoint:
+      type: object
+      properties:
+        date: { type: string }
+        value: { type: number }
+      required: [date, value]
+
+    AdminOverview:
+      type: object
+      properties:
+        totalUsers: { type: integer }
+        activeUsers: { type: integer }
+        suspendedUsers: { type: integer }
+        newUsersToday: { type: integer }
+        totalBots: { type: integer }
+        activeBotInstances: { type: integer }
+        totalDeposits: { type: number }
+        totalWithdrawals: { type: number }
+        netRevenue: { type: number }
+        pendingDeposits: { type: integer }
+        pendingWithdrawals: { type: integer }
+        pendingKyc: { type: integer }
+        openTickets: { type: integer }
+        revenueSeries:
+          type: array
+          items: { $ref: "#/components/schemas/AdminChartPoint" }
+        recentTransactions:
+          type: array
+          items: { $ref: "#/components/schemas/AdminTransaction" }
+      required: [totalUsers, activeUsers, suspendedUsers, newUsersToday, totalBots, activeBotInstances, totalDeposits, totalWithdrawals, netRevenue, pendingDeposits, pendingWithdrawals, pendingKyc, openTickets, revenueSeries, recentTransactions]
+
+    AdminUser:
+      type: object
+      properties:
+        id: { type: integer }
+        accountUid: { type: string }
+        fullName: { type: string }
+        email: { type: string }
+        status: { type: string }
+        kycStatus: { type: string }
+        balance: { type: number }
+        totalBots: { type: integer }
+        avatarUrl: { type: ["string", "null"] }
+        country: { type: ["string", "null"] }
+        createdAt: { type: string }
+      required: [id, accountUid, fullName, email, status, kycStatus, balance, totalBots, createdAt]
+
+    AdminUserBot:
+      type: object
+      properties:
+        id: { type: integer }
+        botId: { type: integer }
+        name: { type: string }
+        status: { type: string }
+        profitTotal: { type: number }
+        profitToday: { type: number }
+        createdAt: { type: string }
+      required: [id, botId, name, status, profitTotal, profitToday, createdAt]
+
+    AdminUserDetail:
+      type: object
+      properties:
+        id: { type: integer }
+        accountUid: { type: string }
+        fullName: { type: string }
+        email: { type: string }
+        status: { type: string }
+        kycStatus: { type: string }
+        balance: { type: number }
+        totalBots: { type: integer }
+        avatarUrl: { type: ["string", "null"] }
+        phone: { type: ["string", "null"] }
+        country: { type: ["string", "null"] }
+        referralCode: { type: ["string", "null"] }
+        referralCount: { type: integer }
+        totalDeposits: { type: number }
+        totalWithdrawals: { type: number }
+        createdAt: { type: string }
+        bots:
+          type: array
+          items: { $ref: "#/components/schemas/AdminUserBot" }
+        transactions:
+          type: array
+          items: { $ref: "#/components/schemas/AdminTransaction" }
+      required: [id, accountUid, fullName, email, status, kycStatus, balance, totalBots, referralCount, totalDeposits, totalWithdrawals, createdAt, bots, transactions]
+
+    AdminUserStatusInput:
+      type: object
+      properties:
+        status: { type: string }
+      required: [status]
+
+    AdminRefundByUidInput:
+      type: object
+      properties:
+        accountUid: { type: string }
+        amount: { type: number }
+        note: { type: string }
+      required: [accountUid, amount]
+
+    AdminResetPasswordResult:
+      type: object
+      properties:
+        tempPassword: { type: string }
+      required: [tempPassword]
+
+    AdminBalanceAdjustInput:
+      type: object
+      properties:
+        amount: { type: number }
+        note: { type: string }
+      required: [amount]
+
+    AdminKycItem:
+      type: object
+      properties:
+        userId: { type: integer }
+        fullName: { type: string }
+        email: { type: string }
+        status: { type: string }
+        documentType: { type: ["string", "null"] }
+        documentFrontUrl: { type: ["string", "null"] }
+        documentBackUrl: { type: ["string", "null"] }
+        selfieUrl: { type: ["string", "null"] }
+        submittedAt: { type: ["string", "null"] }
+      required: [userId, fullName, email, status]
+
+    AdminKycReviewInput:
+      type: object
+      properties:
+        action: { type: string }
+        reason: { type: string }
+      required: [action]
+
+    AdminBot:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        description: { type: string }
+        category: { type: string }
+        riskLevel: { type: string }
+        price: { type: number }
+        monthlyReturn: { type: number }
+        winRate: { type: number }
+        minInvestment: { type: number }
+        iconUrl: { type: ["string", "null"] }
+        isActive: { type: boolean }
+        activeUsers: { type: integer }
+        totalProfit: { type: number }
+        createdAt: { type: string }
+      required: [id, name, description, category, riskLevel, price, winRate, isActive, activeUsers, totalProfit, createdAt]
+
+    AdminBotInput:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string }
+        category: { type: string }
+        riskLevel: { type: string }
+        price: { type: number }
+        monthlyReturn: { type: number }
+        winRate: { type: number }
+        minInvestment: { type: number }
+        iconUrl: { type: string }
+        isActive: { type: boolean }
+      required: [name, description, category, riskLevel, price, winRate]
+
+    AdminBotUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string }
+        category: { type: string }
+        riskLevel: { type: string }
+        price: { type: number }
+        monthlyReturn: { type: number }
+        winRate: { type: number }
+        minInvestment: { type: number }
+        iconUrl: { type: string }
+        isActive: { type: boolean }
+
+    AdminAssignBotInput:
+      type: object
+      properties:
+        userId: { type: integer }
+      required: [userId]
+
+    AdminTransaction:
+      type: object
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        userName: { type: string }
+        userEmail: { type: string }
+        type: { type: string }
+        amount: { type: number }
+        status: { type: string }
+        paymentMethod: { type: ["string", "null"] }
+        network: { type: ["string", "null"] }
+        walletAddress: { type: ["string", "null"] }
+        description: { type: ["string", "null"] }
+        createdAt: { type: string }
+      required: [id, userId, userName, userEmail, type, amount, status, createdAt]
+
+    AdminTxnReviewInput:
+      type: object
+      properties:
+        action: { type: string }
+      required: [action]
+
+    AdminTicket:
+      type: object
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        userName: { type: string }
+        userEmail: { type: string }
+        subject: { type: string }
+        message: { type: string }
+        category: { type: ["string", "null"] }
+        status: { type: string }
+        adminReply: { type: ["string", "null"] }
+        createdAt: { type: string }
+        repliedAt: { type: ["string", "null"] }
+      required: [id, userId, userName, userEmail, subject, message, status, createdAt]
+
+    AdminTicketReplyInput:
+      type: object
+      properties:
+        reply: { type: string }
+      required: [reply]
+
+    AdminPaymentMethod:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        network: { type: ["string", "null"] }
+        address: { type: string }
+        enabled: { type: boolean }
+      required: [id, name, address, enabled]
+
+    AdminSettings:
+      type: object
+      properties:
+        appName: { type: string }
+        supportEmail: { type: string }
+        logoUrl: { type: ["string", "null"] }
+        maintenanceMode: { type: boolean }
+        withdrawalsEnabled: { type: boolean }
+        depositsEnabled: { type: boolean }
+        minDeposit: { type: number }
+        minWithdrawal: { type: number }
+        referralCommission: { type: number }
+        paymentMethods:
+          type: array
+          items: { $ref: "#/components/schemas/AdminPaymentMethod" }
+      required: [appName, supportEmail, maintenanceMode, withdrawalsEnabled, depositsEnabled, minDeposit, minWithdrawal, referralCommission, paymentMethods]
+
+    AdminSettingsInput:
+      type: object
+      properties:
+        appName: { type: string }
+        supportEmail: { type: string }
+        logoUrl: { type: ["string", "null"] }
+        maintenanceMode: { type: boolean }
+        withdrawalsEnabled: { type: boolean }
+        depositsEnabled: { type: boolean }
+        minDeposit: { type: number }
+        minWithdrawal: { type: number }
+        referralCommission: { type: number }
+        paymentMethods:
+          type: array
+          items: { $ref: "#/components/schemas/AdminPaymentMethod" }
+
+    DepositSession:
+      type: object
+      properties:
+        id: { type: integer }
+        status: { type: string }
+        amount: { type: number }
+        paymentMethodId: { type: string }
+        paymentMethodName: { type: string }
+        network: { type: string }
+        depositAddress: { type: string }
+        txid: { type: ["string", "null"] }
+        confirmations: { type: integer }
+        requiredConfirmations: { type: integer }
+        expiresAt: { type: string }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+      required: [id, status, amount, paymentMethodId, paymentMethodName, network, depositAddress, confirmations, requiredConfirmations, expiresAt, createdAt, updatedAt]
+
+    CreateDepositSessionInput:
+      type: object
+      properties:
+        amount: { type: number }
+        paymentMethodId: { type: string }
+      required: [amount, paymentMethodId]
+
+    SubmitTxidInput:
+      type: object
+      properties:
+        txid: { type: string }
+      required: [txid]
+
+    AdminDepositSession:
+      type: object
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        userName: { type: string }
+        userEmail: { type: string }
+        status: { type: string }
+        amount: { type: number }
+        paymentMethodId: { type: string }
+        paymentMethodName: { type: string }
+        network: { type: string }
+        depositAddress: { type: string }
+        txid: { type: ["string", "null"] }
+        confirmations: { type: integer }
+        requiredConfirmations: { type: integer }
+        expiresAt: { type: string }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+      required: [id, userId, userName, userEmail, status, amount, paymentMethodId, paymentMethodName, network, depositAddress, confirmations, requiredConfirmations, expiresAt, createdAt, updatedAt]
+
+    AdminReviewDepositInput:
+      type: object
+      properties:
+        action: { type: string }
+        confirmations: { type: integer }
+      required: [action]
+
+    ChatMessage:
+      type: object
+      properties:
+        id: { type: integer }
+        sender: { type: string }
+        message: { type: string }
+        createdAt: { type: string }
+      required: [id, sender, message, createdAt]
+
+    SendChatMessageInput:
+      type: object
+      properties:
+        message: { type: string }
+      required: [message]
+
+    ChatConversation:
+      type: object
+      properties:
+        userId: { type: integer }
+        userName: { type: string }
+        userEmail: { type: string }
+        lastMessage: { type: string }
+        lastMessageAt: { type: string }
+        unreadCount: { type: integer }
+      required: [userId, userName, userEmail, lastMessage, lastMessageAt, unreadCount]
+
+    AdminBroadcastInput:
+      type: object
+      properties:
+        title: { type: string }
+        message: { type: string }
+      required: [title, message]
+
+    AdminBroadcast:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        message: { type: string }
+        recipientCount: { type: integer }
+        createdAt: { type: string }
+      required: [id, title, message, recipientCount, createdAt]

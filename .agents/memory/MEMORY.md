@@ -1,0 +1,1 @@
+- [VIXUS AI platform](vixus-ai-platform.md) — FX trading bot admin panel; rebrand from Quantum-FX-Bot; key env vars, admin credentials, and seeding behavior.
