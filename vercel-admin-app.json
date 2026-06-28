@@ -1,0 +1,9 @@
+{
+  "buildCommand": "pnpm --filter @workspace/admin-app run build",
+  "outputDirectory": "artifacts/admin-app/dist/public",
+  "installCommand": "pnpm install",
+  "framework": null,
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
