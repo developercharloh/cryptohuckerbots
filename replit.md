@@ -87,7 +87,7 @@ Each app is a **separate Vercel project** pointing at the same GitHub repo (`dev
    - `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` — for web push notifications (optional)
 
    **User App & Admin App projects need:**
-   - `VITE_API_BASE_URL` — the deployed API server URL (e.g. `https://vixus-api.vercel.app`)
+   - `VITE_API_URL` — the deployed API server URL (e.g. `https://vixus-api.vercel.app`)
 
 4. **Deploy** — click Deploy. After first deploy, every push to `main` auto-deploys.
 

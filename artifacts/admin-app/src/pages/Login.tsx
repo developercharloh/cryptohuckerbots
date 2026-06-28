@@ -26,9 +26,7 @@ export default function Login({ onLogin }: LoginProps) {
     setLoading(true);
 
     try {
-      const base = window.location.hostname !== "localhost"
-        ? "https://vixus.ai"
-        : "";
+      const base = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
       const res = await fetch(`${base}/api/admin/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

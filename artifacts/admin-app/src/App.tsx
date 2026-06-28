@@ -20,11 +20,7 @@ import Settings from "@/pages/Settings";
 import Broadcast from "@/pages/Broadcast";
 import NotFound from "@/pages/not-found";
 
-setBaseUrl(
-  typeof window !== "undefined" && window.location.hostname !== "localhost"
-    ? "https://vixus.ai"
-    : null
-);
+setBaseUrl((import.meta.env.VITE_API_URL as string | undefined) ?? null);
 
 // Set token getter at module load so React Query has auth on the very first request.
 setAuthTokenGetter(() => localStorage.getItem("vixus_admin_token"));

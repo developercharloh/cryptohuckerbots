@@ -8,10 +8,7 @@ export function isAlarmEnabled(): boolean {
   return v === null || v === "1";
 }
 
-const API_BASE =
-  typeof window !== "undefined" && window.location.hostname !== "localhost"
-    ? "https://vixus.ai"
-    : "";
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
 
 // ─── Frequencies (Hz) ────────────────────────────────────────────────────────
 // All four voice ranges covered

@@ -65,7 +65,8 @@ export default function Login() {
     }
     setVerifying(true);
     try {
-      const r = await fetch("/api/auth/2fa/verify", {
+      const apiBase = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
+      const r = await fetch(`${apiBase}/api/auth/2fa/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tempToken, code: twoFACode }),

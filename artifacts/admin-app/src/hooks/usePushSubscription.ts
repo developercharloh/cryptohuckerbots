@@ -3,10 +3,7 @@ import { useEffect, useRef } from "react";
 const VAPID_PUBLIC_KEY =
   "BP0GfphLn7MwshBgX-xLQn7Qd0r5ZtoW0PyiBL93eyLCAJYLYC0nzuxcpcEShaSi88zlK0paSmmnK-_b59e2ZTI";
 
-const API_BASE =
-  typeof window !== "undefined" && window.location.hostname !== "localhost"
-    ? "https://vixus.ai"
-    : "";
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
 
 // import.meta.env.BASE_URL is "/admin-app/" in production (set by Vite base config)
 // and "/" in local dev. Using it ensures sw.js is found at the correct path.

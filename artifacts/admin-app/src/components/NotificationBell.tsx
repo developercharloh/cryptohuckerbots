@@ -2,8 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Bell, X, CheckCheck, Globe, Mail, Hash, User, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const API_BASE =
-  window.location.hostname !== "localhost" ? "https://vixus.ai" : "";
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
 
 function adminAuthHeaders(): HeadersInit {
   const token = localStorage.getItem("vixus_admin_token") ?? "";
