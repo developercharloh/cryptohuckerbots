@@ -5,22 +5,9 @@ import { useLogout, useGetProfile } from "@workspace/api-client-react";
 import { Layout } from "@/components/Layout";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  User as UserIcon,
-  Shield,
-  FileCheck,
-  Bell,
-  HelpCircle,
-  LogOut,
-  ChevronRight,
-  Copy,
-  Check,
-  CreditCard,
-  Settings,
-  Globe,
-  Moon,
-  BarChart2,
-  BadgeCheck,
-  Pencil,
+  User as UserIcon, Shield, FileCheck, Bell, HelpCircle, LogOut,
+  ChevronRight, Copy, Check, CreditCard, Settings, Bot, Gift,
+  History, MessageSquare, BadgeCheck, Pencil, BarChart2,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -43,203 +30,190 @@ export default function Profile() {
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
-      onSuccess: () => {
-        setAuth("", null as any);
-        queryClient.clear();
-        setLocation("/login");
-      },
-      onError: () => {
-        setAuth("", null as any);
-        queryClient.clear();
-        setLocation("/login");
-      },
+      onSuccess: () => { setAuth("", null as any); queryClient.clear(); setLocation("/login"); },
+      onError:   () => { setAuth("", null as any); queryClient.clear(); setLocation("/login"); },
     });
   };
 
-  const menuItems = [
-    { label: "Account Settings", icon: Settings, href: "/profile/personal-info", color: "text-purple-400", bg: "bg-purple-500/10" },
-    { label: "Security", icon: Shield, href: "/profile/security", color: "text-blue-400", bg: "bg-blue-500/10" },
-    { label: "KYC Verification", icon: FileCheck, href: "/profile/kyc", color: "text-orange-400", bg: "bg-orange-500/10" },
-    { label: "Notifications", icon: Bell, href: "/profile/notifications", color: "text-green-400", bg: "bg-green-500/10" },
-    { label: "Payment Methods", icon: CreditCard, href: "/cashier", color: "text-cyan-400", bg: "bg-cyan-500/10" },
-    { label: "Trading Preferences", icon: BarChart2, href: "/trade", color: "text-yellow-400", bg: "bg-yellow-500/10" },
-    { label: "Language", icon: Globe, href: "/profile", color: "text-indigo-400", bg: "bg-indigo-500/10" },
-    { label: "Support", icon: HelpCircle, href: "/support", color: "text-teal-400", bg: "bg-teal-500/10" },
-  ];
-
-  const getKycBadgeColor = (status: string) => {
+  const getKycColor = (status: string) => {
     switch (status?.toLowerCase()) {
-      case "verified":
-      case "approved":
-        return "bg-green-500/10 text-green-400";
-      case "pending":
-        return "bg-yellow-500/10 text-yellow-400";
-      default:
-        return "bg-red-500/10 text-red-400";
+      case "verified": case "approved": return { bg: "rgba(34,197,94,0.12)", color: "#22c55e", border: "rgba(34,197,94,0.2)" };
+      case "pending":                   return { bg: "rgba(234,179,8,0.12)",  color: "#eab308", border: "rgba(234,179,8,0.2)"  };
+      default:                          return { bg: "rgba(239,68,68,0.12)",  color: "#ef4444", border: "rgba(239,68,68,0.2)"  };
     }
   };
 
-  const joinedDate = profile?.createdAt
-    ? format(new Date(profile.createdAt), "MMM d, yyyy")
-    : "—";
+  const joinedDate = profile?.createdAt ? format(new Date(profile.createdAt), "MMM d, yyyy") : "—";
+  const kycColors  = getKycColor(profile?.kycStatus ?? "unverified");
+
+  const QUICK_TILES = [
+    { label: "AI Bots",     icon: Bot,      href: "/bots",                iconBg: "linear-gradient(135deg,#7C3AED,#4F46E5)", color: "#fff" },
+    { label: "Rewards",     icon: Gift,     href: "/rewards",             iconBg: "linear-gradient(135deg,#F59E0B,#EF4444)", color: "#fff" },
+    { label: "History",     icon: History,  href: "/cashier/transactions",iconBg: "linear-gradient(135deg,#3B82F6,#06B6D4)", color: "#fff" },
+    { label: "Live Chat",   icon: MessageSquare, href: "/support/chat",   iconBg: "linear-gradient(135deg,#10B981,#22C55E)", color: "#fff" },
+  ];
+
+  const MENU_ITEMS = [
+    { label: "Personal Info",     icon: UserIcon,    href: "/profile/personal-info", color: "#A78BFA", bg: "rgba(124,58,237,0.12)" },
+    { label: "Security",          icon: Shield,       href: "/profile/security",      color: "#60A5FA", bg: "rgba(59,130,246,0.12)"  },
+    { label: "KYC Verification",  icon: FileCheck,    href: "/profile/kyc",           color: "#FB923C", bg: "rgba(249,115,22,0.12)"  },
+    { label: "Notifications",     icon: Bell,         href: "/profile/notifications", color: "#4ADE80", bg: "rgba(34,197,94,0.12)"   },
+    { label: "Payment Methods",   icon: CreditCard,   href: "/cashier",               color: "#22D3EE", bg: "rgba(6,182,212,0.12)"   },
+    { label: "Trading Settings",  icon: BarChart2,    href: "/trade",                 color: "#FACC15", bg: "rgba(234,179,8,0.12)"   },
+    { label: "Support",           icon: HelpCircle,   href: "/support",               color: "#34D399", bg: "rgba(16,185,129,0.12)"  },
+    { label: "Account Settings",  icon: Settings,     href: "/profile/personal-info", color: "#818CF8", bg: "rgba(99,102,241,0.12)"  },
+  ];
 
   return (
     <Layout showNav>
-      <div className="pb-28">
+      <div style={{ background: "#07091A", minHeight: "100vh", paddingBottom: 88 }}>
+
         {/* ── Profile Hero ── */}
-        <div
-          style={{
-            background: "linear-gradient(180deg, #1a0a3a 0%, #07091A 100%)",
-            padding: "28px 16px 24px",
-            textAlign: "center",
-          }}
-        >
+        <div style={{ background: "linear-gradient(180deg, #1a0833 0%, #07091A 100%)", padding: "28px 16px 24px", textAlign: "center" }}>
           {isLoading ? (
-            <Skeleton className="w-24 h-24 rounded-full mx-auto mb-4" />
+            <Skeleton className="w-20 h-20 rounded-full mx-auto mb-3" />
           ) : (
-            <div
-              style={{
-                width: 88,
-                height: 88,
-                borderRadius: "50%",
-                background: "linear-gradient(135deg, #7C3AED 0%, #A78BFA 100%)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 36,
-                fontWeight: 800,
-                color: "#fff",
-                margin: "0 auto 14px",
-                boxShadow: "0 0 30px rgba(124,58,237,0.4)",
-              }}
-            >
-              {(profile?.fullName || user?.fullName || "U").charAt(0)}
+            <div style={{
+              width: 80, height: 80, borderRadius: "50%",
+              background: "linear-gradient(135deg, #7C3AED 0%, #A78BFA 100%)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 32, fontWeight: 800, color: "#fff",
+              margin: "0 auto 12px",
+              boxShadow: "0 0 28px rgba(124,58,237,0.45)",
+            }}>
+              {(profile?.fullName || user?.fullName || "U").charAt(0).toUpperCase()}
             </div>
           )}
 
           {isLoading ? (
-            <div className="space-y-2 flex flex-col items-center">
-              <Skeleton className="h-6 w-36" />
-              <Skeleton className="h-4 w-48" />
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-4 w-44" />
             </div>
           ) : (
             <>
-              <h2 className="text-xl font-bold tracking-tight mb-0.5">
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 2 }}>
                 {profile?.fullName || user?.fullName}
               </h2>
-              <p className="text-sm text-muted-foreground mb-2">
+              <p style={{ fontSize: 12, color: "#6B7280", marginBottom: 10 }}>
                 {profile?.email || user?.email}
               </p>
 
               {/* Verified badge */}
-              <div className="inline-flex items-center gap-1.5 bg-green-500/10 border border-green-500/20 px-3 py-1 rounded-full mb-3">
-                <BadgeCheck className="w-3.5 h-3.5 text-green-400" />
-                <span className="text-[11px] font-semibold text-green-400">Verified Account</span>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 20, padding: "4px 12px", marginBottom: 10 }}>
+                <BadgeCheck style={{ width: 13, height: 13, color: "#4ade80" }} />
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#4ade80" }}>Verified Account</span>
               </div>
 
-              {/* Account info pills */}
-              <div className="flex items-center justify-center gap-2 flex-wrap mb-3">
-                {profile?.accountUid && (
-                  <button
-                    onClick={handleCopyUid}
-                    className="inline-flex items-center gap-1.5 bg-card border border-border/50 px-3 py-1.5 rounded-xl text-[11px] font-mono font-semibold hover:border-primary/40 transition-colors"
-                  >
-                    <span className="text-muted-foreground">ID:</span>
-                    <span className="text-foreground">{profile.accountUid}</span>
-                    {copied ? (
-                      <Check className="w-3 h-3 text-green-400" />
-                    ) : (
-                      <Copy className="w-3 h-3 text-muted-foreground" />
-                    )}
-                  </button>
-                )}
-              </div>
+              {/* Account UID */}
+              {profile?.accountUid && (
+                <button
+                  onClick={handleCopyUid}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "5px 12px", cursor: "pointer", marginBottom: 12 }}
+                >
+                  <span style={{ fontSize: 10, color: "#6B7280", fontFamily: "monospace" }}>ID: {profile.accountUid}</span>
+                  {copied
+                    ? <Check style={{ width: 11, height: 11, color: "#4ade80" }} />
+                    : <Copy style={{ width: 11, height: 11, color: "#6B7280" }} />
+                  }
+                </button>
+              )}
 
-              {/* Account details row */}
-              <div className="flex items-center justify-center gap-4">
-                <div className="text-center">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Account Type</p>
-                  <p className="text-xs font-bold">Standard</p>
+              {/* Stats row */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 20, marginBottom: 14 }}>
+                <div style={{ textAlign: "center" }}>
+                  <p style={{ fontSize: 9, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>Account</p>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>Standard</p>
                 </div>
-                <div className="w-px h-8 bg-border/40" />
-                <div className="text-center">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Joined</p>
-                  <p className="text-xs font-bold">{joinedDate}</p>
+                <div style={{ width: 1, height: 28, background: "rgba(255,255,255,0.08)" }} />
+                <div style={{ textAlign: "center" }}>
+                  <p style={{ fontSize: 9, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>Joined</p>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>{joinedDate}</p>
                 </div>
-                <div className="w-px h-8 bg-border/40" />
-                <div className="text-center">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">KYC Status</p>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full capitalize font-semibold ${getKycBadgeColor(profile?.kycStatus ?? "unverified")}`}>
+                <div style={{ width: 1, height: 28, background: "rgba(255,255,255,0.08)" }} />
+                <div style={{ textAlign: "center" }}>
+                  <p style={{ fontSize: 9, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>KYC</p>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: kycColors.color }}>
                     {profile?.kycStatus === "unverified" || !profile?.kycStatus ? "Pending" : profile.kycStatus}
                   </span>
                 </div>
               </div>
-            </>
-          )}
 
-          {/* Edit Profile button */}
-          {!isLoading && (
-            <button
-              onClick={() => setLocation("/profile/personal-info")}
-              className="mt-4 inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold text-white"
-              style={{
-                background: "linear-gradient(135deg, #7C3AED 0%, #4338CA 100%)",
-                boxShadow: "0 4px 16px rgba(124,58,237,0.35)",
-              }}
-            >
-              <Pencil className="w-4 h-4" />
-              Edit Profile
-            </button>
+              {/* Edit button */}
+              <button
+                onClick={() => setLocation("/profile/personal-info")}
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "linear-gradient(135deg,#7C3AED,#4338CA)", borderRadius: 12, padding: "9px 20px", border: "none", cursor: "pointer", boxShadow: "0 4px 16px rgba(124,58,237,0.4)" }}
+              >
+                <Pencil style={{ width: 13, height: 13, color: "#fff" }} />
+                <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>Edit Profile</span>
+              </button>
+            </>
           )}
         </div>
 
-        {/* ── Menu Items ── */}
-        <div className="px-4 pt-4 space-y-2">
-          {menuItems.map((item, j) => {
-            const Icon = item.icon;
-            const isKyc = item.href === "/profile/kyc";
-
-            return (
-              <button
-                key={j}
-                type="button"
-                onClick={() => setLocation(item.href)}
-                className="w-full flex items-center justify-between p-4 rounded-2xl border border-border/30 text-left"
-                style={{ background: "rgba(13,10,32,0.9)" }}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${item.bg}`}>
-                    <Icon className={`w-5 h-5 ${item.color}`} />
+        {/* ── Quick Tiles ── */}
+        <div style={{ padding: "16px 16px 8px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
+            {QUICK_TILES.map(tile => {
+              const Icon = tile.icon;
+              return (
+                <button key={tile.href} onClick={() => setLocation(tile.href)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                  <div style={{ width: 52, height: 52, borderRadius: 16, background: tile.iconBg, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(0,0,0,0.3)" }}>
+                    <Icon style={{ width: 22, height: 22, color: tile.color }} />
                   </div>
-                  <span className="font-semibold text-sm">{item.label}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  {isKyc && profile?.kycStatus && (
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full capitalize ${getKycBadgeColor(profile.kycStatus)}`}>
-                      {profile.kycStatus === "unverified" ? "Pending" : profile.kycStatus}
-                    </span>
-                  )}
-                  <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
-                </div>
-              </button>
-            );
-          })}
+                  <span style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textAlign: "center" }}>{tile.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-          {/* Logout */}
+        {/* ── Settings Menu ── */}
+        <div style={{ padding: "8px 16px" }}>
+          <p style={{ fontSize: 10, fontWeight: 700, color: "#4B5563", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10, paddingLeft: 4 }}>Account & Settings</p>
+          <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 20, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden" }}>
+            {MENU_ITEMS.map((item, i) => {
+              const Icon = item.icon;
+              const isKyc = item.href === "/profile/kyc";
+              return (
+                <button
+                  key={i}
+                  onClick={() => setLocation(item.href)}
+                  style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 14px", background: "none", border: "none", cursor: "pointer", borderBottom: i < MENU_ITEMS.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: item.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Icon style={{ width: 17, height: 17, color: item.color }} />
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#E5E7EB" }}>{item.label}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {isKyc && profile?.kycStatus && (
+                      <span style={{ fontSize: 9, fontWeight: 700, color: kycColors.color, background: kycColors.bg, borderRadius: 6, padding: "2px 6px" }}>
+                        {profile.kycStatus === "unverified" ? "Pending" : profile.kycStatus}
+                      </span>
+                    )}
+                    <ChevronRight style={{ width: 14, height: 14, color: "#4B5563" }} />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── Logout ── */}
+        <div style={{ padding: "8px 16px 16px" }}>
           <button
-            className="w-full flex items-center justify-between p-4 rounded-2xl border border-red-500/20 text-left mt-2"
-            style={{ background: "rgba(239,68,68,0.05)" }}
             onClick={handleLogout}
             disabled={logoutMutation.isPending}
+            style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "13px 14px", background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 16, cursor: "pointer" }}
           >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
-                <LogOut className="w-5 h-5 text-red-400" />
-              </div>
-              <span className="font-semibold text-sm text-red-400">
-                {logoutMutation.isPending ? "Logging out..." : "Log Out"}
-              </span>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(239,68,68,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <LogOut style={{ width: 17, height: 17, color: "#f87171" }} />
             </div>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#f87171" }}>
+              {logoutMutation.isPending ? "Logging out..." : "Log Out"}
+            </span>
           </button>
         </div>
       </div>

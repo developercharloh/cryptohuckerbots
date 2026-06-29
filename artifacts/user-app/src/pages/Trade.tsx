@@ -1,14 +1,9 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
-  useListBots,
-  useListTradeSignals,
-  useExecuteTrade,
-  useListTradePositions,
-  useCloseTradePosition,
-  useGetDashboardSummary,
+  useListBots, useListTradeSignals, useExecuteTrade,
+  useListTradePositions, useCloseTradePosition, useGetDashboardSummary,
   TradePosition,
 } from "@workspace/api-client-react";
-
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,18 +12,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   TrendingUp, TrendingDown, Zap, Activity, Clock, Check,
   ArrowUpRight, ArrowDownRight, ChevronDown, CheckCircle2,
-  XCircle, Bot as BotIcon, BarChart2, Bell, Trash2,
+  XCircle, Bot as BotIcon, BarChart2, Bell, ChevronLeft,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip,
+} from "recharts";
 
 type Step = "configure" | "running" | "result";
 
 const STORAGE_KEY = "vixus_active_trade";
-
-const RUNTIMES = [
-  { value: 5, label: "5 Minutes" },
-];
 
 const AI_MESSAGES = [
   "Analyzing market conditions...",
@@ -53,6 +47,40 @@ const BOT_COLORS = [
 
 const RADIUS = 52;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+
+// Pair display info
+const PAIR_INFO: Record<string, { base: string; price: string; change: number; icon: string }> = {
+  "EUR/USD": { base: "EUR", price: "1.08412", change: 0.23,  icon: "€" },
+  "GBP/USD": { base: "GBP", price: "1.27105", change: 0.41,  icon: "£" },
+  "USD/JPY": { base: "USD", price: "153.420", change: -0.18, icon: "$" },
+  "BTC/USD": { base: "BTC", price: "67,821.5", change: 1.25, icon: "₿" },
+  "ETH/USD": { base: "ETH", price: "3,512.80", change: 2.04, icon: "Ξ" },
+  "XAU/USD": { base: "XAU", price: "2,342.80", change: -0.09, icon: "🥇" },
+};
+
+function seededRandom(seed: number) {
+  let s = seed;
+  return () => {
+    s = (s * 9301 + 49297) % 233280;
+    return s / 233280;
+  };
+}
+
+function generateChartData(pair: string, count = 60) {
+  let seed = 0;
+  for (let i = 0; i < pair.length; i++) seed += pair.charCodeAt(i);
+  const rand = seededRandom(seed);
+  const base = parseFloat((PAIR_INFO[pair]?.price ?? "100").replace(/,/g, "")) || 100;
+  let price = base * (0.995 + rand() * 0.01);
+  const data = [];
+  for (let i = 0; i < count; i++) {
+    price += (rand() - 0.49) * base * 0.002;
+    data.push({ i, price: parseFloat(price.toFixed(5)) });
+  }
+  return data;
+}
+
+const TIMEFRAMES = ["1m", "5m", "15m", "1H", "4H", "1D"];
 
 function AIWave() {
   return (
@@ -103,15 +131,10 @@ const fmtDuration = (ms: number) => {
 const isBuy = (d: string) => d.toUpperCase() === "BUY";
 
 type SavedTrade = {
-  positionId: number;
-  endTimeMs: number;
-  runtime: number;
-  signalId: string | number;
-  signalConfidence: number;
-  signalPair: string;
-  signalDirection: string;
+  positionId: number; endTimeMs: number; runtime: number;
+  signalId: string | number; signalConfidence: number;
+  signalPair: string; signalDirection: string;
 };
-
 type SignalInfo = { id?: string | number; confidence?: number; pair?: string; direction?: string };
 
 export default function Trade() {
@@ -127,9 +150,7 @@ export default function Trade() {
   const [step, setStep]                   = useState<Step>("configure");
   const [selectedBotId, setSelectedBotId] = useState<number | null>(null);
   const [stake, setStake]                 = useState("");
-  const [runtime, setRuntime]             = useState(5);
-  const [runtimeOpen, setRuntimeOpen]     = useState(false);
-  const runtimeRef   = useRef<HTMLDivElement>(null);
+  const [runtime]                         = useState(5);
   const [activePositionId, setActivePositionId] = useState<number | null>(null);
   const [executedSignal, setExecutedSignal]     = useState<SignalInfo | null>(null);
   const [secondsLeft, setSecondsLeft]   = useState(0);
@@ -138,17 +159,28 @@ export default function Trade() {
   const [result, setResult]             = useState<TradePosition | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
 
-  const timerRef    = useRef<ReturnType<typeof setInterval> | null>(null);
-  const finishedRef = useRef(false);
+  // Chart state
+  const [selectedPair, setSelectedPair] = useState("EUR/USD");
+  const [activeTimeframe, setActiveTimeframe] = useState("5m");
+  const [pairDropOpen, setPairDropOpen] = useState(false);
+
+  const timerRef     = useRef<ReturnType<typeof setInterval> | null>(null);
+  const finishedRef  = useRef(false);
   const restoringRef = useRef<SavedTrade | null>(null);
   const positionsReadyRef = useRef(false);
 
   const stakeNum = parseFloat(stake) || 0;
 
-  // Auto-select first bot (or bot from ?botId param)
+  const chartData = useMemo(() => generateChartData(selectedPair, 60), [selectedPair]);
+  const pairInfo = PAIR_INFO[selectedPair] ?? { base: "EUR", price: "1.08412", change: 0.23, icon: "€" };
+  const priceUp = pairInfo.change >= 0;
+
+  // Auto-select first bot
   useEffect(() => {
     if (bots.length === 0) return;
     const params = new URLSearchParams(window.location.search);
+    const pair = params.get("pair");
+    if (pair && PAIR_INFO[pair]) setSelectedPair(pair);
     const paramId = parseInt(params.get("botId") ?? "0", 10);
     if (paramId && bots.some(b => b.id === paramId)) {
       setSelectedBotId(paramId);
@@ -157,15 +189,6 @@ export default function Trade() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bots]);
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    const h = (e: MouseEvent) => {
-      if (runtimeRef.current && !runtimeRef.current.contains(e.target as Node)) setRuntimeOpen(false);
-    };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, []);
 
   // Read localStorage on mount
   useEffect(() => {
@@ -187,17 +210,14 @@ export default function Trade() {
     if (!pos) { localStorage.removeItem(STORAGE_KEY); return; }
 
     const partialSignal: SignalInfo = {
-      id: saved.signalId,
-      confidence: saved.signalConfidence,
-      pair: saved.signalPair,
-      direction: saved.signalDirection,
+      id: saved.signalId, confidence: saved.signalConfidence,
+      pair: saved.signalPair, direction: saved.signalDirection,
     };
 
     if (pos.status === "open") {
       const remaining = Math.max(0, Math.floor((saved.endTimeMs - Date.now()) / 1000));
       setActivePositionId(pos.id);
       setExecutedSignal(partialSignal);
-      setRuntime(saved.runtime);
       setTotalSecs(saved.runtime * 60);
       setSecondsLeft(remaining);
       prevStatusRef.current = "open";
@@ -209,13 +229,10 @@ export default function Trade() {
           setSecondsLeft(s => {
             if (s <= 1) {
               clearInterval(timerRef.current!);
-              closeMutation.mutate(
-                { id: posId },
-                {
-                  onSuccess: (closed) => finishTrade(closed),
-                  onError: () => queryClient.invalidateQueries({ queryKey: ["/api/trade/positions"] }),
-                }
-              );
+              closeMutation.mutate({ id: posId }, {
+                onSuccess: (closed) => finishTrade(closed),
+                onError: () => queryClient.invalidateQueries({ queryKey: ["/api/trade/positions"] }),
+              });
               return 0;
             }
             return s - 1;
@@ -223,29 +240,19 @@ export default function Trade() {
         }, 1000);
       };
 
-      if (remaining > 0) {
-        startTimer(pos.id);
-      } else {
-        closeMutation.mutate(
-          { id: pos.id },
-          {
-            onSuccess: (closed) => finishTrade(closed),
-            onError: () => queryClient.invalidateQueries({ queryKey: ["/api/trade/positions"] }),
-          }
-        );
-      }
+      if (remaining > 0) startTimer(pos.id);
+      else closeMutation.mutate({ id: pos.id }, {
+        onSuccess: (closed) => finishTrade(closed),
+        onError: () => queryClient.invalidateQueries({ queryKey: ["/api/trade/positions"] }),
+      });
     } else {
-      // Closed while offline — show result
       localStorage.removeItem(STORAGE_KEY);
       finishedRef.current = true;
       setActivePositionId(pos.id);
       setExecutedSignal(partialSignal);
       setResult(pos);
       setStep("result");
-      if (pos.pnl >= 0) {
-        setShowConfetti(true);
-        setTimeout(() => setShowConfetti(false), 5500);
-      }
+      if (pos.pnl >= 0) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 5500); }
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/summary"] });
       queryClient.invalidateQueries({ queryKey: ["/api/cashier/transactions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bots"] });
@@ -253,19 +260,16 @@ export default function Trade() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [positions]);
 
-  // Live active position from polling
   const activePosition = useMemo(() =>
     positions?.find(p => p.id === activePositionId) ?? null,
   [positions, activePositionId]);
 
-  // AI message cycling while running
   useEffect(() => {
     if (step !== "running") return;
     const id = setInterval(() => setMsgIdx(i => (i + 1) % AI_MESSAGES.length), 3300);
     return () => clearInterval(id);
   }, [step]);
 
-  // Detect natural TP/SL hit via polling
   const prevStatusRef = useRef<string | null>(null);
   useEffect(() => {
     if (!activePosition || step !== "running") return;
@@ -285,10 +289,7 @@ export default function Trade() {
     localStorage.removeItem(STORAGE_KEY);
     setResult(pos);
     setStep("result");
-    if (pos.pnl >= 0) {
-      setShowConfetti(true);
-      setTimeout(() => setShowConfetti(false), 5500);
-    }
+    if (pos.pnl >= 0) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 5500); }
     queryClient.invalidateQueries({ queryKey: ["/api/dashboard/summary"] });
     queryClient.invalidateQueries({ queryKey: ["/api/cashier/transactions"] });
     queryClient.invalidateQueries({ queryKey: ["/api/bots"] });
@@ -298,37 +299,24 @@ export default function Trade() {
 
   const handleExecute = () => {
     if (!selectedBotId || stakeNum < 1) return;
-    if (!signals.length) {
-      toast({ title: "No signals available", variant: "destructive" });
-      return;
-    }
+    if (!signals.length) { toast({ title: "No signals available", variant: "destructive" }); return; }
     if (stakeNum > availableBalance) {
-      toast({
-        title: "Insufficient balance",
-        description: `Your available balance is $${availableBalance.toFixed(2)}. Please deposit or reduce your stake.`,
-        variant: "destructive",
-      });
+      toast({ title: "Insufficient balance", description: `Available: $${availableBalance.toFixed(2)}`, variant: "destructive" });
       return;
     }
-    // Pick a random signal that is different from the last used pair
     const lastPair = localStorage.getItem("vixus_last_pair") ?? "";
     const pool = signals.filter(s => s.pair !== lastPair);
     const candidates = pool.length > 0 ? pool : signals;
     const signal = candidates[Math.floor(Math.random() * candidates.length)];
-    const secs   = runtime * 60;
+    const secs = runtime * 60;
 
     executeMutation.mutate(
       { data: { signalId: signal.id, botId: selectedBotId, targetProfit: signal.suggestedTp, stopLoss: signal.suggestedSl, stake: stakeNum } },
       {
         onSuccess: (pos) => {
           const endTimeMs = Date.now() + secs * 1000;
-          localStorage.setItem(STORAGE_KEY, JSON.stringify({
-            positionId: pos.id, endTimeMs, runtime,
-            signalId: signal.id, signalConfidence: signal.confidence,
-            signalPair: signal.pair, signalDirection: signal.direction,
-          } as SavedTrade));
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ positionId: pos.id, endTimeMs, runtime, signalId: signal.id, signalConfidence: signal.confidence, signalPair: signal.pair, signalDirection: signal.direction } as SavedTrade));
           localStorage.setItem("vixus_last_pair", signal.pair);
-
           setActivePositionId(pos.id);
           setExecutedSignal(signal);
           prevStatusRef.current = "open";
@@ -337,59 +325,43 @@ export default function Trade() {
           setSecondsLeft(secs);
           setMsgIdx(0);
           setStep("running");
-
           queryClient.invalidateQueries({ queryKey: ["/api/trade/positions"] });
           queryClient.invalidateQueries({ queryKey: ["/api/dashboard/summary"] });
-
           timerRef.current = setInterval(() => {
             setSecondsLeft(s => {
               if (s <= 1) {
                 clearInterval(timerRef.current!);
-                closeMutation.mutate(
-                  { id: pos.id },
-                  {
-                    onSuccess: (closed) => finishTrade(closed),
-                    onError: () => queryClient.invalidateQueries({ queryKey: ["/api/trade/positions"] }),
-                  }
-                );
+                closeMutation.mutate({ id: pos.id }, {
+                  onSuccess: (closed) => finishTrade(closed),
+                  onError: () => queryClient.invalidateQueries({ queryKey: ["/api/trade/positions"] }),
+                });
                 return 0;
               }
               return s - 1;
             });
           }, 1000);
         },
-        onError: (err: any) => {
-          toast({ title: "Trade failed", description: err.message, variant: "destructive" });
-        },
+        onError: (err: any) => toast({ title: "Trade failed", description: err.message, variant: "destructive" }),
       }
     );
   };
 
   const handleReset = () => {
     localStorage.removeItem(STORAGE_KEY);
-    setStep("configure");
-    setActivePositionId(null);
-    setResult(null);
-    setShowConfetti(false);
-    setStake("");
-    prevStatusRef.current = null;
-    finishedRef.current = false;
+    setStep("configure"); setActivePositionId(null); setResult(null);
+    setShowConfetti(false); setStake(""); prevStatusRef.current = null; finishedRef.current = false;
   };
 
   const handleCashOut = useCallback(() => {
     if (!activePositionId) return;
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-    closeMutation.mutate(
-      { id: activePositionId },
-      {
-        onSuccess: (closed) => finishTrade(closed),
-        onError: () => queryClient.invalidateQueries({ queryKey: ["/api/trade/positions"] }),
-      }
-    );
+    closeMutation.mutate({ id: activePositionId }, {
+      onSuccess: (closed) => finishTrade(closed),
+      onError: () => queryClient.invalidateQueries({ queryKey: ["/api/trade/positions"] }),
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePositionId]);
 
-  // Clear-history for journal
   const [journalClearedBefore, setJournalClearedBefore] = useState<number>(() =>
     parseInt(localStorage.getItem("vixus_cleared_positions_before") ?? "0", 10)
   );
@@ -404,11 +376,11 @@ export default function Trade() {
   const mm = Math.floor(secondsLeft / 60).toString().padStart(2, "0");
   const ss = (secondsLeft % 60).toString().padStart(2, "0");
 
-  const history    = (positions || [])
+  const history = (positions || [])
     .filter(p => p.status !== "open")
     .filter(p => !p.closedAt || new Date(p.closedAt).getTime() >= journalClearedBefore)
     .slice(0, 30);
-  // Show a random signal as "selected" — different from last used pair
+
   const bestSignal = useMemo(() => {
     if (!signals.length) return null;
     const lastPair = localStorage.getItem("vixus_last_pair") ?? "";
@@ -417,13 +389,8 @@ export default function Trade() {
     return candidates[Math.floor(Date.now() / 60_000) % candidates.length];
   }, [signals]);
 
-  // Running-view derived values
   const pos = activePosition;
-  // In the final 10 s of the countdown clamp P&L so the screen never flips
-  // to red right before the trade closes (the server guarantees ≥10 % of TP).
-  const minDisplayPnl = (pos && secondsLeft <= 10 && secondsLeft > 0)
-    ? pos.stake * 0.04
-    : -Infinity;
+  const minDisplayPnl = (pos && secondsLeft <= 10 && secondsLeft > 0) ? pos.stake * 0.04 : -Infinity;
   const pnl   = Math.max(pos?.pnl ?? 0, minDisplayPnl);
   const posUp = pnl >= 0;
   const posBuy = pos ? isBuy(pos.direction) : true;
@@ -431,7 +398,8 @@ export default function Trade() {
     ? Math.max(0, Math.min(100, ((pnl + pos.stopLoss) / (pos.targetProfit + pos.stopLoss)) * 100))
     : 50;
 
-  // ─── JOURNAL ROWS (shared) ────────────────────────────────────────────────
+  const PAIRS_LIST = Object.keys(PAIR_INFO);
+
   const JournalRows = (
     <>
       {history.length === 0 ? (
@@ -487,446 +455,348 @@ export default function Trade() {
     </>
   );
 
-  // ─── RENDER ───────────────────────────────────────────────────────────────
   return (
     <Layout showNav>
       {showConfetti && <Confetti />}
-      <div className="flex flex-col h-[100dvh]">
+      <div style={{ background: "#07091A", minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-6 pb-4 shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 bg-gradient-to-br from-primary to-purple-700 rounded-xl flex items-center justify-center shadow-lg shadow-primary/30">
-              <Zap className="w-4 h-4 text-white fill-white" />
-            </div>
-            <div>
-              <p className="font-bold text-sm leading-tight">AI Trade Terminal</p>
-              <p className="text-[10px] text-muted-foreground">VIXUS AI</p>
-            </div>
-          </div>
-          <button className="w-9 h-9 bg-card rounded-xl flex items-center justify-center relative">
-            <Bell className="w-4 h-4" />
-            <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full border-2 border-card" />
-          </button>
-        </div>
-
-        {/* ── CONFIGURE ── */}
-        {step === "configure" && (
-          <div className="flex-1 overflow-y-auto px-5 pb-32 space-y-6 pt-1">
-
-            {/* Best signal preview */}
-            {bestSignal && (() => {
-              const buy = isBuy(bestSignal.direction);
-              return (
-                <div className={`rounded-2xl p-4 border ${buy ? "bg-green-500/5 border-green-500/20" : "bg-red-500/5 border-red-500/20"}`}>
-                  <p className="text-[10px] text-muted-foreground mb-2.5 uppercase tracking-widest font-semibold">Best Signal — Auto Selected</p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${buy ? "bg-green-500/15 text-green-500" : "bg-red-500/15 text-red-500"}`}>
-                        {buy ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
-                      </div>
-                      <div>
-                        <p className="font-bold">{bestSignal.pair}</p>
-                        <p className="text-[10px] text-muted-foreground">{bestSignal.market} · {bestSignal.timeframe}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <Badge className={`text-[10px] border-none mb-1 block ${buy ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"}`}>
-                        {bestSignal.direction}
-                      </Badge>
-                      <p className={`text-sm font-bold ${bestSignal.confidence >= 85 ? "text-green-400" : "text-foreground"}`}>
-                        {bestSignal.confidence}% AI
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* 1 — Stake */}
-            <section>
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center">1</div>
-                  <h2 className="text-sm font-bold">Stake Amount</h2>
-                </div>
-                <span className={`text-xs font-medium ${stakeNum > availableBalance && stakeNum > 0 ? "text-red-400" : "text-muted-foreground"}`}>
-                  Available: ${availableBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-              </div>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium select-none">$</span>
-                <Input
-                  type="number" placeholder="Enter amount..." value={stake}
-                  onChange={e => setStake(e.target.value)}
-                  className={`bg-card border-none h-14 rounded-xl text-lg font-bold pl-8 pr-4 ${stakeNum > availableBalance && stakeNum > 0 ? "ring-2 ring-red-500/60" : ""}`}
-                />
-              </div>
-              {stakeNum > availableBalance && stakeNum > 0 && (
-                <p className="text-xs text-red-400 mt-1.5 font-medium">Stake exceeds your available balance</p>
-              )}
-              <div className="flex gap-2 mt-2.5">
-                {[50, 100, 250, 500].map(v => (
-                  <button
-                    key={v} onClick={() => setStake(v.toString())}
-                    className={`flex-1 py-2 rounded-xl text-xs font-semibold border-2 transition-all ${
-                      stakeNum === v ? "bg-primary border-primary text-white shadow-lg shadow-primary/30" : "border-border/40 text-muted-foreground bg-card"
-                    }`}
-                  >${v}</button>
-                ))}
-              </div>
-            </section>
-
-            {/* 2 — Duration */}
-            <section>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center">2</div>
-                <h2 className="text-sm font-bold">Trade Duration</h2>
-              </div>
-              <div ref={runtimeRef} className="relative">
-                <button onClick={() => setRuntimeOpen(o => !o)}
-                  className="w-full flex items-center justify-between bg-card h-14 rounded-xl px-4 text-sm font-semibold">
-                  <span className="flex items-center gap-2.5">
-                    <Clock className="w-4 h-4 text-primary" />
-                    {RUNTIMES.find(r => r.value === runtime)?.label}
-                  </span>
-                  <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${runtimeOpen ? "rotate-180" : ""}`} />
-                </button>
-                {runtimeOpen && (
-                  <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-card border border-border/40 rounded-2xl shadow-2xl overflow-hidden">
-                    {RUNTIMES.map(r => (
-                      <button key={r.value} onClick={() => { setRuntime(r.value); setRuntimeOpen(false); }}
-                        className={`w-full text-left px-4 py-3.5 text-sm flex items-center justify-between transition-colors ${
-                          r.value === runtime ? "bg-primary text-white font-semibold" : "hover:bg-background text-foreground"
-                        }`}>
-                        {r.label}
-                        {r.value === runtime && <Check className="w-4 h-4" />}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </section>
-
-            {/* 3 — Bot */}
-            <section>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center">3</div>
-                <h2 className="text-sm font-bold">Select Bot</h2>
-              </div>
-              {loadingBots ? (
-                <div className="space-y-2.5">{Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-[72px] w-full rounded-2xl" />)}</div>
-              ) : bots.length === 0 ? (
-                <div className="bg-card rounded-2xl p-6 text-center">
-                  <BotIcon className="w-10 h-10 text-muted-foreground/20 mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground mb-1">No bots in your portfolio.</p>
-                  <p className="text-xs text-muted-foreground/60">Purchase a bot from the Bots tab first.</p>
-                </div>
-              ) : (
-                <div className="space-y-2.5">
-                  {bots.map((bot, i) => (
-                    <button key={bot.id} onClick={() => setSelectedBotId(bot.id)}
-                      className={`w-full flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${
-                        selectedBotId === bot.id ? "border-primary bg-primary/5 shadow-md shadow-primary/10" : "border-transparent bg-card"
-                      }`}>
-                      <div className={`w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 bg-gradient-to-br ${BOT_COLORS[i % BOT_COLORS.length]}`}>
-                        {bot.name.charAt(0)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm truncate">{bot.name}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] text-green-400 font-medium">Win {bot.winRate}%</span>
-                          <span className="text-[10px] text-muted-foreground">· Today +${bot.profitToday}</span>
-                        </div>
-                      </div>
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                        selectedBotId === bot.id ? "border-primary bg-primary" : "border-muted"
-                      }`}>
-                        {selectedBotId === bot.id && <Check className="w-3 h-3 text-white stroke-[3]" />}
-                      </div>
+        {/* ── Exchange Header ── */}
+        <div style={{ padding: "16px 16px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {/* Pair selector */}
+            <div style={{ position: "relative" }}>
+              <button
+                onClick={() => setPairDropOpen(o => !o)}
+                style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "6px 10px", cursor: "pointer" }}
+              >
+                <span style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>{selectedPair}</span>
+                <ChevronDown style={{ width: 14, height: 14, color: "#9CA3AF" }} />
+              </button>
+              {pairDropOpen && (
+                <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 50, background: "#131626", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: 6, minWidth: 130, boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}>
+                  {PAIRS_LIST.map(p => (
+                    <button key={p} onClick={() => { setSelectedPair(p); setPairDropOpen(false); }}
+                      style={{ width: "100%", textAlign: "left", padding: "7px 10px", borderRadius: 8, background: p === selectedPair ? "rgba(124,58,237,0.2)" : "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, color: p === selectedPair ? "#A78BFA" : "#E5E7EB" }}>
+                      {p}
                     </button>
                   ))}
                 </div>
               )}
-            </section>
+            </div>
 
-            {/* Summary */}
-            {selectedBotId && stakeNum >= 1 && bestSignal && (() => {
-              const bot = bots.find(b => b.id === selectedBotId);
-              const buy = isBuy(bestSignal.direction);
-              return (
-                <div className="bg-gradient-to-br from-primary/15 to-purple-950/40 border border-primary/25 rounded-2xl p-4 space-y-3">
-                  <p className="text-[10px] text-primary/80 uppercase tracking-widest font-semibold">Trade Summary</p>
+            {/* Live price */}
+            <div>
+              <p style={{ fontSize: 18, fontWeight: 800, color: "#fff", lineHeight: 1 }}>{pairInfo.price}</p>
+              <div style={{ display: "flex", alignItems: "center", gap: 3, marginTop: 2 }}>
+                {priceUp ? <TrendingUp style={{ width: 10, height: 10, color: "#22c55e" }} /> : <TrendingDown style={{ width: 10, height: 10, color: "#ef4444" }} />}
+                <span style={{ fontSize: 11, fontWeight: 700, color: priceUp ? "#22c55e" : "#ef4444" }}>
+                  {priceUp ? "+" : ""}{pairInfo.change.toFixed(2)}%
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 20, padding: "3px 8px" }}>
+              <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#22c55e", boxShadow: "0 0 5px #22c55e" }} />
+              <span style={{ fontSize: 9, fontWeight: 700, color: "#22c55e" }}>LIVE</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Price Chart ── */}
+        <div style={{ padding: "8px 0 0", height: 160, position: "relative" }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor={priceUp ? "#22c55e" : "#ef4444"} stopOpacity={0.25} />
+                  <stop offset="95%" stopColor={priceUp ? "#22c55e" : "#ef4444"} stopOpacity={0}    />
+                </linearGradient>
+              </defs>
+              <Area
+                type="monotone"
+                dataKey="price"
+                stroke={priceUp ? "#22c55e" : "#ef4444"}
+                strokeWidth={1.5}
+                fill="url(#chartGrad)"
+                dot={false}
+                isAnimationActive={false}
+              />
+              <Tooltip
+                contentStyle={{ background: "#1a1f36", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 11 }}
+                itemStyle={{ color: "#fff" }}
+                labelStyle={{ display: "none" }}
+                formatter={(v: any) => [v.toFixed(5), "Price"]}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* ── Timeframe selector ── */}
+        <div style={{ display: "flex", gap: 4, padding: "6px 16px 12px", overflowX: "auto" }}>
+          {TIMEFRAMES.map(tf => (
+            <button
+              key={tf}
+              onClick={() => setActiveTimeframe(tf)}
+              style={{
+                padding: "4px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, border: "none", cursor: "pointer",
+                background: activeTimeframe === tf ? "linear-gradient(135deg,#7C3AED,#4F46E5)" : "rgba(255,255,255,0.06)",
+                color: activeTimeframe === tf ? "#fff" : "#6B7280",
+                boxShadow: activeTimeframe === tf ? "0 2px 8px rgba(124,58,237,0.4)" : "none",
+              }}
+            >
+              {tf}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Divider ── */}
+        <div style={{ height: 1, background: "rgba(255,255,255,0.06)", margin: "0 16px" }} />
+
+        {/* ── Trade Panel ── */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px", paddingBottom: 88 }}>
+
+          {/* ── CONFIGURE ── */}
+          {step === "configure" && (
+            <div className="space-y-5">
+              {/* Best signal */}
+              {bestSignal && (() => {
+                const buy = isBuy(bestSignal.direction);
+                return (
+                  <div style={{ borderRadius: 16, padding: 14, border: `1px solid ${buy ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)"}`, background: buy ? "rgba(34,197,94,0.05)" : "rgba(239,68,68,0.05)" }}>
+                    <p style={{ fontSize: 9, color: "#6B7280", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>AI Signal — Auto Selected</p>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ width: 36, height: 36, borderRadius: "50%", background: buy ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          {buy ? <ArrowUpRight style={{ width: 18, height: 18, color: "#22c55e" }} /> : <ArrowDownRight style={{ width: 18, height: 18, color: "#ef4444" }} />}
+                        </div>
+                        <div>
+                          <p style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>{bestSignal.pair}</p>
+                          <p style={{ fontSize: 10, color: "#6B7280" }}>{bestSignal.market} · {bestSignal.timeframe}</p>
+                        </div>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ background: buy ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)", borderRadius: 6, padding: "3px 8px", marginBottom: 4 }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: buy ? "#22c55e" : "#ef4444" }}>{bestSignal.direction}</span>
+                        </div>
+                        <p style={{ fontSize: 13, fontWeight: 800, color: bestSignal.confidence >= 85 ? "#22c55e" : "#fff" }}>
+                          {bestSignal.confidence}% AI
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Stake */}
+              <div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ width: 18, height: 18, borderRadius: "50%", background: "rgba(124,58,237,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <span style={{ fontSize: 9, fontWeight: 800, color: "#A78BFA" }}>1</span>
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>Stake Amount</span>
+                  </div>
+                  <span style={{ fontSize: 11, color: stakeNum > availableBalance && stakeNum > 0 ? "#ef4444" : "#6B7280" }}>
+                    Avail: ${availableBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div style={{ position: "relative" }}>
+                  <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "#6B7280", fontWeight: 600 }}>$</span>
+                  <Input
+                    type="number" placeholder="Enter amount..." value={stake}
+                    onChange={e => setStake(e.target.value)}
+                    style={{ paddingLeft: 28, height: 52, background: "rgba(255,255,255,0.05)", border: stakeNum > availableBalance && stakeNum > 0 ? "1px solid #ef4444" : "1px solid rgba(255,255,255,0.1)", borderRadius: 12, fontSize: 16, fontWeight: 700, color: "#fff" }}
+                  />
+                </div>
+                {/* Quick amounts */}
+                <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                  {[10, 25, 50, 100].map(amt => (
+                    <button key={amt} onClick={() => setStake(String(amt))}
+                      style={{ flex: 1, padding: "5px 0", borderRadius: 8, background: parseFloat(stake) === amt ? "rgba(124,58,237,0.3)" : "rgba(255,255,255,0.05)", border: `1px solid ${parseFloat(stake) === amt ? "rgba(124,58,237,0.5)" : "rgba(255,255,255,0.08)"}`, fontSize: 11, fontWeight: 700, color: parseFloat(stake) === amt ? "#A78BFA" : "#9CA3AF", cursor: "pointer" }}>
+                      ${amt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Bot select */}
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                  <div style={{ width: 18, height: 18, borderRadius: "50%", background: "rgba(124,58,237,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <span style={{ fontSize: 9, fontWeight: 800, color: "#A78BFA" }}>2</span>
+                  </div>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>Select AI Bot</span>
+                </div>
+                {loadingBots ? (
+                  <div style={{ display: "flex", gap: 8 }}>{[1,2].map(i => <Skeleton key={i} className="h-20 flex-1 rounded-2xl" />)}</div>
+                ) : (
+                  <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
+                    {bots.map((bot, idx) => {
+                      const active = selectedBotId === bot.id;
+                      return (
+                        <button key={bot.id} onClick={() => setSelectedBotId(bot.id)}
+                          style={{ flexShrink: 0, width: 120, padding: "10px 10px", borderRadius: 14, background: active ? "rgba(124,58,237,0.2)" : "rgba(255,255,255,0.04)", border: `1px solid ${active ? "rgba(124,58,237,0.5)" : "rgba(255,255,255,0.08)"}`, cursor: "pointer", textAlign: "center" }}>
+                          <div style={{ width: 32, height: 32, borderRadius: 10, background: `linear-gradient(135deg, ${["#7C3AED,#4F46E5","#3B82F6,#06B6D4","#F59E0B,#EF4444","#10B981,#22C55E","#EC4899,#F43F5E"][idx%5]})`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 6px" }}>
+                            <BotIcon style={{ width: 16, height: 16, color: "#fff" }} />
+                          </div>
+                          <p style={{ fontSize: 10, fontWeight: 700, color: active ? "#A78BFA" : "#E5E7EB", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{bot.name}</p>
+                          <p style={{ fontSize: 9, color: "#6B7280" }}>{bot.winRate ?? 85}% win</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Execute button */}
+              <button
+                onClick={handleExecute}
+                disabled={executeMutation.isPending || !selectedBotId || stakeNum < 1 || stakeNum > availableBalance}
+                style={{
+                  width: "100%", height: 56, borderRadius: 16, border: "none", cursor: "pointer",
+                  background: executeMutation.isPending || !selectedBotId || stakeNum < 1 ? "rgba(124,58,237,0.3)" : "linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)",
+                  fontSize: 15, fontWeight: 800, color: "#fff",
+                  boxShadow: "0 4px 20px rgba(124,58,237,0.4)",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                }}
+              >
+                <Zap style={{ width: 18, height: 18, fill: "#fff", color: "#fff" }} />
+                {executeMutation.isPending ? "Executing..." : "Execute AI Trade"}
+              </button>
+
+              {/* Trade Journal */}
+              {history.length > 0 && (
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                    <p style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>Trade Journal</p>
+                    <button onClick={handleClearJournal} style={{ fontSize: 10, color: "#6B7280", background: "none", border: "none", cursor: "pointer" }}>Clear</button>
+                  </div>
+                  {JournalRows}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── RUNNING ── */}
+          {step === "running" && pos && (
+            <div className="flex flex-col items-center gap-5 pt-2">
+              {/* Timer ring */}
+              <div style={{ position: "relative", width: 140, height: 140 }}>
+                <svg width={140} height={140} style={{ transform: "rotate(-90deg)" }}>
+                  <circle cx={70} cy={70} r={RADIUS} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={8} />
+                  <circle cx={70} cy={70} r={RADIUS} fill="none"
+                    stroke={posUp ? "#22c55e" : "#ef4444"}
+                    strokeWidth={8} strokeLinecap="round"
+                    strokeDasharray={CIRCUMFERENCE}
+                    strokeDashoffset={dashOffset}
+                    style={{ transition: "stroke-dashoffset 1s linear" }}
+                  />
+                </svg>
+                <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                  <p style={{ fontSize: 26, fontWeight: 800, color: "#fff", fontFamily: "monospace", lineHeight: 1 }}>{mm}:{ss}</p>
+                  <p style={{ fontSize: 10, color: "#6B7280" }}>remaining</p>
+                </div>
+              </div>
+
+              {/* Pair + direction */}
+              <div style={{ textAlign: "center" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "center", marginBottom: 4 }}>
+                  <p style={{ fontSize: 20, fontWeight: 800, color: "#fff" }}>{executedSignal?.pair ?? pos.pair}</p>
+                  <div style={{ background: posBuy ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)", borderRadius: 8, padding: "3px 10px" }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: posBuy ? "#22c55e" : "#ef4444" }}>{pos.direction}</span>
+                  </div>
+                </div>
+                <AIWave />
+                <p style={{ fontSize: 11, color: "#6B7280", marginTop: 6 }}>{AI_MESSAGES[msgIdx]}</p>
+              </div>
+
+              {/* P&L */}
+              <div style={{ width: "100%", background: "rgba(255,255,255,0.04)", borderRadius: 20, padding: "16px 20px", border: "1px solid rgba(255,255,255,0.07)", textAlign: "center" }}>
+                <p style={{ fontSize: 10, color: "#6B7280", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.06em" }}>Live P&L</p>
+                <p style={{ fontSize: 36, fontWeight: 900, color: posUp ? "#22c55e" : "#ef4444", fontFamily: "monospace" }}>
+                  {posUp ? "+" : "−"}${Math.abs(pnl).toFixed(2)}
+                </p>
+                <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2, marginTop: 12 }}>
+                  <div style={{ height: 4, borderRadius: 2, background: posUp ? "#22c55e" : "#ef4444", width: `${pct}%`, transition: "width 1s ease" }} />
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
+                  <span style={{ fontSize: 9, color: "#ef4444" }}>SL −${pos.stopLoss.toFixed(2)}</span>
+                  <span style={{ fontSize: 9, color: "#22c55e" }}>TP +${pos.targetProfit.toFixed(2)}</span>
+                </div>
+              </div>
+
+              {/* Stake info */}
+              <div style={{ width: "100%", display: "flex", gap: 8 }}>
+                <div style={{ flex: 1, background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: "10px 12px", border: "1px solid rgba(255,255,255,0.07)", textAlign: "center" }}>
+                  <p style={{ fontSize: 9, color: "#6B7280", marginBottom: 3 }}>STAKE</p>
+                  <p style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>${pos.stake.toFixed(2)}</p>
+                </div>
+                <div style={{ flex: 1, background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: "10px 12px", border: "1px solid rgba(255,255,255,0.07)", textAlign: "center" }}>
+                  <p style={{ fontSize: 9, color: "#6B7280", marginBottom: 3 }}>AI CONF.</p>
+                  <p style={{ fontSize: 15, fontWeight: 800, color: "#A78BFA" }}>{executedSignal?.confidence ?? "—"}%</p>
+                </div>
+              </div>
+
+              {/* Cash out */}
+              <button onClick={handleCashOut} disabled={closeMutation.isPending}
+                style={{ width: "100%", height: 52, borderRadius: 16, background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", fontSize: 14, fontWeight: 700, color: "#f87171", cursor: "pointer" }}>
+                {closeMutation.isPending ? "Closing..." : "Cash Out Early"}
+              </button>
+            </div>
+          )}
+
+          {/* ── RESULT ── */}
+          {step === "result" && result && (() => {
+            const win = result.pnl >= 0;
+            const buy = isBuy(result.direction);
+            const roi = result.stake > 0 ? (result.pnl / result.stake) * 100 : 0;
+            return (
+              <div className="flex flex-col items-center gap-5 pt-2">
+                {/* Result icon */}
+                <div style={{ width: 88, height: 88, borderRadius: "50%", background: win ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)", border: `2px solid ${win ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {win ? <CheckCircle2 style={{ width: 40, height: 40, color: "#22c55e" }} /> : <XCircle style={{ width: 40, height: 40, color: "#ef4444" }} />}
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <p style={{ fontSize: 13, color: "#6B7280", marginBottom: 4 }}>{win ? "Trade Closed — Profit!" : "Trade Closed — Loss"}</p>
+                  <p style={{ fontSize: 44, fontWeight: 900, color: win ? "#22c55e" : "#ef4444", fontFamily: "monospace", lineHeight: 1 }}>
+                    {win ? "+" : "−"}${Math.abs(result.pnl).toFixed(2)}
+                  </p>
+                  <p style={{ fontSize: 13, color: "#6B7280", marginTop: 4 }}>{roi > 0 ? "+" : ""}{roi.toFixed(1)}% ROI on ${result.stake.toFixed(0)} stake</p>
+                </div>
+
+                {/* Stats */}
+                <div style={{ width: "100%", background: "rgba(255,255,255,0.04)", borderRadius: 18, padding: "14px 16px", border: "1px solid rgba(255,255,255,0.07)" }}>
                   {[
-                    { k: "Signal",    v: `${bestSignal.pair} ${bestSignal.direction}`, c: buy ? "text-green-400" : "text-red-400" },
-                    { k: "Bot",       v: bot?.name ?? "—", c: "" },
-                    { k: "Stake",     v: `$${stakeNum.toFixed(2)}`, c: "" },
-                    { k: "Duration",  v: RUNTIMES.find(r => r.value === runtime)?.label ?? "", c: "" },
-                  ].map(({ k, v, c }) => (
-                    <div key={k} className="flex items-center justify-between">
-                      <span className="text-[11px] text-muted-foreground">{k}</span>
-                      <span className={`text-[11px] font-semibold ${c || "text-foreground"}`}>{v}</span>
+                    ["Pair", result.pair],
+                    ["Direction", result.direction],
+                    ["Duration", result.elapsedMs > 0 ? fmtDuration(result.elapsedMs) : "—"],
+                    ["Status", result.status === "tp_hit" ? "TP Hit ✓" : result.status === "sl_hit" ? "SL Hit ✗" : result.status === "closed_manual" ? "Manual Close" : "Expired"],
+                  ].map(([label, val]) => (
+                    <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                      <span style={{ fontSize: 12, color: "#6B7280" }}>{label}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>{val}</span>
                     </div>
                   ))}
                 </div>
-              );
-            })()}
 
-            {/* Journal section — always visible below configure */}
-            <div className="pt-2">
-              <div className="flex items-center gap-2 mb-3">
-                <BarChart2 className="w-4 h-4 text-primary" />
-                <h2 className="text-sm font-bold">Trade Journal</h2>
+                <button onClick={handleReset}
+                  style={{ width: "100%", height: 52, borderRadius: 16, background: "linear-gradient(135deg, #7C3AED, #4F46E5)", border: "none", fontSize: 14, fontWeight: 800, color: "#fff", cursor: "pointer", boxShadow: "0 4px 16px rgba(124,58,237,0.4)", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <Zap style={{ width: 16, height: 16, fill: "#fff" }} />
+                  New Trade
+                </button>
+
                 {history.length > 0 && (
-                  <span className="text-[10px] text-muted-foreground bg-card rounded-full px-2 py-0.5">{history.length} trades</span>
-                )}
-                {history.length > 0 && (
-                  <button onClick={handleClearJournal} className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground hover:text-destructive transition-colors">
-                    <Trash2 className="w-3 h-3" />Clear
-                  </button>
+                  <div style={{ width: "100%" }}>
+                    <p style={{ fontSize: 13, fontWeight: 800, color: "#fff", marginBottom: 10 }}>Trade Journal</p>
+                    {JournalRows}
+                  </div>
                 )}
               </div>
-              {JournalRows}
-            </div>
-          </div>
-        )}
-
-        {/* ── RUNNING ── */}
-        {step === "running" && (
-          <div className="flex-1 overflow-y-auto px-5 pb-10 space-y-5 pt-1">
-
-            {/* Status bar */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center">
-                  <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" />
-                </div>
-                <div>
-                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Bot Active</p>
-                  <p className="text-sm font-bold">{bots.find(b => b.id === selectedBotId)?.name ?? "—"}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5 bg-green-500/10 border border-green-500/20 px-3 py-1.5 rounded-full">
-                <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                <span className="text-[10px] text-green-400 font-bold tracking-wider">LIVE</span>
-              </div>
-            </div>
-
-            {/* Pair card */}
-            {pos && (
-              <div className={`w-full rounded-2xl p-4 flex items-center justify-between border ${posBuy ? "bg-green-500/5 border-green-500/20" : "bg-red-500/5 border-red-500/20"}`}>
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${posBuy ? "bg-green-500/15 text-green-500" : "bg-red-500/15 text-red-500"}`}>
-                    {posBuy ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
-                  </div>
-                  <div>
-                    <p className="font-bold">{pos.pair}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <Badge className={`text-[10px] border-none ${posBuy ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"}`}>
-                        {pos.direction}
-                      </Badge>
-                      {executedSignal?.confidence && (
-                        <span className="text-[10px] text-muted-foreground">{executedSignal.confidence}% AI confidence</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] text-muted-foreground">Stake</p>
-                  <p className="text-sm font-bold">${pos.stake.toFixed(2)}</p>
-                </div>
-              </div>
-            )}
-
-            {/* Circular timer */}
-            <div className="flex justify-center">
-              <div className="relative flex items-center justify-center">
-                <svg width="190" height="190">
-                  <defs>
-                    <linearGradient id="timerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#7C3AED" />
-                      <stop offset="100%" stopColor="#4ade80" />
-                    </linearGradient>
-                  </defs>
-                  <circle cx="95" cy="95" r={RADIUS + 10} fill="none" stroke="#7C3AED" strokeWidth="1" strokeOpacity="0.1" />
-                  <circle cx="95" cy="95" r={RADIUS} fill="none" stroke="#1e293b" strokeWidth="9" />
-                  <circle cx="95" cy="95" r={RADIUS} fill="none" stroke="url(#timerGrad)" strokeWidth="9" strokeLinecap="round"
-                    strokeDasharray={CIRCUMFERENCE} strokeDashoffset={dashOffset}
-                    style={{ transition:"stroke-dashoffset 0.95s linear", transformOrigin:"95px 95px", transform:"rotate(-90deg)" }}
-                  />
-                </svg>
-                <div className="absolute flex flex-col items-center">
-                  <p className="text-4xl font-mono font-bold tracking-tight">{mm}:{ss}</p>
-                  <p className="text-[10px] text-muted-foreground mt-1">Time Remaining</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Live P&L */}
-            <div className="bg-card rounded-2xl p-5 text-center">
-              <p className="text-[11px] text-muted-foreground mb-1 font-medium uppercase tracking-wide">Live P&L</p>
-              <p className={`text-5xl font-bold tracking-tight transition-colors duration-500 ${posUp ? "text-green-400" : "text-red-400"}`}>
-                {posUp ? "+" : "−"}${Math.abs(pnl).toFixed(2)}
-              </p>
-              <div className="flex items-center justify-center gap-1.5 mt-2 mb-4">
-                {posUp ? <TrendingUp className="w-3.5 h-3.5 text-green-400" /> : <TrendingDown className="w-3.5 h-3.5 text-red-400" />}
-                <span className={`text-[10px] font-semibold ${posUp ? "text-green-400" : "text-red-400"}`}>
-                  {pos && pos.stake > 0 ? `${((pnl / pos.stake) * 100).toFixed(2)}% ROI` : "—"}
-                </span>
-              </div>
-              <div className="relative h-1.5 w-full rounded-full bg-background overflow-hidden">
-                <div className={`h-full rounded-full transition-all duration-700 ${posUp ? "bg-green-500" : "bg-red-500"}`} style={{ width:`${pct}%` }} />
-              </div>
-            </div>
-
-            {/* AI analysis */}
-            <div className="bg-card rounded-2xl p-4 space-y-3">
-              <div className="flex items-center gap-3">
-                <AIWave />
-                <span className="text-xs font-semibold text-muted-foreground">AI Analysis</span>
-              </div>
-              <p className="text-sm font-medium text-foreground leading-relaxed transition-all duration-700">{AI_MESSAGES[msgIdx]}</p>
-              <div className="h-1 bg-muted/30 rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-primary to-purple-400 rounded-full animate-pulse" style={{ width:"60%" }} />
-              </div>
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { icon: <Activity className="w-4 h-4 text-primary" />, label: "Market",   val: pos?.market ?? "—" },
-                { icon: <Clock    className="w-4 h-4 text-primary" />, label: "Duration", val: `${runtime}m` },
-                { icon: <Zap      className="w-4 h-4 text-primary fill-primary" />, label: "Stake", val: `$${stakeNum > 0 ? stakeNum.toFixed(0) : (pos?.stake.toFixed(0) ?? "—")}` },
-              ].map(({ icon, label, val }) => (
-                <div key={label} className="bg-card rounded-2xl p-3 flex flex-col items-center gap-1.5">
-                  {icon}
-                  <p className="text-[9px] text-muted-foreground text-center">{label}</p>
-                  <p className="text-sm font-bold">{val}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Cash Out */}
-            <Button
-              onClick={handleCashOut}
-              disabled={closeMutation.isPending}
-              className="w-full h-13 rounded-2xl text-[15px] font-bold bg-gradient-to-r from-amber-500 to-orange-500 hover:opacity-90 disabled:opacity-40 shadow-lg shadow-amber-500/20"
-            >
-              {closeMutation.isPending ? (
-                <span className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Cashing Out...
-                </span>
-              ) : (
-                <>
-                  <Zap className="w-5 h-5 mr-2 fill-white" />
-                  Cash Out — Take Profit Now
-                </>
-              )}
-            </Button>
-
-            <p className="text-[10px] text-muted-foreground/40 text-center px-6 pb-2">
-              Cash out anytime to take current profits, or let the timer run for maximum returns.
-            </p>
-
-            {/* ── Journal below running trade ── */}
-            <div className="pt-4 border-t border-border/30">
-              <div className="flex items-center gap-2 mb-4">
-                <BarChart2 className="w-4 h-4 text-primary" />
-                <h2 className="text-sm font-bold">Trade Journal</h2>
-                {history.length > 0 && (
-                  <span className="text-[10px] text-muted-foreground bg-card rounded-full px-2 py-0.5">{history.length} trades</span>
-                )}
-              </div>
-              {JournalRows}
-            </div>
-          </div>
-        )}
-
-        {/* ── RESULT ── */}
-        {step === "result" && result && (
-          <div className="flex-1 overflow-y-auto px-5 pb-10">
-            <div className="flex flex-col items-center py-10 gap-6 text-center">
-              {result.pnl >= 0 ? (
-                <>
-                  <div className="relative">
-                    <div className="w-28 h-28 rounded-full bg-green-500/10 flex items-center justify-center">
-                      <div className="w-20 h-20 rounded-full bg-green-500/15 flex items-center justify-center">
-                        <div className="w-14 h-14 rounded-full bg-green-500/20 flex items-center justify-center">
-                          <Check className="w-8 h-8 text-green-400 stroke-[3]" />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="absolute inset-0 rounded-full border-2 border-green-500/30 animate-ping" style={{ animationDuration:"2.5s" }} />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-green-400">
-                      {result.status === "tp_hit" ? "Take Profit Hit! 🎉" : "Trade Closed!"}
-                    </h2>
-                    <p className="text-sm text-muted-foreground mt-1">{result.pair} {result.direction} · {result.botName}</p>
-                  </div>
-                  <div className="text-5xl font-bold text-green-400">+${Math.abs(result.pnl).toFixed(2)}</div>
-                  {executedSignal?.confidence && (
-                    <div className="bg-green-500/10 border border-green-500/20 rounded-xl px-4 py-2 text-xs text-green-400 font-medium">
-                      {executedSignal.confidence}% AI confidence signal paid off ✓
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  <div className="w-24 h-24 rounded-full bg-red-500/10 flex items-center justify-center">
-                    <XCircle className="w-12 h-12 text-red-500" />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-red-400">
-                      {result.status === "sl_hit" ? "Stop Loss Hit" : "Trade Closed"}
-                    </h2>
-                    <p className="text-sm text-muted-foreground mt-1">{result.pair} {result.direction} · {result.botName}</p>
-                  </div>
-                  <div className="text-5xl font-bold text-red-400">−${Math.abs(result.pnl).toFixed(2)}</div>
-                </>
-              )}
-              <Button className="w-full h-12 rounded-xl font-medium" onClick={handleReset}>
-                Trade Again
-              </Button>
-            </div>
-
-            {/* Journal below result */}
-            <div className="border-t border-border/30 pt-4">
-              <div className="flex items-center gap-2 mb-4">
-                <BarChart2 className="w-4 h-4 text-primary" />
-                <h2 className="text-sm font-bold">Trade Journal</h2>
-                {history.length > 0 && (
-                  <span className="text-[10px] text-muted-foreground bg-card rounded-full px-2 py-0.5">{history.length} trades</span>
-                )}
-              </div>
-              {JournalRows}
-            </div>
-          </div>
-        )}
-
-        {/* Start button — configure only */}
-        {step === "configure" && (
-          <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] px-5 pb-24 pt-4 bg-gradient-to-t from-background via-background/95 to-transparent">
-            <Button
-              onClick={handleExecute}
-              disabled={!selectedBotId || stakeNum < 1 || stakeNum > availableBalance || executeMutation.isPending || !bots.length}
-              className="w-full h-14 rounded-2xl text-base font-bold bg-gradient-to-r from-[#7C3AED] to-[#9333ea] hover:opacity-90 disabled:opacity-30 transition-opacity shadow-lg shadow-primary/30"
-            >
-              {executeMutation.isPending ? (
-                <span className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Placing Trade...
-                </span>
-              ) : (
-                <>
-                  <Zap className="w-5 h-5 mr-2 fill-white" />
-                  Start Trade — {RUNTIMES.find(r => r.value === runtime)?.label}
-                </>
-              )}
-            </Button>
-          </div>
-        )}
+            );
+          })()}
+        </div>
       </div>
     </Layout>
   );
