@@ -1,31 +1,33 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
+import { VixusLogo } from "@/components/VixusLogo";
 import {
   ShieldCheck, Lock, Zap, Star, ArrowRight,
+  ArrowUpRight, ArrowDownRight, ChevronRight,
   Globe, Clock, TrendingUp, Bot, Cpu, BarChart2,
-  Menu, X, Activity, CheckCircle2,
+  Menu, X, Shield, HeadphonesIcon, CheckCircle2,
+  Activity,
 } from "lucide-react";
 import { createChart, ColorType, CrosshairMode, CandlestickSeries } from "lightweight-charts";
 
-/* ─── Design tokens ─────────────────────────────────────────── */
-const WHITE       = "#FFFFFF";
-const BG          = "#F5F5FA";
-const PURPLE      = "#6D4AFF";
-const PURPLE_DARK = "#5538DD";
-const CYAN        = "#06C8F0";
-const DARK        = "#0D0F1E";
-const DARK2       = "#161829";
-const TEXT        = "#1A1A2E";
-const TEXT2       = "#64748B";
-const TEXT3       = "#94A3B8";
-const GREEN       = "#10B981";
-const RED         = "#EF4444";
-const GOLD        = "#F59E0B";
-const CARD_SHADOW = "0 2px 20px rgba(0,0,0,0.07)";
+const BG = "#07091A";
+const DARK_CARD = "rgba(10,8,30,0.92)";
+const BORDER = "rgba(124,58,237,0.18)";
+const PURPLE = "#7C3AED";
+const LIGHT_PURPLE = "#A78BFA";
+const GREEN = "#10B981";
+const RED = "#EF4444";
 
-/* ─── Static data ────────────────────────────────────────────── */
-const NAV_LINKS = ["Markets", "Trading", "Features", "Pricing"];
+const NAV_LINKS = ["Markets", "Trading", "Features", "Pricing", "Company", "Support"];
+
+const TRUST_BADGES = [
+  { icon: Shield,         label: "Bank Level Security" },
+  { icon: Lock,           label: "Encrypted Platform" },
+  { icon: Zap,            label: "Fast Withdrawals" },
+  { icon: HeadphonesIcon, label: "24/7 Support" },
+  { icon: CheckCircle2,   label: "Regulated Partners" },
+];
 
 const FEATURES = [
   { icon: Zap,         title: "Sub-ms Execution",    desc: "Orders filled in microseconds across all 11 markets. No requotes, no slippage." },
@@ -43,41 +45,48 @@ const STEPS = [
 const TESTIMONIALS = [
   {
     name: "Marcus T.", loc: "Austin, TX", init: "M",
-    quote: "Setup took five minutes. Dashboard is clean, withdrawals hit same day. I've tried four platforms — this one I actually stuck with. No requotes, no slippage surprises.",
+    photo: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&h=80&fit=crop&crop=face&q=80",
+    quote: "Setup took five minutes. Dashboard is clean, withdrawals hit same day. I've tried four platforms — this one I actually stuck with.",
     stat: "+$4,200 first month",
   },
   {
     name: "James K.", loc: "Dallas, TX", init: "J",
-    quote: "I trade my own account too, so I know what fast execution looks like. These bots fill at the right price — no requotes, no surprise slippage surprises.",
+    photo: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&h=80&fit=crop&crop=face&q=80",
+    quote: "I trade my own account too, so I know what fast execution looks like. These bots fill at the right price — no requotes, no surprise slippage.",
     stat: "5 years trading exp.",
   },
   {
     name: "Danielle R.", loc: "Chicago, IL", init: "D",
-    quote: "The risk controls are what sold me. I set a 5% drawdown cap and it has never been breached. Everything is upfront.",
+    photo: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&h=80&fit=crop&crop=face&q=80",
+    quote: "The risk controls are what sold me. I set a 5% drawdown cap and it has never been breached. Everything transparent, no hidden fees.",
     stat: "Consistent since month 1",
   },
 ];
 
-const MARKETS = [
-  { name: "BTC",    full: "Bitcoin",       signal: "STRONG BUY", sig_color: "#10B981", chg: "+2.34%",  up: true  },
-  { name: "ETH",    full: "Ethereum",      signal: "BUY",        sig_color: "#10B981", chg: "+1.82%",  up: true  },
-  { name: "SOL",    full: "Solana",        signal: "NEUTRAL",    sig_color: "#F59E0B", chg: "-0.41%",  up: false },
-  { name: "XAU",    full: "Gold",          signal: "BUY",        sig_color: "#10B981", chg: "+0.67%",  up: true  },
-  { name: "EUR",    full: "EUR/USD",       signal: "NEUTRAL",    sig_color: "#F59E0B", chg: "-0.12%",  up: false },
-  { name: "GBP",    full: "GBP/USD",       signal: "BUY",        sig_color: "#10B981", chg: "+0.33%",  up: true  },
+const WHY_CHOOSE = [
+  { icon: Lock,       label: "Bank Level Security",        sub: "256-bit AES" },
+  { icon: Zap,        label: "Fast & Secure Transactions", sub: "Instant" },
+  { icon: Bot,        label: "24/7 Customer Support",      sub: "Always on" },
+  { icon: BarChart2,  label: "Advanced Charting Tools",    sub: "Real-time" },
+  { icon: Cpu,        label: "AI-Powered Automation",      sub: "Smart bots" },
+  { icon: TrendingUp, label: "Trusted by Traders",         sub: "128K+ users" },
 ];
 
-const STATS = [
-  { value: "$482M+", label: "Volume Traded" },
-  { value: "128K+",  label: "Active Traders" },
-  { value: "11",     label: "Markets Covered" },
-  { value: "99.9%",  label: "Uptime" },
+const HERO_PHOTOS = [
+  "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=1200&q=80",
+  "https://images.unsplash.com/photo-1642790106117-e829e14a795f?w=1200&q=80",
+  "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=1200&q=80",
 ];
 
-/* ─── Live prices hook ───────────────────────────────────────── */
 type PriceData = {
-  pair: string; symbol: string; price: number; prev: number;
-  chg: number; chgPct: number; up: boolean; flash: boolean;
+  pair: string;
+  symbol: string;
+  price: number;
+  prev: number;
+  chg: number;
+  chgPct: number;
+  up: boolean;
+  flash: boolean;
 };
 
 const INITIAL_PAIRS: PriceData[] = [
@@ -108,6 +117,7 @@ function useLivePrices() {
     }, 600);
   }, []);
 
+  // Realistic random walk simulation — always runs, keeps prices moving
   useEffect(() => {
     const sim = setInterval(() => {
       setPairs(prev => prev.map(p => {
@@ -123,14 +133,16 @@ function useLivePrices() {
     return () => clearInterval(sim);
   }, []);
 
+  // Binance WebSocket — overrides simulation with real prices when available
   useEffect(() => {
     const symbols = ["btcusdt", "ethusdt", "xauusdt", "ethbtc"];
     const streams = symbols.map(s => `${s}@miniTicker`).join("/");
     let ws: WebSocket | null = null;
     let retryTimer: ReturnType<typeof setTimeout>;
     let attempts = 0;
+
     const connect = () => {
-      if (attempts > 3) return;
+      if (attempts > 3) return; // give up after 3 tries, simulation takes over
       attempts++;
       try {
         ws = new WebSocket(`wss://stream.binance.com:9443/stream?streams=${streams}`);
@@ -148,9 +160,11 @@ function useLivePrices() {
       } catch {}
     };
     connect();
+
     return () => { ws?.close(); clearTimeout(retryTimer); };
   }, [updatePrice]);
 
+  // FX rates — try open.er-api.com (CORS-friendly), fallback to frankfurter.app
   useEffect(() => {
     const fetchFX = async () => {
       let rates: Record<string, number> | null = null;
@@ -196,16 +210,21 @@ function formatPrice(pair: PriceData): string {
   return p.toFixed(5);
 }
 
-/* ─── Live ticker strip ──────────────────────────────────────── */
 function LiveTicker({ pairs }: { pairs: PriceData[] }) {
   const items = [...pairs, ...pairs];
   return (
-    <div style={{ background: WHITE, borderBottom: "1px solid #E8E8F0", overflow: "hidden", padding: "8px 0" }}>
+    <div style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.015)", overflow: "hidden" }}>
       <div className="flex whitespace-nowrap" style={{ animation: "ticker 40s linear infinite" }}>
         {items.map((t, i) => (
-          <div key={i} className="flex items-center gap-2 px-5 shrink-0" style={{ borderRight: "1px solid #E8E8F0" }}>
-            <span style={{ fontSize: 11, fontFamily: "monospace", fontWeight: 600, color: TEXT2 }}>{t.pair}</span>
-            <span style={{ fontSize: 12, fontFamily: "monospace", fontWeight: 700, color: t.flash ? (t.up ? GREEN : RED) : TEXT, transition: "color 0.3s" }}>
+          <div key={i} className="flex items-center gap-2 px-5 py-2 shrink-0" style={{ borderRight: "1px solid rgba(255,255,255,0.05)" }}>
+            <span style={{ fontSize: 11, fontFamily: "monospace", fontWeight: 600, color: "#94A3B8" }}>{t.pair}</span>
+            <span
+              style={{
+                fontSize: 12, fontFamily: "monospace", fontWeight: 700, color: "#F1F5F9",
+                transition: "color 0.3s",
+                ...(t.flash ? { color: t.up ? GREEN : RED } : {}),
+              }}
+            >
               {formatPrice(t)}
             </span>
             <span style={{ fontSize: 11, fontFamily: "monospace", color: t.up ? GREEN : RED }}>
@@ -218,56 +237,63 @@ function LiveTicker({ pairs }: { pairs: PriceData[] }) {
   );
 }
 
-/* ─── Candlestick chart (reused in terminal section) ─────────── */
-function CandlestickChart({ height = 200, darkBg = false }: { height?: number; darkBg?: boolean }) {
+function CandlestickMockup() {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<ReturnType<typeof createChart> | null>(null);
   const seriesRef = useRef<any>(null);
-  const [btcPrice, setBtcPrice] = useState("67,842.30");
-  const [btcChg, setBtcChg] = useState("+2.34%");
+  const [btcPrice, setBtcPrice] = useState("67,812.50");
+  const [btcChg, setBtcChg] = useState("+1.25%");
   const [btcUp, setBtcUp] = useState(true);
 
   useEffect(() => {
     if (!containerRef.current) return;
+
     const chart = createChart(containerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
-        textColor: darkBg ? "#64748B" : "#94A3B8",
+        textColor: "#64748B",
         fontSize: 10,
       },
       grid: {
-        vertLines: { color: darkBg ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)" },
-        horzLines: { color: darkBg ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)" },
+        vertLines: { color: "rgba(255,255,255,0.04)" },
+        horzLines: { color: "rgba(255,255,255,0.04)" },
       },
       crosshair: { mode: CrosshairMode.Normal },
-      rightPriceScale: { borderColor: darkBg ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)", visible: true },
-      timeScale: { borderColor: darkBg ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)", timeVisible: true, secondsVisible: false },
+      rightPriceScale: { borderColor: "rgba(255,255,255,0.06)", visible: true },
+      timeScale: { borderColor: "rgba(255,255,255,0.06)", timeVisible: true, secondsVisible: false },
       handleScroll: false,
       handleScale: false,
     });
     chartRef.current = chart;
+
     const series = chart.addSeries(CandlestickSeries, {
-      upColor: GREEN, downColor: RED,
-      borderUpColor: GREEN, borderDownColor: RED,
-      wickUpColor: GREEN, wickDownColor: RED,
+      upColor: GREEN,
+      downColor: RED,
+      borderUpColor: GREEN,
+      borderDownColor: RED,
+      wickUpColor: GREEN,
+      wickDownColor: RED,
     });
     seriesRef.current = series;
 
-    const genFallback = (base: number, count: number) => {
+    // Generate realistic fallback candles when APIs unavailable
+    const genFallbackCandles = (basePrice: number, count: number) => {
       const now = Math.floor(Date.now() / 1000);
-      let price = base;
+      const interval = 300; // 5m in seconds
+      let price = basePrice;
       return Array.from({ length: count }, (_, i) => {
         const open = price;
         const move = (Math.random() - 0.48) * price * 0.004;
         const close = +(open + move).toFixed(2);
         const high = +(Math.max(open, close) * (1 + Math.random() * 0.003)).toFixed(2);
-        const low  = +(Math.min(open, close) * (1 - Math.random() * 0.003)).toFixed(2);
+        const low = +(Math.min(open, close) * (1 - Math.random() * 0.003)).toFixed(2);
         price = close;
-        return { time: (now - (count - i) * 300) as any, open, high, low, close };
+        return { time: (now - (count - i) * interval) as any, open, high, low, close };
       });
     };
 
-    const load = async () => {
+    const loadChart = async () => {
+      // Try Binance first
       try {
         const r = await fetch("https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=5m&limit=60");
         const data: any[] = await r.json();
@@ -285,6 +311,8 @@ function CandlestickChart({ height = 200, darkBg = false }: { height?: number; d
         setBtcUp(pct >= 0);
         return;
       } catch {}
+
+      // Try CoinGecko as fallback (CORS-friendly)
       try {
         const r = await fetch("https://api.coingecko.com/api/v3/coins/bitcoin/ohlc?vs_currency=usd&days=1");
         const data: any[] = await r.json();
@@ -301,34 +329,45 @@ function CandlestickChart({ height = 200, darkBg = false }: { height?: number; d
         setBtcUp(pct >= 0);
         return;
       } catch {}
-      const candles = genFallback(67800, 60);
+
+      // Fallback: realistic local simulation
+      const candles = genFallbackCandles(67800, 60);
       series.setData(candles);
       chart.timeScale().fitContent();
+      const last = candles[candles.length - 1];
+      setBtcPrice(last.close.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+      setBtcChg("+1.25%"); setBtcUp(true);
     };
-    load();
+    loadChart();
 
+    // Live updates via Binance WebSocket
     let wsKline: WebSocket | null = null;
-    try {
-      wsKline = new WebSocket("wss://stream.binance.com:9443/ws/btcusdt@kline_5m");
-      wsKline.onmessage = (e) => {
-        try {
-          const { k } = JSON.parse(e.data);
-          const candle = { time: Math.floor(k.t / 1000) as any, open: parseFloat(k.o), high: parseFloat(k.h), low: parseFloat(k.l), close: parseFloat(k.c) };
-          seriesRef.current?.update(candle);
-          const p = parseFloat(k.c), o = parseFloat(k.o);
-          const pct = ((p - o) / o) * 100;
-          setBtcPrice(p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-          setBtcChg(`${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`);
-          setBtcUp(pct >= 0);
-        } catch {}
-      };
-      wsKline.onerror = () => {};
-    } catch {}
+    const connectKline = () => {
+      try {
+        wsKline = new WebSocket("wss://stream.binance.com:9443/ws/btcusdt@kline_5m");
+        wsKline.onmessage = (e) => {
+          try {
+            const { k } = JSON.parse(e.data);
+            const candle = { time: Math.floor(k.t / 1000) as any, open: parseFloat(k.o), high: parseFloat(k.h), low: parseFloat(k.l), close: parseFloat(k.c) };
+            seriesRef.current?.update(candle);
+            const p = parseFloat(k.c), o = parseFloat(k.o);
+            const pct = ((p - o) / o) * 100;
+            setBtcPrice(p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+            setBtcChg(`${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`);
+            setBtcUp(pct >= 0);
+          } catch {}
+        };
+        wsKline.onerror = () => {};
+      } catch {}
+    };
+    connectKline();
 
+    // Simulate live candle updates when WebSocket unavailable
     const simKline = setInterval(() => {
-      if (wsKline?.readyState === 1) return;
+      if (wsKline?.readyState === 1) return; // WS working, skip simulation
       const now = Math.floor(Date.now() / 1000);
-      const base = Math.floor(now / 300) * 300;
+      const intervalSec = 300;
+      const base = Math.floor(now / intervalSec) * intervalSec;
       setBtcPrice(prev => {
         const num = parseFloat(prev.replace(/,/g, ""));
         if (!num) return prev;
@@ -345,136 +384,97 @@ function CandlestickChart({ height = 200, darkBg = false }: { height?: number; d
       }
     };
     window.addEventListener("resize", handleResize);
+
     return () => {
       wsKline?.close();
       clearInterval(simKline);
       chart.remove();
       window.removeEventListener("resize", handleResize);
     };
-  }, [darkBg]);
-
-  return { containerRef, btcPrice, btcChg, btcUp };
-}
-
-function CandlestickSection({ pairs }: { pairs: PriceData[] }) {
-  const { containerRef, btcPrice, btcChg, btcUp } = CandlestickChart({ height: 180, darkBg: true });
+  }, []);
 
   return (
-    <div style={{ background: "linear-gradient(135deg, #1a0a4e 0%, #0d0f2e 50%, #0a1830 100%)", borderRadius: 20, padding: "20px", border: "1px solid rgba(109,74,255,0.25)", boxShadow: "0 20px 60px rgba(0,0,0,0.4)" }}>
-      {/* Terminal header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-        <div style={{ display: "flex", gap: 5 }}>
-          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#EF4444" }} />
-          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#F59E0B" }} />
-          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#10B981" }} />
-        </div>
-        <div style={{ fontSize: 9, fontFamily: "monospace", color: "#475569" }}>VIXUS TERMINAL v4.2.1</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          <div style={{ width: 5, height: 5, borderRadius: "50%", background: GREEN, animation: "pulse 1.5s infinite" }} />
-          <span style={{ fontSize: 9, fontFamily: "monospace", color: GREEN }}>LIVE</span>
-        </div>
-      </div>
+    <div style={{ position: "relative", width: "100%", maxWidth: 580 }}>
+      {/* Glow */}
+      <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "radial-gradient(ellipse at 50% 60%, rgba(124,58,237,0.3) 0%, transparent 70%)", filter: "blur(40px)", zIndex: 0, pointerEvents: "none" }} />
 
-      {/* Pair header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-        <div>
-          <span style={{ fontSize: 13, fontWeight: 700, color: "#F1F5F9", fontFamily: "monospace" }}>BTC/USDT</span>
-          <span style={{ fontSize: 9, color: "#475569", background: "rgba(255,255,255,0.06)", padding: "2px 6px", borderRadius: 4, marginLeft: 6 }}>5m</span>
-        </div>
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 15, fontWeight: 800, fontFamily: "monospace", color: btcUp ? GREEN : RED }}>{btcPrice}</div>
-          <div style={{ fontSize: 10, color: btcUp ? GREEN : RED, fontFamily: "monospace" }}>{btcChg}</div>
-        </div>
-      </div>
+      {/* Screen frame */}
+      <div style={{ position: "relative", zIndex: 1, background: "linear-gradient(145deg, #0d0b22, #130f38)", border: "1.5px solid rgba(124,58,237,0.35)", borderRadius: 16, padding: "12px 12px 8px", boxShadow: "0 0 80px rgba(124,58,237,0.18), 0 40px 100px rgba(0,0,0,0.7)" }}>
 
-      {/* Chart */}
-      <div ref={containerRef} style={{ width: "100%", height: 180, borderRadius: 8, overflow: "hidden" }} />
-
-      {/* Trade UI */}
-      <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-        <button style={{ background: "rgba(109,74,255,0.15)", border: "1px solid rgba(109,74,255,0.4)", borderRadius: 8, padding: "6px 0", fontSize: 11, fontWeight: 600, color: "#A78BFA", cursor: "pointer" }}>Market</button>
-        <button style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "6px 0", fontSize: 11, fontWeight: 600, color: "#64748B", cursor: "pointer" }}>Limit</button>
-      </div>
-      <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4 }}>
-        {["5x", "10x", "20x"].map(lv => (
-          <button key={lv} style={{ background: lv === "10x" ? "rgba(109,74,255,0.25)" : "rgba(255,255,255,0.04)", border: lv === "10x" ? "1px solid rgba(109,74,255,0.5)" : "1px solid rgba(255,255,255,0.06)", borderRadius: 6, padding: "5px 0", fontSize: 10, fontWeight: 700, color: lv === "10x" ? "#A78BFA" : "#64748B", cursor: "pointer" }}>{lv}</button>
-        ))}
-      </div>
-      <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-        <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, padding: "8px 10px" }}>
-          <div style={{ fontSize: 9, color: "#475569", marginBottom: 3 }}>Take Profit</div>
-          <div style={{ fontSize: 11, fontFamily: "monospace", color: GREEN }}>69,500.00</div>
-        </div>
-        <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, padding: "8px 10px" }}>
-          <div style={{ fontSize: 9, color: "#475569", marginBottom: 3 }}>Stop Loss</div>
-          <div style={{ fontSize: 11, fontFamily: "monospace", color: RED }}>66,200.00</div>
-        </div>
-      </div>
-      <button style={{ marginTop: 8, width: "100%", background: `linear-gradient(135deg, ${PURPLE}, #4F46E5)`, border: "none", borderRadius: 10, padding: "11px 0", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer", boxShadow: "0 4px 20px rgba(109,74,255,0.4)" }}>
-        EXECUTE · BTC/USDT LONG
-      </button>
-
-      {/* Mini market rows */}
-      <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4 }}>
-        {pairs.slice(0, 3).map(p => (
-          <div key={p.pair} style={{ background: "rgba(255,255,255,0.03)", borderRadius: 6, padding: "5px 6px", border: "1px solid rgba(255,255,255,0.05)" }}>
-            <div style={{ fontSize: 8, color: "#475569", marginBottom: 2 }}>{p.pair}</div>
-            <div style={{ fontSize: 9, fontFamily: "monospace", color: p.up ? GREEN : RED, fontWeight: 600, transition: "color 0.3s" }}>
-              {formatPrice(p)}
-            </div>
+        {/* Window chrome */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <div style={{ display: "flex", gap: 5 }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#EF4444" }} />
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#F59E0B" }} />
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#10B981" }} />
           </div>
-        ))}
+          <div style={{ fontSize: 9, fontFamily: "monospace", color: "#475569" }}>VIXUS AI — Live Trading</div>
+          <div style={{ width: 40 }} />
+        </div>
+
+        {/* Pair header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 4px", marginBottom: 6 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#F1F5F9", fontFamily: "monospace" }}>BTC/USDT</span>
+            <span style={{ fontSize: 9, color: "#64748B", background: "rgba(255,255,255,0.05)", padding: "2px 6px", borderRadius: 4 }}>5m</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 800, fontFamily: "monospace", color: btcUp ? GREEN : RED }}>{btcPrice}</span>
+            <span style={{ fontSize: 10, color: btcUp ? GREEN : RED, fontFamily: "monospace" }}>{btcChg}</span>
+          </div>
+        </div>
+
+        {/* REAL candlestick chart */}
+        <div ref={containerRef} style={{ width: "100%", height: 220, borderRadius: 8, overflow: "hidden" }} />
+
+        {/* Market rows */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4, marginTop: 8 }}>
+          {[
+            { pair: "EUR/USD", color: LIGHT_PURPLE },
+            { pair: "XAU/USD", color: GREEN },
+            { pair: "ETH/USD", color: "#60A5FA" },
+          ].map(r => (
+            <div key={r.pair} style={{ background: "rgba(255,255,255,0.03)", borderRadius: 6, padding: "5px 6px", border: "1px solid rgba(255,255,255,0.05)" }}>
+              <div style={{ fontSize: 8, color: "#64748B", marginBottom: 2 }}>{r.pair}</div>
+              <div style={{ fontSize: 9, fontFamily: "monospace", color: r.color, fontWeight: 600 }}>LIVE</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Laptop base */}
+      <div style={{ height: 14, background: "linear-gradient(180deg, #1a1535 0%, #0e0b24 100%)", borderRadius: "0 0 6px 6px", margin: "0 12px" }} />
+      <div style={{ height: 8, background: "#070515", borderRadius: "0 0 24px 24px" }} />
+
+      {/* Floating: live trade badge */}
+      <div style={{ position: "absolute", bottom: 36, left: -24, background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.3)", borderRadius: 12, padding: "10px 14px", backdropFilter: "blur(16px)", boxShadow: "0 8px 32px rgba(0,0,0,0.5)", zIndex: 2 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
+          <div style={{ width: 6, height: 6, borderRadius: "50%", background: GREEN, animation: "pulse 1.5s infinite" }} />
+          <span style={{ fontSize: 9, fontWeight: 700, color: GREEN, letterSpacing: "0.06em" }}>TRADE EXECUTED</span>
+        </div>
+        <div style={{ fontSize: 11, fontWeight: 800, color: "#F1F5F9", fontFamily: "monospace" }}>BUY EUR/USD</div>
+        <div style={{ fontSize: 9, color: "#64748B", marginTop: 1 }}>+$48.20 · 0.50 lot</div>
+      </div>
+
+      {/* Floating: AI bot badge */}
+      <div style={{ position: "absolute", top: 24, right: -20, background: "rgba(124,58,237,0.12)", border: "1px solid rgba(124,58,237,0.3)", borderRadius: 12, padding: "10px 14px", backdropFilter: "blur(16px)", boxShadow: "0 8px 32px rgba(0,0,0,0.5)", zIndex: 2 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <div style={{ width: 6, height: 6, borderRadius: "50%", background: LIGHT_PURPLE, animation: "pulse 2s infinite" }} />
+          <span style={{ fontSize: 9, fontWeight: 700, color: LIGHT_PURPLE, letterSpacing: "0.06em" }}>AI BOT ACTIVE</span>
+        </div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#F1F5F9", marginTop: 2 }}>5 positions open</div>
+        <div style={{ fontSize: 9, color: GREEN, marginTop: 1 }}>Total P&L: +$312.40</div>
       </div>
     </div>
   );
 }
 
-/* ─── Spark line (inline SVG) ────────────────────────────────── */
-function Sparkline({ up }: { up: boolean }) {
-  const pts = Array.from({ length: 10 }, (_, i) => ({
-    x: i * 6,
-    y: 12 + (Math.random() - (up ? 0.4 : 0.6)) * 8,
-  }));
-  const d = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
-  return (
-    <svg width="60" height="24" viewBox="0 0 54 24">
-      <path d={d} stroke={up ? GREEN : RED} strokeWidth={1.5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-/* ─── Security progress bar ──────────────────────────────────── */
-function SecurityBar({ label, pct }: { label: string; pct: number }) {
-  return (
-    <div style={{ marginBottom: 14 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-        <span style={{ fontSize: 12, fontWeight: 500, color: "rgba(255,255,255,0.85)" }}>{label}</span>
-        <span style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>{pct}%</span>
-      </div>
-      <div style={{ height: 6, background: "rgba(255,255,255,0.12)", borderRadius: 3, overflow: "hidden" }}>
-        <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg, #A78BFA, #06C8F0)", borderRadius: 3, transition: "width 1.2s ease" }} />
-      </div>
-    </div>
-  );
-}
-
-/* ─── Avatar initials circle ─────────────────────────────────── */
-function Avatar({ init, color }: { init: string; color: string }) {
-  return (
-    <div style={{ width: 38, height: 38, borderRadius: "50%", background: color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-      <span style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{init}</span>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   MAIN PAGE
-══════════════════════════════════════════════════════════════════ */
 export default function Landing() {
   const [, setLocation] = useLocation();
   const { token, isLoading } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [heroPhoto] = useState(() => HERO_PHOTOS[0]);
   const pairs = useLivePrices();
 
   useEffect(() => {
@@ -482,7 +482,7 @@ export default function Landing() {
   }, [token, isLoading, setLocation]);
 
   useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 8);
+    const fn = () => setScrolled(window.scrollY > 10);
     window.addEventListener("scroll", fn, { passive: true });
     return () => window.removeEventListener("scroll", fn);
   }, []);
@@ -492,540 +492,421 @@ export default function Landing() {
     setLocation(seen ? "/register" : "/onboarding");
   };
 
+  const stats = [
+    { value: "$482M+", label: "Volume Traded" },
+    { value: "128K+",  label: "Active Traders" },
+    { value: "99.9%",  label: "Uptime" },
+    { value: "24/7",   label: "Support" },
+  ];
+
   return (
-    <div style={{ background: BG, color: TEXT, fontFamily: "'Inter', 'Plus Jakarta Sans', system-ui, sans-serif", minHeight: "100dvh", overflowX: "hidden" }}>
+    <div style={{ background: BG, color: "#F1F5F9", fontFamily: "inherit", minHeight: "100dvh", overflowX: "hidden" }}>
 
-      {/* ══ NAVBAR ══════════════════════════════════════════════ */}
-      <header style={{
-        position: "sticky", top: 0, zIndex: 50,
-        background: scrolled ? "rgba(255,255,255,0.97)" : WHITE,
-        backdropFilter: "blur(16px)",
-        borderBottom: scrolled ? "1px solid #E8E8F0" : "1px solid transparent",
-        transition: "all 0.2s",
-      }}>
-        <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 16px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 60 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 32, height: 32, borderRadius: "50%", background: PURPLE, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ fontSize: 13, fontWeight: 900, color: "#fff" }}>V</span>
-            </div>
-            <span style={{ fontWeight: 800, fontSize: 17, letterSpacing: "0.02em", color: TEXT }}>
-              VIXUS<span style={{ color: PURPLE }}>.AI</span>
-            </span>
+      {/* ── NAVBAR ── */}
+      <header className="sticky top-0 z-50 transition-all" style={{ background: scrolled ? "rgba(7,9,26,0.96)" : "rgba(7,9,26,0.75)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(124,58,237,0.12)" }}>
+        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 64 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+            <VixusLogo className="w-7 h-7" />
+            <span style={{ fontWeight: 900, fontSize: 16, letterSpacing: "0.04em" }}>VIXUS<span style={{ color: LIGHT_PURPLE }}> AI</span></span>
           </div>
-
-          {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-1">
             {NAV_LINKS.map(link => (
-              <button key={link} style={{ fontSize: 13, fontWeight: 500, color: TEXT2, background: "none", border: "none", cursor: "pointer", padding: "6px 12px", borderRadius: 8 }}
-                onMouseEnter={e => (e.currentTarget.style.color = PURPLE)}
-                onMouseLeave={e => (e.currentTarget.style.color = TEXT2)}>
+              <button key={link} style={{ fontSize: 13, fontWeight: 500, color: "#64748B", background: "none", border: "none", cursor: "pointer", padding: "6px 14px", borderRadius: 8, transition: "color 0.15s" }}
+                onMouseEnter={e => (e.currentTarget.style.color = "#F1F5F9")}
+                onMouseLeave={e => (e.currentTarget.style.color = "#64748B")}>
                 {link}
               </button>
             ))}
           </nav>
-
           <div className="flex items-center gap-2">
             <button onClick={() => setLocation("/login")} className="hidden sm:block"
-              style={{ fontSize: 13, fontWeight: 500, color: TEXT2, background: "none", border: "none", cursor: "pointer", padding: "8px 14px" }}>
+              style={{ fontSize: 13, fontWeight: 500, color: "#64748B", background: "none", border: "none", cursor: "pointer", padding: "8px 16px" }}>
               Login
             </button>
-            <button onClick={handleStart} className="hidden sm:block"
-              style={{ fontSize: 13, fontWeight: 700, color: "#fff", background: PURPLE, border: "none", borderRadius: 10, cursor: "pointer", padding: "9px 20px" }}>
+            <button onClick={handleStart}
+              style={{ fontSize: 13, fontWeight: 700, color: "#fff", background: "linear-gradient(135deg, #7C3AED, #4F46E5)", border: "none", borderRadius: 10, cursor: "pointer", padding: "9px 22px", boxShadow: "0 0 24px rgba(124,58,237,0.35)" }}>
               Get Started
             </button>
-            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              style={{ background: "none", border: "none", cursor: "pointer", color: TEXT2, padding: 4, display: "flex", alignItems: "center" }}>
-              {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+            <button className="md:hidden" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "#64748B", padding: 6 }}>
+              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
           </div>
         </div>
-
-        {/* Mobile menu */}
         {mobileMenuOpen && (
-          <div style={{ borderTop: "1px solid #E8E8F0", background: WHITE, padding: "8px 16px 20px" }}>
+          <div style={{ borderTop: "1px solid rgba(124,58,237,0.12)", background: "rgba(7,9,26,0.98)", padding: "10px 24px 20px" }}>
             {[...NAV_LINKS, "Login"].map(link => (
-              <button key={link}
-                onClick={() => { setMobileMenuOpen(false); if (link === "Login") setLocation("/login"); }}
-                style={{ display: "block", width: "100%", textAlign: "left", fontSize: 15, color: TEXT, background: "none", border: "none", cursor: "pointer", padding: "11px 0", borderBottom: "1px solid #F0F0F8" }}>
+              <button key={link} onClick={() => { setMobileMenuOpen(false); if (link === "Login") setLocation("/login"); }}
+                style={{ display: "block", width: "100%", textAlign: "left", fontSize: 14, color: "#94A3B8", background: "none", border: "none", cursor: "pointer", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                 {link}
               </button>
             ))}
-            <button onClick={() => { setMobileMenuOpen(false); handleStart(); }}
-              style={{ marginTop: 12, width: "100%", background: PURPLE, border: "none", borderRadius: 12, padding: "13px 0", fontSize: 15, fontWeight: 700, color: "#fff", cursor: "pointer" }}>
-              Get Started
-            </button>
           </div>
         )}
       </header>
 
-      {/* ══ LIVE TICKER ═════════════════════════════════════════ */}
+      {/* ── LIVE TICKER ── */}
       <LiveTicker pairs={pairs} />
 
-      {/* ══ HERO CARD ═══════════════════════════════════════════ */}
-      <section style={{ padding: "20px 16px 0", maxWidth: 480, margin: "0 auto" }}>
-        <div style={{
-          background: "linear-gradient(145deg, #6D4AFF 0%, #4F46E5 40%, #312E8F 70%, #0891B2 100%)",
-          borderRadius: 24,
-          padding: "32px 24px 28px",
-          position: "relative",
-          overflow: "hidden",
-          minHeight: 440,
-        }}>
-          {/* Decorative circles */}
-          <div style={{ position: "absolute", top: -60, right: -60, width: 220, height: 220, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
-          <div style={{ position: "absolute", bottom: -40, right: 20, width: 140, height: 140, borderRadius: "50%", background: "rgba(6,200,240,0.12)", pointerEvents: "none" }} />
-          <div style={{ position: "absolute", top: 80, right: 40, width: 80, height: 80, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
+      {/* ── BG GLOWS ── */}
+      <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: 800, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: -120, left: "10%", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 70%)" }} />
+        <div style={{ position: "absolute", top: 80, right: "5%", width: 350, height: 350, borderRadius: "50%", background: "radial-gradient(circle, rgba(79,70,229,0.08) 0%, transparent 70%)" }} />
+      </div>
 
-          {/* Badge */}
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.15)", borderRadius: 100, padding: "6px 14px", marginBottom: 24, backdropFilter: "blur(8px)" }}>
-            <div style={{ width: 18, height: 18, borderRadius: "50%", background: "rgba(255,255,255,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ fontSize: 8, fontWeight: 900, color: "#fff" }}>V</span>
+      {/* ── HERO ── */}
+      <section className="hero-section" style={{ position: "relative", zIndex: 1, maxWidth: 1280, margin: "0 auto", padding: "80px 24px 60px" }}>
+        <div className="grid md:grid-cols-2 gap-16 items-center">
+
+          {/* Left */}
+          <div>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(124,58,237,0.1)", border: "1px solid rgba(124,58,237,0.3)", borderRadius: 100, padding: "5px 16px", marginBottom: 28, whiteSpace: "nowrap" }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: GREEN, flexShrink: 0, animation: "pulse 1.5s infinite" }} />
+              <span style={{ fontSize: 11, fontWeight: 700, color: LIGHT_PURPLE, letterSpacing: "0.08em" }}>AI-POWERED TRADING PLATFORM</span>
             </div>
-            <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.9)", letterSpacing: "0.06em" }}>128,400+ TRADERS ACTIVE</span>
-          </div>
 
-          {/* Headline */}
-          <h1 style={{ fontSize: 34, fontWeight: 900, lineHeight: 1.1, letterSpacing: "-0.02em", color: "#fff", marginBottom: 16 }}>
-            Your capital deserves<br />
-            <span style={{ color: CYAN }}>to work harder.</span>
-          </h1>
+            <h1 style={{ fontSize: "clamp(32px, 3.5vw, 54px)", lineHeight: 1.07, fontWeight: 900, letterSpacing: "-0.03em", marginBottom: 22 }}>
+              Trade Smarter.<br />
+              <span style={{ background: "linear-gradient(135deg, #A78BFA 0%, #7C3AED 50%, #4F46E5 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Automate</span>{" "}the Rest.
+            </h1>
 
-          {/* Subtitle */}
-          <p style={{ fontSize: 15, lineHeight: 1.65, color: "rgba(200,210,255,0.85)", marginBottom: 32, maxWidth: 340 }}>
-            Join traders who stopped watching charts and started letting the bots handle it.
-          </p>
-
-          {/* Buttons */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <button onClick={handleStart}
-              style={{ width: "100%", background: WHITE, border: "none", borderRadius: 14, padding: "16px 0", fontSize: 16, fontWeight: 700, color: PURPLE, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-              Open Free Account <ArrowRight size={17} />
-            </button>
-            <button onClick={() => setLocation("/login")}
-              style={{ width: "100%", background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 14, padding: "16px 0", fontSize: 15, fontWeight: 600, color: "#fff", cursor: "pointer", backdropFilter: "blur(8px)" }}>
-              Schedule a Demo
-            </button>
-          </div>
-
-          {/* Tagline */}
-          <p style={{ marginTop: 20, fontSize: 12, color: "rgba(200,210,255,0.7)", textAlign: "center" }}>
-            Free to start · Withdraw anytime · No hidden fees
-          </p>
-        </div>
-      </section>
-
-      {/* ══ DASHBOARD MOCKUP CARD ═══════════════════════════════ */}
-      <section style={{ padding: "20px 16px 0", maxWidth: 480, margin: "0 auto" }}>
-        <div style={{ background: WHITE, borderRadius: 20, padding: "20px", boxShadow: CARD_SHADOW }}>
-          {/* Card header */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 26, height: 26, borderRadius: "50%", background: PURPLE, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontSize: 10, fontWeight: 900, color: "#fff" }}>V</span>
-              </div>
-              <span style={{ fontSize: 12, fontWeight: 700, color: TEXT2 }}>VIXUS AI — Dashboard</span>
-            </div>
-            <div style={{ display: "flex", gap: 4 }}>
-              <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#EF4444" }} />
-              <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#F59E0B" }} />
-              <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#10B981" }} />
-            </div>
-          </div>
-
-          {/* Portfolio value */}
-          <div style={{ marginBottom: 6 }}>
-            <div style={{ fontSize: 11, color: TEXT3, marginBottom: 2 }}>Portfolio Value</div>
-            <div style={{ fontSize: 28, fontWeight: 900, color: TEXT, fontFamily: "monospace", letterSpacing: "-0.02em" }}>$24,530.75</div>
-          </div>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "rgba(16,185,129,0.1)", borderRadius: 8, padding: "3px 10px", marginBottom: 16 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: GREEN }}>+$1,082.45</span>
-            <span style={{ fontSize: 11, color: GREEN }}>↑ +4.6%</span>
-          </div>
-
-          {/* Mini chart placeholder */}
-          <div style={{ background: "#F8F8FF", borderRadius: 12, height: 100, marginBottom: 12, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <svg viewBox="0 0 200 80" width="100%" height="100%" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={PURPLE} stopOpacity="0.3" />
-                  <stop offset="100%" stopColor={PURPLE} stopOpacity="0.02" />
-                </linearGradient>
-              </defs>
-              <path d="M0 60 L20 55 L40 58 L60 45 L80 42 L100 38 L120 35 L140 30 L160 25 L180 20 L200 15 L200 80 L0 80 Z" fill="url(#chartGrad)" />
-              <path d="M0 60 L20 55 L40 58 L60 45 L80 42 L100 38 L120 35 L140 30 L160 25 L180 20 L200 15" stroke={PURPLE} strokeWidth="2" fill="none" strokeLinecap="round" />
-            </svg>
-          </div>
-
-          {/* Mini prices */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
-            {pairs.slice(0, 3).map(p => (
-              <div key={p.pair} style={{ background: "#F8F8FF", borderRadius: 10, padding: "8px 8px" }}>
-                <div style={{ fontSize: 9, color: TEXT3, marginBottom: 2 }}>{p.pair}</div>
-                <div style={{ fontSize: 10, fontFamily: "monospace", fontWeight: 700, color: p.up ? GREEN : RED, transition: "color 0.3s" }}>
-                  {formatPrice(p)}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* AI Bot row */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(109,74,255,0.06)", borderRadius: 10, padding: "10px 12px", border: "1px solid rgba(109,74,255,0.12)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <div style={{ width: 7, height: 7, borderRadius: "50%", background: GREEN, animation: "pulse 1.5s infinite" }} />
-              <span style={{ fontSize: 12, fontWeight: 600, color: TEXT }}>AI Bot Active</span>
-            </div>
-            <span style={{ fontSize: 11, fontWeight: 700, color: GREEN }}>+$312.40 today</span>
-          </div>
-        </div>
-      </section>
-
-      {/* ══ "TRADE FROM ANYWHERE" ════════════════════════════════ */}
-      <section style={{ padding: "36px 16px 0", maxWidth: 480, margin: "0 auto" }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, color: TEXT, marginBottom: 6 }}>Trade from anywhere</h2>
-        <p style={{ fontSize: 14, color: TEXT2, marginBottom: 16, lineHeight: 1.6 }}>
-          Full platform power in your pocket. Execute, monitor, and manage your entire portfolio on any device.
-        </p>
-        <div style={{ borderRadius: 20, overflow: "hidden", background: "#E8E8F8", height: 200, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
-          <img
-            src="https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&q=80"
-            alt="Trading on laptop"
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            loading="lazy"
-          />
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <div style={{ borderRadius: 16, overflow: "hidden", height: 140 }}>
-            <img
-              src="https://images.unsplash.com/photo-1642790106117-e829e14a795f?w=600&q=80"
-              alt="Mobile trading"
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              loading="lazy"
-            />
-          </div>
-          <div style={{ borderRadius: 16, overflow: "hidden", height: 140 }}>
-            <img
-              src="https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=600&q=80"
-              alt="Professional trader"
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              loading="lazy"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* ══ MARKETS TABLE ════════════════════════════════════════ */}
-      <section style={{ padding: "36px 16px 0", maxWidth: 480, margin: "0 auto" }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, color: TEXT, marginBottom: 4 }}>Markets</h2>
-        <p style={{ fontSize: 14, color: TEXT2, marginBottom: 16 }}>Live signals across 11 instruments</p>
-        <div style={{ background: WHITE, borderRadius: 20, overflow: "hidden", boxShadow: CARD_SHADOW }}>
-          {/* Table header */}
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", padding: "12px 16px", borderBottom: "1px solid #F0F0F8" }}>
-            {["INSTRUMENT", "24H CHANGE", "CHART", "SIGNAL"].map(h => (
-              <div key={h} style={{ fontSize: 10, fontWeight: 700, color: TEXT3, letterSpacing: "0.06em" }}>{h}</div>
-            ))}
-          </div>
-          {/* Rows */}
-          {MARKETS.map((m, i) => (
-            <div key={m.name} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", padding: "14px 16px", borderBottom: i < MARKETS.length - 1 ? "1px solid #F8F8FC" : "none", alignItems: "center" }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>{m.name}</div>
-                <div style={{ fontSize: 10, color: TEXT3 }}>{m.full}</div>
-              </div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: m.up ? GREEN : RED, fontFamily: "monospace" }}>{m.chg}</div>
-              <Sparkline up={m.up} />
-              <div style={{ display: "inline-flex", alignItems: "center" }}>
-                <span style={{ fontSize: 9, fontWeight: 700, color: m.sig_color, background: m.sig_color + "18", borderRadius: 6, padding: "3px 7px", whiteSpace: "nowrap" }}>{m.signal}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ══ FEATURES ════════════════════════════════════════════ */}
-      <section style={{ padding: "40px 16px 0", maxWidth: 480, margin: "0 auto" }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, color: TEXT, marginBottom: 4 }}>Everything you need</h2>
-        <p style={{ fontSize: 14, color: TEXT2, marginBottom: 20 }}>Built by traders, for traders.</p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {FEATURES.map(f => (
-            <div key={f.title} style={{ background: WHITE, borderRadius: 18, padding: "20px 18px", boxShadow: CARD_SHADOW, display: "flex", gap: 14, alignItems: "flex-start" }}>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: "rgba(109,74,255,0.08)", border: "1px solid rgba(109,74,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <f.icon size={20} style={{ color: PURPLE }} />
-              </div>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: TEXT, marginBottom: 4 }}>{f.title}</div>
-                <div style={{ fontSize: 13, color: TEXT2, lineHeight: 1.6 }}>{f.desc}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ══ HOW IT WORKS ════════════════════════════════════════ */}
-      <section style={{ padding: "40px 16px 0", maxWidth: 480, margin: "0 auto" }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, color: TEXT, marginBottom: 4 }}>Up and running in minutes</h2>
-        <p style={{ fontSize: 14, color: TEXT2, marginBottom: 20 }}>Three steps. No experience required.</p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {STEPS.map(s => (
-            <div key={s.n} style={{ background: WHITE, borderRadius: 18, padding: "20px 18px", boxShadow: CARD_SHADOW, display: "flex", gap: 16, alignItems: "flex-start" }}>
-              <div style={{ width: 44, height: 44, borderRadius: "50%", background: `linear-gradient(135deg, ${PURPLE}, #4F46E5)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 16px rgba(109,74,255,0.3)" }}>
-                <span style={{ fontSize: 15, fontWeight: 900, color: "#fff" }}>{s.n}</span>
-              </div>
-              <div>
-                <div style={{ display: "inline-block", fontSize: 10, fontWeight: 700, color: PURPLE, background: "rgba(109,74,255,0.08)", borderRadius: 6, padding: "2px 8px", marginBottom: 6 }}>{s.tag}</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: TEXT, marginBottom: 4 }}>{s.title}</div>
-                <div style={{ fontSize: 13, color: TEXT2, lineHeight: 1.6 }}>{s.desc}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ══ STATS GRID ══════════════════════════════════════════ */}
-      <section style={{ padding: "40px 16px 0", maxWidth: 480, margin: "0 auto" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          {STATS.map((s, i) => (
-            <div key={s.label} style={{ background: WHITE, borderRadius: 18, padding: "22px 18px", boxShadow: CARD_SHADOW, textAlign: "center" }}>
-              <div style={{ fontSize: 28, fontWeight: 900, fontFamily: "monospace", letterSpacing: "-0.02em", color: i % 2 === 0 ? PURPLE : TEXT, marginBottom: 4 }}>{s.value}</div>
-              <div style={{ fontSize: 12, color: TEXT2 }}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ══ TERMINAL SECTION ════════════════════════════════════ */}
-      <section style={{ padding: "40px 16px 0", maxWidth: 480, margin: "0 auto" }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, color: TEXT, marginBottom: 4 }}>One interface. Total control.</h2>
-        <p style={{ fontSize: 14, color: TEXT2, marginBottom: 20 }}>Professional terminal built for speed and precision.</p>
-        <CandlestickSection pairs={pairs} />
-      </section>
-
-      {/* ══ MULTI-EXCHANGE / RISK / PERFORMANCE ═════════════════ */}
-      <section style={{ padding: "28px 16px 0", maxWidth: 480, margin: "0 auto" }}>
-        {[
-          {
-            icon: Globe, title: "Multi-Exchange", color: "#6D4AFF",
-            desc: "Trade across Binance, Bybit, OKX and 8 more — all from one dashboard. No API juggling.",
-            tags: ["Binance", "Bybit", "OKX", "+8 more"],
-          },
-          {
-            icon: ShieldCheck, title: "Risk Management", color: "#10B981",
-            desc: "Set hard stop-losses, max daily drawdown, and position sizing rules. Capital protection built in.",
-            tags: ["Stop Loss", "Drawdown Cap", "Position Sizing"],
-          },
-          {
-            icon: BarChart2, title: "Performance Analytics", color: "#06C8F0",
-            desc: "Full trade history, win-rate tracking, Sharpe ratio, and drawdown curves — all in real time.",
-            tags: ["Win Rate", "Sharpe Ratio", "P&L Curve"],
-          },
-        ].map(card => (
-          <div key={card.title} style={{ background: WHITE, borderRadius: 18, padding: "20px 18px", boxShadow: CARD_SHADOW, marginBottom: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 12, background: card.color + "18", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <card.icon size={19} style={{ color: card.color }} />
-              </div>
-              <span style={{ fontSize: 15, fontWeight: 700, color: TEXT }}>{card.title}</span>
-            </div>
-            <p style={{ fontSize: 13, color: TEXT2, lineHeight: 1.65, marginBottom: 12 }}>{card.desc}</p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {card.tags.map(tag => (
-                <span key={tag} style={{ fontSize: 11, fontWeight: 600, color: card.color, background: card.color + "12", borderRadius: 8, padding: "3px 10px" }}>{tag}</span>
-              ))}
-            </div>
-          </div>
-        ))}
-      </section>
-
-      {/* ══ SECURITY SECTION ════════════════════════════════════ */}
-      <section style={{ padding: "12px 16px 0", maxWidth: 480, margin: "0 auto" }}>
-        <div style={{ background: `linear-gradient(135deg, ${PURPLE} 0%, #4F46E5 50%, ${CYAN} 100%)`, borderRadius: 20, padding: "28px 22px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <ShieldCheck size={20} style={{ color: "#fff" }} />
-            </div>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>Security Dashboard</div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>Enterprise-grade protection</div>
-            </div>
-          </div>
-
-          <SecurityBar label="Encryption" pct={100} />
-          <SecurityBar label="Authentication" pct={100} />
-          <SecurityBar label="Fund Segregation" pct={98} />
-          <SecurityBar label="Compliance" pct={100} />
-
-          <div style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.15)", borderRadius: 10, padding: "10px 14px", backdropFilter: "blur(8px)" }}>
-            <CheckCircle2 size={16} style={{ color: "#fff" }} />
-            <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>All Systems Secure</span>
-            <div style={{ marginLeft: "auto", width: 7, height: 7, borderRadius: "50%", background: "#A7F3D0", animation: "pulse 1.5s infinite" }} />
-          </div>
-        </div>
-      </section>
-
-      {/* ══ TESTIMONIALS ════════════════════════════════════════ */}
-      <section style={{ padding: "36px 16px 0", maxWidth: 480, margin: "0 auto" }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, color: TEXT, marginBottom: 4 }}>Real traders. Real results.</h2>
-        <p style={{ fontSize: 14, color: TEXT2, marginBottom: 20 }}>No marketing speak — people using VIXUS AI daily.</p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {TESTIMONIALS.map(t => (
-            <div key={t.name} style={{ background: WHITE, borderRadius: 20, padding: "20px 18px", boxShadow: CARD_SHADOW }}>
-              {/* Stars */}
-              <div style={{ display: "flex", gap: 2, marginBottom: 10 }}>
-                {[1,2,3,4,5].map(i => <Star key={i} size={15} style={{ color: GOLD, fill: GOLD }} />)}
-              </div>
-              {/* Quote */}
-              <p style={{ fontSize: 14, lineHeight: 1.7, color: TEXT, marginBottom: 16 }}>
-                "{t.quote}"
-              </p>
-              {/* Author row */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <Avatar
-                    init={t.init}
-                    color={t.init === "M" ? "#6D4AFF" : t.init === "J" ? "#0891B2" : "#059669"}
-                  />
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>{t.name}</div>
-                    <div style={{ fontSize: 11, color: TEXT3 }}>{t.loc}</div>
-                  </div>
-                </div>
-                <span style={{ fontSize: 10, fontWeight: 700, color: GREEN, background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 8, padding: "4px 10px", whiteSpace: "nowrap" }}>
-                  {t.stat}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ══ BOTTOM CTA CARD ═════════════════════════════════════ */}
-      <section style={{ padding: "28px 16px 0", maxWidth: 480, margin: "0 auto" }}>
-        <div style={{
-          background: "linear-gradient(145deg, #6D4AFF 0%, #4F46E5 40%, #312E8F 70%, #0891B2 100%)",
-          borderRadius: 24,
-          padding: "32px 24px 28px",
-          position: "relative",
-          overflow: "hidden",
-          textAlign: "center",
-        }}>
-          <div style={{ position: "absolute", top: -50, right: -50, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.15)", borderRadius: 100, padding: "6px 14px", marginBottom: 20, backdropFilter: "blur(8px)" }}>
-            <div style={{ width: 18, height: 18, borderRadius: "50%", background: "rgba(255,255,255,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ fontSize: 8, fontWeight: 900, color: "#fff" }}>V</span>
-            </div>
-            <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.9)", letterSpacing: "0.06em" }}>128,400+ TRADERS ACTIVE</span>
-          </div>
-          <h2 style={{ fontSize: 26, fontWeight: 900, color: "#fff", lineHeight: 1.15, marginBottom: 12, letterSpacing: "-0.02em" }}>
-            Your capital deserves<br />to work harder.
-          </h2>
-          <p style={{ fontSize: 14, color: "rgba(200,210,255,0.8)", marginBottom: 28, lineHeight: 1.65 }}>
-            Join traders who stopped watching charts and started letting the bots handle it.
-          </p>
-          <button onClick={handleStart}
-            style={{ width: "100%", background: WHITE, border: "none", borderRadius: 14, padding: "16px 0", fontSize: 16, fontWeight: 700, color: PURPLE, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 12 }}>
-            Open Free Account <ArrowRight size={17} />
-          </button>
-          <p style={{ fontSize: 12, color: "rgba(200,210,255,0.7)" }}>
-            Free to start · Withdraw anytime · No hidden fees
-          </p>
-        </div>
-      </section>
-
-      {/* ══ FOOTER ══════════════════════════════════════════════ */}
-      <footer style={{ background: DARK, marginTop: 36, padding: "40px 16px 0" }}>
-        <div style={{ maxWidth: 480, margin: "0 auto" }}>
-          {/* Logo + tagline */}
-          <div style={{ marginBottom: 24 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-              <div style={{ width: 30, height: 30, borderRadius: "50%", background: PURPLE, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontSize: 11, fontWeight: 900, color: "#fff" }}>V</span>
-              </div>
-              <span style={{ fontWeight: 800, fontSize: 17, color: "#fff", letterSpacing: "0.02em" }}>
-                VIXUS<span style={{ color: PURPLE }}>.AI</span>
-              </span>
-            </div>
-            <p style={{ fontSize: 13, color: TEXT3, lineHeight: 1.65, maxWidth: 280 }}>
-              Institutional-grade AI trading for everyone. Automate your strategy across 11+ markets.
+            <p style={{ fontSize: 16, lineHeight: 1.72, color: "#94A3B8", maxWidth: 460, marginBottom: 36 }}>
+              Advanced AI trading bots, real-time market data, and professional tools — all in one secure platform. Built for traders who want results, not complexity.
             </p>
-          </div>
 
-          {/* Social icons */}
-          <div style={{ display: "flex", gap: 10, marginBottom: 32 }}>
-            {[Globe, X, TrendingUp, Activity].map((Icon, i) => (
-              <div key={i} style={{ width: 38, height: 38, borderRadius: "50%", background: DARK2, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-                <Icon size={16} style={{ color: TEXT3 }} />
-              </div>
-            ))}
-          </div>
-
-          {/* Links grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 32 }}>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: TEXT3, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 14 }}>PRODUCT</div>
-              {["Markets", "Trading", "AI Bots", "Portfolio", "Analytics"].map(l => (
-                <div key={l} style={{ fontSize: 14, color: "#A0A8C0", marginBottom: 10, cursor: "pointer" }}
-                  onMouseEnter={e => (e.currentTarget.style.color = "#fff")}
-                  onMouseLeave={e => (e.currentTarget.style.color = "#A0A8C0")}>{l}</div>
-              ))}
-            </div>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: TEXT3, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 14 }}>COMPANY</div>
-              {["About Us", "Pricing", "Blog", "Careers", "Contact"].map(l => (
-                <div key={l} style={{ fontSize: 14, color: "#A0A8C0", marginBottom: 10, cursor: "pointer" }}
-                  onMouseEnter={e => (e.currentTarget.style.color = "#fff")}
-                  onMouseLeave={e => (e.currentTarget.style.color = "#A0A8C0")}>{l}</div>
-              ))}
-            </div>
-          </div>
-
-          {/* Legal */}
-          <div style={{ marginBottom: 32 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: TEXT3, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 14 }}>LEGAL</div>
-            {["Terms of Service", "Privacy Policy", "Cookie Policy", "Risk Disclosure"].map(l => (
-              <div key={l} style={{ fontSize: 14, color: "#A0A8C0", marginBottom: 10, cursor: "pointer" }}
-                onMouseEnter={e => (e.currentTarget.style.color = "#fff")}
-                onMouseLeave={e => (e.currentTarget.style.color = "#A0A8C0")}>{l}</div>
-            ))}
-          </div>
-
-          {/* Newsletter */}
-          <div style={{ marginBottom: 32 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: TEXT3, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>NEWSLETTER</div>
-            <p style={{ fontSize: 13, color: TEXT3, marginBottom: 14 }}>Market insights delivered weekly.</p>
-            <div style={{ display: "flex", gap: 0, background: DARK2, borderRadius: 12, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)" }}>
-              <input
-                type="email"
-                placeholder="Email..."
-                style={{ flex: 1, background: "none", border: "none", outline: "none", padding: "13px 14px", fontSize: 14, color: "#fff" }}
-              />
-              <button style={{ background: PURPLE, border: "none", padding: "0 18px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <ArrowRight size={16} style={{ color: "#fff" }} />
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 28 }}>
+              <button onClick={handleStart}
+                style={{ height: 54, borderRadius: 13, fontSize: 16, fontWeight: 700, background: "linear-gradient(135deg, #7C3AED, #4F46E5)", color: "#fff", border: "none", cursor: "pointer", padding: "0 34px", display: "flex", alignItems: "center", gap: 8, boxShadow: "0 8px 40px rgba(124,58,237,0.5)" }}>
+                Get Started <ArrowRight size={18} />
+              </button>
+              <button onClick={() => setLocation("/login")}
+                style={{ height: 54, borderRadius: 13, fontSize: 15, fontWeight: 600, background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.3)", color: LIGHT_PURPLE, cursor: "pointer", padding: "0 28px" }}>
+                View Platform
               </button>
             </div>
+
+            <p style={{ fontSize: 12, color: "#334155" }}>No credit card &nbsp;·&nbsp; Fast registration &nbsp;·&nbsp; Secured &amp; Trusted</p>
+
+            {/* Mini live price strip */}
+            <div style={{ display: "flex", gap: 16, marginTop: 28, flexWrap: "wrap" }}>
+              {pairs.slice(0, 4).map(p => (
+                <div key={p.pair} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  <span style={{ fontSize: 10, color: "#475569", fontFamily: "monospace" }}>{p.pair}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, fontFamily: "monospace", color: p.up ? GREEN : RED, transition: "color 0.3s" }}>
+                    {formatPrice(p)}
+                  </span>
+                  <span style={{ fontSize: 10, color: p.up ? GREEN : RED, fontFamily: "monospace" }}>
+                    {p.up ? "▲" : "▼"} {Math.abs(p.chgPct).toFixed(2)}%
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* Bottom bar */}
-          <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 20, paddingBottom: 28 }}>
-            <p style={{ fontSize: 12, color: "#4A5270", marginBottom: 6 }}>© {new Date().getFullYear()} VIXUS AI. All rights reserved.</p>
-            <p style={{ fontSize: 11, color: "#363D58", lineHeight: 1.6 }}>
-              Trading involves significant risk of loss. Past performance is not indicative of future results. Capital at risk.
+          {/* Right: Live candlestick mockup */}
+          <div className="hidden md:flex justify-center items-center">
+            <CandlestickMockup />
+          </div>
+        </div>
+
+        {/* Stats bar */}
+        <div className="stats-bar" style={{ marginTop: 72, background: DARK_CARD, border: `1px solid ${BORDER}`, borderRadius: 20, padding: "28px 36px", backdropFilter: "blur(16px)" }}>
+          <div style={{ textAlign: "center", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: "#475569", marginBottom: 22, textTransform: "uppercase" }}>
+            Trusted by Traders Worldwide
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {stats.map((s, i) => (
+              <div key={s.label} style={{ textAlign: "center" }}>
+                <div style={{ fontSize: "clamp(24px, 2.5vw, 36px)", fontWeight: 900, letterSpacing: "-0.02em", fontFamily: "monospace", color: i % 2 === 0 ? LIGHT_PURPLE : "#F1F5F9" }}>{s.value}</div>
+                <div style={{ fontSize: 12, color: "#475569", marginTop: 5 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Trust badges */}
+        <div style={{ marginTop: 24, display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 12 }}>
+          {TRUST_BADGES.map(b => (
+            <div key={b.label} style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 16px", background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 100 }}>
+              <b.icon size={13} style={{ color: LIGHT_PURPLE }} />
+              <span style={{ fontSize: 12, fontWeight: 600, color: "#94A3B8" }}>{b.label}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── REAL TRADER PHOTO SECTION ── */}
+      <section style={{ position: "relative", zIndex: 1, overflow: "hidden", maxWidth: 1280, margin: "60px auto 0", padding: "0 16px" }}>
+        <div className="trader-photo-wrap" style={{ position: "relative", borderRadius: 20, overflow: "hidden", height: 420 }}>
+          <img
+            src={heroPhoto}
+            alt="Professional trader at multi-screen trading desk"
+            style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }}
+            loading="lazy"
+          />
+          {/* Overlay */}
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, rgba(7,9,26,0.92) 0%, rgba(7,9,26,0.6) 40%, rgba(7,9,26,0.2) 100%)" }} />
+          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(0deg, rgba(7,9,26,1) 0%, transparent 100%)", height: 120 }} />
+
+          {/* Text overlay */}
+          <div className="trader-text-overlay" style={{ position: "absolute", top: "50%", left: "5%", transform: "translateY(-50%)", maxWidth: 480 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: LIGHT_PURPLE, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Professional-grade infrastructure</div>
+            <h2 style={{ fontSize: "clamp(18px, 3vw, 38px)", fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1.15, marginBottom: 16 }}>
+              The same tools institutional<br />desks use. Now in your hands.
+            </h2>
+            <p className="trader-desc" style={{ fontSize: 14, color: "#94A3B8", lineHeight: 1.7, marginBottom: 24 }}>
+              Real-time order execution, AI-driven signal generation, and multi-asset portfolio management — no Bloomberg terminal required.
             </p>
+            <button onClick={handleStart}
+              style={{ height: 44, borderRadius: 12, fontSize: 13, fontWeight: 700, background: "linear-gradient(135deg, #7C3AED, #4F46E5)", color: "#fff", border: "none", cursor: "pointer", padding: "0 22px", display: "inline-flex", alignItems: "center", gap: 8, boxShadow: "0 8px 32px rgba(124,58,237,0.5)" }}>
+              Start Trading Free <ArrowRight size={15} />
+            </button>
+          </div>
+
+          {/* Live price overlay cards — hidden on mobile */}
+          <div className="trader-price-cards" style={{ position: "absolute", right: "4%", top: "50%", transform: "translateY(-50%)", display: "flex", flexDirection: "column", gap: 10 }}>
+            {pairs.slice(0, 3).map(p => (
+              <div key={p.pair} style={{ background: "rgba(7,9,26,0.85)", border: `1px solid ${p.up ? "rgba(16,185,129,0.3)" : "rgba(239,68,68,0.3)"}`, borderRadius: 12, padding: "10px 14px", backdropFilter: "blur(16px)", minWidth: 140 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: "#94A3B8" }}>{p.pair}</span>
+                  <span style={{ fontSize: 10, color: p.up ? GREEN : RED }}>{p.up ? "▲" : "▼"}</span>
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 800, fontFamily: "monospace", color: "#F1F5F9", transition: "color 0.3s" }}>{formatPrice(p)}</div>
+                <div style={{ fontSize: 10, color: p.up ? GREEN : RED, fontFamily: "monospace", marginTop: 2 }}>
+                  {Math.abs(p.chgPct).toFixed(2)}% {p.up ? "↑" : "↓"}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── FEATURES ── */}
+      <section style={{ padding: "80px 16px 0", position: "relative", zIndex: 1, maxWidth: 1280, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 44 }}>
+          <h2 style={{ fontSize: "clamp(24px, 3vw, 38px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 10 }}>What's under the hood</h2>
+          <p style={{ fontSize: 15, color: "#64748B" }}>Built by traders, for traders. Every feature has a purpose.</p>
+        </div>
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+          {FEATURES.map((f, i) => (
+            <div key={f.title} style={{ background: DARK_CARD, border: `1px solid ${BORDER}`, borderRadius: 20, padding: "26px 22px", backdropFilter: "blur(8px)" }}>
+              <div style={{ width: 48, height: 48, borderRadius: 14, marginBottom: 18, background: i % 2 === 0 ? "rgba(124,58,237,0.15)" : "rgba(79,70,229,0.15)", border: `1px solid ${i % 2 === 0 ? "rgba(124,58,237,0.25)" : "rgba(79,70,229,0.25)"}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <f.icon size={22} style={{ color: LIGHT_PURPLE }} />
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>{f.title}</div>
+              <div style={{ fontSize: 13, color: "#64748B", lineHeight: 1.65 }}>{f.desc}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── HOW IT WORKS ── */}
+      <section style={{ padding: "80px 16px 0", position: "relative", zIndex: 1, maxWidth: 960, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 48 }}>
+          <h2 style={{ fontSize: "clamp(24px, 3vw, 38px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 10 }}>Up and running in minutes</h2>
+          <p style={{ fontSize: 15, color: "#64748B" }}>Three steps. No experience required.</p>
+        </div>
+        <div className="grid md:grid-cols-3 gap-6">
+          {STEPS.map((s, i) => (
+            <div key={s.n} style={{ background: DARK_CARD, border: `1px solid ${BORDER}`, borderRadius: 20, padding: "30px 26px", position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", top: -16, right: -10, fontSize: 72, fontWeight: 900, color: "rgba(124,58,237,0.05)", fontFamily: "monospace", lineHeight: 1, userSelect: "none" }}>{s.n}</div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: LIGHT_PURPLE, letterSpacing: "0.07em", background: "rgba(124,58,237,0.1)", borderRadius: 5, padding: "3px 10px", marginBottom: 16, display: "inline-block", border: "1px solid rgba(124,58,237,0.2)" }}>{s.tag}</div>
+              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 10 }}>{s.title}</div>
+              <div style={{ fontSize: 13, color: "#64748B", lineHeight: 1.7 }}>{s.desc}</div>
+              {i < STEPS.length - 1 && (
+                <div style={{ marginTop: 18, fontSize: 12, color: LIGHT_PURPLE, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+                  Next step <ChevronRight size={14} />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── SECURITY ── */}
+      <section className="section-pad" style={{ padding: "80px 16px 0", position: "relative", zIndex: 1, maxWidth: 1280, margin: "0 auto" }}>
+        <div className="security-card" style={{ background: DARK_CARD, border: `1px solid ${BORDER}`, borderRadius: 24, padding: "44px 40px", backdropFilter: "blur(12px)" }}>
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 14 }}>Security &amp; Compliance</div>
+              <h3 style={{ fontSize: "clamp(22px, 2.5vw, 32px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 12 }}>Your funds are safe. Always.</h3>
+              <p style={{ fontSize: 14, color: "#64748B", lineHeight: 1.75 }}>Enterprise-grade security baked into every layer. We treat your capital the same way institutional desks do — with zero exceptions.</p>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+              {[
+                { icon: Lock,        label: "256-bit AES encryption",  detail: "All data encrypted in transit and at rest" },
+                { icon: ShieldCheck, label: "2FA on every account",    detail: "Multi-layer authentication by default" },
+                { icon: Clock,       label: "Full trade audit trail",  detail: "Every order timestamped and logged" },
+              ].map(item => (
+                <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: "rgba(124,58,237,0.1)", border: "1px solid rgba(124,58,237,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <item.icon size={19} style={{ color: LIGHT_PURPLE }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 600 }}>{item.label}</div>
+                    <div style={{ fontSize: 12, color: "#475569" }}>{item.detail}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── TESTIMONIALS ── */}
+      <section style={{ padding: "80px 16px 0", position: "relative", zIndex: 1, maxWidth: 1280, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 44 }}>
+          <h2 style={{ fontSize: "clamp(24px, 3vw, 38px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 10 }}>Real traders. Real results.</h2>
+          <p style={{ fontSize: 15, color: "#64748B" }}>No marketing speak. These are the people using VIXUS AI daily.</p>
+        </div>
+        <div className="grid md:grid-cols-3 gap-6">
+          {TESTIMONIALS.map(t => (
+            <div key={t.name} style={{ background: DARK_CARD, border: `1px solid ${BORDER}`, borderRadius: 22, padding: "26px 24px", backdropFilter: "blur(8px)" }}>
+              <div style={{ display: "flex", gap: 2, marginBottom: 16 }}>
+                {[1,2,3,4,5].map(i => <Star key={i} size={14} style={{ color: LIGHT_PURPLE, fill: LIGHT_PURPLE }} />)}
+              </div>
+              <p style={{ fontSize: 14, lineHeight: 1.75, color: "#CBD5E1", marginBottom: 22 }}>"{t.quote}"</p>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <img src={t.photo} alt={t.name}
+                    style={{ width: 38, height: 38, borderRadius: "50%", objectFit: "cover", border: "2px solid rgba(124,58,237,0.3)" }}
+                    onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+                  />
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{t.name}</div>
+                    <div style={{ fontSize: 11, color: "#475569" }}>{t.loc}</div>
+                  </div>
+                </div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: GREEN, background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.25)", borderRadius: 6, padding: "4px 8px", whiteSpace: "nowrap" }}>{t.stat}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── WHY CHOOSE ── */}
+      <section style={{ padding: "80px 16px 0", position: "relative", zIndex: 1, maxWidth: 1280, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 40 }}>
+          <h2 style={{ fontSize: "clamp(22px, 3vw, 36px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 8 }}>Why Traders Choose VIXUS AI</h2>
+          <p style={{ fontSize: 14, color: "#64748B" }}>Secured &amp; Trusted</p>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {WHY_CHOOSE.map(w => (
+            <div key={w.label} style={{ background: DARK_CARD, border: `1px solid ${BORDER}`, borderRadius: 18, padding: "22px 14px", textAlign: "center" }}>
+              <div style={{ width: 42, height: 42, borderRadius: 12, background: "rgba(124,58,237,0.12)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
+                <w.icon size={19} style={{ color: LIGHT_PURPLE }} />
+              </div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#F1F5F9", lineHeight: 1.4, marginBottom: 4 }}>{w.label}</div>
+              <div style={{ fontSize: 10, color: "#475569" }}>{w.sub}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── FINAL CTA ── */}
+      <section style={{ padding: "80px 16px 48px", position: "relative", zIndex: 1, maxWidth: 1280, margin: "0 auto" }}>
+        <div className="cta-card" style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.18) 0%, rgba(79,70,229,0.1) 50%, rgba(7,9,26,0.95) 100%)", border: "1px solid rgba(124,58,237,0.28)", borderRadius: 26, padding: "60px 44px", position: "relative", overflow: "hidden", textAlign: "center" }}>
+          <div style={{ position: "absolute", top: -80, left: "25%", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(circle, rgba(124,58,237,0.18) 0%, transparent 70%)", pointerEvents: "none" }} />
+          <div style={{ position: "relative" }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.25)", borderRadius: 100, padding: "5px 14px", marginBottom: 22 }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: GREEN, display: "inline-block", animation: "pulse 1.5s infinite" }} />
+              <span style={{ fontSize: 11, fontWeight: 700, color: GREEN, letterSpacing: "0.06em" }}>128,400+ TRADERS ACTIVE RIGHT NOW</span>
+            </div>
+            <h2 style={{ fontSize: "clamp(26px, 3.5vw, 48px)", fontWeight: 900, letterSpacing: "-0.02em", marginBottom: 14, lineHeight: 1.1 }}>
+              Your capital deserves<br />to work harder.
+            </h2>
+            <p style={{ fontSize: 16, color: "#64748B", marginBottom: 36, maxWidth: 480, margin: "0 auto 36px" }}>
+              Join traders who stopped watching charts and started letting AI handle the execution.
+            </p>
+            <button onClick={handleStart}
+              style={{ height: 56, borderRadius: 14, fontSize: 17, fontWeight: 700, background: "linear-gradient(135deg, #7C3AED, #4F46E5)", color: "#fff", border: "none", cursor: "pointer", padding: "0 44px", display: "inline-flex", alignItems: "center", gap: 9, boxShadow: "0 8px 48px rgba(124,58,237,0.5)" }}>
+              Open Free Account <ArrowRight size={19} />
+            </button>
+            <p style={{ textAlign: "center", fontSize: 12, color: "#334155", marginTop: 16 }}>Free to start · Withdraw anytime · No hidden fees</p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── FOOTER ── */}
+      <footer style={{ borderTop: "1px solid rgba(124,58,237,0.08)", position: "relative", zIndex: 1 }}>
+        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "48px 24px 32px" }}>
+          <div className="grid md:grid-cols-4 gap-10" style={{ marginBottom: 40 }}>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                <VixusLogo className="w-6 h-6" />
+                <span style={{ fontWeight: 900, fontSize: 15, letterSpacing: "0.04em" }}>VIXUS <span style={{ color: LIGHT_PURPLE }}>AI</span></span>
+              </div>
+              <p style={{ fontSize: 12, color: "#334155", lineHeight: 1.7, maxWidth: 200 }}>Institutional-grade AI trading for everyone. Automate your strategy across 11+ markets.</p>
+            </div>
+            {[
+              { title: "Product", links: ["Markets", "Trading", "AI Bots", "Portfolio", "Analytics"] },
+              { title: "Company", links: ["About Us", "Pricing", "Blog", "Careers", "Contact"] },
+              { title: "Legal",   links: ["Terms of Service", "Privacy Policy", "Cookie Policy", "Risk Disclosure"] },
+            ].map(col => (
+              <div key={col.title}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 16 }}>{col.title}</div>
+                {col.links.map(l => (
+                  <div key={l} style={{ fontSize: 13, color: "#334155", marginBottom: 10, cursor: "pointer" }}>{l}</div>
+                ))}
+              </div>
+            ))}
+          </div>
+          <div style={{ borderTop: "1px solid rgba(255,255,255,0.04)", paddingTop: 24, display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+            <p style={{ fontSize: 11, color: "#1E293B" }}>© {new Date().getFullYear()} VIXUS AI. All rights reserved.</p>
+            <p style={{ fontSize: 10, color: "#1E293B", maxWidth: 520, lineHeight: 1.6, textAlign: "right" }}>Trading involves significant risk of loss. Past performance is not indicative of future results. Capital at risk. Not financial advice.</p>
           </div>
         </div>
       </footer>
 
       <style>{`
         @keyframes ticker { from { transform: translateX(0) } to { transform: translateX(-50%) } }
-        @keyframes pulse  { 0%, 100% { opacity: 1 } 50% { opacity: 0.3 } }
-        * { box-sizing: border-box; }
-        input::placeholder { color: #4A5270; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        /* ── Tailwind-compat responsive helpers ── */
+        @media (max-width: 767px) {
+          .hidden.md\\:flex, .hidden.md\\:block { display: none !important; }
+          .md\\:hidden { display: block !important; }
+          .hidden.sm\\:block { display: none !important; }
+          .md\\:grid-cols-2, .md\\:grid-cols-3, .md\\:grid-cols-4 { grid-template-columns: 1fr !important; }
+          .lg\\:grid-cols-4 { grid-template-columns: 1fr 1fr !important; }
+          .lg\\:grid-cols-6 { grid-template-columns: 1fr 1fr 1fr !important; }
+
+          /* Hero */
+          .hero-section { padding: 48px 16px 40px !important; }
+
+          /* Stats bar */
+          .stats-bar { margin-top: 40px !important; padding: 20px 16px !important; }
+
+          /* Trader photo: shorter, text full-width, hide float cards */
+          .trader-photo-wrap { height: 300px !important; border-radius: 16px !important; }
+          .trader-text-overlay { left: 0 !important; right: 0 !important; max-width: 100% !important; padding: 0 20px !important; }
+          .trader-desc { display: none !important; }
+          .trader-price-cards { display: none !important; }
+
+          /* Security card */
+          .security-card { padding: 28px 20px !important; border-radius: 18px !important; }
+
+          /* CTA card */
+          .cta-card { padding: 40px 20px !important; border-radius: 20px !important; }
+
+          /* Footer grid */
+          .md\\:grid-cols-4 { grid-template-columns: 1fr 1fr !important; }
+        }
+
+        @media (min-width: 768px) {
+          .md\\:hidden { display: none !important; }
+          .hidden.md\\:flex { display: flex !important; }
+          .hidden.md\\:block, .hidden.sm\\:block { display: block !important; }
+          .md\\:grid-cols-2 { grid-template-columns: repeat(2, 1fr) !important; }
+          .md\\:grid-cols-3 { grid-template-columns: repeat(3, 1fr) !important; }
+          .md\\:grid-cols-4 { grid-template-columns: repeat(4, 1fr) !important; }
+          .lg\\:grid-cols-4 { grid-template-columns: repeat(4, 1fr) !important; }
+          .lg\\:grid-cols-6 { grid-template-columns: repeat(6, 1fr) !important; }
+        }
+
+        /* Smooth transitions */
         button { transition: opacity 0.15s, transform 0.12s; }
         button:active { transform: scale(0.97); }
-        @media (min-width: 480px) {
-          .hidden.sm\\:block { display: block !important; }
-        }
-        @media (max-width: 479px) {
-          .hidden.sm\\:block { display: none !important; }
-        }
       `}</style>
     </div>
   );
