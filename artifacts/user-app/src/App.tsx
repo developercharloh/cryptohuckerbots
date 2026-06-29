@@ -53,6 +53,7 @@ import Transactions from "@/pages/cashier/Transactions";
 import PaymentMethods from "@/pages/cashier/PaymentMethods";
 import Trade from "@/pages/Trade";
 import Orders from "@/pages/Orders";
+import Rewards from "@/pages/Rewards";
 import Profile from "@/pages/profile/Profile";
 import PersonalInfo from "@/pages/profile/PersonalInfo";
 import Security from "@/pages/profile/Security";
@@ -119,6 +120,9 @@ function Router() {
       </Route>
       <Route path="/orders">
         <AuthGuard><Orders /></AuthGuard>
+      </Route>
+      <Route path="/rewards">
+        <AuthGuard><Rewards /></AuthGuard>
       </Route>
       <Route path="/profile">
         <AuthGuard><Profile /></AuthGuard>

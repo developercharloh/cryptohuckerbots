@@ -1,13 +1,13 @@
 import { Link, useLocation } from "wouter";
-import { Home, Bot, Wallet, TrendingUp, Activity } from "lucide-react";
+import { Home, Bot, Wallet, TrendingUp, Gift } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "Home",   icon: Home       },
-  { href: "/bots",      label: "Bots",   icon: Bot        },
-  { href: "/cashier",   label: "Wallet", icon: Wallet     },
-  { href: "/trade",     label: "Trade",  icon: TrendingUp },
-  { href: "/orders",    label: "Orders", icon: Activity   },
+  { href: "/dashboard", label: "Home",    icon: Home       },
+  { href: "/bots",      label: "Bots",    icon: Bot        },
+  { href: "/cashier",   label: "Wallet",  icon: Wallet     },
+  { href: "/trade",     label: "Trade",   icon: TrendingUp },
+  { href: "/rewards",   label: "Rewards", icon: Gift       },
 ];
 
 export function BottomNav() {
