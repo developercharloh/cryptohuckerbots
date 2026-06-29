@@ -339,6 +339,41 @@ export default function Dashboard() {
           </Link>
         </div>
 
+        {/* ── Market Overview ─────────────────────────────────────── */}
+        <div className="mx-4 mb-4 bg-card rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-bold">Market Overview</span>
+            <Link href="/trade">
+              <span className="text-[10px] text-primary font-semibold">See All</span>
+            </Link>
+          </div>
+          <div className="space-y-2.5">
+            {[
+              { pair: "EUR/USD", price: "1.08412", change: "+0.23%", positive: true },
+              { pair: "GBP/USD", price: "1.27105", change: "+0.41%", positive: true },
+              { pair: "USD/JPY", price: "153.420", change: "-0.18%", positive: false },
+              { pair: "BTC/USD", price: "67,821.50", change: "+1.25%", positive: true },
+              { pair: "XAU/USD", price: "2,342.80", change: "-0.09%", positive: false },
+            ].map((m) => (
+              <div key={m.pair} className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <span className="text-[8px] font-bold text-primary">{m.pair.split("/")[0]}</span>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-bold">{m.pair}</p>
+                    <p className="text-[9px] text-muted-foreground">FX</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-[11px] font-bold">{m.price}</p>
+                  <p className={`text-[10px] font-semibold ${m.positive ? "text-green-400" : "text-red-400"}`}>{m.change}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* ── Earnings Overview ───────────────────────────────────── */}
         <div className="mx-4 mb-4 bg-card rounded-2xl p-4">
           {/* Header */}
