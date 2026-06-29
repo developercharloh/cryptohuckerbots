@@ -246,63 +246,95 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ── Balance cards ───────────────────────────────────────── */}
-        <div className="grid grid-cols-2 gap-3 px-4 mb-4">
-          {/* Available Balance */}
-          <div className="bg-card rounded-2xl p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <button
-                onClick={() => setBalanceVisible(v => !v)}
-                className="w-8 h-8 rounded-full bg-background flex items-center justify-center"
-              >
-                {balanceVisible
-                  ? <Eye className="w-4 h-4 text-muted-foreground" />
-                  : <EyeOff className="w-4 h-4 text-muted-foreground" />}
-              </button>
-              <Link href="/cashier">
-                <Wallet className="w-4 h-4 text-muted-foreground/40" />
-              </Link>
-            </div>
-            <div>
-              <p className="text-[10px] text-muted-foreground mb-1">Available Balance</p>
-              {loadingSummary ? (
-                <Skeleton className="h-6 w-24" />
-              ) : balanceVisible ? (
-                <p className="text-lg font-bold text-foreground tracking-tight leading-none">
-                  {formatUSD(summary?.availableBalance)}
-                </p>
-              ) : (
-                <p className="text-lg font-bold text-foreground tracking-tight leading-none tracking-widest">
-                  ••••••
-                </p>
-              )}
-            </div>
-          </div>
+        {/* ── Balance hero card ───────────────────────────────────── */}
+        <div className="px-4 mb-4">
+          <div
+            style={{
+              background: "linear-gradient(135deg, #4C1D95 0%, #3730A3 60%, #1E1B4B 100%)",
+              borderRadius: 20, padding: "20px 20px 18px",
+              position: "relative", overflow: "hidden",
+              boxShadow: "0 8px 32px rgba(124,58,237,0.35)",
+            }}
+          >
+            {/* Glow orbs */}
+            <div style={{ position: "absolute", top: -40, right: -40, width: 140, height: 140, borderRadius: "50%", background: "radial-gradient(circle, rgba(167,139,250,0.25) 0%, transparent 70%)", pointerEvents: "none" }} />
+            <div style={{ position: "absolute", bottom: -20, left: "30%", width: 100, height: 100, borderRadius: "50%", background: "radial-gradient(circle, rgba(79,70,229,0.2) 0%, transparent 70%)", pointerEvents: "none" }} />
 
-          {/* Total Profit */}
-          <Link href="/trade">
-            <div className="bg-card rounded-2xl p-4 space-y-3 cursor-pointer">
-              <div className="flex items-center justify-between">
-                <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center">
-                  <ArrowUpRight className="w-4 h-4 text-green-500" />
-                </div>
-                <Activity className="w-4 h-4 text-muted-foreground/40" />
-              </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14, position: "relative" }}>
               <div>
-                <p className="text-[10px] text-muted-foreground mb-1">Total Profit</p>
+                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginBottom: 4, letterSpacing: "0.04em", textTransform: "uppercase" }}>Total Balance</p>
                 {loadingSummary ? (
-                  <Skeleton className="h-6 w-20" />
+                  <Skeleton className="h-8 w-32 bg-white/10" />
+                ) : balanceVisible ? (
+                  <p style={{ fontSize: 30, fontWeight: 800, color: "#fff", letterSpacing: "-0.03em", fontFamily: "monospace", lineHeight: 1 }}>
+                    {formatUSD(summary?.availableBalance)}
+                  </p>
                 ) : (
-                  <>
-                    <p className="text-lg font-bold text-green-400 tracking-tight leading-none">
-                      {formatUSD(summary?.totalProfit)}
-                    </p>
-                    <p className="text-[10px] text-green-400 mt-1">
-                      +{summary?.earningsChangePercent ?? 0}% from last month
-                    </p>
-                  </>
+                  <p style={{ fontSize: 30, fontWeight: 800, color: "#fff", letterSpacing: "0.15em", lineHeight: 1 }}>••••••</p>
                 )}
               </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button
+                  onClick={() => setBalanceVisible(v => !v)}
+                  style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.1)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                >
+                  {balanceVisible ? <EyeOff className="w-4 h-4 text-white/60" /> : <Eye className="w-4 h-4 text-white/60" />}
+                </button>
+              </div>
+            </div>
+
+            {!loadingSummary && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(34,197,94,0.15)", borderRadius: 8, padding: "3px 8px" }}>
+                  <ArrowUpRight style={{ width: 12, height: 12, color: "#4ade80" }} />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#4ade80" }}>+{summary?.earningsChangePercent ?? 0}%</span>
+                </div>
+                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Total Profit: {formatUSD(summary?.totalProfit)}</span>
+              </div>
+            )}
+
+            {/* Quick actions */}
+            <div style={{ display: "flex", gap: 8 }}>
+              {[
+                { label: "Deposit",  href: "/cashier/deposit",  icon: "↓" },
+                { label: "Withdraw", href: "/cashier/withdraw", icon: "↑" },
+                { label: "Transfer", href: "/cashier",          icon: "⇄" },
+              ].map((a) => (
+                <Link key={a.href} href={a.href} style={{ flex: 1, textDecoration: "none" }}>
+                  <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: 12, padding: "8px 6px", textAlign: "center", border: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(4px)" }}>
+                    <div style={{ fontSize: 16, color: "#fff", marginBottom: 3 }}>{a.icon}</div>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.7)", letterSpacing: "0.02em" }}>{a.label}</div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Mini stat cards ─────────────────────────────────────── */}
+        <div className="grid grid-cols-2 gap-3 px-4 mb-4">
+          <div className="bg-card rounded-2xl p-4" style={{ border: "1px solid rgba(124,58,237,0.15)" }}>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "rgba(124,58,237,0.15)" }}>
+                <Activity className="w-4 h-4 text-primary" />
+              </div>
+              <p className="text-[10px] text-muted-foreground">Total Profit</p>
+            </div>
+            {loadingSummary ? <Skeleton className="h-5 w-20" /> : (
+              <p className="text-base font-bold" style={{ color: "#A78BFA" }}>{formatUSD(summary?.totalProfit)}</p>
+            )}
+          </div>
+          <Link href="/bots">
+            <div className="bg-card rounded-2xl p-4 cursor-pointer" style={{ border: "1px solid rgba(124,58,237,0.15)" }}>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "rgba(124,58,237,0.15)" }}>
+                  <Bot className="w-4 h-4 text-primary" />
+                </div>
+                <p className="text-[10px] text-muted-foreground">Active Bots</p>
+              </div>
+              {loadingSummary ? <Skeleton className="h-5 w-12" /> : (
+                <p className="text-base font-bold text-foreground">{summary?.activeBots ?? 0} running</p>
+              )}
             </div>
           </Link>
         </div>

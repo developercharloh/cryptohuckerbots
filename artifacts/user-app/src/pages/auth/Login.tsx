@@ -5,19 +5,22 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useLogin } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Loader2, ShieldCheck, ChevronLeft } from "lucide-react";
+import { Eye, EyeOff, Loader2, ShieldCheck, ChevronLeft, Lock, Mail } from "lucide-react";
 import { VixusLogo } from "@/components/VixusLogo";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(1, "Password is required"),
-  rememberMe: z.boolean().optional(),
 });
+
+const BG = "#07091A";
+const CARD = "rgba(20,16,48,0.9)";
+const BORDER = "rgba(124,58,237,0.2)";
+const PURPLE = "#7C3AED";
+const LIGHT = "#A78BFA";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -28,7 +31,6 @@ export default function Login() {
   const search = useSearch();
   const prefilledEmail = new URLSearchParams(search).get("email") ?? "";
 
-  // 2FA step state
   const [step, setStep] = useState<"credentials" | "2fa">("credentials");
   const [tempToken, setTempToken] = useState("");
   const [twoFACode, setTwoFACode] = useState("");
@@ -36,7 +38,7 @@ export default function Login() {
 
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: prefilledEmail, password: "", rememberMe: false },
+    defaultValues: { email: prefilledEmail, password: "" },
   });
 
   const onSubmit = (values: z.infer<typeof loginSchema>) => {
@@ -48,19 +50,18 @@ export default function Login() {
           setStep("2fa");
         } else {
           setAuth(res.token, res.user);
-          toast({ title: "Login successful" });
           setLocation("/dashboard");
         }
       },
       onError: (err: any) => {
-        toast({ title: "Login failed", description: err.message || "An error occurred", variant: "destructive" });
+        toast({ title: "Login failed", description: err.message || "Invalid credentials", variant: "destructive" });
       },
     });
   };
 
   const handle2FAVerify = async () => {
     if (twoFACode.length !== 6) {
-      toast({ title: "Enter the 6-digit code from your authenticator app", variant: "destructive" });
+      toast({ title: "Enter the 6-digit code", variant: "destructive" });
       return;
     }
     setVerifying(true);
@@ -74,7 +75,6 @@ export default function Login() {
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || "Invalid code");
       setAuth(data.token, data.user);
-      toast({ title: "Login successful" });
       setLocation("/dashboard");
     } catch (err: any) {
       toast({ title: "Invalid code", description: err.message, variant: "destructive" });
@@ -84,99 +84,119 @@ export default function Login() {
     }
   };
 
-  // ── 2FA step UI ───────────────────────────────────────────────────
   if (step === "2fa") {
     return (
-      <div className="flex flex-col min-h-[100dvh] bg-background p-6 pt-12">
-        <div className="flex-1 flex flex-col">
-          <div className="flex items-center gap-2.5 mb-8">
-            <VixusLogo className="w-9 h-9" />
-            <span className="text-xl font-bold tracking-tight text-white">
-              VIXUS<span className="text-primary"> AI</span>
-            </span>
-          </div>
-
-          <button
-            onClick={() => setStep("credentials")}
-            className="flex items-center gap-1 text-muted-foreground text-sm mb-8 w-fit"
-          >
-            <ChevronLeft className="w-4 h-4" /> Back to login
+      <div style={{ minHeight: "100dvh", background: `linear-gradient(160deg, ${BG} 0%, #0F0A2E 50%, ${BG} 100%)`, display: "flex", flexDirection: "column", padding: "24px 24px", position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: "10%", left: "50%", transform: "translateX(-50%)", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(circle, rgba(124,58,237,0.15) 0%, transparent 70%)", pointerEvents: "none" }} />
+        <div style={{ paddingTop: 40 }}>
+          <button onClick={() => setStep("credentials")} style={{ display: "flex", alignItems: "center", gap: 4, color: "#64748B", background: "none", border: "none", cursor: "pointer", fontSize: 13, padding: 0 }}>
+            <ChevronLeft size={16} /> Back to login
           </button>
-
-          <div className="flex flex-col items-center text-center mb-10">
-            <div className="w-16 h-16 rounded-2xl bg-primary/15 flex items-center justify-center mb-4">
-              <ShieldCheck className="w-8 h-8 text-primary" />
+        </div>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", position: "relative", zIndex: 1 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", marginBottom: 36 }}>
+            <div style={{ width: 72, height: 72, borderRadius: 20, background: "rgba(124,58,237,0.15)", border: "1px solid rgba(124,58,237,0.3)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
+              <ShieldCheck size={32} style={{ color: LIGHT }} />
             </div>
-            <h1 className="text-2xl font-bold mb-2">Two-Factor Authentication</h1>
-            <p className="text-muted-foreground text-sm">
-              Open <strong className="text-foreground">Google Authenticator</strong> and enter the 6-digit code for <strong className="text-foreground">VIXUS AI</strong>.
+            <h1 style={{ fontSize: 26, fontWeight: 800, color: "#F1F5F9", marginBottom: 10, letterSpacing: "-0.02em" }}>Two-Factor Auth</h1>
+            <p style={{ fontSize: 13, color: "#64748B", lineHeight: 1.6, maxWidth: 280 }}>
+              Open <strong style={{ color: "#F1F5F9" }}>Google Authenticator</strong> and enter the 6-digit code for <strong style={{ color: LIGHT }}>VIXUS AI</strong>.
             </p>
           </div>
-
-          <div className="space-y-5">
-            <Input
-              type="number"
-              inputMode="numeric"
-              placeholder="000 000"
-              maxLength={6}
-              value={twoFACode}
-              onChange={e => setTwoFACode(e.target.value.slice(0, 6))}
-              className="h-16 rounded-xl text-center text-3xl font-mono tracking-[0.5em] bg-card border-none"
-            />
-
-            <Button
-              className="w-full h-14 rounded-xl text-lg font-medium shadow-none"
-              onClick={handle2FAVerify}
-              disabled={verifying || twoFACode.length !== 6}
-            >
-              {verifying ? <Loader2 className="w-5 h-5 animate-spin" /> : "Verify & Login"}
-            </Button>
-
-            <p className="text-center text-xs text-muted-foreground">
-              Code refreshes every 30 seconds. Make sure your phone clock is accurate.
-            </p>
-          </div>
+          <input
+            type="number"
+            inputMode="numeric"
+            placeholder="000 000"
+            maxLength={6}
+            value={twoFACode}
+            onChange={e => setTwoFACode(e.target.value.slice(0, 6))}
+            style={{
+              width: "100%", height: 72, borderRadius: 16,
+              background: CARD, border: `1px solid ${BORDER}`,
+              textAlign: "center", fontSize: 32, fontFamily: "monospace",
+              fontWeight: 700, letterSpacing: "0.4em", color: "#F1F5F9",
+              outline: "none", marginBottom: 16,
+            }}
+          />
+          <button
+            onClick={handle2FAVerify}
+            disabled={verifying || twoFACode.length !== 6}
+            style={{
+              width: "100%", height: 54, borderRadius: 14, fontSize: 16, fontWeight: 700,
+              background: twoFACode.length === 6 ? "linear-gradient(135deg, #7C3AED, #4F46E5)" : "rgba(124,58,237,0.2)",
+              color: "#fff", border: "none", cursor: twoFACode.length === 6 ? "pointer" : "not-allowed",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              boxShadow: twoFACode.length === 6 ? "0 8px 28px rgba(124,58,237,0.4)" : "none",
+              transition: "all 0.2s ease",
+            }}
+          >
+            {verifying ? <Loader2 size={20} style={{ animation: "spin 1s linear infinite" }} /> : "Verify & Login"}
+          </button>
         </div>
       </div>
     );
   }
 
-  // ── Credentials step UI ───────────────────────────────────────────
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-background p-6 pt-12">
-      <div className="flex-1 flex flex-col">
-        <div className="flex items-center gap-2.5 mb-8">
-          <VixusLogo className="w-9 h-9" />
-          <span className="text-xl font-bold tracking-tight text-white">
-            VIXUS<span className="text-primary"> AI</span>
+    <div style={{ minHeight: "100dvh", background: `linear-gradient(160deg, ${BG} 0%, #0F0A2E 50%, ${BG} 100%)`, display: "flex", flexDirection: "column", padding: "0 24px", position: "relative", overflow: "hidden" }}>
+
+      {/* Glow */}
+      <div style={{ position: "absolute", top: "-5%", left: "50%", transform: "translateX(-50%)", width: 280, height: 280, borderRadius: "50%", background: "radial-gradient(circle, rgba(124,58,237,0.18) 0%, transparent 70%)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", bottom: "20%", right: "-15%", width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, rgba(79,70,229,0.12) 0%, transparent 70%)", pointerEvents: "none" }} />
+
+      {/* Header */}
+      <div style={{ paddingTop: 56, paddingBottom: 36, display: "flex", flexDirection: "column", alignItems: "center", position: "relative", zIndex: 1 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 14, background: "linear-gradient(135deg, rgba(124,58,237,0.25), rgba(79,70,229,0.15))", border: "1px solid rgba(124,58,237,0.35)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <VixusLogo className="w-7 h-7" />
+          </div>
+          <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: "-0.01em", color: "#F1F5F9" }}>
+            VIXUS<span style={{ color: LIGHT }}> AI</span>
           </span>
         </div>
-
-        <div className="mb-8 w-full">
-          <h1 className="text-2xl font-bold mb-1.5">Welcome back</h1>
-          <p className="text-muted-foreground text-sm">Log in to your account</p>
+        <div style={{ textAlign: "center", marginTop: 24 }}>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: "#F1F5F9", marginBottom: 8, letterSpacing: "-0.02em" }}>Welcome Back</h1>
+          <p style={{ fontSize: 13, color: "#64748B" }}>Trade with confidence</p>
         </div>
+      </div>
 
+      {/* Form card */}
+      <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 24, padding: "24px 20px", backdropFilter: "blur(16px)", position: "relative", zIndex: 1 }}>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5 w-full">
+          <form onSubmit={form.handleSubmit(onSubmit)} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
             <FormField control={form.control} name="email" render={({ field }) => (
-              <FormItem className="space-y-2">
-                <FormLabel className="text-muted-foreground font-normal">Email</FormLabel>
+              <FormItem style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "#64748B", letterSpacing: "0.02em" }}>Email or Phone</label>
                 <FormControl>
-                  <Input placeholder="name@example.com" type="email" className="bg-card border-border h-12 rounded-xl text-base px-4" {...field} />
+                  <div style={{ position: "relative" }}>
+                    <Mail size={16} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "#475569" }} />
+                    <Input
+                      placeholder="name@example.com"
+                      type="email"
+                      style={{ paddingLeft: 40, height: 50, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(124,58,237,0.15)", borderRadius: 12, color: "#F1F5F9", fontSize: 14 }}
+                      {...field}
+                    />
+                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )} />
 
             <FormField control={form.control} name="password" render={({ field }) => (
-              <FormItem className="space-y-2">
-                <FormLabel className="text-muted-foreground font-normal">Password</FormLabel>
+              <FormItem style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "#64748B", letterSpacing: "0.02em" }}>Password</label>
                 <FormControl>
-                  <div className="relative">
-                    <Input placeholder="••••••••" type={showPassword ? "text" : "password"} className="bg-card border-border h-12 rounded-xl text-base px-4 pr-12" {...field} />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white">
-                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  <div style={{ position: "relative" }}>
+                    <Lock size={16} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "#475569" }} />
+                    <Input
+                      placeholder="••••••••"
+                      type={showPassword ? "text" : "password"}
+                      style={{ paddingLeft: 40, paddingRight: 44, height: 50, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(124,58,237,0.15)", borderRadius: 12, color: "#F1F5F9", fontSize: 14 }}
+                      {...field}
+                    />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#475569" }}>
+                      {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
                     </button>
                   </div>
                 </FormControl>
@@ -184,27 +204,35 @@ export default function Login() {
               </FormItem>
             )} />
 
-            <div className="flex items-center justify-between pt-1 pb-2">
-              <FormField control={form.control} name="rememberMe" render={({ field }) => (
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="remember" checked={field.value} onCheckedChange={field.onChange} className="rounded border-muted-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary" />
-                  <label htmlFor="remember" className="text-sm font-medium leading-none text-muted-foreground">Remember me</label>
-                </div>
-              )} />
-              <Link href="/forgot-password" className="text-sm text-primary font-medium">Forgot password?</Link>
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <Link href="/forgot-password" style={{ fontSize: 12, color: LIGHT, fontWeight: 600, textDecoration: "none" }}>Forgot password?</Link>
             </div>
 
-            <Button type="submit" className="w-full h-14 rounded-xl text-lg font-medium shadow-none" disabled={loginMutation.isPending}>
-              {loginMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : "Login"}
-            </Button>
+            <button
+              type="submit"
+              disabled={loginMutation.isPending}
+              style={{
+                width: "100%", height: 54, borderRadius: 14, fontSize: 16, fontWeight: 700,
+                background: "linear-gradient(135deg, #7C3AED, #4F46E5)",
+                color: "#fff", border: "none", cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                boxShadow: "0 8px 28px rgba(124,58,237,0.4)",
+                opacity: loginMutation.isPending ? 0.8 : 1,
+              }}
+            >
+              {loginMutation.isPending ? <Loader2 size={20} style={{ animation: "spin 1s linear infinite" }} /> : "Login"}
+            </button>
           </form>
         </Form>
-
-        <div className="mt-8 pb-6 text-center text-sm text-muted-foreground">
-          Don't have an account?{" "}
-          <Link href="/register" className="text-primary font-medium">Register</Link>
-        </div>
       </div>
+
+      {/* Sign up link */}
+      <div style={{ textAlign: "center", marginTop: 24, paddingBottom: 40, position: "relative", zIndex: 1 }}>
+        <span style={{ fontSize: 13, color: "#475569" }}>Don't have an account? </span>
+        <Link href="/register" style={{ fontSize: 13, color: LIGHT, fontWeight: 700, textDecoration: "none" }}>Sign up</Link>
+      </div>
+
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

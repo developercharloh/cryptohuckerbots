@@ -167,12 +167,12 @@
   --elevate-1: rgba(255,255,255, .04);
   --elevate-2: rgba(255,255,255, .09);
 
-  --background: 215 63% 7%; /* #07111F */
+  --background: 240 60% 6%; /* #07091A deep navy */
   --foreground: 0 0% 100%;
-  --card: 215 56% 12%; /* #0D1B2E */
+  --card: 252 55% 9%; /* #0D0A20 */
   --card-foreground: 0 0% 100%;
-  --card-border: 215 40% 18%;
-  --border: 215 40% 18%;
+  --card-border: 252 35% 16%;
+  --border: 252 35% 16%;
   --primary: 262 83% 58%; /* #7C3AED */
   --primary-foreground: 0 0% 100%;
   --secondary: 215 45% 15%;
