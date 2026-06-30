@@ -2,6 +2,10 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { useGetMe, setAuthTokenGetter } from "@workspace/api-client-react";
 import type { User } from "@workspace/api-client-react";
 
+// Set synchronously at module load — before any component or TanStack Query
+// fires a request — so the first fetch always carries the bearer token.
+setAuthTokenGetter(() => localStorage.getItem("vixus_token"));
+
 interface AuthContextType {
   user: User | null;
   token: string | null;
