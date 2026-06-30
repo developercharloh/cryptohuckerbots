@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useLocation } from "wouter";
-import { createChart, CandlestickSeries, UTCTimestamp } from "lightweight-charts";
+import { createChart, CandlestickSeries, UTCTimestamp, ISeriesApi } from "lightweight-charts";
 import { Layout } from "@/components/Layout";
 import { ArrowLeft, TrendingUp, TrendingDown, Activity, ChevronDown, Bot, Zap } from "lucide-react";
 import { useListBots } from "@workspace/api-client-react";
@@ -142,8 +142,11 @@ export default function TradePairPage() {
   const [stopLoss, setStopLoss] = useState("");
   const [executed, setExecuted] = useState(false);
 
-  const chartRef = useRef<HTMLDivElement>(null);
+  const chartRef      = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<ReturnType<typeof createChart> | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const seriesRef     = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const lastCandleRef = useRef<Candle | null>(null);
 
   /* ── Load candles ─────────────────────────────────────── */
   const loadCandles = useCallback(async () => {
@@ -179,12 +182,25 @@ export default function TradePairPage() {
   /* ── Keep priceRef in sync ───────────────────────────────── */
   useEffect(() => { priceRef.current = currentPrice; }, [currentPrice]);
 
-  /* ── Live tick helper ────────────────────────────────────── */
+  /* ── Live tick helper — updates header + live candle ─────── */
   const tickPrice = useCallback((next: number) => {
     setPriceUp(next >= priceRef.current);
     setCurrentPrice(next);
     setPriceFlash(true);
     setTimeout(() => setPriceFlash(false), 500);
+    // Push close price into the current (last) candle on the chart
+    if (seriesRef.current && lastCandleRef.current) {
+      const c = lastCandleRef.current;
+      const updated: Candle = {
+        time: c.time,
+        open:  c.open,
+        high:  Math.max(c.high, next),
+        low:   Math.min(c.low, next),
+        close: next,
+      };
+      lastCandleRef.current = updated;
+      seriesRef.current.update({ ...updated, time: updated.time as UTCTimestamp });
+    }
   }, []);
 
   /* ── 1.5s simulation for all pairs ──────────────────────── */
@@ -237,14 +253,17 @@ export default function TradePairPage() {
     });
     chartInstance.current = chart;
 
+    const decimals = meta.price < 10 ? 5 : meta.price < 100 ? 3 : 2;
     const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor:       "#22c55e",
-      downColor:     "#ef4444",
+      upColor: "#22c55e", downColor: "#ef4444",
       borderVisible: false,
-      wickUpColor:   "#22c55e",
-      wickDownColor: "#ef4444",
+      wickUpColor: "#22c55e", wickDownColor: "#ef4444",
+      priceFormat: { type: "price", precision: decimals, minMove: 1 / Math.pow(10, decimals) },
     });
-    candleSeries.setData(candles.map(c => ({ ...c, time: c.time as UTCTimestamp })));
+    const mapped = candles.map(c => ({ ...c, time: c.time as UTCTimestamp }));
+    candleSeries.setData(mapped);
+    seriesRef.current = candleSeries;
+    lastCandleRef.current = candles[candles.length - 1] ?? null;
     chart.timeScale().fitContent();
 
     const obs = new ResizeObserver(() => {
