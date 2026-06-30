@@ -300,7 +300,8 @@ export default function TradePairPage() {
         meta.category === "crypto" ? "Crypto" :
         meta.category === "commodities" ? "Commodities" : "Forex";
 
-      const res = await fetch("/api/trade/manual", {
+      const apiBase = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
+      const res = await fetch(`${apiBase}/api/trade/manual`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
