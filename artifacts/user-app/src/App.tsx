@@ -52,6 +52,7 @@ import Withdraw from "@/pages/cashier/Withdraw";
 import Transactions from "@/pages/cashier/Transactions";
 import PaymentMethods from "@/pages/cashier/PaymentMethods";
 import Markets from "@/pages/Markets";
+import TradePairPage from "@/pages/TradePairPage";
 import Trade from "@/pages/Trade";
 import Orders from "@/pages/Orders";
 import Rewards from "@/pages/Rewards";
@@ -121,6 +122,9 @@ function Router() {
       </Route>
       <Route path="/trade">
         <AuthGuard><Trade /></AuthGuard>
+      </Route>
+      <Route path="/trade/:symbol">
+        <AuthGuard><TradePairPage /></AuthGuard>
       </Route>
       <Route path="/orders">
         <AuthGuard><Orders /></AuthGuard>
