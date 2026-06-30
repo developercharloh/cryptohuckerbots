@@ -251,8 +251,8 @@ router.post("/trade/manual", async (req, res) => {
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
-  const { pair, direction, market, stake } = req.body as {
-    pair?: string; direction?: string; market?: string; stake?: number;
+  const { pair, direction, market, stake, botName: customBotName } = req.body as {
+    pair?: string; direction?: string; market?: string; stake?: number; botName?: string;
   };
 
   if (!pair || typeof pair !== "string") return res.status(400).json({ error: "pair is required" });
@@ -273,7 +273,7 @@ router.post("/trade/manual", async (req, res) => {
   const inserted = await db.insert(positionsTable).values({
     userId: user.id,
     botId: 0,
-    botName: "Manual Trade",
+    botName: customBotName?.trim() || "Manual Trade",
     signalId,
     pair,
     direction,
