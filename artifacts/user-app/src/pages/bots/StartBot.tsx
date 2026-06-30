@@ -229,7 +229,8 @@ export default function StartBot() {
     try {
       const token = localStorage.getItem("vixus_token") ?? "";
       const { pair, market, direction } = pickPair();
-      const res = await fetch("/api/trade/manual", {
+      const apiBase = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
+      const res = await fetch(`${apiBase}/api/trade/manual`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
