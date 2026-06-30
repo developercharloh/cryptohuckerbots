@@ -140,6 +140,8 @@ export default function TradePairPage() {
   const [leverage, setLeverage] = useState(10);
   const [takeProfit, setTakeProfit] = useState("");
   const [stopLoss, setStopLoss] = useState("");
+  const [executing, setExecuting] = useState(false);
+  const [tradeError, setTradeError] = useState<string | null>(null);
   const [executed, setExecuted] = useState(false);
 
   const chartRef      = useRef<HTMLDivElement>(null);
@@ -283,9 +285,51 @@ export default function TradePairPage() {
     return p.toFixed(5);
   }
 
-  function handleExecute() {
-    setExecuted(true);
-    setTimeout(() => setExecuted(false), 2500);
+  async function handleExecute() {
+    setTradeError(null);
+    const rawAmount = parseFloat(amount.replace(/,/g, ""));
+    if (isNaN(rawAmount) || rawAmount <= 0) {
+      setTradeError("Enter a valid amount to trade.");
+      return;
+    }
+    setExecuting(true);
+    try {
+      const token = localStorage.getItem("vixus_token") ?? "";
+      const direction = side === "long" ? "BUY" : "SELL";
+      const marketCategory =
+        meta.category === "crypto" ? "Crypto" :
+        meta.category === "commodities" ? "Commodities" : "Forex";
+
+      const res = await fetch("/api/trade/manual", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ pair: meta.label, direction, market: marketCategory, stake: rawAmount }),
+      });
+      const data = await res.json() as { error?: string; id?: number; openedAt?: string };
+      if (!res.ok) {
+        setTradeError(data.error ?? "Trade failed. Try again.");
+        return;
+      }
+      // Save active trade for Orders countdown
+      if (data.id) {
+        localStorage.setItem("vixus_active_trade", JSON.stringify({
+          positionId: data.id,
+          endTimeMs: Date.now() + 5 * 60 * 1000,
+        }));
+      }
+      setExecuted(true);
+      setTimeout(() => {
+        setExecuted(false);
+        setLocation("/orders");
+      }, 1000);
+    } catch {
+      setTradeError("Network error. Check your connection.");
+    } finally {
+      setExecuting(false);
+    }
   }
 
   return (
@@ -450,19 +494,29 @@ export default function TradePairPage() {
             <span style={{ fontSize: 11, color: "#6B7280" }}>Risk: <span style={{ color: riskColor, fontWeight: 700 }}>{risk}</span></span>
           </div>
 
+          {/* Error banner */}
+          {tradeError && (
+            <div style={{ marginBottom: 12, padding: "10px 14px", borderRadius: 10, background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#ef4444", fontSize: 12, fontWeight: 600 }}>
+              ⚠ {tradeError}
+            </div>
+          )}
+
           {/* Execute button */}
-          <button onClick={handleExecute} style={{
-            width: "100%", padding: "16px 0", borderRadius: 14, border: "none", cursor: "pointer",
-            fontSize: 15, fontWeight: 900, letterSpacing: "0.08em", color: "#fff",
-            background: executed
-              ? "#22c55e"
-              : `linear-gradient(135deg, ${PURPLE} 0%, #4F46E5 100%)`,
-            transition: "background 0.3s",
-          }}>
-            {executed
-              ? "✓ ORDER PLACED"
-              : `EXECUTE — ${meta.label} ${side === "long" ? "L" : "S"}`
-            }
+          <button
+            onClick={handleExecute}
+            disabled={executing || executed}
+            style={{
+              width: "100%", padding: "16px 0", borderRadius: 14, border: "none",
+              cursor: executing || executed ? "default" : "pointer",
+              fontSize: 15, fontWeight: 900, letterSpacing: "0.08em", color: "#fff",
+              opacity: executing ? 0.75 : 1,
+              background: executed
+                ? "#22c55e"
+                : `linear-gradient(135deg, ${PURPLE} 0%, #4F46E5 100%)`,
+              transition: "background 0.3s",
+            }}
+          >
+            {executed ? "✓ ORDER PLACED — Redirecting…" : executing ? "Placing Order…" : `EXECUTE — ${meta.label} ${side === "long" ? "LONG" : "SHORT"}`}
           </button>
 
           {/* ── Run Bot on This Pair ─────────────────────────── */}
