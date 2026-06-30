@@ -270,7 +270,7 @@ export default function Bots() {
                             : undefined
                         }
                       >
-                        {bot.isPurchased ? "✓ Owned" : purchaseMutation.isPending ? "Adding..." : "Run Bot"}
+                        {bot.isPurchased ? "✓ Owned" : purchaseMutation.isPending ? "Buying..." : "Buy Bot"}
                       </button>
                     </div>
                   </div>
