@@ -148,7 +148,7 @@ export default function Markets() {
             return (
               <button
                 key={pair.symbol}
-                onClick={() => setLocation(`/trade?pair=${encodeURIComponent(pair.symbol)}`)}
+                onClick={() => setLocation(`/trade/${pair.symbol.replace("/", "-")}`)}
                 style={{
                   width: "100%", display: "flex", alignItems: "center", gap: 10,
                   padding: "12px 0", borderBottom: "1px solid rgba(255,255,255,0.05)",
