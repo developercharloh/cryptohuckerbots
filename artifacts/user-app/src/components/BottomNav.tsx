@@ -1,12 +1,12 @@
 import { Link, useLocation } from "wouter";
-import { Home, BarChart2, TrendingUp, Wallet, LayoutGrid } from "lucide-react";
+import { Home, BarChart2, ClipboardList, Wallet, LayoutGrid } from "lucide-react";
 
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "Home",    icon: Home,        center: false },
-  { href: "/markets",   label: "Markets", icon: BarChart2,   center: false },
-  { href: "/trade",     label: "Trade",   icon: TrendingUp,  center: true  },
-  { href: "/cashier",   label: "Wallet",  icon: Wallet,      center: false },
-  { href: "/profile",   label: "More",    icon: LayoutGrid,  center: false },
+  { href: "/dashboard", label: "Home",    icon: Home,          center: false },
+  { href: "/markets",   label: "Markets", icon: BarChart2,     center: false },
+  { href: "/orders",    label: "Orders",  icon: ClipboardList, center: true  },
+  { href: "/cashier",   label: "Wallet",  icon: Wallet,        center: false },
+  { href: "/profile",   label: "More",    icon: LayoutGrid,    center: false },
 ];
 
 export function BottomNav() {
