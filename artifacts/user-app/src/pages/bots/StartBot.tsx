@@ -136,6 +136,8 @@ export default function StartBot() {
   const canStart = stakeNum >= 1 && selectedBotId !== null;
   const totalSeconds = runtime * 60;
 
+  const [startingTrade, setStartingTrade] = useState(false);
+
   useEffect(() => {
     const h = (e: MouseEvent) => {
       if (runtimeRef.current && !runtimeRef.current.contains(e.target as Node)) setRuntimeOpen(false);
@@ -200,7 +202,16 @@ export default function StartBot() {
     return () => clearInterval(id);
   }, [step]);
 
-  const handleStart = () => {
+  // Pick a sensible pair based on bot category
+  const pickPair = () => {
+    const cat = (selectedBot?.category ?? "").toLowerCase();
+    if (cat.includes("crypto")) return { pair: "BTC/USDT", market: "Crypto", direction: "BUY" as const };
+    if (cat.includes("commod") || cat.includes("gold")) return { pair: "XAU/USD", market: "Commodities", direction: "BUY" as const };
+    const forexPairs = ["EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD"];
+    return { pair: forexPairs[Math.floor(Math.random() * forexPairs.length)], market: "Forex", direction: Math.random() > 0.5 ? "BUY" as const : "SELL" as const };
+  };
+
+  const handleStart = async () => {
     if (!canStart) return;
     if (stakeNum < 1) { toast({ title: "Minimum stake is $1", variant: "destructive" }); return; }
     const available = summary?.availableBalance ?? 0;
@@ -212,6 +223,42 @@ export default function StartBot() {
       });
       return;
     }
+
+    // Create a real position in the DB so it shows in Orders
+    setStartingTrade(true);
+    try {
+      const token = localStorage.getItem("vixus_token") ?? "";
+      const { pair, market, direction } = pickPair();
+      const res = await fetch("/api/trade/manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          pair,
+          direction,
+          market,
+          stake: stakeNum,
+          botName: selectedBot?.name ?? "Bot Trade",
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json() as { error?: string };
+        toast({ title: err.error ?? "Failed to start bot", variant: "destructive" });
+        return;
+      }
+      const pos = await res.json() as { id?: number };
+      if (pos.id) {
+        localStorage.setItem("vixus_active_trade", JSON.stringify({
+          positionId: pos.id,
+          endTimeMs: Date.now() + runtime * 60 * 1000,
+        }));
+      }
+    } catch {
+      toast({ title: "Network error. Try again.", variant: "destructive" });
+      return;
+    } finally {
+      setStartingTrade(false);
+    }
+
     setSecondsLeft(totalSeconds);
     setPnl(0);
     setMsgIdx(0);
@@ -410,11 +457,11 @@ export default function StartBot() {
         <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] px-5 pb-8 pt-4 bg-gradient-to-t from-background via-background/95 to-transparent">
           <Button
             onClick={handleStart}
-            disabled={!canStart}
+            disabled={!canStart || startingTrade}
             className="w-full h-14 rounded-2xl text-base font-bold shadow-none bg-gradient-to-r from-[#7C3AED] to-[#9333ea] hover:opacity-90 disabled:opacity-30 transition-opacity"
           >
             <Zap className="w-5 h-5 mr-2 fill-white" />
-            Start Bot
+            {startingTrade ? "Placing Trade…" : "Start Bot"}
           </Button>
         </div>
       </div>
