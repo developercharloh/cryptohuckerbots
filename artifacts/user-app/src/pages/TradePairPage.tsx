@@ -128,7 +128,10 @@ export default function TradePairPage() {
   const [candles, setCandles] = useState<Candle[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPrice, setCurrentPrice] = useState(meta.price);
+  const [priceUp, setPriceUp]           = useState(true);
+  const [priceFlash, setPriceFlash]     = useState(false);
   const [rsi, setRsi] = useState(50);
+  const priceRef = useRef(meta.price);
 
   // Trade panel state
   const [tradeType, setTradeType] = useState<"market" | "limit">("market");
@@ -172,6 +175,51 @@ export default function TradePairPage() {
   }, [symbol, tf, meta.binanceSymbol, meta.price, side]);
 
   useEffect(() => { loadCandles(); }, [loadCandles]);
+
+  /* ── Keep priceRef in sync ───────────────────────────────── */
+  useEffect(() => { priceRef.current = currentPrice; }, [currentPrice]);
+
+  /* ── Live tick helper ────────────────────────────────────── */
+  const tickPrice = useCallback((next: number) => {
+    setPriceUp(next >= priceRef.current);
+    setCurrentPrice(next);
+    setPriceFlash(true);
+    setTimeout(() => setPriceFlash(false), 500);
+  }, []);
+
+  /* ── 1.5s simulation for all pairs ──────────────────────── */
+  useEffect(() => {
+    const id = setInterval(() => {
+      const p = priceRef.current;
+      const v = p > 10000 ? 0.0003 : p > 100 ? 0.0002 : 0.00015;
+      const d = (Math.random() - 0.49) * v;
+      tickPrice(+(p * (1 + d)).toFixed(p > 10 ? 2 : 5));
+    }, 1500);
+    return () => clearInterval(id);
+  }, [tickPrice]);
+
+  /* ── Binance WebSocket for crypto ────────────────────────── */
+  useEffect(() => {
+    if (!meta.binanceSymbol) return;
+    const sym = meta.binanceSymbol.toLowerCase();
+    let ws: WebSocket | null = null;
+    let retryTimer: ReturnType<typeof setTimeout>;
+    let attempts = 0;
+    const connect = () => {
+      if (attempts > 3) return; attempts++;
+      try {
+        ws = new WebSocket(`wss://stream.binance.com:9443/ws/${sym}@miniTicker`);
+        ws.onopen = () => { attempts = 0; };
+        ws.onmessage = e => {
+          try { const d = JSON.parse(e.data); if (d?.c) tickPrice(parseFloat(d.c)); } catch {}
+        };
+        ws.onerror = () => {};
+        ws.onclose = () => { retryTimer = setTimeout(connect, 8000); };
+      } catch {}
+    };
+    connect();
+    return () => { ws?.close(); clearTimeout(retryTimer); };
+  }, [meta.binanceSymbol, tickPrice]);
 
   /* ── Build chart ──────────────────────────────────────── */
   useEffect(() => {
@@ -242,7 +290,11 @@ export default function TradePairPage() {
                 {up ? "+" : ""}{meta.change.toFixed(2)}%
               </span>
             </div>
-            <span style={{ fontSize: 22, fontWeight: 800, color: "#fff", fontFamily: "'JetBrains Mono', monospace" }}>
+            <span style={{
+              fontSize: 22, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace",
+              color: priceFlash ? (priceUp ? "#22c55e" : "#ef4444") : "#fff",
+              transition: "color 0.3s",
+            }}>
               {formatPrice(currentPrice)}
             </span>
           </div>
