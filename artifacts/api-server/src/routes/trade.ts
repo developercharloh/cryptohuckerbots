@@ -245,6 +245,58 @@ async function resolveOpen(
   return { row: p, pnl: walk.pnl, elapsedMs: elapsed };
 }
 
+// ── Manual trade (no bot required) ─────────────────────────────────────────
+router.post("/trade/manual", async (req, res) => {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  const user = await getUserFromToken(token);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+  const { pair, direction, market, stake } = req.body as {
+    pair?: string; direction?: string; market?: string; stake?: number;
+  };
+
+  if (!pair || typeof pair !== "string") return res.status(400).json({ error: "pair is required" });
+  if (direction !== "BUY" && direction !== "SELL") return res.status(400).json({ error: "direction must be BUY or SELL" });
+  if (!market || typeof market !== "string") return res.status(400).json({ error: "market is required" });
+  if (typeof stake !== "number" || stake <= 0) return res.status(400).json({ error: "stake must be a positive number" });
+
+  const available = await computeAvailableBalance(user.id);
+  if (stake > available) {
+    return res.status(400).json({ error: `Insufficient balance. Available: $${available.toFixed(2)}, required: $${stake.toFixed(2)}` });
+  }
+
+  const tp = Math.round(stake * 0.045 * 100) / 100;
+  const sl = Math.round(stake * 0.040 * 100) / 100;
+
+  const signalId = `manual-${pair.toLowerCase().replace("/", "")}-${direction.toLowerCase()}-${Date.now()}`;
+
+  const inserted = await db.insert(positionsTable).values({
+    userId: user.id,
+    botId: 0,
+    botName: "Manual Trade",
+    signalId,
+    pair,
+    direction,
+    market,
+    winRate: "75.00",
+    stake: stake.toFixed(2),
+    targetProfit: tp.toFixed(2),
+    stopLoss: sl.toFixed(2),
+    status: "open",
+  }).returning();
+
+  await db.insert(transactionsTable).values({
+    userId: user.id,
+    type: "trade_loss",
+    amount: stake.toFixed(2),
+    status: "completed",
+    paymentMethod: "balance",
+    description: `Manual trade stake: ${pair} ${direction}`,
+  });
+
+  return res.json(serialize(inserted[0], 0, 0));
+});
+
 // List AI trading signals — shuffled per-minute so the "best" signal rotates
 router.get("/trade/signals", async (req, res) => {
   const token = req.headers.authorization?.replace("Bearer ", "");
