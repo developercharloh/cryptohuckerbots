@@ -203,6 +203,15 @@ export default function StartBot() {
   const handleStart = () => {
     if (!canStart) return;
     if (stakeNum < 1) { toast({ title: "Minimum stake is $1", variant: "destructive" }); return; }
+    const available = summary?.availableBalance ?? 0;
+    if (stakeNum > available) {
+      toast({
+        title: "Insufficient balance",
+        description: `You need $${stakeNum.toFixed(2)} but only have $${available.toFixed(2)} available.`,
+        variant: "destructive",
+      });
+      return;
+    }
     setSecondsLeft(totalSeconds);
     setPnl(0);
     setMsgIdx(0);
@@ -247,6 +256,9 @@ export default function StartBot() {
             <div className="flex items-center gap-2 mb-3">
               <div className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center">1</div>
               <h2 className="text-sm font-bold">Stake Amount</h2>
+              <span className="ml-auto text-[10px] text-muted-foreground">
+                Available: <span className="font-bold text-foreground">${(summary?.availableBalance ?? 0).toFixed(2)}</span>
+              </span>
             </div>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium select-none">$</span>
@@ -255,9 +267,14 @@ export default function StartBot() {
                 placeholder="Enter amount..."
                 value={stakeAmount}
                 onChange={e => setStakeAmount(e.target.value)}
-                className="bg-card border-none h-14 rounded-xl text-lg font-bold pl-8 pr-4"
+                className={`bg-card border-none h-14 rounded-xl text-lg font-bold pl-8 pr-4 ${stakeNum > 0 && stakeNum > (summary?.availableBalance ?? 0) ? "ring-2 ring-destructive/60" : ""}`}
               />
             </div>
+            {stakeNum > 0 && stakeNum > (summary?.availableBalance ?? 0) && (
+              <p className="text-[11px] text-destructive font-semibold mt-2 flex items-center gap-1">
+                ⚠ Amount exceeds your available balance of ${(summary?.availableBalance ?? 0).toFixed(2)}
+              </p>
+            )}
             <div className="flex gap-2 mt-2.5">
               {[50, 100, 250, 500].map(v => (
                 <button
