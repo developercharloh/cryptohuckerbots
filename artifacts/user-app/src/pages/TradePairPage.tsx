@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useLocation } from "wouter";
-import { createChart, CandlestickSeries, LineSeries, UTCTimestamp } from "lightweight-charts";
+import { createChart, CandlestickSeries, UTCTimestamp } from "lightweight-charts";
 import { Layout } from "@/components/Layout";
-import { ArrowLeft, TrendingUp, TrendingDown, Activity, ChevronDown } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Activity, ChevronDown, Bot, Zap } from "lucide-react";
+import { useListBots } from "@workspace/api-client-react";
 
 const PURPLE = "#6C47FF";
 
@@ -117,6 +118,7 @@ export default function TradePairPage() {
   const params = useParams<{ symbol: string }>();
   const symbol = params.symbol ?? "BTC-USD";
   const [, setLocation] = useLocation();
+  const { data: bots = [] } = useListBots();
 
   const meta = PAIR_META[symbol] ?? {
     label: symbol.replace("-", "/"), price: 1, change: 0, vol: "-", category: "forex" as const
@@ -391,6 +393,54 @@ export default function TradePairPage() {
               : `EXECUTE — ${meta.label} ${side === "long" ? "L" : "S"}`
             }
           </button>
+
+          {/* ── Run Bot on This Pair ─────────────────────────── */}
+          <div style={{ marginTop: 28, borderRadius: 18, border: `1px solid ${PURPLE}33`, background: "rgba(108,71,255,0.07)", padding: 18 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 10, background: PURPLE, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Bot size={16} color="#fff" />
+              </div>
+              <div>
+                <p style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>Run a Bot on {meta.label}</p>
+                <p style={{ fontSize: 11, color: "#6B7280" }}>Let AI trade this pair automatically</p>
+              </div>
+            </div>
+
+            {bots.length === 0 ? (
+              <button onClick={() => setLocation("/bots")}
+                style={{ width: "100%", padding: "12px 0", borderRadius: 12, border: `1px dashed ${PURPLE}66`, background: "transparent", color: PURPLE, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                Browse Bot Marketplace →
+              </button>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {bots.slice(0, 3).map((bot, i) => {
+                  const colors = ["#6C47FF","#06B6D4","#22c55e"];
+                  const color = colors[i % colors.length];
+                  return (
+                    <div key={bot.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", background: "rgba(255,255,255,0.04)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.07)" }}>
+                      <div style={{ width: 34, height: 34, borderRadius: 10, background: color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
+                        {bot.name?.charAt(0) ?? "B"}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 12, fontWeight: 700, color: "#fff", marginBottom: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{bot.name}</p>
+                        <p style={{ fontSize: 10, color: "#22c55e" }}>Win {bot.winRate}% · +${bot.profitToday} today</p>
+                      </div>
+                      <button onClick={() => setLocation(`/start-bot?botId=${bot.id}`)}
+                        style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 9, border: "none", background: PURPLE, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>
+                        <Zap size={11} /> Activate
+                      </button>
+                    </div>
+                  );
+                })}
+                {bots.length > 3 && (
+                  <button onClick={() => setLocation("/bots")}
+                    style={{ width: "100%", padding: "9px 0", borderRadius: 10, border: `1px solid rgba(255,255,255,0.08)`, background: "transparent", color: "#6B7280", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                    View all {bots.length} bots →
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Feature cards */}
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 20 }}>
