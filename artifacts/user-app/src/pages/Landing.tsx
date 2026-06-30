@@ -573,12 +573,12 @@ export default function Landing() {
         <DashboardCard pairs={pairs} />
       </section>
 
-      {/* ── TRADE FROM ANYWHERE ─────────────────────────────────── */}
-      <section style={{ maxWidth: 1200, margin: "64px auto 0", padding: "0 16px" }}>
+      {/* ── TRADE FROM ANYWHERE — 4-image grid (exact Base44 layout) ── */}
+      <section id="trading" style={{ maxWidth: 1200, margin: "64px auto 0", padding: "0 16px" }}>
         <div style={{ textAlign: "center", marginBottom: 40 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: PURPLE, textTransform: "uppercase", letterSpacing: "0.1em", background: "#F3F0FF", padding: "6px 16px", borderRadius: 100, display: "inline-block" }}>Mobile Trading</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: PURPLE, textTransform: "uppercase", letterSpacing: "0.1em", background: "#F3F0FF", padding: "6px 16px", borderRadius: 100, display: "inline-block" }}>Real Traders. Real Results.</span>
           <h2 style={{ fontSize: "clamp(26px,3vw,42px)", fontWeight: 800, color: "#111827", lineHeight: 1.15, marginTop: 12, marginBottom: 8, fontFamily: "'Inter Tight', sans-serif" }}>
-            Trade from anywhere.<br />
+            Trade from anywhere,<br />
             <span style={{ color: PURPLE }}>on any device.</span>
           </h2>
           <p style={{ fontSize: 16, color: "#6B7280", maxWidth: 520, margin: "0 auto" }}>
@@ -586,32 +586,64 @@ export default function Landing() {
           </p>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }} className="photo-grid">
-          {/* Large photo */}
-          <div style={{ gridColumn: "span 2", borderRadius: 16, overflow: "hidden", height: 280, position: "relative", cursor: "pointer" }} className="photo-large">
-            <img src="https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=900&q=80" alt="Trading laptop" style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.7s" }}
+        {/* Row 1: laptop (2col) + mobile (1col) */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 16 }} className="photo-grid">
+          {/* img2 — laptop with trading charts — 2 cols wide */}
+          <div style={{ gridColumn: "span 2", borderRadius: 16, overflow: "hidden", height: 288, position: "relative" }} className="photo-large">
+            <img src="/images/img2.png" alt="Laptop trading dashboard with candlestick charts"
+              style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.7s" }}
               onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.05)")}
               onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")} />
-            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.4) 0%, transparent 60%)" }} />
-            <div style={{ position: "absolute", bottom: 16, left: 16 }}>
-              <div style={{ background: "rgba(255,255,255,0.9)", backdropFilter: "blur(8px)", borderRadius: 10, padding: "8px 14px", display: "inline-flex", alignItems: "center", gap: 8, boxShadow: CARD_SH }}>
-                <span style={{ width: 7, height: 7, borderRadius: "50%", background: GREEN, display: "inline-block", animation: "pulse 1.5s infinite" }} />
-                <span style={{ fontSize: 12, fontWeight: 600, color: "#111827" }}>🏛️ Institutional-Grade Infrastructure</span>
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(17,24,39,0.6) 0%, transparent 55%)" }} />
+            <div style={{ position: "absolute", bottom: 20, left: 20 }}>
+              <div style={{ background: "rgba(255,255,255,0.9)", backdropFilter: "blur(8px)", borderRadius: 12, padding: "10px 16px", display: "inline-flex", alignItems: "center", gap: 8, boxShadow: CARD_SH }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: GREEN, display: "inline-block", animation: "pulse 1.5s infinite", flexShrink: 0 }} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>Live Charts · Professional Terminal</span>
               </div>
             </div>
           </div>
-          {/* Small photos */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <div style={{ borderRadius: 16, overflow: "hidden", height: 130, position: "relative" }}>
-              <img src="https://images.unsplash.com/photo-1642790106117-e829e14a795f?w=600&q=80" alt="Mobile trading" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              <div style={{ position: "absolute", bottom: 10, left: 10 }}>
-                <div style={{ background: `rgba(108,71,255,0.9)`, backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 10px", display: "inline-flex", alignItems: "center", gap: 6, boxShadow: CARD_SH }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: "#fff" }}>📱 Mobile Trading</span>
-                </div>
+          {/* img3 — hand holding phone with mobile trading app — 1 col */}
+          <div style={{ borderRadius: 16, overflow: "hidden", height: 288, position: "relative" }}>
+            <img src="/images/img3.png" alt="Mobile trading app with candlestick charts"
+              style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.7s" }}
+              onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.05)")}
+              onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")} />
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(17,24,39,0.6) 0%, transparent 55%)" }} />
+            <div style={{ position: "absolute", bottom: 20, left: 16 }}>
+              <div style={{ background: "rgba(255,255,255,0.9)", backdropFilter: "blur(8px)", borderRadius: 12, padding: "10px 14px", display: "inline-flex", alignItems: "center", gap: 7, boxShadow: CARD_SH }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>📱 Mobile Trading</span>
               </div>
             </div>
-            <div style={{ borderRadius: 16, overflow: "hidden", height: 130, position: "relative" }}>
-              <img src="https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=600&q=80" alt="Professional trader" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          </div>
+        </div>
+
+        {/* Row 2: woman at desk (1col) + trading floor (2col) */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }} className="photo-grid">
+          {/* img4 — woman smiling at desk with trading laptop — 1 col */}
+          <div style={{ borderRadius: 16, overflow: "hidden", height: 288, position: "relative" }}>
+            <img src="/images/img4.png" alt="Trader using Vixus AI platform"
+              style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.7s" }}
+              onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.05)")}
+              onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")} />
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(17,24,39,0.6) 0%, transparent 55%)" }} />
+            <div style={{ position: "absolute", bottom: 20, left: 16 }}>
+              <div style={{ background: "rgba(255,255,255,0.9)", backdropFilter: "blur(8px)", borderRadius: 12, padding: "10px 14px", boxShadow: CARD_SH }}>
+                <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 2 }}>Average monthly gain</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: GREEN }}>+$4,200</div>
+              </div>
+            </div>
+          </div>
+          {/* img5 — institutional trading floor with multiple monitors — 2 cols wide */}
+          <div style={{ gridColumn: "span 2", borderRadius: 16, overflow: "hidden", height: 288, position: "relative" }} className="photo-large">
+            <img src="/images/img5.png" alt="Institutional trading floor"
+              style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.7s" }}
+              onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.05)")}
+              onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")} />
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(17,24,39,0.6) 0%, transparent 55%)" }} />
+            <div style={{ position: "absolute", bottom: 20, left: 20 }}>
+              <div style={{ background: "rgba(255,255,255,0.9)", backdropFilter: "blur(8px)", borderRadius: 12, padding: "10px 16px", display: "inline-flex", alignItems: "center", gap: 8, boxShadow: CARD_SH }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>🏛️ Institutional-Grade Infrastructure</span>
+              </div>
             </div>
           </div>
         </div>
@@ -744,8 +776,11 @@ export default function Landing() {
       {/* ── SECURITY SECTION ──────────────────────────────────── */}
       <section style={{ maxWidth: 1200, margin: "64px auto 0", padding: "0 16px" }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 40, alignItems: "center" }} className="security-grid">
-          {/* Left: security card */}
-          <div style={{ borderRadius: 24, overflow: "hidden", height: 320, background: "linear-gradient(135deg, #7C3AED 0%, #4F46E5 50%, #06B6D4 100%)", padding: 28, display: "flex", flexDirection: "column", justifyContent: "space-between", position: "relative" }}>
+          {/* Left: security card — img1 as photo background */}
+          <div style={{ borderRadius: 24, overflow: "hidden", height: 320, position: "relative", padding: 28, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+            <img src="/images/img1.png" alt="Institutional trading infrastructure"
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, rgba(124,58,237,0.92) 0%, rgba(79,70,229,0.88) 50%, rgba(6,182,212,0.85) 100%)" }} />
             <div style={{ position: "absolute", top: 0, right: 0, width: 200, height: 200, background: "rgba(255,255,255,0.05)", borderRadius: "50%", transform: "translate(30%, -30%)", pointerEvents: "none" }} />
             <div>
               <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(52,211,153,0.2)", border: "1px solid rgba(52,211,153,0.3)", borderRadius: 100, padding: "4px 12px", marginBottom: 16 }}>
