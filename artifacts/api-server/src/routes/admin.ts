@@ -40,25 +40,28 @@ function hashPassword(password: string): string {
   return crypto.createHash("sha256").update(password + "vixus_salt_2024").digest("hex");
 }
 
-// In-memory admin sessions: token → { userId, expiresAt }
-const adminSessions = new Map<string, { userId: number; expiresAt: number }>();
 const ADMIN_SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const JWT_SECRET = process.env.ADMIN_JWT_SECRET ?? process.env.ADMIN_ACCOUNT_PASSWORD ?? "vixus_admin_secret_2024";
 
 function createAdminToken(userId: number): string {
-  const token = crypto.randomBytes(32).toString("hex");
-  adminSessions.set(token, { userId, expiresAt: Date.now() + ADMIN_SESSION_TTL_MS });
-  return token;
+  const payload = Buffer.from(JSON.stringify({ userId, expiresAt: Date.now() + ADMIN_SESSION_TTL_MS })).toString("base64url");
+  const sig = crypto.createHmac("sha256", JWT_SECRET).update(payload).digest("base64url");
+  return `${payload}.${sig}`;
 }
 
 function validateAdminToken(token: string | undefined): boolean {
   if (!token) return false;
-  const session = adminSessions.get(token);
-  if (!session) return false;
-  if (Date.now() > session.expiresAt) {
-    adminSessions.delete(token);
+  const parts = token.split(".");
+  if (parts.length !== 2) return false;
+  const [payload, sig] = parts;
+  const expectedSig = crypto.createHmac("sha256", JWT_SECRET).update(payload).digest("base64url");
+  if (sig !== expectedSig) return false;
+  try {
+    const { expiresAt } = JSON.parse(Buffer.from(payload, "base64url").toString());
+    return Date.now() < expiresAt;
+  } catch {
     return false;
   }
-  return true;
 }
 
 function requireAdmin(req: Request, res: Response, next: NextFunction) {
