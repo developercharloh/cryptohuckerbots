@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { useListTradePositions } from "@workspace/api-client-react";
 import { Layout } from "@/components/Layout";
@@ -6,8 +6,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
   ChevronLeft, CheckCircle2, Clock, Zap,
-  ArrowUpRight, ArrowDownRight, Activity, Trash2, XCircle,
+  ArrowUpRight, ArrowDownRight, Activity, Trash2, XCircle, Target,
 } from "lucide-react";
+
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
 
 const CLEAR_KEY = "vixus_cleared_positions_before";
 
@@ -19,33 +21,13 @@ function fmtDuration(ms: number): string {
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
-function fmtCountdown(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-}
-
 const isBuy = (d: string) => d.toUpperCase() === "BUY";
-
-/* ── Per-position countdown hook ────────────────────── */
-function useCountdown(openedAt: string): number {
-  const endMs = new Date(openedAt).getTime() + 5 * 60 * 1000; // 5-min window per trade
-  const [remaining, setRemaining] = useState(() => Math.max(0, endMs - Date.now()));
-  useEffect(() => {
-    const id = setInterval(() => setRemaining(Math.max(0, endMs - Date.now())), 1000);
-    return () => clearInterval(id);
-  }, [endMs]);
-  return remaining;
-}
 
 /* ── Close-position helper ──────────────────────────── */
 async function closePosition(id: number): Promise<boolean> {
   try {
     const token = localStorage.getItem("vixus_token") ?? "";
-    const res = await fetch(`/api/trade/positions/${id}/close`, {
+    const res = await fetch(`${API_BASE}/api/trade/positions/${id}/close`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -67,8 +49,9 @@ function OpenCard({
 }) {
   const buy = isBuy(p.direction);
   const pnlPos = p.pnl >= 0;
-  const remaining = useCountdown(p.openedAt);
   const [closing, setClosing] = useState(false);
+  const targetProfit = Math.round(p.stake * 0.04 * 100) / 100;
+  const progress = targetProfit > 0 ? Math.min(100, (p.pnl / targetProfit) * 100) : 0;
 
   const handleClose = async () => {
     setClosing(true);
@@ -95,7 +78,7 @@ function OpenCard({
         </div>
         <div className="text-right shrink-0">
           <p className={`text-base font-bold ${pnlPos ? "text-green-400" : "text-red-400"}`}>
-            {pnlPos ? "+" : "−"}${Math.abs(p.pnl).toFixed(2)}
+            +${Math.abs(p.pnl).toFixed(2)}
           </p>
           <div className="flex items-center gap-1 justify-end mt-0.5">
             <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
@@ -104,20 +87,24 @@ function OpenCard({
         </div>
       </div>
 
-      {/* Countdown + stake + ROI row */}
-      <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-2 border-t border-border/20 mb-3">
+      {/* Stake + target + ROI row */}
+      <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-2 border-t border-border/20 mb-2">
         <span>Stake ${p.stake.toFixed(0)}</span>
-        {remaining > 0 ? (
-          <span className="flex items-center gap-1 font-mono font-bold text-primary">
-            <Clock className="w-3 h-3" />
-            {fmtCountdown(remaining)}
-          </span>
-        ) : (
-          <span className="text-muted-foreground/60">Closing soon…</span>
-        )}
-        <span className={`font-semibold ${pnlPos ? "text-green-400" : "text-red-400"}`}>
+        <span className="flex items-center gap-1 text-primary font-semibold">
+          <Target className="w-3 h-3" />
+          Target +${targetProfit.toFixed(2)}
+        </span>
+        <span className="font-semibold text-green-400">
           ROI {p.stake > 0 ? ((p.pnl / p.stake) * 100).toFixed(1) : "0.0"}%
         </span>
+      </div>
+
+      {/* Profit progress bar */}
+      <div className="h-1.5 bg-muted/30 rounded-full overflow-hidden mb-3">
+        <div
+          className="h-full bg-gradient-to-r from-primary to-green-400 rounded-full transition-all duration-500"
+          style={{ width: `${progress}%` }}
+        />
       </div>
 
       {/* Close early button */}
