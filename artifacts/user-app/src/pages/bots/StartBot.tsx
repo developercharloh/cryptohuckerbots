@@ -5,20 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  ChevronLeft, ChevronDown, Check, TrendingUp, Clock,
-  Bot as BotIcon, Zap, Activity, BarChart2,
+  ChevronLeft, Check,
+  Bot as BotIcon, Zap, Activity, BarChart2, TrendingUp,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 type Step = "configure" | "running" | "results";
-
-const RUNTIMES = [
-  { value: 1, label: "1 Minute" },
-  { value: 2, label: "2 Minutes" },
-  { value: 3, label: "3 Minutes" },
-  { value: 4, label: "4 Minutes" },
-  { value: 5, label: "5 Minutes" },
-];
 
 const AI_MESSAGES = [
   "Analyzing market conditions...",
@@ -119,72 +111,55 @@ export default function StartBot() {
   const { data: summary } = useGetDashboardSummary();
 
   const [stakeAmount, setStakeAmount] = useState("");
-  const [runtime, setRuntime] = useState(3);
   const [selectedBotId, setSelectedBotId] = useState<number | null>(preId ? parseInt(preId) : null);
-  const [runtimeOpen, setRuntimeOpen] = useState(false);
-  const runtimeRef = useRef<HTMLDivElement>(null);
 
   const [step, setStep] = useState<Step>("configure");
-  const [secondsLeft, setSecondsLeft] = useState(0);
   const [pnl, setPnl] = useState(0);
   const [msgIdx, setMsgIdx] = useState(0);
   const [tradeCount, setTradeCount] = useState(1);
   const [showConfetti, setShowConfetti] = useState(false);
 
   const stakeNum = parseFloat(stakeAmount) || 0;
+  const profitTarget = Math.round(stakeNum * 0.04 * 100) / 100;
   const selectedBot = bots.find(b => b.id === selectedBotId);
   const canStart = stakeNum >= 1 && selectedBotId !== null;
-  const totalSeconds = runtime * 60;
 
   const [startingTrade, setStartingTrade] = useState(false);
-
-  useEffect(() => {
-    const h = (e: MouseEvent) => {
-      if (runtimeRef.current && !runtimeRef.current.contains(e.target as Node)) setRuntimeOpen(false);
-    };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, []);
+  const resolvedRef = useRef(false);
 
   useEffect(() => {
     if (!selectedBotId && bots.length > 0) setSelectedBotId(bots[0].id);
   }, [bots, selectedBotId]);
 
-  // Countdown
+  // P&L simulation — always trends upward toward exactly 4% of stake
   useEffect(() => {
     if (step !== "running") return;
+    resolvedRef.current = false;
     const id = setInterval(() => {
-      setSecondsLeft(s => {
-        if (s <= 1) {
-          clearInterval(id);
-          setPnl(p => {
-            const final = Math.max(stakeNum * 0.045, p);
-            return final;
-          });
-          setStep("results");
-          setShowConfetti(true);
-          setTimeout(() => setShowConfetti(false), 5500);
-          return 0;
-        }
-        return s - 1;
+      setPnl(p => {
+        if (resolvedRef.current) return p;
+        const target = Math.round(stakeNum * 0.04 * 100) / 100;
+        if (p >= target) return target;
+        const remaining = target - p;
+        const delta = Math.max(0.001 * stakeNum, remaining * 0.07) + (Math.random() * 0.006 * stakeNum);
+        return Math.min(target, p + delta);
       });
-    }, 1000);
+    }, 650);
     return () => clearInterval(id);
   }, [step, stakeNum]);
 
-  // P&L simulation
+  // Transition to results when profit target is hit
   useEffect(() => {
-    if (step !== "running") return;
-    const id = setInterval(() => {
-      setPnl(p => {
-        const gain = Math.random() > 0.27;
-        const delta = gain ? 0.04 + Math.random() * 0.42 : -(0.02 + Math.random() * 0.16);
-        const cap = stakeNum * 0.22;
-        return Math.max(-stakeNum * 0.04, Math.min(cap, p + delta));
-      });
-    }, 2100);
-    return () => clearInterval(id);
-  }, [step, stakeNum]);
+    if (step !== "running" || resolvedRef.current) return;
+    const target = Math.round(stakeNum * 0.04 * 100) / 100;
+    if (pnl >= target && target > 0) {
+      resolvedRef.current = true;
+      setPnl(target);
+      setStep("results");
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 5500);
+    }
+  }, [pnl, step, stakeNum]);
 
   // AI messages
   useEffect(() => {
@@ -224,7 +199,6 @@ export default function StartBot() {
       return;
     }
 
-    // Create a real position in the DB so it shows in Orders
     setStartingTrade(true);
     try {
       const token = localStorage.getItem("vixus_token") ?? "";
@@ -250,7 +224,7 @@ export default function StartBot() {
       if (pos.id) {
         localStorage.setItem("vixus_active_trade", JSON.stringify({
           positionId: pos.id,
-          endTimeMs: Date.now() + runtime * 60 * 1000,
+          endTimeMs: Date.now() + 5 * 60 * 1000,
         }));
       }
     } catch {
@@ -260,7 +234,6 @@ export default function StartBot() {
       setStartingTrade(false);
     }
 
-    setSecondsLeft(totalSeconds);
     setPnl(0);
     setMsgIdx(0);
     setTradeCount(Math.floor(Math.random() * 2) + 1);
@@ -272,14 +245,13 @@ export default function StartBot() {
     setStakeAmount("");
     setPnl(0);
     setShowConfetti(false);
+    resolvedRef.current = false;
   };
 
-  const mm = Math.floor(secondsLeft / 60).toString().padStart(2, "0");
-  const ss = (secondsLeft % 60).toString().padStart(2, "0");
-  const timerProgress = totalSeconds > 0 ? secondsLeft / totalSeconds : 0;
-  const dashOffset = CIRCUMFERENCE * (1 - timerProgress);
-  const finalProfit = Math.max(stakeNum * 0.045, pnl);
-  const updatedBalance = (summary?.availableBalance ?? 0) + finalProfit;
+  // Profit progress for the ring (0 → 1)
+  const profitProgress = profitTarget > 0 ? Math.min(1, pnl / profitTarget) : 0;
+  const dashOffset = CIRCUMFERENCE * (1 - profitProgress);
+  const updatedBalance = (summary?.availableBalance ?? 0) + profitTarget;
 
   // ─── CONFIGURE ────────────────────────────────────────────────────────────
   if (step === "configure") {
@@ -340,48 +312,10 @@ export default function StartBot() {
             </div>
           </section>
 
-          {/* 02 Bot Runtime */}
+          {/* 02 Bot Selection */}
           <section>
             <div className="flex items-center gap-2 mb-3">
               <div className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center">2</div>
-              <h2 className="text-sm font-bold">Bot Runtime</h2>
-            </div>
-            <div ref={runtimeRef} className="relative">
-              <button
-                onClick={() => setRuntimeOpen(o => !o)}
-                className="w-full flex items-center justify-between bg-card h-14 rounded-xl px-4 text-sm font-semibold"
-              >
-                <span className="flex items-center gap-2.5">
-                  <Clock className="w-4 h-4 text-primary" />
-                  {RUNTIMES.find(r => r.value === runtime)?.label}
-                </span>
-                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${runtimeOpen ? "rotate-180" : ""}`} />
-              </button>
-              {runtimeOpen && (
-                <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-card border border-border/40 rounded-2xl shadow-2xl overflow-hidden">
-                  {RUNTIMES.map(r => (
-                    <button
-                      key={r.value}
-                      onClick={() => { setRuntime(r.value); setRuntimeOpen(false); }}
-                      className={`w-full text-left px-4 py-3.5 text-sm flex items-center justify-between transition-colors ${
-                        r.value === runtime
-                          ? "bg-primary text-white font-semibold"
-                          : "hover:bg-background text-foreground"
-                      }`}
-                    >
-                      {r.label}
-                      {r.value === runtime && <Check className="w-4 h-4" />}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* 03 Bot Selection */}
-          <section>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center">3</div>
               <h2 className="text-sm font-bold">Bot Selection</h2>
             </div>
             {loadingBots ? (
@@ -430,18 +364,18 @@ export default function StartBot() {
             )}
           </section>
 
-          {/* 04 Summary */}
+          {/* 03 Summary */}
           {selectedBot && stakeNum >= 1 && (
             <section>
               <div className="flex items-center gap-2 mb-3">
-                <div className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center">4</div>
+                <div className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center">3</div>
                 <h2 className="text-sm font-bold">Summary</h2>
               </div>
               <div className="bg-gradient-to-br from-primary/15 to-purple-950/40 border border-primary/25 rounded-2xl p-4 space-y-3">
                 {[
                   { k: "Bot", v: selectedBot.name, vc: "" },
                   { k: "Stake Amount", v: `$${stakeNum.toFixed(2)}`, vc: "" },
-                  { k: "Runtime Duration", v: RUNTIMES.find(r => r.value === runtime)?.label ?? "", vc: "" },
+                  { k: "Target Profit", v: `$${profitTarget.toFixed(2)} (4%)`, vc: "text-green-400" },
                   { k: "Status", v: "Ready to Start", vc: "text-green-400" },
                 ].map(({ k, v, vc }) => (
                   <div key={k} className="flex items-center justify-between">
@@ -491,7 +425,7 @@ export default function StartBot() {
         </div>
 
         <div className="flex-1 flex flex-col items-center gap-5 px-5 pb-8 overflow-y-auto">
-          {/* Circular countdown timer */}
+          {/* Profit progress ring */}
           <div className="relative flex items-center justify-center mt-2">
             <svg width="190" height="190">
               <defs>
@@ -500,11 +434,8 @@ export default function StartBot() {
                   <stop offset="100%" stopColor="#4ade80" />
                 </linearGradient>
               </defs>
-              {/* Outer glow ring */}
               <circle cx="95" cy="95" r={RADIUS + 10} fill="none" stroke="#7C3AED" strokeWidth="1" strokeOpacity="0.1" />
-              {/* Track */}
               <circle cx="95" cy="95" r={RADIUS} fill="none" stroke="#1e293b" strokeWidth="9" />
-              {/* Progress */}
               <circle
                 cx="95" cy="95" r={RADIUS}
                 fill="none"
@@ -513,29 +444,38 @@ export default function StartBot() {
                 strokeLinecap="round"
                 strokeDasharray={CIRCUMFERENCE}
                 strokeDashoffset={dashOffset}
-                style={{ transition: "stroke-dashoffset 0.95s linear", transformOrigin: "95px 95px", transform: "rotate(-90deg)" }}
+                style={{ transition: "stroke-dashoffset 0.6s ease-out", transformOrigin: "95px 95px", transform: "rotate(-90deg)" }}
               />
             </svg>
             <div className="absolute flex flex-col items-center">
-              <p className="text-4xl font-mono font-bold tracking-tight">{mm}:{ss}</p>
-              <p className="text-[10px] text-muted-foreground mt-1">Time Remaining</p>
+              <p className="text-3xl font-bold tracking-tight text-green-400">
+                {(profitProgress * 100).toFixed(0)}%
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-1">To Target</p>
             </div>
           </div>
 
           {/* P&L card */}
           <div className="w-full bg-card rounded-2xl p-5 text-center">
             <p className="text-[11px] text-muted-foreground mb-1 font-medium uppercase tracking-wide">Current Profit</p>
-            <p
-              className={`text-5xl font-bold tracking-tight transition-all duration-500 ${pnl >= 0 ? "text-green-400" : "text-red-400"}`}
-            >
-              {pnl >= 0 ? "+" : "−"}${Math.abs(pnl).toFixed(2)}
+            <p className="text-5xl font-bold tracking-tight text-green-400">
+              +${pnl.toFixed(2)}
             </p>
             <div className="flex items-center justify-center gap-1.5 mt-2">
-              <TrendingUp className={`w-3.5 h-3.5 ${pnl >= 0 ? "text-green-400" : "text-red-400"}`} />
-              <span className={`text-[10px] font-semibold ${pnl >= 0 ? "text-green-400" : "text-red-400"}`}>
+              <TrendingUp className="w-3.5 h-3.5 text-green-400" />
+              <span className="text-[10px] font-semibold text-green-400">
                 {stakeNum > 0 ? `${((pnl / stakeNum) * 100).toFixed(2)}% ROI` : "—"}
               </span>
             </div>
+            <div className="mt-3 h-1.5 bg-muted/30 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-primary to-green-400 rounded-full transition-all duration-500"
+                style={{ width: `${profitProgress * 100}%` }}
+              />
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-1.5">
+              Target: +${profitTarget.toFixed(2)}
+            </p>
           </div>
 
           {/* AI analysis */}
@@ -547,17 +487,15 @@ export default function StartBot() {
             <p className="text-sm font-medium text-foreground leading-relaxed transition-all duration-700">
               {AI_MESSAGES[msgIdx]}
             </p>
-            {/* Fake scanning bar */}
             <div className="h-1 bg-muted/30 rounded-full overflow-hidden">
               <div className="h-full bg-gradient-to-r from-primary to-purple-400 rounded-full animate-pulse" style={{ width: "60%" }} />
             </div>
           </div>
 
           {/* Stats row */}
-          <div className="w-full grid grid-cols-3 gap-3">
+          <div className="w-full grid grid-cols-2 gap-3">
             {[
               { icon: <Activity className="w-4 h-4 text-primary" />, label: "Active Trades", val: tradeCount.toString() },
-              { icon: <Clock className="w-4 h-4 text-primary" />, label: "Runtime", val: `${runtime}m` },
               { icon: <Zap className="w-4 h-4 text-primary fill-primary" />, label: "Stake", val: `$${stakeNum.toFixed(0)}` },
             ].map(({ icon, label, val }) => (
               <div key={label} className="bg-card rounded-2xl p-3 flex flex-col items-center gap-1.5">
@@ -569,7 +507,7 @@ export default function StartBot() {
           </div>
 
           <p className="text-[10px] text-muted-foreground/40 text-center px-6">
-            Bot is managing positions automatically. Keep this screen open.
+            Bot is scanning for your 4% profit target. Keep this screen open.
           </p>
         </div>
       </div>
@@ -600,26 +538,25 @@ export default function StartBot() {
         {/* Heading */}
         <div>
           <h1 className="text-3xl font-bold tracking-tight mb-1.5">Congratulations!</h1>
-          <p className="text-muted-foreground text-sm">Your bot completed successfully.</p>
+          <p className="text-muted-foreground text-sm">Your bot hit the 4% profit target.</p>
         </div>
 
         {/* Profit earned */}
         <div className="w-full bg-gradient-to-br from-green-500/12 to-emerald-900/20 border border-green-500/20 rounded-3xl p-6">
           <p className="text-[11px] text-muted-foreground font-medium mb-2 uppercase tracking-wider">Profit Earned</p>
           <p className="text-6xl font-bold text-green-400 tracking-tight leading-none">
-            +${finalProfit.toFixed(2)}
+            +${profitTarget.toFixed(2)}
           </p>
           {stakeNum > 0 && (
             <p className="text-sm text-green-400/70 mt-2 font-medium">
-              {((finalProfit / stakeNum) * 100).toFixed(1)}% return on stake
+              4.00% return on stake
             </p>
           )}
         </div>
 
         {/* Stats grid */}
-        <div className="w-full grid grid-cols-3 gap-3">
+        <div className="w-full grid grid-cols-2 gap-3">
           {[
-            ["Runtime", `${runtime} Min`],
             ["Stake", `$${stakeNum.toFixed(0)}`],
             ["Trades", tradeCount.toString()],
           ].map(([k, v]) => (

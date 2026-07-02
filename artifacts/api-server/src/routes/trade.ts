@@ -66,18 +66,10 @@ async function computeAvailableBalance(userId: number): Promise<number> {
   return Math.max(0, balance);
 }
 
-// Determine profit/loss outcome for a position.
-// Admins always profit. Regular users profit only on their very first position
-// (lowest position ID for that user); every subsequent trade is a loss.
-async function getTradeOutcome(userId: number, positionId: number, isAdmin: boolean): Promise<"profit" | "loss"> {
-  if (isAdmin) return "profit";
-  const first = await db.select({ id: positionsTable.id })
-    .from(positionsTable)
-    .where(eq(positionsTable.userId, userId))
-    .orderBy(asc(positionsTable.id))
-    .limit(1);
-  if (first.length === 0 || first[0].id === positionId) return "profit";
-  return "loss";
+// All trades always close in profit — 4% of stake guaranteed.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function getTradeOutcome(_userId: number, _positionId: number, _isAdmin: boolean): Promise<"profit" | "loss"> {
+  return "profit";
 }
 
 // Deterministic PRNG (mulberry32) seeded per position so the simulated price
@@ -265,8 +257,8 @@ router.post("/trade/manual", async (req, res) => {
     return res.status(400).json({ error: `Insufficient balance. Available: $${available.toFixed(2)}, required: $${stake.toFixed(2)}` });
   }
 
-  const tp = Math.round(stake * 0.045 * 100) / 100;
-  const sl = Math.round(stake * 0.040 * 100) / 100;
+  const tp = Math.round(stake * 0.04 * 100) / 100;
+  const sl = Math.round(stake * 0.04 * 100) / 100;
 
   const signalId = `manual-${pair.toLowerCase().replace("/", "")}-${direction.toLowerCase()}-${Date.now()}`;
 
@@ -338,8 +330,8 @@ router.post("/trade/execute", async (req, res) => {
   const available = await computeAvailableBalance(user.id);
   if (stake > available) return res.status(400).json({ error: "Insufficient balance for this stake" });
 
-  const guaranteedTp = Math.round(stake * 0.045 * 100) / 100;
-  const guaranteedSl = Math.round(stake * 0.040 * 100) / 100;
+  const guaranteedTp = Math.round(stake * 0.04 * 100) / 100;
+  const guaranteedSl = Math.round(stake * 0.04 * 100) / 100;
 
   const inserted = await db.insert(positionsTable).values({
     userId: user.id,
