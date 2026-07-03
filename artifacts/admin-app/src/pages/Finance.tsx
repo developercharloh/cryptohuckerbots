@@ -123,7 +123,7 @@ function TransactionsTab() {
                         {txn.status === "pending" && <Clock className="w-2.5 h-2.5 mr-1 inline" />}
                         {txn.status}
                       </Badge>
-                      <span className="text-[10px] text-muted-foreground capitalize">{txn.type === "trade_loss" ? "Contract Opened" : txn.type === "trade_profit" ? "Contract Closed" : txn.type.replace("_", " ")}</span>
+                      <span className="text-[10px] text-muted-foreground capitalize">{txn.type === "trade_loss" ? "Contract Opened" : txn.type === "trade_profit" || txn.type === "trade_loss_return" ? "Contract Closed" : txn.type.replace("_", " ")}</span>
                     </div>
                     <p className="text-sm font-semibold truncate">{txn.userName}</p>
                     <p className="text-[11px] text-muted-foreground truncate">{txn.userEmail}</p>
@@ -140,8 +140,8 @@ function TransactionsTab() {
                     <p className="text-[10px] text-muted-foreground/60 mt-0.5">{format(new Date(txn.createdAt), "PP · p")}</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <div className={`text-lg font-bold ${txn.type === "deposit" || txn.type === "trade_profit" ? "text-emerald-400" : txn.type === "withdrawal" || txn.type === "trade_loss" ? "text-red-400" : "text-foreground"}`}>
-                      {txn.type === "deposit" || txn.type === "trade_profit" ? "+" : txn.type === "withdrawal" || txn.type === "trade_loss" ? "−" : ""}${txn.amount.toFixed(2)}
+                    <div className={`text-lg font-bold ${txn.type === "deposit" || txn.type === "trade_profit" ? "text-emerald-400" : txn.type === "withdrawal" || txn.type === "trade_loss" || txn.type === "trade_loss_return" ? "text-red-400" : "text-foreground"}`}>
+                      {txn.type === "deposit" || txn.type === "trade_profit" ? "+" : txn.type === "withdrawal" || txn.type === "trade_loss" || txn.type === "trade_loss_return" ? "−" : ""}${txn.amount.toFixed(2)}
                     </div>
                   </div>
                 </div>

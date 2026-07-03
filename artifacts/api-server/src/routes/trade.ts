@@ -173,7 +173,7 @@ async function closePosition(
     if (returnAmount > 0) {
       await tx.insert(transactionsTable).values({
         userId: p.userId,
-        type: "trade_profit",
+        type: opts.realized < 0 ? "trade_loss_return" : "trade_profit",
         amount: returnAmount.toFixed(2),
         status: "completed",
         paymentMethod: "balance",

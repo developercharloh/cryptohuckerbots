@@ -147,7 +147,7 @@ router.delete("/admin/login-notifications/:id", async (req, res) => {
 const KYC_PENDING = ["pending", "submitted", "under_review"];
 
 function txnDelta(type: string, amount: number): number {
-  if (type === "deposit" || type === "trade_profit") return amount;
+  if (type === "deposit" || type === "trade_profit" || type === "trade_loss_return") return amount;
   if (type === "withdrawal" || type === "trade_loss") return -amount;
   return 0;
 }

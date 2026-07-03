@@ -34,7 +34,7 @@ router.get("/dashboard/summary", async (req, res) => {
   for (const t of txns) {
     const amt = parseFloat(t.amount);
     if (t.status === "completed") {
-      if (t.type === "deposit" || t.type === "trade_profit") balance += amt;
+      if (t.type === "deposit" || t.type === "trade_profit" || t.type === "trade_loss_return") balance += amt;
       if (t.type === "withdrawal" || t.type === "trade_loss" || t.type === "bot_purchase") balance -= amt;
     }
     if (t.status === "pending" && (t.type === "withdrawal" || t.type === "bot_purchase")) {
