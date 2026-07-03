@@ -76,13 +76,59 @@ const BINANCE_SYMBOL_BY_METHOD: Record<string, string> = {
   eth_erc20: "ETHUSDT",
 };
 
-async function getLiveUsdRate(binanceSymbol: string): Promise<number> {
+// CoinGecko/Coinbase identifiers for the same assets, used as fallbacks when
+// Binance's API is unreachable (e.g. blocked from some cloud/serverless IP ranges).
+const COINGECKO_ID_BY_BINANCE_SYMBOL: Record<string, string> = {
+  BTCUSDT: "bitcoin",
+  ETHUSDT: "ethereum",
+};
+const COINBASE_TICKER_BY_BINANCE_SYMBOL: Record<string, string> = {
+  BTCUSDT: "BTC-USD",
+  ETHUSDT: "ETH-USD",
+};
+
+async function fetchBinanceRate(binanceSymbol: string): Promise<number> {
   const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${binanceSymbol}`);
-  if (!res.ok) throw new Error("Failed to fetch live rate");
+  if (!res.ok) throw new Error(`Binance responded ${res.status}`);
   const data = (await res.json()) as { price?: string };
   const price = parseFloat(data.price ?? "");
-  if (!price || Number.isNaN(price)) throw new Error("Invalid live rate");
+  if (!price || Number.isNaN(price)) throw new Error("Invalid Binance price");
   return price;
+}
+
+async function fetchCoinGeckoRate(binanceSymbol: string): Promise<number> {
+  const id = COINGECKO_ID_BY_BINANCE_SYMBOL[binanceSymbol];
+  if (!id) throw new Error("No CoinGecko id mapped");
+  const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd`);
+  if (!res.ok) throw new Error(`CoinGecko responded ${res.status}`);
+  const data = (await res.json()) as Record<string, { usd?: number }>;
+  const price = data[id]?.usd;
+  if (!price || Number.isNaN(price)) throw new Error("Invalid CoinGecko price");
+  return price;
+}
+
+async function fetchCoinbaseRate(binanceSymbol: string): Promise<number> {
+  const ticker = COINBASE_TICKER_BY_BINANCE_SYMBOL[binanceSymbol];
+  if (!ticker) throw new Error("No Coinbase ticker mapped");
+  const res = await fetch(`https://api.coinbase.com/v2/prices/${ticker}/spot`);
+  if (!res.ok) throw new Error(`Coinbase responded ${res.status}`);
+  const data = (await res.json()) as { data?: { amount?: string } };
+  const price = parseFloat(data.data?.amount ?? "");
+  if (!price || Number.isNaN(price)) throw new Error("Invalid Coinbase price");
+  return price;
+}
+
+async function getLiveUsdRate(binanceSymbol: string): Promise<number> {
+  const sources = [fetchBinanceRate, fetchCoinGeckoRate, fetchCoinbaseRate];
+  let lastError: unknown;
+  for (const source of sources) {
+    try {
+      return await source(binanceSymbol);
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("Failed to fetch live rate from any source");
 }
 
 function mapSession(s: typeof depositSessionsTable.$inferSelect) {
