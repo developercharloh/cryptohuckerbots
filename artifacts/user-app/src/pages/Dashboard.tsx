@@ -333,7 +333,11 @@ export default function Dashboard() {
                       }
                     </div>
                     <div style={{ flex: 1 }}>
-                      <p style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>{tx.type ?? (isIn ? "Deposit" : "Withdrawal")}</p>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>
+                        {tx.type === "trade_loss" ? "Contract Opened" :
+                         tx.type === "trade_profit" || tx.type === "trade_loss_return" ? "Contract Closed" :
+                         tx.type ? tx.type.replace(/_/g, " ") : (isIn ? "Deposit" : "Withdrawal")}
+                      </p>
                       <p style={{ fontSize: 10, color: "#6B7280" }}>{tx.createdAt ? new Date(tx.createdAt).toLocaleDateString() : "—"}</p>
                     </div>
                     <span style={{ fontSize: 13, fontWeight: 700, color: isIn ? "#22c55e" : "#ef4444" }}>
