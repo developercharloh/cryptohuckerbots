@@ -403,6 +403,18 @@ export default function UserDetail() {
                                     </div>
                                   </div>
                                 )}
+                                {txn.type === 'withdrawal' && txn.cryptoAmount != null && txn.cryptoAsset && (
+                                  <div className="mt-1 rounded-md bg-primary/10 border border-primary/20 p-1.5">
+                                    <div className="text-[10px] text-muted-foreground">
+                                      Sending <span className="font-semibold text-foreground">{txn.cryptoAmount} {txn.cryptoAsset}</span>
+                                    </div>
+                                    {txn.conversionRate != null && (
+                                      <div className="text-[10px] text-muted-foreground">
+                                        @ ${txn.conversionRate.toLocaleString(undefined, { maximumFractionDigits: 2 })}/{txn.cryptoAsset}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </TableCell>
                               <TableCell>
                                 <Badge variant={txn.status === 'completed' ? 'default' : txn.status === 'pending' ? 'secondary' : 'destructive'} className="text-[10px]">
