@@ -14,15 +14,22 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "wouter";
 import { formatUSD } from "@/lib/format";
+import { useLivePairs, fmtPrice } from "@/hooks/useLivePairs";
 
-const MARKET_DATA = [
-  { symbol: "BTC/USD", price: "67,821.50", change: 1.25,  icon: "₿",  color: "#F7931A" },
-  { symbol: "ETH/USD", price: "3,512.80",  change: 2.04,  icon: "Ξ",  color: "#627EEA" },
-  { symbol: "EUR/USD", price: "1.08412",   change: 0.23,  icon: "€",  color: "#3B82F6" },
-  { symbol: "GBP/USD", price: "1.27105",   change: 0.41,  icon: "£",  color: "#8B5CF6" },
-  { symbol: "XAU/USD", price: "2,342.80",  change: -0.09, icon: "🥇", color: "#F59E0B" },
-  { symbol: "USD/JPY", price: "153.420",   change: -0.18, icon: "¥",  color: "#EC4899" },
-];
+const MARKET_COLORS: Record<string, string> = {
+  "BTC/USD": "#F7931A",
+  "ETH/USD": "#627EEA",
+  "EUR/USD": "#3B82F6",
+  "GBP/USD": "#8B5CF6",
+  "XAU/USD": "#F59E0B",
+  "USD/JPY": "#EC4899",
+  "SOL/USD": "#14F195",
+  "AUD/USD": "#22D3EE",
+  "USD/CAD": "#F87171",
+  "BNB/USD": "#F0B90B",
+};
+
+const MARKET_SYMBOLS = ["BTC/USD", "ETH/USD", "EUR/USD", "GBP/USD", "XAU/USD", "USD/JPY", "SOL/USD", "AUD/USD"];
 
 const ASSETS = [
   { name: "USDT",    symbol: "Tether",        icon: "₮", color: "#26A17B", pct: 60 },
@@ -34,6 +41,10 @@ const ASSETS = [
 export default function Dashboard() {
   const [balanceVisible, setBalanceVisible] = useState(true);
   const { user } = useAuth();
+  const livePairs = useLivePairs();
+  const marketData = MARKET_SYMBOLS
+    .map(sym => livePairs.find(p => p.symbol === sym))
+    .filter((p): p is NonNullable<typeof p> => !!p);
 
   const { data: notifications = [] } = useListNotifications();
   const unreadCount = notifications.filter(n => !n.isRead).length;
@@ -180,7 +191,13 @@ export default function Dashboard() {
         {/* ── Markets ─────────────────────────────────────────────── */}
         <div style={{ padding: "0 16px 16px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>Markets</h3>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>Markets</h3>
+              <div style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 20, padding: "2px 8px" }}>
+                <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#22c55e", animation: "pulse 1.5s infinite", boxShadow: "0 0 6px #22c55e" }} />
+                <span style={{ fontSize: 9, fontWeight: 700, color: "#22c55e" }}>LIVE</span>
+              </div>
+            </div>
             <Link href="/markets" style={{ textDecoration: "none" }}>
               <span style={{ fontSize: 11, color: "#7C3AED", fontWeight: 700 }}>See all →</span>
             </Link>
@@ -188,21 +205,31 @@ export default function Dashboard() {
 
           {/* Horizontal scroll */}
           <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4 }}>
-            {MARKET_DATA.map(m => {
-              const up = m.change >= 0;
+            {marketData.map(m => {
+              const up = m.up;
+              const color = MARKET_COLORS[m.symbol] ?? "#7C3AED";
               return (
-                <Link key={m.symbol} href={`/markets`} style={{ textDecoration: "none", flexShrink: 0 }}>
+                <Link key={m.symbol} href={`/trade/${m.symbol.replace("/", "-")}`} style={{ textDecoration: "none", flexShrink: 0 }}>
                   <div style={{
-                    width: 130, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)",
+                    width: 130, background: m.flash ? (up ? "rgba(34,197,94,0.06)" : "rgba(239,68,68,0.06)") : "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.07)",
                     borderRadius: 16, padding: "12px 12px 10px", cursor: "pointer",
+                    transition: "background 0.3s",
                   }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                      <div style={{ width: 28, height: 28, borderRadius: "50%", background: `${m.color}20`, border: `1px solid ${m.color}30`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>
+                      <div style={{ width: 28, height: 28, borderRadius: "50%", background: `${color}20`, border: `1px solid ${color}30`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>
                         {m.icon}
                       </div>
                       <span style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>{m.symbol.split("/")[0]}</span>
                     </div>
-                    <p style={{ fontSize: 13, fontWeight: 800, color: "#fff", marginBottom: 4 }}>{m.price}</p>
+                    <p style={{
+                      fontSize: 13, fontWeight: 800, marginBottom: 4,
+                      color: m.flash ? (up ? "#22c55e" : "#ef4444") : "#fff",
+                      transition: "color 0.3s",
+                      fontFamily: "'JetBrains Mono', monospace",
+                    }}>
+                      {fmtPrice(m.price)}
+                    </p>
                     <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
                       {up
                         ? <TrendingUp style={{ width: 10, height: 10, color: "#22c55e" }} />
@@ -319,6 +346,10 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      <style>{`
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+      `}</style>
     </Layout>
   );
 }
