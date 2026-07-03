@@ -436,7 +436,7 @@ export default function DepositStatus() {
         <div className="flex gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5">
           <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
           <p className="text-[11px] leading-relaxed text-amber-200/90">
-            Do not send from any exchange that does not support {network}
+            <span className="font-bold">Deposit via {network} only.</span> Sending from any other network will result in permanent, irreversible loss of funds.
           </p>
         </div>
       </div>
