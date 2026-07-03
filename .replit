@@ -22,6 +22,11 @@ timeoutMs = 20000
 [userenv]
 
 [userenv.shared]
+DEPOSIT_BTC_BEP20 = "bc1q6k05u2wm90cuga0vuejkw8lta63pn3hr54jr2s"
+DEPOSIT_USDT_TRC20 = "TWAFV6jRuHUAW5aXeadyVAAA2cpNEtbsak"
+DEPOSIT_USDT_ERC20 = "0x50ef0c6963bf42fd7f9e0ba7003e036d2e994c6b"
+DEPOSIT_USDT_BEP20 = "0x50ef0c6963bf42fd7f9e0ba7003e036d2e994c6b"
+DEPOSIT_ETH_ERC20 = "0x50ef0c6963bf42fd7f9e0ba7003e036d2e994c6b"
 
 [nix]
 channel = "stable-25_05"
