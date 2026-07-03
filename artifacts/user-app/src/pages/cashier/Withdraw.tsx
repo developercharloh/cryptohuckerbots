@@ -94,7 +94,7 @@ export default function Withdraw() {
         onSuccess: () => {
           toast({
             title: "Withdrawal submitted",
-            description: "Your request is pending admin approval. Funds are reserved from your balance.",
+            description: "Your funds have been reserved and your withdrawal is now processing.",
           });
           setLocation("/cashier/transactions");
         },
@@ -263,9 +263,9 @@ export default function Withdraw() {
               <div className="space-y-1.5">
                 {[
                   "Submit your request — funds are reserved immediately",
-                  "Admin reviews and approves your withdrawal",
+                  "Your withdrawal is verified and processed securely",
                   "Crypto is sent to your wallet address",
-                  "Balance is fully deducted once approved",
+                  "Balance is fully deducted once complete",
                 ].map((step, i) => (
                   <div key={i} className="flex items-start gap-2">
                     <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
