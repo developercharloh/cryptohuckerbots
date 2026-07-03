@@ -11,6 +11,7 @@ import { ChevronLeft, Loader2, AlertTriangle, CheckCircle2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SiTether, SiBitcoin, SiEthereum } from "react-icons/si";
+import { useLivePairs } from "@/hooks/useLivePairs";
 
 const withdrawSchema = z.object({
   amount: z.coerce.number().min(50, "Minimum withdrawal is $50"),
@@ -19,6 +20,23 @@ const withdrawSchema = z.object({
 });
 
 const QUICK_AMOUNTS = [100, 250, 500, 1000];
+
+// Networks whose payout is priced in the coin itself (not a USD-stable coin) —
+// show a live crypto-amount estimate alongside the USD input.
+const LIVE_PRICED_NETWORKS: Record<string, { symbol: string; asset: string }> = {
+  Bitcoin: { symbol: "BTC/USD", asset: "BTC" },
+  "Bitcoin Mainnet": { symbol: "BTC/USD", asset: "BTC" },
+  ERC20_ETH: { symbol: "ETH/USD", asset: "ETH" },
+};
+
+function getLivePricing(method?: { name?: string; network?: string | null }) {
+  if (!method) return null;
+  if (method.network && LIVE_PRICED_NETWORKS[method.network]) return LIVE_PRICED_NETWORKS[method.network];
+  const name = method.name?.toLowerCase() ?? "";
+  if (name.includes("bitcoin") || name.includes("btc")) return LIVE_PRICED_NETWORKS.Bitcoin;
+  if (name.includes("ethereum") || name.includes("eth")) return LIVE_PRICED_NETWORKS.ERC20_ETH;
+  return null;
+}
 
 function NetworkIcon({ name }: { name: string }) {
   if (name.includes("BTC") || name.includes("Bitcoin")) return <SiBitcoin className="w-6 h-6 text-[#F7931A]" />;
@@ -48,6 +66,7 @@ export default function Withdraw() {
   const { data: summary, isLoading: loadingSummary } = useGetDashboardSummary();
   const { data: paymentMethods, isLoading: loadingMethods } = useListPaymentMethods();
   const withdrawMutation = useCreateWithdrawal();
+  const livePairs = useLivePairs();
 
   const form = useForm<z.infer<typeof withdrawSchema>>({
     resolver: zodResolver(withdrawSchema),
@@ -56,6 +75,11 @@ export default function Withdraw() {
 
   const selectedMethodId = form.watch("paymentMethod");
   const activeMethod = paymentMethods?.find((m) => m.id === selectedMethodId);
+  const watchedAmount = form.watch("amount");
+
+  const livePricing = getLivePricing(activeMethod);
+  const liveRate = livePricing ? livePairs.find((p) => p.symbol === livePricing.symbol)?.price ?? null : null;
+  const cryptoEstimate = livePricing && liveRate && watchedAmount > 0 ? Number(watchedAmount) / liveRate : null;
 
   const onSubmit = (values: z.infer<typeof withdrawSchema>) => {
     if (summary && values.amount > summary.availableBalance) {
@@ -204,6 +228,14 @@ export default function Withdraw() {
                       />
                     </div>
                   </FormControl>
+                  {livePricing && (
+                    <div className="flex items-center justify-between rounded-xl bg-card p-3.5">
+                      <span className="text-xs text-muted-foreground">You'll withdraw ≈</span>
+                      <span className="text-sm font-semibold text-emerald-400">
+                        {cryptoEstimate ? `${cryptoEstimate.toFixed(8)} ${livePricing.asset}` : "Fetching live rate…"}
+                      </span>
+                    </div>
+                  )}
                   <div className="grid grid-cols-4 gap-2">
                     {QUICK_AMOUNTS.map((amt) => (
                       <Button
