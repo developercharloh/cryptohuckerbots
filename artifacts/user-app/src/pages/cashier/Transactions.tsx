@@ -79,7 +79,9 @@ export default function Transactions() {
                   </div>
                   <div>
                     <div className="font-semibold text-sm mb-0.5 capitalize">{
-                      tx.type === "trade_loss" ? "Trade Capital" : tx.type.replace("_", " ")
+                      tx.type === "trade_loss" ? "Contract Opened" :
+                      tx.type === "trade_profit" ? "Contract Closed" :
+                      tx.type.replace("_", " ")
                     }</div>
                     <div className="text-xs text-muted-foreground">
                       {new Date(tx.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
@@ -88,10 +90,10 @@ export default function Transactions() {
                 </div>
                 <div className="text-right">
                   <div className={`font-bold text-sm mb-0.5 ${
-                    tx.type === "deposit"    ? "text-green-500" :
-                    tx.type === "withdrawal" ? "text-red-500"   : "text-foreground"
+                    tx.type === "deposit" || tx.type === "trade_profit"    ? "text-green-500" :
+                    tx.type === "withdrawal" || tx.type === "trade_loss" ? "text-red-500"   : "text-foreground"
                   }`}>
-                    {tx.type === "deposit" ? "+" : tx.type === "withdrawal" ? "−" : ""}{formatUSD(tx.amount)}
+                    {tx.type === "deposit" || tx.type === "trade_profit" ? "+" : tx.type === "withdrawal" || tx.type === "trade_loss" ? "−" : ""}{formatUSD(tx.amount)}
                   </div>
                   <div className={`text-[10px] px-2 py-0.5 rounded-full inline-block ${
                     tx.status === "Completed" ? "bg-green-500/10 text-green-500" :

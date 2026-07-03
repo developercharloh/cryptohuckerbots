@@ -236,13 +236,13 @@ export default function Dashboard() {
                     <div className="text-sm font-medium truncate">{txn.userName}</div>
                     <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
                       <Clock className="w-3 h-3" />
-                      <span className="capitalize">{txn.type.replace('_', ' ')}</span>
+                      <span className="capitalize">{txn.type === 'trade_loss' ? 'Contract Opened' : txn.type === 'trade_profit' ? 'Contract Closed' : txn.type.replace('_', ' ')}</span>
                       <span>·</span>
                       <span>{txn.status}</span>
                     </div>
                   </div>
-                  <div className={`text-sm font-semibold ml-3 ${txn.type === 'deposit' || txn.type === 'trade_profit' ? 'text-emerald-400' : 'text-foreground'}`}>
-                    {txn.type === 'deposit' || txn.type === 'trade_profit' ? '+' : ''}${txn.amount.toFixed(2)}
+                  <div className={`text-sm font-semibold ml-3 ${txn.type === 'deposit' || txn.type === 'trade_profit' ? 'text-emerald-400' : txn.type === 'withdrawal' || txn.type === 'trade_loss' ? 'text-red-400' : 'text-foreground'}`}>
+                    {txn.type === 'deposit' || txn.type === 'trade_profit' ? '+' : txn.type === 'withdrawal' || txn.type === 'trade_loss' ? '−' : ''}${txn.amount.toFixed(2)}
                   </div>
                 </div>
               ))

@@ -391,7 +391,7 @@ export default function UserDetail() {
                             <TableRow key={txn.id}>
                               <TableCell className="text-xs whitespace-nowrap">{format(new Date(txn.createdAt), "PP p")}</TableCell>
                               <TableCell className="capitalize">
-                                <div>{txn.type.replace('_', ' ')}</div>
+                                <div>{txn.type === 'trade_loss' ? 'Contract Opened' : txn.type === 'trade_profit' ? 'Contract Closed' : txn.type.replace('_', ' ')}</div>
                                 {txn.type === 'withdrawal' && txn.walletAddress && (
                                   <div className="mt-1 p-1.5 rounded-md bg-secondary/60 space-y-1">
                                     {txn.network && (
@@ -409,8 +409,8 @@ export default function UserDetail() {
                                   {txn.status}
                                 </Badge>
                               </TableCell>
-                              <TableCell className={`text-right font-medium ${txn.type === 'deposit' || txn.type === 'trade_profit' || txn.type === 'referral_bonus' ? 'text-emerald-500' : ''}`}>
-                                {txn.type === 'deposit' || txn.type === 'trade_profit' || txn.type === 'referral_bonus' ? '+' : ''}
+                              <TableCell className={`text-right font-medium ${txn.type === 'deposit' || txn.type === 'trade_profit' || txn.type === 'referral_bonus' ? 'text-emerald-500' : txn.type === 'withdrawal' || txn.type === 'trade_loss' ? 'text-red-500' : ''}`}>
+                                {txn.type === 'deposit' || txn.type === 'trade_profit' || txn.type === 'referral_bonus' ? '+' : txn.type === 'withdrawal' || txn.type === 'trade_loss' ? '−' : ''}
                                 ${txn.amount.toFixed(2)}
                               </TableCell>
                             </TableRow>
