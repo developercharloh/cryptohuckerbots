@@ -60,8 +60,8 @@ async function computeAvailableBalance(userId: number): Promise<number> {
     const amt = parseFloat(t.amount);
     if (t.type === "deposit") balance += amt;
     if (t.type === "withdrawal") balance -= amt;
-    if (t.type === "trade_profit") balance += amt;
-    if (t.type === "trade_loss") balance -= amt;
+    if (t.type === "trade_profit" || t.type === "trade_loss_return") balance += amt;
+    if (t.type === "trade_loss" || t.type === "bot_purchase") balance -= amt;
   }
   return Math.max(0, balance);
 }
