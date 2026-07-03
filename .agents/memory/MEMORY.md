@@ -1,1 +1,2 @@
 - [VIXUS AI platform](vixus-ai-platform.md) — FX trading bot admin panel; rebrand from Quantum-FX-Bot; key env vars, admin credentials, and seeding behavior.
+- [VIXUS AI crypto deposits](vixus-ai-crypto-deposits.md) — BTC/ETH deposits are entered in coin units and locked to a server-fetched USDT rate at submission, not admin-approval, time.

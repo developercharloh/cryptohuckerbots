@@ -2447,6 +2447,9 @@ components:
         txid: { type: ["string", "null"] }
         confirmations: { type: integer }
         requiredConfirmations: { type: integer }
+        cryptoAsset: { type: ["string", "null"] }
+        cryptoAmount: { type: ["number", "null"] }
+        conversionRate: { type: ["number", "null"] }
         expiresAt: { type: string }
         createdAt: { type: string }
         updatedAt: { type: string }
@@ -2456,8 +2459,9 @@ components:
       type: object
       properties:
         amount: { type: number }
+        cryptoAmount: { type: number }
         paymentMethodId: { type: string }
-      required: [amount, paymentMethodId]
+      required: [paymentMethodId]
 
     SubmitTxidInput:
       type: object
@@ -2481,6 +2485,9 @@ components:
         txid: { type: ["string", "null"] }
         confirmations: { type: integer }
         requiredConfirmations: { type: integer }
+        cryptoAsset: { type: ["string", "null"] }
+        cryptoAmount: { type: ["number", "null"] }
+        conversionRate: { type: ["number", "null"] }
         expiresAt: { type: string }
         createdAt: { type: string }
         updatedAt: { type: string }

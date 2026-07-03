@@ -6,9 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface KYCSessionInput {
-  firstName: string;
-  lastName: string;
-  country: string;
-  documentType: string;
+export interface AdminBroadcast {
+  id: number;
+  title: string;
+  message: string;
+  recipientCount: number;
+  createdAt: string;
 }

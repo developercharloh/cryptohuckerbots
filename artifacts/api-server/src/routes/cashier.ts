@@ -69,6 +69,22 @@ const PAYMENT_METHODS = [
   },
 ];
 
+// Payment methods whose deposit amount must be entered in the coin's own units
+// (not USD) and converted to a USDT-equivalent using a live market rate.
+const BINANCE_SYMBOL_BY_METHOD: Record<string, string> = {
+  bitcoin: "BTCUSDT",
+  eth_erc20: "ETHUSDT",
+};
+
+async function getLiveUsdRate(binanceSymbol: string): Promise<number> {
+  const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${binanceSymbol}`);
+  if (!res.ok) throw new Error("Failed to fetch live rate");
+  const data = (await res.json()) as { price?: string };
+  const price = parseFloat(data.price ?? "");
+  if (!price || Number.isNaN(price)) throw new Error("Invalid live rate");
+  return price;
+}
+
 function mapSession(s: typeof depositSessionsTable.$inferSelect) {
   return {
     id: s.id,
@@ -81,6 +97,9 @@ function mapSession(s: typeof depositSessionsTable.$inferSelect) {
     txid: s.txid ?? null,
     confirmations: s.confirmations,
     requiredConfirmations: s.requiredConfirmations,
+    cryptoAsset: s.cryptoAsset ?? null,
+    cryptoAmount: s.cryptoAmount ? parseFloat(s.cryptoAmount) : null,
+    conversionRate: s.conversionRate ? parseFloat(s.conversionRate) : null,
     expiresAt: s.expiresAt.toISOString(),
     createdAt: s.createdAt.toISOString(),
     updatedAt: s.updatedAt.toISOString(),
@@ -94,13 +113,43 @@ router.post("/cashier/deposit/session", async (req, res) => {
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
-  const { amount, paymentMethodId } = req.body as { amount?: unknown; paymentMethodId?: unknown };
-  const numAmount = Number(amount);
-  if (!numAmount || numAmount < 10) return res.status(400).json({ error: "Minimum deposit is $10" });
+  const { amount, cryptoAmount, paymentMethodId } = req.body as { amount?: unknown; cryptoAmount?: unknown; paymentMethodId?: unknown };
   if (typeof paymentMethodId !== "string") return res.status(400).json({ error: "Payment method is required" });
 
   const method = PAYMENT_METHODS.find((m) => m.id === paymentMethodId);
   if (!method) return res.status(400).json({ error: "Invalid payment method" });
+
+  const binanceSymbol = BINANCE_SYMBOL_BY_METHOD[method.id];
+
+  let numAmount: number;
+  let cryptoAsset: string | null = null;
+  let numCryptoAmount: number | null = null;
+  let conversionRate: number | null = null;
+
+  if (binanceSymbol) {
+    // Coin-priced deposit (e.g. BTC, ETH): user enters an amount of the coin,
+    // we lock in a live USDT rate right now and store the converted value.
+    const numCrypto = Number(cryptoAmount);
+    if (!numCrypto || numCrypto <= 0) return res.status(400).json({ error: "Enter the amount of crypto you're sending" });
+
+    let rate: number;
+    try {
+      rate = await getLiveUsdRate(binanceSymbol);
+    } catch {
+      return res.status(502).json({ error: "Unable to fetch live exchange rate. Please try again shortly." });
+    }
+
+    numAmount = numCrypto * rate;
+    if (numAmount < 10) return res.status(400).json({ error: "Minimum deposit is $10 equivalent" });
+
+    cryptoAsset = method.icon.toUpperCase();
+    numCryptoAmount = numCrypto;
+    conversionRate = rate;
+  } else {
+    // Stable-value deposit (USDT): amount entered is already USD-equivalent.
+    numAmount = Number(amount);
+    if (!numAmount || numAmount < 10) return res.status(400).json({ error: "Minimum deposit is $10" });
+  }
 
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
@@ -113,6 +162,9 @@ router.post("/cashier/deposit/session", async (req, res) => {
     network: method.network,
     depositAddress: method.depositAddress,
     requiredConfirmations: method.requiredConfirmations,
+    cryptoAsset,
+    cryptoAmount: numCryptoAmount !== null ? numCryptoAmount.toFixed(8) : null,
+    conversionRate: conversionRate !== null ? conversionRate.toFixed(8) : null,
     expiresAt,
   }).returning();
 

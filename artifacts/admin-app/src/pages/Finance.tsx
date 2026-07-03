@@ -252,6 +252,18 @@ function DepositSessionsTab() {
                     </div>
                   </div>
 
+                  {/* Live conversion (crypto-priced deposits) */}
+                  {s.cryptoAmount != null && s.cryptoAsset && (
+                    <div className="rounded-lg bg-primary/10 border border-primary/20 p-2.5 flex items-center justify-between">
+                      <p className="text-[11px] text-muted-foreground">
+                        User sent <span className="font-semibold text-foreground">{s.cryptoAmount} {s.cryptoAsset}</span>
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        @ ${s.conversionRate?.toLocaleString(undefined, { maximumFractionDigits: 2 })}/{s.cryptoAsset} → <span className="font-semibold text-emerald-400">${s.amount.toFixed(2)}</span>
+                      </p>
+                    </div>
+                  )}
+
                   {/* Deposit address */}
                   <div className="rounded-lg bg-secondary/50 p-2.5 space-y-1">
                     <p className="text-[10px] text-muted-foreground font-medium">Deposit Address</p>
