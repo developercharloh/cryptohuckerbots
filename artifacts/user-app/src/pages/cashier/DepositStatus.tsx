@@ -16,7 +16,7 @@ import { SiTether, SiBitcoin } from "react-icons/si";
 
 function getAssetSymbol(network: string) {
   if (network === "TRC20" || network === "ERC20") return "USDT";
-  if (network === "Bitcoin") return "BTC";
+  if (network === "Bitcoin" || network === "Bitcoin Mainnet") return "BTC";
   return "CRYPTO";
 }
 

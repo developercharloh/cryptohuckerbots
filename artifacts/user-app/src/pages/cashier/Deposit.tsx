@@ -14,9 +14,10 @@ const QUICK_AMOUNTS = [100, 250, 500, 1000];
 const MIN_DEPOSIT = 10;
 
 const NETWORK_INFO: Record<string, { time: string; confirmations: number; fullName: string; asset: string }> = {
-  TRC20:   { time: "1 – 5 minutes",   confirmations: 20, fullName: "TRC20",   asset: "USDT" },
-  ERC20:   { time: "3 – 10 minutes",  confirmations: 12, fullName: "ERC20",   asset: "USDT" },
-  Bitcoin: { time: "10 – 60 minutes", confirmations: 6,  fullName: "Bitcoin", asset: "BTC"  },
+  TRC20:            { time: "1 – 5 minutes",   confirmations: 20, fullName: "TRC20",            asset: "USDT" },
+  ERC20:            { time: "3 – 10 minutes",  confirmations: 12, fullName: "ERC20",            asset: "USDT" },
+  Bitcoin:          { time: "10 – 60 minutes", confirmations: 6,  fullName: "Bitcoin",          asset: "BTC"  },
+  "Bitcoin Mainnet": { time: "10 – 60 minutes", confirmations: 6,  fullName: "Bitcoin Mainnet", asset: "BTC"  },
 };
 
 // Payment methods priced in their own coin (not a stable USD-equivalent).
