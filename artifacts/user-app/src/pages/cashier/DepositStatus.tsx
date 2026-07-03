@@ -187,8 +187,11 @@ export default function DepositStatus() {
     );
   }
 
-  const { status, amount, paymentMethodName, network, depositAddress, txid, confirmations, requiredConfirmations } = session;
-  const assetSymbol = getAssetSymbol(network);
+  const { status, amount, paymentMethodName, network, depositAddress, txid, confirmations, requiredConfirmations, cryptoAsset, cryptoAmount } = session as typeof session & { cryptoAsset?: string | null; cryptoAmount?: number | null };
+  const assetSymbol = cryptoAsset ?? getAssetSymbol(network);
+  // For coin-priced deposits (BTC/ETH), the address/QR/"send" screens must show
+  // the coin quantity the user is sending, not the USDT-equivalent dollar amount.
+  const sendAmount = cryptoAmount != null ? cryptoAmount : amount;
 
   // ── SCREEN 6: Success ──────────────────────────────────────────────────────
   if (status === "completed") {
@@ -214,7 +217,8 @@ export default function DepositStatus() {
 
           <div className="w-full rounded-2xl bg-card divide-y divide-border/40">
             {[
-              { label: "Amount",      value: `${amount} ${assetSymbol}` },
+              { label: "You sent",   value: `${sendAmount} ${assetSymbol}` },
+              ...(cryptoAmount != null ? [{ label: "Credited", value: `$${amount.toFixed(2)} USDT` }] : []),
               { label: "Network",     value: network },
               ...(newBalance != null ? [{ label: "New Balance", value: `$${Number(newBalance).toFixed(2)}` }] : []),
             ].map(({ label, value }) => (
@@ -307,7 +311,7 @@ export default function DepositStatus() {
             </div>
           )}
 
-          <Footer amount={amount} network={network} assetSymbol={assetSymbol} />
+          <Footer amount={sendAmount} network={network} assetSymbol={assetSymbol} />
         </div>
       </Layout>
     );
@@ -365,7 +369,7 @@ export default function DepositStatus() {
             </div>
           )}
 
-          <Footer amount={amount} network={network} assetSymbol={assetSymbol} />
+          <Footer amount={sendAmount} network={network} assetSymbol={assetSymbol} />
         </div>
       </Layout>
     );
@@ -414,7 +418,7 @@ export default function DepositStatus() {
           </div>
           {/* Amount highlight */}
           <div className="text-center">
-            <p className="text-2xl font-bold text-primary">{amount} {assetSymbol}</p>
+            <p className="text-2xl font-bold text-primary">{sendAmount} {assetSymbol}</p>
             <p className="text-sm text-muted-foreground">(~${amount.toFixed(2)})</p>
           </div>
         </div>
