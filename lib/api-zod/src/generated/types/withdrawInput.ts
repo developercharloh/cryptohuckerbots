@@ -10,4 +10,10 @@ export interface WithdrawInput {
   amount: number;
   paymentMethod: string;
   walletAddress: string;
+  /** @nullable */
+  cryptoAmount?: number | null;
+  /** @nullable */
+  cryptoAsset?: string | null;
+  /** @nullable */
+  conversionRate?: number | null;
 }

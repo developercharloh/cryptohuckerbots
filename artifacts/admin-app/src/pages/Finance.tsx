@@ -137,6 +137,18 @@ function TransactionsTab() {
                         </div>
                       </div>
                     )}
+                    {txn.type === "withdrawal" && txn.cryptoAmount != null && txn.cryptoAsset && (
+                      <div className="mt-1.5 rounded-lg bg-primary/10 border border-primary/20 p-2 flex items-center justify-between">
+                        <p className="text-[11px] text-muted-foreground">
+                          Sending <span className="font-semibold text-foreground">{txn.cryptoAmount} {txn.cryptoAsset}</span>
+                        </p>
+                        {txn.conversionRate != null && (
+                          <p className="text-[10px] text-muted-foreground">
+                            @ ${txn.conversionRate.toLocaleString(undefined, { maximumFractionDigits: 2 })}/{txn.cryptoAsset}
+                          </p>
+                        )}
+                      </div>
+                    )}
                     <p className="text-[10px] text-muted-foreground/60 mt-0.5">{format(new Date(txn.createdAt), "PP · p")}</p>
                   </div>
                   <div className="text-right shrink-0">

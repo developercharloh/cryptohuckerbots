@@ -193,6 +193,12 @@ export interface WithdrawInput {
   amount: number;
   paymentMethod: string;
   walletAddress: string;
+  /** @nullable */
+  cryptoAmount?: number | null;
+  /** @nullable */
+  cryptoAsset?: string | null;
+  /** @nullable */
+  conversionRate?: number | null;
 }
 
 export interface Transaction {
@@ -204,6 +210,12 @@ export interface Transaction {
   createdAt: string;
   /** @nullable */
   walletAddress?: string | null;
+  /** @nullable */
+  cryptoAmount?: number | null;
+  /** @nullable */
+  cryptoAsset?: string | null;
+  /** @nullable */
+  conversionRate?: number | null;
 }
 
 export interface PaymentMethod {
@@ -385,6 +397,12 @@ export interface AdminTransaction {
   /** @nullable */
   description?: string | null;
   createdAt: string;
+  /** @nullable */
+  cryptoAmount?: number | null;
+  /** @nullable */
+  cryptoAsset?: string | null;
+  /** @nullable */
+  conversionRate?: number | null;
 }
 
 export interface AdminOverview {

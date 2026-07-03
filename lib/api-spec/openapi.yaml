@@ -1868,6 +1868,12 @@ components:
           type: string
         walletAddress:
           type: string
+        cryptoAmount:
+          type: ["number", "null"]
+        cryptoAsset:
+          type: ["string", "null"]
+        conversionRate:
+          type: ["number", "null"]
       required: [amount, paymentMethod, walletAddress]
 
     Transaction:
@@ -1887,6 +1893,12 @@ components:
           type: string
         walletAddress:
           type: ["string", "null"]
+        cryptoAmount:
+          type: ["number", "null"]
+        cryptoAsset:
+          type: ["string", "null"]
+        conversionRate:
+          type: ["number", "null"]
       required: [id, type, amount, status, paymentMethod, createdAt]
 
     PaymentMethod:
@@ -2361,6 +2373,9 @@ components:
         walletAddress: { type: ["string", "null"] }
         description: { type: ["string", "null"] }
         createdAt: { type: string }
+        cryptoAmount: { type: ["number", "null"] }
+        cryptoAsset: { type: ["string", "null"] }
+        conversionRate: { type: ["number", "null"] }
       required: [id, userId, userName, userEmail, type, amount, status, createdAt]
 
     AdminTxnReviewInput:

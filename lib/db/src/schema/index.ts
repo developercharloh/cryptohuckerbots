@@ -104,6 +104,9 @@ export const transactionsTable = pgTable("transactions", {
   paymentMethod: varchar("payment_method", { length: 100 }).notNull(),
   walletAddress: text("wallet_address"),
   description: text("description"),
+  cryptoAmount: numeric("crypto_amount", { precision: 20, scale: 8 }),
+  cryptoAsset: varchar("crypto_asset", { length: 20 }),
+  conversionRate: numeric("conversion_rate", { precision: 20, scale: 8 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

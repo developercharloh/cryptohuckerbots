@@ -318,7 +318,7 @@ router.post("/cashier/withdraw", async (req, res) => {
   const parsed = CreateWithdrawalBody.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
 
-  const { amount, paymentMethod, walletAddress } = parsed.data;
+  const { amount, paymentMethod, walletAddress, cryptoAmount, cryptoAsset, conversionRate } = parsed.data;
   if (amount <= 0) return res.status(400).json({ error: "Amount must be greater than 0" });
 
   const available = await getAvailableBalance(user.id);
@@ -334,6 +334,9 @@ router.post("/cashier/withdraw", async (req, res) => {
     paymentMethod,
     walletAddress,
     description: `Withdrawal via ${paymentMethod}`,
+    cryptoAmount: cryptoAmount != null ? cryptoAmount.toString() : null,
+    cryptoAsset: cryptoAsset ?? null,
+    conversionRate: conversionRate != null ? conversionRate.toString() : null,
   }).returning();
 
   await db.insert(notificationsTable).values({
@@ -368,6 +371,9 @@ router.post("/cashier/withdraw", async (req, res) => {
     paymentMethod: txn.paymentMethod,
     createdAt: txn.createdAt.toISOString(),
     walletAddress: txn.walletAddress,
+    cryptoAmount: txn.cryptoAmount ? parseFloat(txn.cryptoAmount) : null,
+    cryptoAsset: txn.cryptoAsset,
+    conversionRate: txn.conversionRate ? parseFloat(txn.conversionRate) : null,
   });
 });
 
@@ -393,6 +399,9 @@ router.get("/cashier/transactions", async (req, res) => {
     paymentMethod: t.paymentMethod,
     createdAt: t.createdAt.toISOString(),
     walletAddress: t.walletAddress,
+    cryptoAmount: t.cryptoAmount ? parseFloat(t.cryptoAmount) : null,
+    cryptoAsset: t.cryptoAsset,
+    conversionRate: t.conversionRate ? parseFloat(t.conversionRate) : null,
   })));
 });
 

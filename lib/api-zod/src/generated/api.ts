@@ -240,7 +240,10 @@ export const CreateDepositResponse = zod.object({
   "status": zod.string(),
   "paymentMethod": zod.string(),
   "createdAt": zod.string(),
-  "walletAddress": zod.string().nullish()
+  "walletAddress": zod.string().nullish(),
+  "cryptoAmount": zod.number().nullish(),
+  "cryptoAsset": zod.string().nullish(),
+  "conversionRate": zod.number().nullish()
 })
 
 
@@ -385,7 +388,10 @@ export const AdminReviewDepositSessionResponse = zod.object({
 export const CreateWithdrawalBody = zod.object({
   "amount": zod.number(),
   "paymentMethod": zod.string(),
-  "walletAddress": zod.string()
+  "walletAddress": zod.string(),
+  "cryptoAmount": zod.number().nullish(),
+  "cryptoAsset": zod.string().nullish(),
+  "conversionRate": zod.number().nullish()
 })
 
 export const CreateWithdrawalResponse = zod.object({
@@ -395,7 +401,10 @@ export const CreateWithdrawalResponse = zod.object({
   "status": zod.string(),
   "paymentMethod": zod.string(),
   "createdAt": zod.string(),
-  "walletAddress": zod.string().nullish()
+  "walletAddress": zod.string().nullish(),
+  "cryptoAmount": zod.number().nullish(),
+  "cryptoAsset": zod.string().nullish(),
+  "conversionRate": zod.number().nullish()
 })
 
 
@@ -410,7 +419,10 @@ export const ListTransactionsResponseItem = zod.object({
   "status": zod.string(),
   "paymentMethod": zod.string(),
   "createdAt": zod.string(),
-  "walletAddress": zod.string().nullish()
+  "walletAddress": zod.string().nullish(),
+  "cryptoAmount": zod.number().nullish(),
+  "cryptoAsset": zod.string().nullish(),
+  "conversionRate": zod.number().nullish()
 })
 export const ListTransactionsResponse = zod.array(ListTransactionsResponseItem)
 
@@ -784,7 +796,10 @@ export const AdminGetOverviewResponse = zod.object({
   "network": zod.string().nullish(),
   "walletAddress": zod.string().nullish(),
   "description": zod.string().nullish(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "cryptoAmount": zod.number().nullish(),
+  "cryptoAsset": zod.string().nullish(),
+  "conversionRate": zod.number().nullish()
 }))
 })
 
@@ -851,7 +866,10 @@ export const AdminGetUserResponse = zod.object({
   "network": zod.string().nullish(),
   "walletAddress": zod.string().nullish(),
   "description": zod.string().nullish(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "cryptoAmount": zod.number().nullish(),
+  "cryptoAsset": zod.string().nullish(),
+  "conversionRate": zod.number().nullish()
 }))
 })
 
@@ -1119,7 +1137,10 @@ export const AdminListTransactionsResponseItem = zod.object({
   "network": zod.string().nullish(),
   "walletAddress": zod.string().nullish(),
   "description": zod.string().nullish(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "cryptoAmount": zod.number().nullish(),
+  "cryptoAsset": zod.string().nullish(),
+  "conversionRate": zod.number().nullish()
 })
 export const AdminListTransactionsResponse = zod.array(AdminListTransactionsResponseItem)
 
@@ -1144,7 +1165,10 @@ export const AdminReviewTransactionResponse = zod.object({
   "network": zod.string().nullish(),
   "walletAddress": zod.string().nullish(),
   "description": zod.string().nullish(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "cryptoAmount": zod.number().nullish(),
+  "cryptoAsset": zod.string().nullish(),
+  "conversionRate": zod.number().nullish()
 })
 
 

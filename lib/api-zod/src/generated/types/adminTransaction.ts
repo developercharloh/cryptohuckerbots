@@ -23,4 +23,10 @@ export interface AdminTransaction {
   /** @nullable */
   description?: string | null;
   createdAt: string;
+  /** @nullable */
+  cryptoAmount?: number | null;
+  /** @nullable */
+  cryptoAsset?: string | null;
+  /** @nullable */
+  conversionRate?: number | null;
 }

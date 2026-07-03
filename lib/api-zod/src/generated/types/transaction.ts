@@ -15,4 +15,10 @@ export interface Transaction {
   createdAt: string;
   /** @nullable */
   walletAddress?: string | null;
+  /** @nullable */
+  cryptoAmount?: number | null;
+  /** @nullable */
+  cryptoAsset?: string | null;
+  /** @nullable */
+  conversionRate?: number | null;
 }

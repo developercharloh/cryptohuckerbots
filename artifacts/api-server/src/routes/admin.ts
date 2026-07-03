@@ -209,6 +209,9 @@ router.get("/admin/overview", async (_req, res) => {
         walletAddress: t.walletAddress,
         description: t.description,
         createdAt: t.createdAt.toISOString(),
+        cryptoAmount: t.cryptoAmount ? parseFloat(t.cryptoAmount) : null,
+        cryptoAsset: t.cryptoAsset,
+        conversionRate: t.conversionRate ? parseFloat(t.conversionRate) : null,
       };
     });
 
@@ -356,6 +359,9 @@ router.get("/admin/users/:id", async (req, res) => {
       walletAddress: t.walletAddress,
       description: t.description,
       createdAt: t.createdAt.toISOString(),
+      cryptoAmount: t.cryptoAmount ? parseFloat(t.cryptoAmount) : null,
+      cryptoAsset: t.cryptoAsset,
+      conversionRate: t.conversionRate ? parseFloat(t.conversionRate) : null,
     })),
   });
 });
@@ -668,6 +674,9 @@ function mapTxnRow(t: typeof transactionsTable.$inferSelect, u: typeof usersTabl
     walletAddress: t.walletAddress,
     description: t.description,
     createdAt: t.createdAt.toISOString(),
+    cryptoAmount: t.cryptoAmount ? parseFloat(t.cryptoAmount) : null,
+    cryptoAsset: t.cryptoAsset,
+    conversionRate: t.conversionRate ? parseFloat(t.conversionRate) : null,
   };
 }
 

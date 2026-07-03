@@ -89,7 +89,15 @@ export default function Withdraw() {
     // Send method name (e.g. "USDT (TRC20)") not ID so admin can see the network
     const methodName = activeMethod?.name ?? values.paymentMethod;
     withdrawMutation.mutate(
-      { data: { ...values, paymentMethod: methodName } },
+      {
+        data: {
+          ...values,
+          paymentMethod: methodName,
+          cryptoAmount: cryptoEstimate ?? undefined,
+          cryptoAsset: livePricing?.asset ?? undefined,
+          conversionRate: liveRate ?? undefined,
+        },
+      },
       {
         onSuccess: () => {
           toast({
