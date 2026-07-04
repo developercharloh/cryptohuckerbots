@@ -722,7 +722,7 @@ export default function Landing() {
         <div style={{ background: "linear-gradient(to right, #F3F0FF, #ECFEFF, #EFF6FF)", borderRadius: 16, padding: "20px 32px", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 24 }}>
           {[
             { icon: Lock, label: "Bank-Level Encryption" },
-            { icon: ShieldCheck, label: "Regulated Partners" },
+            { icon: ShieldCheck, label: "2FA Account Protection" },
             { icon: Activity, label: "99.9% Uptime" },
             { icon: Clock, label: "24/7 Support" },
             { icon: CheckCircle, label: "No Credit Card" },
@@ -787,14 +787,14 @@ export default function Landing() {
                 <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#34D399", display: "inline-block", animation: "pulse 1.5s infinite" }} />
                 <span style={{ fontSize: 11, fontWeight: 600, color: "#6EE7B7" }}>Real-time threat monitoring active</span>
               </div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", lineHeight: 1.2, fontFamily: "'Inter Tight', sans-serif" }}>Security &amp; Compliance<br /><span style={{ color: "rgba(255,255,255,0.6)", fontSize: 16, fontWeight: 400 }}>Enterprise-grade protection</span></div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", lineHeight: 1.2, fontFamily: "'Inter Tight', sans-serif" }}>Account Security<br /><span style={{ color: "rgba(255,255,255,0.6)", fontSize: 16, fontWeight: 400 }}>Enterprise-grade protection</span></div>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {[
                 { label: "Encryption",       pct: 100 },
                 { label: "Authentication",   pct: 100 },
                 { label: "Fund Segregation", pct: 98  },
-                { label: "Compliance",       pct: 100 },
+                { label: "System Uptime",    pct: 100 },
               ].map(b => (
                 <div key={b.label} style={{ display: "flex", alignItems: "center", gap: 12, background: "rgba(255,255,255,0.1)", backdropFilter: "blur(8px)", borderRadius: 10, padding: "8px 12px" }}>
                   <span style={{ fontSize: 11, fontWeight: 500, color: "rgba(255,255,255,0.85)", flex: 1 }}>{b.label}</span>
