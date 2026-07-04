@@ -944,20 +944,20 @@ export default function Landing() {
             {/* Company */}
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, color: "#4B5563", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 16 }}>COMPANY</div>
-              {["About Us", "Pricing", "Blog", "Careers", "Contact"].map(l => (
-                <div key={l} style={{ fontSize: 13, color: "#9CA3AF", marginBottom: 10, cursor: "pointer", transition: "color 0.15s" }}
+              {[["About Us", "/about"], ["Contact", "/contact"]].map(([l, href]) => (
+                <a key={l} href={href} style={{ display: "block", fontSize: 13, color: "#9CA3AF", marginBottom: 10, cursor: "pointer", transition: "color 0.15s", textDecoration: "none" }}
                   onMouseEnter={e => (e.currentTarget.style.color = "#fff")}
-                  onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}>{l}</div>
+                  onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}>{l}</a>
               ))}
             </div>
 
             {/* Legal */}
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, color: "#4B5563", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 16 }}>LEGAL</div>
-              {["Terms of Service", "Privacy Policy", "Cookie Policy", "Risk Disclosure"].map(l => (
-                <div key={l} style={{ fontSize: 13, color: "#9CA3AF", marginBottom: 10, cursor: "pointer", transition: "color 0.15s" }}
+              {[["Terms of Service", "/legal/terms"], ["Privacy Policy", "/legal/privacy"], ["Risk Disclosure", "/legal/risk"]].map(([l, href]) => (
+                <a key={l} href={href} style={{ display: "block", fontSize: 13, color: "#9CA3AF", marginBottom: 10, cursor: "pointer", transition: "color 0.15s", textDecoration: "none" }}
                   onMouseEnter={e => (e.currentTarget.style.color = "#fff")}
-                  onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}>{l}</div>
+                  onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}>{l}</a>
               ))}
             </div>
 

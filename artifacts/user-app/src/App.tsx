@@ -36,6 +36,7 @@ import About from "@/pages/legal/About";
 import Terms from "@/pages/legal/Terms";
 import Privacy from "@/pages/legal/Privacy";
 import Risk from "@/pages/legal/Risk";
+import Contact from "@/pages/legal/Contact";
 import Login from "@/pages/auth/Login";
 import Register from "@/pages/auth/Register";
 import ForgotPassword from "@/pages/auth/ForgotPassword";
@@ -78,6 +79,7 @@ function Router() {
       <Route path="/legal/terms" component={Terms} />
       <Route path="/legal/privacy" component={Privacy} />
       <Route path="/legal/risk" component={Risk} />
+      <Route path="/contact" component={Contact} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/forgot-password" component={ForgotPassword} />
