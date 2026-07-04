@@ -62,7 +62,7 @@ export default function About() {
         <p>
           Questions? Our support team is available Monday–Friday, 9am–6pm ET.
           Reach us anytime at{" "}
-          <span className="text-primary">support@vixus.ai</span> or
+          <span className="text-primary">support@vixus.trade</span> or
           through the in-app Support center.
         </p>
       </section>

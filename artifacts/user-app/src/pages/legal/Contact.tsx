@@ -11,7 +11,7 @@ export default function Contact() {
             <h3 className="font-semibold text-foreground text-sm">Email support</h3>
             <p className="text-muted-foreground mt-1">
               For account, billing, or trading questions, email us at{" "}
-              <span className="text-primary">support@vixus.ai</span>. We
+              <span className="text-primary">support@vixus.trade</span>. We
               typically respond within 24 hours.
             </p>
           </div>

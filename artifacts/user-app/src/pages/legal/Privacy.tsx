@@ -54,7 +54,7 @@ export default function Privacy() {
         <h2>6. Contact</h2>
         <p>
           For privacy questions, contact us at{" "}
-          <span className="text-primary">privacy@vixus.ai</span>.
+          <span className="text-primary">privacy@vixus.trade</span>.
         </p>
       </section>
     </LegalLayout>
