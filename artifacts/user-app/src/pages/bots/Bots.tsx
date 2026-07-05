@@ -161,9 +161,6 @@ export default function Bots() {
                             />
                             {bot.status === "running" ? "Running" : "Paused"}
                           </div>
-                          {bot.status === "running" && (
-                            <TradeCountdown secondsUntilNextTrade={bot.secondsUntilNextTrade} compact />
-                          )}
                         </div>
                       </div>
                       <ChevronRight className="w-4 h-4 text-muted-foreground/40 shrink-0" />
@@ -179,6 +176,12 @@ export default function Bots() {
                         <p className="text-sm font-bold text-primary">{bot.winRate}%</p>
                       </div>
                     </div>
+
+                    {bot.status === "running" && (
+                      <div className="mt-2.5 pt-2.5 border-t border-border/30">
+                        <TradeCountdown secondsUntilNextTrade={bot.secondsUntilNextTrade} compact />
+                      </div>
+                    )}
                   </div>
                 ))
               )}

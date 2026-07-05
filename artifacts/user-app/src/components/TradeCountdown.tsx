@@ -38,8 +38,10 @@ export function TradeCountdown({
   if (compact) {
     return (
       <span className={`inline-flex items-center gap-1 text-[10px] font-medium ${isDue ? "text-green-400" : "text-muted-foreground"} ${className}`}>
-        <Clock className="w-3 h-3" />
-        {isDue ? "Trading now…" : `Next trade in ${formatCountdown(remaining)}`}
+        <Clock className="w-3 h-3 shrink-0" />
+        {isDue
+          ? "Filtering for high-quality signals — trading now…"
+          : `Filtering for high-quality signals. Next trade in ${formatCountdown(remaining)}`}
       </span>
     );
   }
@@ -50,9 +52,9 @@ export function TradeCountdown({
         <Clock className="w-4 h-4 text-primary" />
       </div>
       <div>
-        <p className="text-[10px] text-muted-foreground">Next Scheduled Trade</p>
+        <p className="text-[10px] text-muted-foreground">Filtering for high-quality, high-probability signals</p>
         <p className={`text-sm font-bold tabular-nums ${isDue ? "text-green-400" : ""}`}>
-          {isDue ? "Trading now…" : formatCountdown(remaining)}
+          {isDue ? "Trading now…" : `Next trade in ${formatCountdown(remaining)}`}
         </p>
       </div>
     </div>

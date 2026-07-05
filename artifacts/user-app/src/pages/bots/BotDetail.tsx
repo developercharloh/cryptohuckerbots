@@ -116,13 +116,6 @@ export default function BotDetail() {
           )}
         </div>
 
-        {/* Next Trade Countdown */}
-        {bot?.status === "running" && bot?.secondsUntilNextTrade != null && (
-          <div className="bg-card border-none rounded-2xl p-4 shadow-none">
-            <TradeCountdown secondsUntilNextTrade={bot.secondsUntilNextTrade} />
-          </div>
-        )}
-
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-3">
           <Card className="bg-card border-none rounded-2xl shadow-none">
@@ -158,6 +151,13 @@ export default function BotDetail() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Bot analysis / countdown */}
+        {bot?.status === "running" && bot?.secondsUntilNextTrade != null && (
+          <div className="bg-card border-none rounded-2xl p-4 shadow-none">
+            <TradeCountdown secondsUntilNextTrade={bot.secondsUntilNextTrade} />
+          </div>
+        )}
 
         {/* Performance Chart */}
         <div className="bg-card border-none rounded-2xl p-5 shadow-none">
