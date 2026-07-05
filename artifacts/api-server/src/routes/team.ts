@@ -19,7 +19,7 @@ router.get("/team/referral", async (req, res) => {
 
   const referrals = await db.select().from(referralsTable).where(eq(referralsTable.referrerId, user.id));
   const totalEarnings = referrals.reduce((sum, r) => sum + parseFloat(r.earnings), 0);
-  const baseUrl = `https://vixus.ai`;
+  const baseUrl = process.env["APP_URL"] ?? "https://vixus.ai";
 
   return res.json({
     referralCode: user.referralCode,
