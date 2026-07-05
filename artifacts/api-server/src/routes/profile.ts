@@ -207,10 +207,13 @@ router.post("/profile/kyc/session", async (req, res) => {
 
   const apiKey = process.env["DIDIT_API_KEY"];
   const workflowId = process.env["DIDIT_WORKFLOW_ID"];
-  const callbackUrl = process.env["DIDIT_CALLBACK_URL"] ?? "https://vixus.ai/profile/kyc";
+  const callbackUrl = process.env["DIDIT_CALLBACK_URL"];
 
   if (!apiKey || !workflowId) {
     return res.status(503).json({ error: "KYC verification service not configured. Set DIDIT_API_KEY and DIDIT_WORKFLOW_ID." });
+  }
+  if (!callbackUrl) {
+    return res.status(503).json({ error: "KYC verification service not configured. Set DIDIT_CALLBACK_URL to this app's /profile/kyc page." });
   }
 
   try {
