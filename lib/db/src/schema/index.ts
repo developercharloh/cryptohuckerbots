@@ -67,6 +67,7 @@ export const userBotsTable = pgTable("user_bots", {
   profitTotal: numeric("profit_total", { precision: 12, scale: 2 }).notNull().default("0"),
   totalTrades: integer("total_trades").notNull().default(0),
   startedAt: timestamp("started_at"),
+  nextTradeAt: timestamp("next_trade_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

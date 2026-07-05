@@ -146,7 +146,9 @@ export const ListBotsResponseItem = zod.object({
   "winRate": zod.number(),
   "totalTrades": zod.number(),
   "iconUrl": zod.string().nullish(),
-  "category": zod.string()
+  "category": zod.string(),
+  "nextTradeAt": zod.coerce.date().nullish(),
+  "secondsUntilNextTrade": zod.number().nullish()
 })
 export const ListBotsResponse = zod.array(ListBotsResponseItem)
 
@@ -166,7 +168,9 @@ export const GetBotResponse = zod.object({
   "iconUrl": zod.string().nullish(),
   "category": zod.string(),
   "description": zod.string(),
-  "performance": zod.number()
+  "performance": zod.number(),
+  "nextTradeAt": zod.coerce.date().nullish(),
+  "secondsUntilNextTrade": zod.number().nullish()
 })
 
 
@@ -182,7 +186,9 @@ export const ToggleBotResponse = zod.object({
   "winRate": zod.number(),
   "totalTrades": zod.number(),
   "iconUrl": zod.string().nullish(),
-  "category": zod.string()
+  "category": zod.string(),
+  "nextTradeAt": zod.coerce.date().nullish(),
+  "secondsUntilNextTrade": zod.number().nullish()
 })
 
 

@@ -9,6 +9,7 @@ import { ChevronLeft, ChevronDown } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { TradeCountdown } from "@/components/TradeCountdown";
 
 const PERIODS = [
   { id: "daily",   label: "Daily" },
@@ -114,6 +115,13 @@ export default function BotDetail() {
             </div>
           )}
         </div>
+
+        {/* Next Trade Countdown */}
+        {bot?.status === "running" && bot?.secondsUntilNextTrade != null && (
+          <div className="bg-card border-none rounded-2xl p-4 shadow-none">
+            <TradeCountdown secondsUntilNextTrade={bot.secondsUntilNextTrade} />
+          </div>
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-3">

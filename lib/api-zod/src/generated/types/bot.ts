@@ -16,4 +16,8 @@ export interface Bot {
   /** @nullable */
   iconUrl?: string | null;
   category: string;
+  /** @nullable */
+  nextTradeAt?: Date | null;
+  /** @nullable */
+  secondsUntilNextTrade?: number | null;
 }

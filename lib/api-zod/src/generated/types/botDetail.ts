@@ -19,4 +19,8 @@ export interface BotDetail {
   category: string;
   description: string;
   performance: number;
+  /** @nullable */
+  nextTradeAt?: Date | null;
+  /** @nullable */
+  secondsUntilNextTrade?: number | null;
 }

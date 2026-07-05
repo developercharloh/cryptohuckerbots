@@ -12,6 +12,7 @@ import { ChevronRight, Plus, Zap, TrendingUp, ShieldCheck, ShieldAlert, Shield }
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { TradeCountdown } from "@/components/TradeCountdown";
 
 const BOT_GRADIENTS = [
   "from-purple-500 to-indigo-600",
@@ -160,6 +161,9 @@ export default function Bots() {
                             />
                             {bot.status === "running" ? "Running" : "Paused"}
                           </div>
+                          {bot.status === "running" && (
+                            <TradeCountdown secondsUntilNextTrade={bot.secondsUntilNextTrade} compact />
+                          )}
                         </div>
                       </div>
                       <ChevronRight className="w-4 h-4 text-muted-foreground/40 shrink-0" />

@@ -152,6 +152,10 @@ export interface Bot {
   /** @nullable */
   iconUrl?: string | null;
   category: string;
+  /** @nullable */
+  nextTradeAt?: string | null;
+  /** @nullable */
+  secondsUntilNextTrade?: number | null;
 }
 
 export interface BotDetail {
@@ -167,6 +171,10 @@ export interface BotDetail {
   category: string;
   description: string;
   performance: number;
+  /** @nullable */
+  nextTradeAt?: string | null;
+  /** @nullable */
+  secondsUntilNextTrade?: number | null;
 }
 
 export interface MarketplaceBot {
