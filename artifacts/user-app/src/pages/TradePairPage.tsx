@@ -285,53 +285,7 @@ export default function TradePairPage() {
     return p.toFixed(5);
   }
 
-  async function handleExecute() {
-    setTradeError(null);
-    const rawAmount = parseFloat(amount.replace(/,/g, ""));
-    if (isNaN(rawAmount) || rawAmount <= 0) {
-      setTradeError("Enter a valid amount to trade.");
-      return;
-    }
-    setExecuting(true);
-    try {
-      const token = localStorage.getItem("vixus_token") ?? "";
-      const direction = side === "long" ? "BUY" : "SELL";
-      const marketCategory =
-        meta.category === "crypto" ? "Crypto" :
-        meta.category === "commodities" ? "Commodities" : "Forex";
-
-      const apiBase = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
-      const res = await fetch(`${apiBase}/api/trade/manual`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ pair: meta.label, direction, market: marketCategory, stake: rawAmount }),
-      });
-      const data = await res.json() as { error?: string; id?: number; openedAt?: string };
-      if (!res.ok) {
-        setTradeError(data.error ?? "Trade failed. Try again.");
-        return;
-      }
-      // Save active trade for Orders countdown
-      if (data.id) {
-        localStorage.setItem("vixus_active_trade", JSON.stringify({
-          positionId: data.id,
-          endTimeMs: Date.now() + 5 * 60 * 1000,
-        }));
-      }
-      setExecuted(true);
-      setTimeout(() => {
-        setExecuted(false);
-        setLocation("/orders");
-      }, 1000);
-    } catch {
-      setTradeError("Network error. Check your connection.");
-    } finally {
-      setExecuting(false);
-    }
-  }
+  // Manual direct trading is disabled — trades are only placed through bots (see StartBot.tsx / /api/trade/manual with userBotId).
 
   return (
     <Layout>
@@ -418,49 +372,55 @@ export default function TradePairPage() {
             ))}
           </div>
 
-          {/* Long / Short toggle */}
-          <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-            <button onClick={() => setSide("long")} style={{
-              flex: 1, padding: "12px 0", borderRadius: 12, border: "none", cursor: "pointer",
+          {/* Long / Short toggle — disabled: manual direction trading is not allowed, bots only */}
+          <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+            <button disabled style={{
+              flex: 1, padding: "12px 0", borderRadius: 12, border: "none", cursor: "not-allowed",
               fontSize: 14, fontWeight: 800, letterSpacing: "0.05em",
-              background: side === "long" ? "#22c55e" : "rgba(34,197,94,0.1)",
-              color: side === "long" ? "#fff" : "#22c55e",
+              background: "rgba(34,197,94,0.08)",
+              color: "rgba(34,197,94,0.4)",
             }}>
               <TrendingUp size={14} style={{ display: "inline", marginRight: 6, verticalAlign: "middle" }} />
               LONG / BUY
             </button>
-            <button onClick={() => setSide("short")} style={{
-              flex: 1, padding: "12px 0", borderRadius: 12, border: "none", cursor: "pointer",
+            <button disabled style={{
+              flex: 1, padding: "12px 0", borderRadius: 12, border: "none", cursor: "not-allowed",
               fontSize: 14, fontWeight: 800, letterSpacing: "0.05em",
-              background: side === "short" ? "#ef4444" : "rgba(239,68,68,0.1)",
-              color: side === "short" ? "#fff" : "#ef4444",
+              background: "rgba(239,68,68,0.08)",
+              color: "rgba(239,68,68,0.4)",
             }}>
               <TrendingDown size={14} style={{ display: "inline", marginRight: 6, verticalAlign: "middle" }} />
               SHORT / SELL
             </button>
           </div>
+          <div style={{ marginBottom: 16, padding: "8px 12px", borderRadius: 10, background: "rgba(108,71,255,0.08)", border: `1px solid ${PURPLE}33`, display: "flex", alignItems: "center", gap: 8 }}>
+            <Bot size={13} style={{ color: PURPLE, flexShrink: 0 }} />
+            <span style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.4 }}>Manual trading is disabled. Activate a bot below to trade this pair.</span>
+          </div>
 
           {/* Amount */}
-          <div style={{ marginBottom: 14 }}>
+          <div style={{ marginBottom: 14, opacity: 0.5 }}>
             <label style={{ fontSize: 10, fontWeight: 600, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>Amount (USDT)</label>
             <input
               value={amount}
-              onChange={e => setAmount(e.target.value)}
+              disabled
+              readOnly
               style={{
                 width: "100%", padding: "12px 14px", borderRadius: 12, fontSize: 16, fontWeight: 700,
                 background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)",
                 color: "#fff", outline: "none", boxSizing: "border-box", fontFamily: "'JetBrains Mono', monospace",
+                cursor: "not-allowed",
               }}
             />
           </div>
 
           {/* Leverage */}
-          <div style={{ marginBottom: 14 }}>
+          <div style={{ marginBottom: 14, opacity: 0.5 }}>
             <label style={{ fontSize: 10, fontWeight: 600, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>Leverage</label>
             <div style={{ display: "flex", gap: 8 }}>
               {LEVERAGES.map(lv => (
-                <button key={lv} onClick={() => setLeverage(lv)} style={{
-                  flex: 1, padding: "8px 0", borderRadius: 10, border: "none", cursor: "pointer",
+                <button key={lv} disabled style={{
+                  flex: 1, padding: "8px 0", borderRadius: 10, border: "none", cursor: "not-allowed",
                   fontSize: 12, fontWeight: 700,
                   background: leverage === lv ? PURPLE : "rgba(255,255,255,0.06)",
                   color: leverage === lv ? "#fff" : "#9CA3AF",
@@ -470,54 +430,44 @@ export default function TradePairPage() {
           </div>
 
           {/* Take Profit / Stop Loss */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16, opacity: 0.5 }}>
             <div>
               <label style={{ fontSize: 10, fontWeight: 600, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>Take Profit</label>
-              <input value={takeProfit} onChange={e => setTakeProfit(e.target.value)} style={{
+              <input value={takeProfit} disabled readOnly style={{
                 width: "100%", padding: "10px 12px", borderRadius: 10, fontSize: 13, fontWeight: 700,
                 background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.3)",
                 color: "#22c55e", outline: "none", boxSizing: "border-box", fontFamily: "'JetBrains Mono', monospace",
+                cursor: "not-allowed",
               }} />
             </div>
             <div>
               <label style={{ fontSize: 10, fontWeight: 600, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>Stop Loss</label>
-              <input value={stopLoss} onChange={e => setStopLoss(e.target.value)} style={{
+              <input value={stopLoss} disabled readOnly style={{
                 width: "100%", padding: "10px 12px", borderRadius: 10, fontSize: 13, fontWeight: 700,
                 background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.3)",
                 color: "#ef4444", outline: "none", boxSizing: "border-box", fontFamily: "'JetBrains Mono', monospace",
+                cursor: "not-allowed",
               }} />
             </div>
           </div>
 
           {/* Risk indicator */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14, opacity: 0.5 }}>
             <Activity size={13} style={{ color: riskColor }} />
             <span style={{ fontSize: 11, color: "#6B7280" }}>Risk: <span style={{ color: riskColor, fontWeight: 700 }}>{risk}</span></span>
           </div>
 
-          {/* Error banner */}
-          {tradeError && (
-            <div style={{ marginBottom: 12, padding: "10px 14px", borderRadius: 10, background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#ef4444", fontSize: 12, fontWeight: 600 }}>
-              ⚠ {tradeError}
-            </div>
-          )}
-
-          {/* Execute button */}
+          {/* Execute button — disabled: manual trading is bots-only now */}
           <button
-            onClick={handleExecute}
-            disabled={executing || executed}
+            disabled
             style={{
               width: "100%", padding: "16px 0", borderRadius: 14, border: "none",
-              cursor: executing || executed ? "default" : "pointer",
-              fontSize: 15, fontWeight: 900, letterSpacing: "0.08em", color: "#fff",
-              opacity: executing ? 0.75 : 1,
-              background: executed
-                ? "#22c55e"
-                : `linear-gradient(135deg, ${PURPLE} 0%, #4F46E5 100%)`,
-              transition: "background 0.3s",
+              cursor: "not-allowed",
+              fontSize: 15, fontWeight: 900, letterSpacing: "0.08em", color: "rgba(255,255,255,0.4)",
+              background: "rgba(108,71,255,0.25)",
             }}
           >
-            {executed ? "✓ ORDER PLACED — Redirecting…" : executing ? "Placing Order…" : `EXECUTE — ${meta.label} ${side === "long" ? "LONG" : "SHORT"}`}
+            MANUAL TRADING DISABLED — USE A BOT
           </button>
 
           {/* ── Run Bot on This Pair ─────────────────────────── */}
