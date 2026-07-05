@@ -9,6 +9,7 @@ import {
   Bot as BotIcon, Zap, Activity, BarChart2, TrendingUp,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { TradeCountdown } from "@/components/TradeCountdown";
 
 type Step = "configure" | "running" | "results";
 
@@ -122,13 +123,17 @@ export default function StartBot() {
   const stakeNum = parseFloat(stakeAmount) || 0;
   const profitTarget = Math.round(stakeNum * 0.04 * 100) / 100;
   const selectedBot = bots.find(b => b.id === selectedBotId);
-  const canStart = stakeNum >= 1 && selectedBotId !== null;
+  const isBotLocked = (bot: { secondsUntilNextTrade?: number | null }) =>
+    (bot.secondsUntilNextTrade ?? 0) > 0;
+  const canStart = stakeNum >= 1 && selectedBotId !== null && !!selectedBot && !isBotLocked(selectedBot);
 
   const [startingTrade, setStartingTrade] = useState(false);
   const resolvedRef = useRef(false);
 
   useEffect(() => {
-    if (!selectedBotId && bots.length > 0) setSelectedBotId(bots[0].id);
+    if (selectedBotId && bots.some(b => b.id === selectedBotId)) return;
+    const firstAvailable = bots.find(b => !isBotLocked(b)) ?? bots[0];
+    if (firstAvailable) setSelectedBotId(firstAvailable.id);
   }, [bots, selectedBotId]);
 
   // P&L simulation — always trends upward toward exactly 4% of stake
@@ -213,10 +218,11 @@ export default function StartBot() {
           market,
           stake: stakeNum,
           botName: selectedBot?.name ?? "Bot Trade",
+          userBotId: selectedBotId,
         }),
       });
       if (!res.ok) {
-        const err = await res.json() as { error?: string };
+        const err = await res.json() as { error?: string; secondsUntilNextTrade?: number };
         toast({ title: err.error ?? "Failed to start bot", variant: "destructive" });
         return;
       }
@@ -332,34 +338,49 @@ export default function StartBot() {
               </div>
             ) : (
               <div className="space-y-2.5">
-                {bots.map((bot, i) => (
-                  <button
-                    key={bot.id}
-                    onClick={() => setSelectedBotId(bot.id)}
-                    className={`w-full flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all duration-150 ${
-                      selectedBotId === bot.id
-                        ? "border-primary bg-primary/8 shadow-md shadow-primary/10"
-                        : "border-transparent bg-card hover:border-border/50"
-                    }`}
-                  >
-                    <div className={`w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 bg-gradient-to-br ${BOT_COLORS[i % BOT_COLORS.length]}`}>
-                      {bot.name.charAt(0)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm truncate">{bot.name}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[10px] text-green-400 font-medium">Win {bot.winRate}%</span>
-                        <span className="text-[10px] text-muted-foreground">·</span>
-                        <span className="text-[10px] text-muted-foreground">Today +${bot.profitToday}</span>
+                {bots.map((bot, i) => {
+                  const locked = isBotLocked(bot);
+                  return (
+                    <button
+                      key={bot.id}
+                      onClick={() => !locked && setSelectedBotId(bot.id)}
+                      disabled={locked}
+                      aria-disabled={locked}
+                      className={`w-full flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all duration-150 ${
+                        locked
+                          ? "border-transparent bg-card/50 opacity-60 cursor-not-allowed"
+                          : selectedBotId === bot.id
+                          ? "border-primary bg-primary/8 shadow-md shadow-primary/10"
+                          : "border-transparent bg-card hover:border-border/50"
+                      }`}
+                    >
+                      <div className={`w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 bg-gradient-to-br ${BOT_COLORS[i % BOT_COLORS.length]}`}>
+                        {bot.name.charAt(0)}
                       </div>
-                    </div>
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
-                      selectedBotId === bot.id ? "border-primary bg-primary" : "border-muted"
-                    }`}>
-                      {selectedBotId === bot.id && <Check className="w-3 h-3 text-white stroke-[3]" />}
-                    </div>
-                  </button>
-                ))}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm truncate">{bot.name}</p>
+                        {locked ? (
+                          <div className="mt-0.5">
+                            <TradeCountdown secondsUntilNextTrade={bot.secondsUntilNextTrade} compact />
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[10px] text-green-400 font-medium">Win {bot.winRate}%</span>
+                            <span className="text-[10px] text-muted-foreground">·</span>
+                            <span className="text-[10px] text-muted-foreground">Today +${bot.profitToday}</span>
+                          </div>
+                        )}
+                      </div>
+                      {!locked && (
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                          selectedBotId === bot.id ? "border-primary bg-primary" : "border-muted"
+                        }`}>
+                          {selectedBotId === bot.id && <Check className="w-3 h-3 text-white stroke-[3]" />}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </section>
@@ -376,7 +397,7 @@ export default function StartBot() {
                   { k: "Bot", v: selectedBot.name, vc: "" },
                   { k: "Stake Amount", v: `$${stakeNum.toFixed(2)}`, vc: "" },
                   { k: "Target Profit", v: `$${profitTarget.toFixed(2)} (4%)`, vc: "text-green-400" },
-                  { k: "Status", v: "Ready to Start", vc: "text-green-400" },
+                  { k: "Status", v: isBotLocked(selectedBot) ? "Filtering for signals" : "Ready to Start", vc: isBotLocked(selectedBot) ? "text-muted-foreground" : "text-green-400" },
                 ].map(({ k, v, vc }) => (
                   <div key={k} className="flex items-center justify-between">
                     <span className="text-[11px] text-muted-foreground">{k}</span>
@@ -390,6 +411,11 @@ export default function StartBot() {
 
         {/* Start button */}
         <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] px-5 pb-8 pt-4 bg-gradient-to-t from-background via-background/95 to-transparent">
+          {selectedBot && isBotLocked(selectedBot) && (
+            <div className="mb-2 text-center">
+              <TradeCountdown secondsUntilNextTrade={selectedBot.secondsUntilNextTrade} compact />
+            </div>
+          )}
           <Button
             onClick={handleStart}
             disabled={!canStart || startingTrade}

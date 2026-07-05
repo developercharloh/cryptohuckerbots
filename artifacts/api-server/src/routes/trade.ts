@@ -237,14 +237,21 @@ async function resolveOpen(
   return { row: p, pnl: walk.pnl, elapsedMs: elapsed };
 }
 
-// ── Manual trade (no bot required) ─────────────────────────────────────────
+const MANUAL_TRADE_INTERVAL_MS = 24 * 60 * 60 * 1000; // a bot may only be manually started once every 24h
+
+function secondsUntilTrade(nextTradeAt: Date | null): number {
+  if (!nextTradeAt) return 0;
+  return Math.max(0, Math.round((nextTradeAt.getTime() - Date.now()) / 1000));
+}
+
+// ── Manual trade ────────────────────────────────────────────────────────────
 router.post("/trade/manual", async (req, res) => {
   const token = req.headers.authorization?.replace("Bearer ", "");
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
-  const { pair, direction, market, stake, botName: customBotName } = req.body as {
-    pair?: string; direction?: string; market?: string; stake?: number; botName?: string;
+  const { pair, direction, market, stake, botName: customBotName, userBotId } = req.body as {
+    pair?: string; direction?: string; market?: string; stake?: number; botName?: string; userBotId?: number;
   };
 
   if (!pair || typeof pair !== "string") return res.status(400).json({ error: "pair is required" });
@@ -257,6 +264,27 @@ router.post("/trade/manual", async (req, res) => {
     return res.status(400).json({ error: `Insufficient balance. Available: $${available.toFixed(2)}, required: $${stake.toFixed(2)}` });
   }
 
+  // If trading with an owned bot, enforce the once-per-24h cooldown for that bot.
+  let ub: typeof userBotsTable.$inferSelect | null = null;
+  let bot: typeof botsTable.$inferSelect | null = null;
+  if (typeof userBotId === "number") {
+    const rows = await db.select({ ub: userBotsTable, bot: botsTable })
+      .from(userBotsTable)
+      .innerJoin(botsTable, eq(userBotsTable.botId, botsTable.id))
+      .where(and(eq(userBotsTable.id, userBotId), eq(userBotsTable.userId, user.id)))
+      .limit(1);
+    if (rows.length === 0) return res.status(400).json({ error: "You don't own this bot. Purchase it first." });
+    ub = rows[0].ub;
+    bot = rows[0].bot;
+
+    if (ub.nextTradeAt && ub.nextTradeAt.getTime() > Date.now()) {
+      return res.status(400).json({
+        error: "This bot is filtering for high-quality, high-probability signals. Please wait for the countdown to finish.",
+        secondsUntilNextTrade: secondsUntilTrade(ub.nextTradeAt),
+      });
+    }
+  }
+
   const tp = Math.round(stake * 0.04 * 100) / 100;
   const sl = Math.round(stake * 0.04 * 100) / 100;
 
@@ -264,13 +292,13 @@ router.post("/trade/manual", async (req, res) => {
 
   const inserted = await db.insert(positionsTable).values({
     userId: user.id,
-    botId: 0,
-    botName: customBotName?.trim() || "Manual Trade",
+    botId: bot ? bot.id : 0,
+    botName: bot ? bot.name : (customBotName?.trim() || "Manual Trade"),
     signalId,
     pair,
     direction,
     market,
-    winRate: "75.00",
+    winRate: bot ? bot.winRate : "75.00",
     stake: stake.toFixed(2),
     targetProfit: tp.toFixed(2),
     stopLoss: sl.toFixed(2),
@@ -285,6 +313,13 @@ router.post("/trade/manual", async (req, res) => {
     paymentMethod: "balance",
     description: `Manual trade stake: ${pair} ${direction}`,
   });
+
+  if (ub) {
+    await db.update(userBotsTable).set({
+      totalTrades: ub.totalTrades + 1,
+      nextTradeAt: new Date(Date.now() + MANUAL_TRADE_INTERVAL_MS),
+    }).where(eq(userBotsTable.id, ub.id));
+  }
 
   return res.json(serialize(inserted[0], 0, 0));
 });
