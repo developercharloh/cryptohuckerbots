@@ -24,7 +24,9 @@ interface UseUploadOptions {
 // image still can't be brought under the limit, rather than sending it and
 // getting a cryptic failure back.
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // stay safely under Vercel's ~4.5MB cap
-const COMPRESSIBLE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+// Formats we know for certain are NOT images and therefore can't be
+// compressed client-side (scanned documents, etc).
+const NON_COMPRESSIBLE_TYPES = new Set(["application/pdf"]);
 const MAX_IMAGE_DIMENSION = 2000; // px, long edge
 
 // Decoding a full-resolution 12MP+ photo (common on phone cameras) into a
@@ -51,10 +53,32 @@ async function decodeDownscaled(file: File, targetLongEdge: number): Promise<Ima
 }
 
 async function compressImageIfNeeded(file: File): Promise<File> {
-  if (!COMPRESSIBLE_TYPES.has(file.type) || file.size <= MAX_UPLOAD_BYTES) {
+  if (file.size <= MAX_UPLOAD_BYTES) {
     return file;
   }
 
+  if (NON_COMPRESSIBLE_TYPES.has(file.type)) {
+    // Known non-image format we can't shrink client-side (e.g. a scanned
+    // PDF). Rather than let it hit the wire and hit Vercel's hard, silent
+    // ~4.5MB platform limit (which returns a *plain-text* error our JSON
+    // parsing chokes on, surfacing a cryptic "Invalid response from
+    // server"), fail loudly now with an actionable message.
+    throw new Error(
+      "This file is too large to upload. Please choose a file under 4MB, or take a photo of the document instead.",
+    );
+  }
+
+  // Deliberately do NOT gate this on `file.type` matching an exact image
+  // MIME string (e.g. "image/jpeg"). Real-world phone cameras/scanner apps
+  // routinely report inconsistent or missing types for image files
+  // (`image/jpg`, empty string, `image/heic`, etc). Filtering on a strict
+  // allowlist let those files skip compression entirely, sail through as
+  // raw oversized uploads, and slam into Vercel's unraisable ~4.5MB body
+  // limit — which returns plain text, not JSON, producing a confusing
+  // "Invalid response from server" instead of a clear message. Instead we
+  // attempt to decode ANY oversized non-PDF file as an image; if it
+  // genuinely isn't one, createImageBitmap throws and we fail loudly below
+  // with a clear message, rather than silently shipping the raw file.
   let bitmap: ImageBitmap | null = null;
   try {
     bitmap = await decodeDownscaled(file, MAX_IMAGE_DIMENSION);
@@ -168,11 +192,30 @@ export function useUpload(options: UseUploadOptions = {}) {
           };
 
           xhr.onload = () => {
+            // Defense in depth: even though compressImageIfNeeded() should
+            // now catch essentially every case that used to slip through
+            // and hit Vercel's hard ~4.5MB platform limit, that edge-level
+            // rejection returns *plain text* (not JSON) when it does occur
+            // (e.g. an unusually large file compression couldn't shrink
+            // enough). Detect that case by status code before attempting to
+            // parse JSON, so users get an actionable message instead of the
+            // opaque "Invalid response from server".
+            if (xhr.status === 413) {
+              reject(new Error("This file is too large to upload. Please choose a smaller photo."));
+              return;
+            }
+
             let data: unknown;
             try {
               data = JSON.parse(xhr.responseText);
             } catch {
-              reject(new Error("Invalid response from server"));
+              reject(
+                new Error(
+                  xhr.status >= 200 && xhr.status < 300
+                    ? "Invalid response from server"
+                    : `Upload failed (${xhr.status}). Please try again.`,
+                ),
+              );
               return;
             }
             if (xhr.status >= 200 && xhr.status < 300) {
