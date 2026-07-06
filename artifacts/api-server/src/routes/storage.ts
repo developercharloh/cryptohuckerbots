@@ -53,39 +53,55 @@ const upload = multer({
  * which proved unreliable in practice — server-side `put()` with the raw
  * token is simple and has been verified to work consistently.
  */
-router.post("/storage/uploads", upload.single("file"), async (req: Request, res: Response) => {
-  try {
-    const file = req.file;
-    if (!file) {
-      res.status(400).json({ error: "No file provided" });
-      return;
-    }
-
-    if (!ALLOWED_UPLOAD_CONTENT_TYPES.includes(file.mimetype)) {
-      res.status(400).json({ error: `Unsupported file type: ${file.mimetype}` });
-      return;
-    }
-
-    const token = getSanitizedBlobToken();
-    if (!token) {
-      res.status(500).json({ error: "Blob storage is not configured" });
-      return;
-    }
-
-    const pathname = `uploads/${crypto.randomUUID()}-${file.originalname}`;
-    const blob = await put(pathname, file.buffer, {
-      access: "private",
-      contentType: file.mimetype,
-      addRandomSuffix: false,
-      token,
+router.post(
+  "/storage/uploads",
+  (req: Request, res: Response, next) => {
+    upload.single("file")(req, res, (err: unknown) => {
+      if (!err) return next();
+      if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+        res.status(413).json({
+          error: `File is too large (max ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))}MB). Please choose a smaller photo.`,
+        });
+        return;
+      }
+      req.log.error({ err }, "Error parsing upload");
+      res.status(400).json({ error: "Could not process upload" });
     });
+  },
+  async (req: Request, res: Response) => {
+    try {
+      const file = req.file;
+      if (!file) {
+        res.status(400).json({ error: "No file provided" });
+        return;
+      }
 
-    res.json({ uploadURL: blob.url, objectPath: blob.url });
-  } catch (error) {
-    req.log.error({ err: error }, "Error uploading file");
-    res.status(500).json({ error: (error as Error).message || "Failed to upload file" });
-  }
-});
+      if (!ALLOWED_UPLOAD_CONTENT_TYPES.includes(file.mimetype)) {
+        res.status(400).json({ error: `Unsupported file type: ${file.mimetype}` });
+        return;
+      }
+
+      const token = getSanitizedBlobToken();
+      if (!token) {
+        res.status(500).json({ error: "Blob storage is not configured" });
+        return;
+      }
+
+      const pathname = `uploads/${crypto.randomUUID()}-${file.originalname}`;
+      const blob = await put(pathname, file.buffer, {
+        access: "private",
+        contentType: file.mimetype,
+        addRandomSuffix: false,
+        token,
+      });
+
+      res.json({ uploadURL: blob.url, objectPath: blob.url });
+    } catch (error) {
+      req.log.error({ err: error }, "Error uploading file");
+      res.status(500).json({ error: (error as Error).message || "Failed to upload file" });
+    }
+  },
+);
 
 /**
  * GET /storage/blob-proxy?url=<blobUrl>

@@ -12,6 +12,61 @@ interface UseUploadOptions {
   onError?: (error: Error) => void;
 }
 
+// Vercel's Node.js serverless functions enforce a hard ~4.5MB request body
+// limit that CANNOT be raised via config (unlike, say, Express body-parser
+// limits) — it's enforced by Vercel's infrastructure before the request
+// even reaches our code. Phone camera photos routinely come in at 3-10MB,
+// so uploads of raw photos silently fail in production (413 from Vercel's
+// edge, not something our own error handling ever sees) even though the
+// exact same code works fine in local dev / smaller test payloads. To make
+// this durable, we proactively downscale/recompress images client-side to
+// comfortably clear that ceiling, and hard-fail with a clear message if an
+// image still can't be brought under the limit, rather than sending it and
+// getting a cryptic failure back.
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // stay safely under Vercel's ~4.5MB cap
+const COMPRESSIBLE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const MAX_IMAGE_DIMENSION = 2000; // px, long edge
+
+async function compressImageIfNeeded(file: File): Promise<File> {
+  if (!COMPRESSIBLE_TYPES.has(file.type) || file.size <= MAX_UPLOAD_BYTES) {
+    return file;
+  }
+
+  const bitmap = await createImageBitmap(file).catch(() => null);
+  if (!bitmap) {
+    // Can't decode client-side (unsupported format, corrupt file, etc.) —
+    // let it through as-is; the server/Vercel will reject it with a clear
+    // size error if it's actually too big, instead of us silently dropping it.
+    return file;
+  }
+
+  const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(bitmap.width, bitmap.height));
+  const targetWidth = Math.round(bitmap.width * scale);
+  const targetHeight = Math.round(bitmap.height * scale);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return file;
+  ctx.drawImage(bitmap, 0, 0, targetWidth, targetHeight);
+  bitmap.close?.();
+
+  let quality = 0.85;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const blob: Blob | null = await new Promise((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", quality),
+    );
+    if (!blob) break;
+    if (blob.size <= MAX_UPLOAD_BYTES || quality <= 0.4) {
+      return new File([blob], file.name.replace(/\.\w+$/, ".jpg"), { type: "image/jpeg" });
+    }
+    quality -= 0.15;
+  }
+
+  return file;
+}
+
 /**
  * React hook for handling file uploads.
  *
@@ -61,8 +116,16 @@ export function useUpload(options: UseUploadOptions = {}) {
       setProgress(0);
 
       try {
+        const uploadable = await compressImageIfNeeded(file);
+
+        if (uploadable.size > MAX_UPLOAD_BYTES) {
+          throw new Error(
+            "This file is too large even after compression. Please choose a smaller photo (under 4MB).",
+          );
+        }
+
         const formData = new FormData();
-        formData.append("file", file);
+        formData.append("file", uploadable);
 
         const uploadResponse = await new Promise<UploadResponse>((resolve, reject) => {
           const xhr = new XMLHttpRequest();
