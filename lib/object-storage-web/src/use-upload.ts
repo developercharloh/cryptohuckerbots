@@ -192,10 +192,18 @@ export function useUpload(options: UseUploadOptions = {}) {
         options.onSuccess?.(uploadResponse);
         return uploadResponse;
       } catch (err) {
+        // NOTE: intentionally re-thrown below instead of only relying on the
+        // `error` state value here. React state updates from setError() are
+        // not visible to a caller that reads the `error` returned by this
+        // hook in the same synchronous continuation after awaiting
+        // uploadFile() — that reads a stale closure from the render that
+        // created the callback, not the just-set value. Callers that need
+        // the *specific* failure reason for this call must catch the thrown
+        // error rather than inspect hook state immediately afterwards.
         const error = err instanceof Error ? err : new Error("Upload failed");
         setError(error);
         options.onError?.(error);
-        return null;
+        throw error;
       } finally {
         setIsUploading(false);
       }
