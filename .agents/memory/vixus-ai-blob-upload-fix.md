@@ -1,0 +1,16 @@
+---
+name: VIXUS AI KYC/file upload architecture
+description: How file uploads (KYC docs) work end-to-end, and a quote-corruption trap that caused hours of misleading "Access denied" errors.
+---
+
+Uploads (e.g. KYC documents) go browser → multipart/form-data → `POST /api/storage/uploads` on api-server → server calls Vercel Blob's `put()` with `BLOB_READ_WRITE_TOKEN` (private access) → returns the blob URL to the client. Private blobs are viewed via `GET /api/storage/blob-proxy?url=` which streams them server-side with the bearer token (browsers can't fetch private blob URLs directly).
+
+**Why not the `@vercel/blob/client` two-phase client-token flow (`handleUpload`/`upload()`)?** It was tried first and consistently failed with "Access denied, please provide a valid token for this resource" when driven through a real HTTP round-trip (but worked when called in-process without HTTP) — root cause was never conclusively isolated after extensive debugging (ruled out clock skew, CORS, callback URL auto-detection, header forwarding, access-level mismatches). Abandoned in favor of the simpler direct-`put()` approach above, which has been reliable.
+
+**The real root cause of the "Access denied" errors, eventually found:** the `BLOB_READ_WRITE_TOKEN` secret value itself had multiple layers of literal quote characters wrapped around it (e.g. `"""token""""`), from repeated re-pasting. A naive sanitizer that strips only one layer of quotes leaves it corrupted, and Vercel Blob's API rejects the mangled token with a generic "Access denied" message that gives no hint the token itself is malformed — it looks exactly like a real permissions/config bug.
+
+**How to apply:** Any token/secret sanitizer must strip quote layers *iteratively until stable*, not just once. When a token "looks right" (correct env var present, correct prefix like `vercel_blob_rw_`) but every call fails with a vague auth-style error, check the exact byte length and first/last few character codes of the value directly — don't assume one `.trim().replace(/^"|"$/, "")` pass caught it.
+
+**Multipart over base64-JSON:** the original production bug was base64-encoding files into JSON request bodies, which adds ~33% size overhead and pushed uploads over Vercel's ~4.5MB serverless function body limit. Raw multipart/form-data avoids this and is what the fix uses.
+
+**Vercel project mapping for this repo** (`developercharloh/cryptohuckerbots`, multiple Vercel projects linked to the same GitHub repo — only some are live): `vixus-ai-api` → `api.vixus.trade` (live API, needs `BLOB_READ_WRITE_TOKEN`), `vixus-user-app` → `vixus.trade`/`www.vixus.trade` (live user app), `vixus-ai-admin` → admin panel (no custom domain but is the live one by name). `cryptohuckerbots-admin-app` and `vixus-ai` are stale/orphaned projects with only `.vercel.app` preview domains — not in use.
