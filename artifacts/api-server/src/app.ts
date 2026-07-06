@@ -33,7 +33,42 @@ app.use(
     },
   }),
 );
-app.use(cors());
+// A bare `cors()` responds with `Access-Control-Allow-Origin: *`, which
+// browsers reject for credentialed requests (e.g. `xhr.withCredentials =
+// true`, used by the file upload flow to send the session cookie). Since
+// the user-app/admin-app (vixus.trade / admin) and the API
+// (api.vixus.trade) are on different origins in production, we must echo
+// back a specific allowed origin and explicitly allow credentials —
+// wildcard + credentials silently breaks every cross-origin request in
+// real browsers, even though server-side test scripts (which don't
+// enforce CORS) don't reveal it.
+const DEFAULT_ALLOWED_ORIGINS = [
+  "https://vixus.trade",
+  "https://www.vixus.trade",
+  "https://vixus-user-app.vercel.app",
+  "https://vixus-ai-admin.vercel.app",
+];
+const configuredOrigins = (process.env.ALLOWED_ORIGINS ?? "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const allowedOrigins = new Set([...DEFAULT_ALLOWED_ORIGINS, ...configuredOrigins]);
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // No Origin header (server-to-server, curl, health checks) — allow.
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.has(origin)) return callback(null, true);
+      // Allow any Replit dev/preview domain and any Vercel preview deployment
+      // for this project so staging/dev testing isn't blocked.
+      if (/\.replit\.dev$/.test(new URL(origin).hostname)) return callback(null, true);
+      if (/\.vercel\.app$/.test(new URL(origin).hostname)) return callback(null, true);
+      return callback(new Error(`Origin ${origin} not allowed by CORS`));
+    },
+    credentials: true,
+  }),
+);
 app.use(express.json({
   limit: "1mb",
   verify: (_req, _res, buf) => {
