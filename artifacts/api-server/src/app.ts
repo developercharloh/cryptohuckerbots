@@ -124,4 +124,46 @@ if (process.env.SERVE_ADMIN === "true") {
   logger.info({ adminDist }, "Serving admin panel static assets");
 }
 
+// Global JSON error handler. Without this, any error thrown before a route
+// handler runs (e.g. express.json()/express.urlencoded() rejecting an
+// oversized or malformed body) falls through to Express's *default* error
+// handler, which — in production mode — renders a bare HTML page
+// (`<pre>Payload Too Large</pre>`) instead of JSON. Clients (our React
+// apps) expect JSON everywhere, so that HTML response breaks error parsing
+// and shows users a cryptic, undiagnosable message. This middleware makes
+// every failure mode (past or future — new routes, new limits, malformed
+// input) fail the same predictable, debuggable way instead of relying on
+// each individual route to anticipate it.
+app.use(
+  (
+    err: unknown,
+    req: express.Request,
+    res: express.Response,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _next: express.NextFunction,
+  ) => {
+    const error = err as { status?: number; statusCode?: number; type?: string; message?: string };
+    const status = error?.status ?? error?.statusCode ?? 500;
+
+    if (status === 413 || error?.type === "entity.too.large") {
+      req.log?.warn({ err }, "Request body too large");
+      res.status(413).json({
+        error: "Request is too large. Please reduce the size of the data you're sending and try again.",
+      });
+      return;
+    }
+
+    if (error?.type === "entity.parse.failed") {
+      req.log?.warn({ err }, "Malformed request body");
+      res.status(400).json({ error: "Malformed request body." });
+      return;
+    }
+
+    req.log?.error({ err }, "Unhandled error");
+    res.status(status >= 400 && status < 600 ? status : 500).json({
+      error: "An unexpected error occurred. Please try again later.",
+    });
+  },
+);
+
 export default app;
