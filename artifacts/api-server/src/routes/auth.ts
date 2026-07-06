@@ -39,10 +39,6 @@ function generateAccountUid(): string {
   return uid;
 }
 
-function generateReferralCode(): string {
-  return crypto.randomBytes(4).toString("hex").toUpperCase();
-}
-
 function getUserAgent(req: any): string {
   const ua = req.headers["user-agent"] || "Unknown";
   if (ua.includes("Mobile")) return "Mobile Browser";
@@ -57,19 +53,11 @@ router.post("/auth/register", async (req, res) => {
   if (!parsed.success) {
     return res.status(400).json({ error: "Invalid input" });
   }
-  const { fullName, email, password, referralCode } = parsed.data;
+  const { fullName, email, password } = parsed.data;
 
   const existing = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
   if (existing.length > 0) {
     return res.status(400).json({ error: "Email already registered" });
-  }
-
-  let referredById: number | null = null;
-  if (referralCode) {
-    const referrer = await db.select().from(usersTable).where(eq(usersTable.referralCode, referralCode)).limit(1);
-    if (referrer.length > 0) {
-      referredById = referrer[0].id;
-    }
   }
 
   const [user] = await db.insert(usersTable).values({
@@ -77,8 +65,6 @@ router.post("/auth/register", async (req, res) => {
     fullName,
     email,
     passwordHash: hashPassword(password),
-    referralCode: generateReferralCode(),
-    referredById: referredById ?? undefined,
     kycStatus: "not_verified",
     twoFAEnabled: false,
   }).returning();

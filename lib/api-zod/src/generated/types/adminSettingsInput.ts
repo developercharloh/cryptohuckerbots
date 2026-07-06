@@ -17,6 +17,5 @@ export interface AdminSettingsInput {
   depositsEnabled?: boolean;
   minDeposit?: number;
   minWithdrawal?: number;
-  referralCommission?: number;
   paymentMethods?: AdminPaymentMethod[];
 }

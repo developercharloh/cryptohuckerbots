@@ -13,7 +13,6 @@ tags:
   - name: bots
   - name: cashier
   - name: trade
-  - name: team
   - name: profile
   - name: notifications
   - name: support
@@ -613,51 +612,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-
-  # Team
-  /team/referral:
-    get:
-      operationId: getReferralInfo
-      tags: [team]
-      responses:
-        "200":
-          description: Referral info
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ReferralInfo"
-
-  /team/members:
-    get:
-      operationId: listTeamMembers
-      tags: [team]
-      responses:
-        "200":
-          description: Team members
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/TeamMember"
-
-  /team/earnings-overview:
-    get:
-      operationId: getTeamEarningsOverview
-      tags: [team]
-      parameters:
-        - name: period
-          in: query
-          schema:
-            type: string
-            enum: [this_month, last_month, all_time]
-      responses:
-        "200":
-          description: Team earnings
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/TeamEarnings"
 
   # Profile
   /profile:
@@ -1645,8 +1599,6 @@ components:
           type: string
         password:
           type: string
-        referralCode:
-          type: ["string", "null"]
       required: [fullName, email, password]
 
     LoginInput:
@@ -1927,50 +1879,6 @@ components:
         depositAddress:
           type: ["string", "null"]
       required: [id, name, icon, type]
-
-    # Team
-    ReferralInfo:
-      type: object
-      properties:
-        referralCode:
-          type: string
-        referralLink:
-          type: string
-        totalReferrals:
-          type: integer
-        totalEarnings:
-          type: number
-      required: [referralCode, referralLink, totalReferrals, totalEarnings]
-
-    TeamMember:
-      type: object
-      properties:
-        id:
-          type: integer
-        fullName:
-          type: string
-        email:
-          type: string
-        joinedAt:
-          type: string
-        earnings:
-          type: number
-        status:
-          type: string
-      required: [id, fullName, email, joinedAt, earnings, status]
-
-    TeamEarnings:
-      type: object
-      properties:
-        period:
-          type: string
-        totalEarnings:
-          type: number
-        chart:
-          type: array
-          items:
-            $ref: "#/components/schemas/ChartPoint"
-      required: [period, totalEarnings, chart]
 
     # Profile
     Profile:
@@ -2253,8 +2161,6 @@ components:
         avatarUrl: { type: ["string", "null"] }
         phone: { type: ["string", "null"] }
         country: { type: ["string", "null"] }
-        referralCode: { type: ["string", "null"] }
-        referralCount: { type: integer }
         totalDeposits: { type: number }
         totalWithdrawals: { type: number }
         createdAt: { type: string }
@@ -2264,7 +2170,7 @@ components:
         transactions:
           type: array
           items: { $ref: "#/components/schemas/AdminTransaction" }
-      required: [id, accountUid, fullName, email, status, kycStatus, balance, totalBots, referralCount, totalDeposits, totalWithdrawals, createdAt, bots, transactions]
+      required: [id, accountUid, fullName, email, status, kycStatus, balance, totalBots, totalDeposits, totalWithdrawals, createdAt, bots, transactions]
 
     AdminUserStatusInput:
       type: object
@@ -2437,11 +2343,10 @@ components:
         depositsEnabled: { type: boolean }
         minDeposit: { type: number }
         minWithdrawal: { type: number }
-        referralCommission: { type: number }
         paymentMethods:
           type: array
           items: { $ref: "#/components/schemas/AdminPaymentMethod" }
-      required: [appName, supportEmail, maintenanceMode, withdrawalsEnabled, depositsEnabled, minDeposit, minWithdrawal, referralCommission, paymentMethods]
+      required: [appName, supportEmail, maintenanceMode, withdrawalsEnabled, depositsEnabled, minDeposit, minWithdrawal, paymentMethods]
 
     AdminSettingsInput:
       type: object
@@ -2454,7 +2359,6 @@ components:
         depositsEnabled: { type: boolean }
         minDeposit: { type: number }
         minWithdrawal: { type: number }
-        referralCommission: { type: number }
         paymentMethods:
           type: array
           items: { $ref: "#/components/schemas/AdminPaymentMethod" }

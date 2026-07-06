@@ -23,9 +23,6 @@ export interface AdminUserDetail {
   phone?: string | null;
   /** @nullable */
   country?: string | null;
-  /** @nullable */
-  referralCode?: string | null;
-  referralCount: number;
   totalDeposits: number;
   totalWithdrawals: number;
   createdAt: string;

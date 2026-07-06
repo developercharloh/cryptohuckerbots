@@ -70,8 +70,6 @@ export interface RegisterInput {
   fullName: string;
   email: string;
   password: string;
-  /** @nullable */
-  referralCode?: string | null;
 }
 
 export interface LoginInput {
@@ -235,28 +233,6 @@ export interface PaymentMethod {
   network?: string | null;
   /** @nullable */
   depositAddress?: string | null;
-}
-
-export interface ReferralInfo {
-  referralCode: string;
-  referralLink: string;
-  totalReferrals: number;
-  totalEarnings: number;
-}
-
-export interface TeamMember {
-  id: number;
-  fullName: string;
-  email: string;
-  joinedAt: string;
-  earnings: number;
-  status: string;
-}
-
-export interface TeamEarnings {
-  period: string;
-  totalEarnings: number;
-  chart: ChartPoint[];
 }
 
 export interface Profile {
@@ -472,9 +448,6 @@ export interface AdminUserDetail {
   phone?: string | null;
   /** @nullable */
   country?: string | null;
-  /** @nullable */
-  referralCode?: string | null;
-  referralCount: number;
   totalDeposits: number;
   totalWithdrawals: number;
   createdAt: string;
@@ -615,7 +588,6 @@ export interface AdminSettings {
   depositsEnabled: boolean;
   minDeposit: number;
   minWithdrawal: number;
-  referralCommission: number;
   paymentMethods: AdminPaymentMethod[];
 }
 
@@ -629,7 +601,6 @@ export interface AdminSettingsInput {
   depositsEnabled?: boolean;
   minDeposit?: number;
   minWithdrawal?: number;
-  referralCommission?: number;
   paymentMethods?: AdminPaymentMethod[];
 }
 
@@ -753,19 +724,6 @@ export const ListTransactionsType = {
   all: 'all',
   deposit: 'deposit',
   withdrawal: 'withdrawal',
-} as const;
-
-export type GetTeamEarningsOverviewParams = {
-period?: GetTeamEarningsOverviewPeriod;
-};
-
-export type GetTeamEarningsOverviewPeriod = typeof GetTeamEarningsOverviewPeriod[keyof typeof GetTeamEarningsOverviewPeriod];
-
-
-export const GetTeamEarningsOverviewPeriod = {
-  this_month: 'this_month',
-  last_month: 'last_month',
-  all_time: 'all_time',
 } as const;
 
 export type AdminListUsersParams = {

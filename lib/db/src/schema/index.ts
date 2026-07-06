@@ -15,8 +15,6 @@ export const usersTable = pgTable("users", {
   isAdmin: boolean("is_admin").notNull().default(false),
   twoFAEnabled: boolean("two_fa_enabled").notNull().default(false),
   twoFASecret: text("two_fa_secret"),
-  referralCode: varchar("referral_code", { length: 50 }).notNull(),
-  referredById: integer("referred_by_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -123,17 +121,6 @@ export const earningsTable = pgTable("earnings", {
 });
 
 export type Earning = typeof earningsTable.$inferSelect;
-
-// Referrals
-export const referralsTable = pgTable("referrals", {
-  id: serial("id").primaryKey(),
-  referrerId: integer("referrer_id").notNull(),
-  referredId: integer("referred_id").notNull(),
-  earnings: numeric("earnings", { precision: 12, scale: 2 }).notNull().default("0"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
-
-export type Referral = typeof referralsTable.$inferSelect;
 
 // Notifications
 export const notificationsTable = pgTable("notifications", {
@@ -293,7 +280,6 @@ export const settingsTable = pgTable("settings", {
   depositsEnabled: boolean("deposits_enabled").notNull().default(true),
   minDeposit: numeric("min_deposit", { precision: 12, scale: 2 }).notNull().default("50"),
   minWithdrawal: numeric("min_withdrawal", { precision: 12, scale: 2 }).notNull().default("20"),
-  referralCommission: numeric("referral_commission", { precision: 6, scale: 2 }).notNull().default("10"),
   paymentMethods: jsonb("payment_methods").$type<PaymentMethod[]>().notNull().default([]),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

@@ -7,7 +7,7 @@ import { useRegister } from "@workspace/api-client-react";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Loader2, User, Mail, Lock, Tag } from "lucide-react";
+import { Eye, EyeOff, Loader2, User, Mail, Lock } from "lucide-react";
 import { VixusLogo } from "@/components/VixusLogo";
 
 const registerSchema = z.object({
@@ -15,7 +15,6 @@ const registerSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   confirmPassword: z.string(),
-  referralCode: z.string().optional(),
   terms: z.boolean().refine(val => val, "You must accept the terms"),
 }).refine(data => data.password === data.confirmPassword, {
   message: "Passwords don't match",
@@ -43,7 +42,7 @@ export default function Register() {
 
   const form = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { fullName: "", email: "", password: "", confirmPassword: "", referralCode: "", terms: false },
+    defaultValues: { fullName: "", email: "", password: "", confirmPassword: "", terms: false },
   });
 
   const onSubmit = (values: z.infer<typeof registerSchema>) => {
@@ -136,19 +135,6 @@ export default function Register() {
                     <button type="button" onClick={() => setShowConfirm(!showConfirm)} style={{ position: "absolute", right: 13, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#475569" }}>
                       {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
-                  </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
-
-            <FormField control={form.control} name="referralCode" render={({ field }) => (
-              <FormItem style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.03em" }}>Referral Code <span style={{ color: "#334155" }}>(Optional)</span></label>
-                <FormControl>
-                  <div style={{ position: "relative" }}>
-                    <Tag size={15} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "#475569" }} />
-                    <Input placeholder="VAI-12345" style={{ ...fieldStyle, paddingLeft: 38 }} {...field} />
                   </div>
                 </FormControl>
                 <FormMessage />

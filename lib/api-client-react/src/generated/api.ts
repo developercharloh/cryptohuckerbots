@@ -66,7 +66,6 @@ import type {
   FAQItem,
   ForgotPasswordInput,
   GetEarningsChartParams,
-  GetTeamEarningsOverviewParams,
   HealthStatus,
   KYCInput,
   KYCSession,
@@ -82,7 +81,6 @@ import type {
   PaymentMethod,
   Profile,
   ProfileUpdate,
-  ReferralInfo,
   RegisterInput,
   ResetPasswordInput,
   SendChatMessageInput,
@@ -91,8 +89,6 @@ import type {
   SuccessResponse,
   SupportTicket,
   SupportTicketInput,
-  TeamEarnings,
-  TeamMember,
   TradePosition,
   TradeSignal,
   Transaction,
@@ -2201,226 +2197,6 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getCloseTradePositionMutationOptions(options));
     }
-
-export const getGetReferralInfoUrl = () => {
-
-
-
-
-  return `/api/team/referral`
-}
-
-export const getReferralInfo = async ( options?: RequestInit): Promise<ReferralInfo> => {
-
-  return customFetch<ReferralInfo>(getGetReferralInfoUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getGetReferralInfoQueryKey = () => {
-    return [
-    `/api/team/referral`
-    ] as const;
-    }
-
-
-export const getGetReferralInfoQueryOptions = <TData = Awaited<ReturnType<typeof getReferralInfo>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReferralInfo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getGetReferralInfoQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getReferralInfo>>> = ({ signal }) => getReferralInfo({ signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getReferralInfo>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type GetReferralInfoQueryResult = NonNullable<Awaited<ReturnType<typeof getReferralInfo>>>
-export type GetReferralInfoQueryError = ErrorType<unknown>
-
-
-
-export function useGetReferralInfo<TData = Awaited<ReturnType<typeof getReferralInfo>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReferralInfo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getGetReferralInfoQueryOptions(options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getListTeamMembersUrl = () => {
-
-
-
-
-  return `/api/team/members`
-}
-
-export const listTeamMembers = async ( options?: RequestInit): Promise<TeamMember[]> => {
-
-  return customFetch<TeamMember[]>(getListTeamMembersUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getListTeamMembersQueryKey = () => {
-    return [
-    `/api/team/members`
-    ] as const;
-    }
-
-
-export const getListTeamMembersQueryOptions = <TData = Awaited<ReturnType<typeof listTeamMembers>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTeamMembers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getListTeamMembersQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTeamMembers>>> = ({ signal }) => listTeamMembers({ signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTeamMembers>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type ListTeamMembersQueryResult = NonNullable<Awaited<ReturnType<typeof listTeamMembers>>>
-export type ListTeamMembersQueryError = ErrorType<unknown>
-
-
-
-export function useListTeamMembers<TData = Awaited<ReturnType<typeof listTeamMembers>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTeamMembers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getListTeamMembersQueryOptions(options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getGetTeamEarningsOverviewUrl = (params?: GetTeamEarningsOverviewParams,) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : String(value))
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0 ? `/api/team/earnings-overview?${stringifiedParams}` : `/api/team/earnings-overview`
-}
-
-export const getTeamEarningsOverview = async (params?: GetTeamEarningsOverviewParams, options?: RequestInit): Promise<TeamEarnings> => {
-
-  return customFetch<TeamEarnings>(getGetTeamEarningsOverviewUrl(params),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getGetTeamEarningsOverviewQueryKey = (params?: GetTeamEarningsOverviewParams,) => {
-    return [
-    `/api/team/earnings-overview`, ...(params ? [params] : [])
-    ] as const;
-    }
-
-
-export const getGetTeamEarningsOverviewQueryOptions = <TData = Awaited<ReturnType<typeof getTeamEarningsOverview>>, TError = ErrorType<unknown>>(params?: GetTeamEarningsOverviewParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTeamEarningsOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getGetTeamEarningsOverviewQueryKey(params);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTeamEarningsOverview>>> = ({ signal }) => getTeamEarningsOverview(params, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTeamEarningsOverview>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type GetTeamEarningsOverviewQueryResult = NonNullable<Awaited<ReturnType<typeof getTeamEarningsOverview>>>
-export type GetTeamEarningsOverviewQueryError = ErrorType<unknown>
-
-
-
-export function useGetTeamEarningsOverview<TData = Awaited<ReturnType<typeof getTeamEarningsOverview>>, TError = ErrorType<unknown>>(
- params?: GetTeamEarningsOverviewParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTeamEarningsOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getGetTeamEarningsOverviewQueryOptions(params,options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
 
 export const getGetProfileUrl = () => {
 

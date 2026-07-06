@@ -7,7 +7,6 @@ import {
   botsTable,
   userBotsTable,
   transactionsTable,
-  referralsTable,
   notificationsTable,
   kycTable,
   supportTicketsTable,
@@ -305,8 +304,6 @@ router.get("/admin/users/:id", async (req, res) => {
     .from(transactionsTable)
     .where(eq(transactionsTable.userId, id))
     .orderBy(desc(transactionsTable.createdAt));
-  const referrals = await db.select().from(referralsTable).where(eq(referralsTable.referrerId, id));
-
   let balance = 0;
   let totalDeposits = 0;
   let totalWithdrawals = 0;
@@ -333,8 +330,6 @@ router.get("/admin/users/:id", async (req, res) => {
     avatarUrl: user.avatarUrl,
     phone: profile?.phone ?? null,
     country: profile?.country ?? null,
-    referralCode: user.referralCode,
-    referralCount: referrals.length,
     totalDeposits: Math.round(totalDeposits * 100) / 100,
     totalWithdrawals: Math.round(totalWithdrawals * 100) / 100,
     createdAt: user.createdAt.toISOString(),
@@ -904,7 +899,6 @@ function mapSettings(s: typeof settingsTable.$inferSelect) {
     depositsEnabled: s.depositsEnabled,
     minDeposit: parseFloat(s.minDeposit),
     minWithdrawal: parseFloat(s.minWithdrawal),
-    referralCommission: parseFloat(s.referralCommission),
     paymentMethods: s.paymentMethods ?? [],
   };
 }
@@ -929,7 +923,6 @@ router.put("/admin/settings", async (req, res) => {
   if (d.depositsEnabled !== undefined) update.depositsEnabled = d.depositsEnabled;
   if (d.minDeposit !== undefined) update.minDeposit = d.minDeposit.toString();
   if (d.minWithdrawal !== undefined) update.minWithdrawal = d.minWithdrawal.toString();
-  if (d.referralCommission !== undefined) update.referralCommission = d.referralCommission.toString();
   if (d.paymentMethods !== undefined) {
     update.paymentMethods = d.paymentMethods.map((p): PaymentMethod => ({
       id: p.id,

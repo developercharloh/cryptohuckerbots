@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { db, botsTable, usersTable, faqTable, notificationSettingsTable, kycTable, sessionsTable, userBotsTable, positionsTable, transactionsTable, earningsTable, notificationsTable, depositSessionsTable, supportTicketsTable, userProfilesTable, referralsTable } from "@workspace/db";
+import { db, botsTable, usersTable, faqTable, notificationSettingsTable, kycTable, sessionsTable, userBotsTable, positionsTable, transactionsTable, earningsTable, notificationsTable, depositSessionsTable, supportTicketsTable, userProfilesTable } from "@workspace/db";
 import { eq, sql, notInArray, inArray, or, like } from "drizzle-orm";
 import { logger } from "./logger";
 
@@ -8,7 +8,6 @@ const FAQ_ENTRIES = [
   { question: "How do I start a trading bot?", answer: "Go to Bots > Marketplace, select a bot, and tap Buy Bot. Once purchased, the bot activates automatically and begins trading on your behalf.", category: "Bots" },
   { question: "When are profits paid out?", answer: "Profits are credited to your Available Balance in real-time as each trade closes. You can withdraw anytime once your balance meets the minimum threshold.", category: "Earnings" },
   { question: "What is the minimum withdrawal amount?", answer: "The minimum withdrawal is $10 USD equivalent. Withdrawals are processed within 24 hours to your verified payment method.", category: "Withdrawals" },
-  { question: "How does the referral program work?", answer: "Share your unique referral link from the Team tab. You earn a commission on every deposit made by users you refer. Track your team and earnings in the Team section.", category: "Referrals" },
   { question: "Is KYC verification required?", answer: "KYC is required to enable withdrawals and unlock higher deposit limits. Go to Profile > KYC Verification and upload a valid government-issued ID.", category: "Security" },
   { question: "How secure is my account?", answer: "We use industry-standard encryption, two-factor authentication (2FA), and session management. Enable 2FA in Profile > Security for maximum protection.", category: "Security" },
   { question: "What if I forget my password?", answer: "Tap Forgot Password on the login screen and enter your registered email. You will receive a reset link within a few minutes. Check your spam folder if it does not arrive.", category: "Account" },
@@ -23,10 +22,6 @@ function hashPassword(password: string): string {
 
 function generateUid(): string {
   return Math.random().toString(36).substring(2, 10).toUpperCase();
-}
-
-function generateReferralCode(): string {
-  return Math.random().toString(36).substring(2, 9).toUpperCase();
 }
 
 export async function ensureAdminEmail(): Promise<void> {
@@ -55,7 +50,6 @@ export async function ensureAdminEmail(): Promise<void> {
         email,
         passwordHash: hashPassword(adminPassword),
         isAdmin: true,
-        referralCode: generateReferralCode(),
         kycStatus: "verified",
         status: "active",
       });
@@ -171,7 +165,6 @@ export async function purgeTestUsers(): Promise<void> {
   await db.delete(sessionsTable).where(inArray(sessionsTable.userId, ids));
   await db.delete(kycTable).where(inArray(kycTable.userId, ids));
   await db.delete(userProfilesTable).where(inArray(userProfilesTable.userId, ids));
-  await db.delete(referralsTable).where(inArray(referralsTable.referrerId, ids));
   await db.delete(usersTable).where(inArray(usersTable.id, ids));
 
   logger.info({ count: ids.length }, "purgeTestUsers: done");

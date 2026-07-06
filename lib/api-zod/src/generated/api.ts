@@ -19,8 +19,7 @@ export const HealthCheckResponse = zod.object({
 export const RegisterBody = zod.object({
   "fullName": zod.string(),
   "email": zod.string(),
-  "password": zod.string(),
-  "referralCode": zod.string().nullish()
+  "password": zod.string()
 })
 
 export const RegisterResponse = zod.object({
@@ -527,41 +526,6 @@ export const CloseTradePositionResponse = zod.object({
 })
 
 
-export const GetReferralInfoResponse = zod.object({
-  "referralCode": zod.string(),
-  "referralLink": zod.string(),
-  "totalReferrals": zod.number(),
-  "totalEarnings": zod.number()
-})
-
-
-export const ListTeamMembersResponseItem = zod.object({
-  "id": zod.number(),
-  "fullName": zod.string(),
-  "email": zod.string(),
-  "joinedAt": zod.string(),
-  "earnings": zod.number(),
-  "status": zod.string()
-})
-export const ListTeamMembersResponse = zod.array(ListTeamMembersResponseItem)
-
-
-export const GetTeamEarningsOverviewQueryParams = zod.object({
-  "period": zod.enum(['this_month', 'last_month', 'all_time']).optional()
-})
-
-export const GetTeamEarningsOverviewResponse = zod.object({
-  "period": zod.string(),
-  "totalEarnings": zod.number(),
-  "chart": zod.array(zod.object({
-  "date": zod.string(),
-  "label": zod.string(),
-  "profit": zod.number(),
-  "cumulative": zod.number()
-}))
-})
-
-
 export const GetProfileResponse = zod.object({
   "id": zod.number(),
   "accountUid": zod.string(),
@@ -846,8 +810,6 @@ export const AdminGetUserResponse = zod.object({
   "avatarUrl": zod.string().nullish(),
   "phone": zod.string().nullish(),
   "country": zod.string().nullish(),
-  "referralCode": zod.string().nullish(),
-  "referralCount": zod.number(),
   "totalDeposits": zod.number(),
   "totalWithdrawals": zod.number(),
   "createdAt": zod.string(),
@@ -1310,7 +1272,6 @@ export const AdminGetSettingsResponse = zod.object({
   "depositsEnabled": zod.boolean(),
   "minDeposit": zod.number(),
   "minWithdrawal": zod.number(),
-  "referralCommission": zod.number(),
   "paymentMethods": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),
@@ -1330,7 +1291,6 @@ export const AdminUpdateSettingsBody = zod.object({
   "depositsEnabled": zod.boolean().optional(),
   "minDeposit": zod.number().optional(),
   "minWithdrawal": zod.number().optional(),
-  "referralCommission": zod.number().optional(),
   "paymentMethods": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),
@@ -1349,7 +1309,6 @@ export const AdminUpdateSettingsResponse = zod.object({
   "depositsEnabled": zod.boolean(),
   "minDeposit": zod.number(),
   "minWithdrawal": zod.number(),
-  "referralCommission": zod.number(),
   "paymentMethods": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),

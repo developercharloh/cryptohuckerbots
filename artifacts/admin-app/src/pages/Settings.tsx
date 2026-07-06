@@ -44,7 +44,6 @@ export default function Settings() {
       withdrawalsEnabled: true,
       minDeposit: 0,
       minWithdrawal: 0,
-      referralCommission: 0,
       paymentMethods: [] as any[]
     }
   });
@@ -64,7 +63,6 @@ export default function Settings() {
         withdrawalsEnabled: settings.withdrawalsEnabled,
         minDeposit: settings.minDeposit,
         minWithdrawal: settings.minWithdrawal,
-        referralCommission: settings.referralCommission,
         paymentMethods: settings.paymentMethods || []
       });
     }
@@ -75,7 +73,6 @@ export default function Settings() {
       ...data,
       minDeposit: Number(data.minDeposit),
       minWithdrawal: Number(data.minWithdrawal),
-      referralCommission: Number(data.referralCommission),
       paymentMethods: data.paymentMethods.map((m: any) => ({
         ...m,
         id: m.id || `pm-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
@@ -257,16 +254,6 @@ export default function Settings() {
                   <FormItem>
                     <FormLabel className="text-xs">Min Withdrawal ($)</FormLabel>
                     <FormControl><Input type="number" step="0.01" {...field} className="h-9 rounded-xl text-sm" data-testid="input-min-withdrawal" /></FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="referralCommission"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-xs">Referral Commission (%)</FormLabel>
-                    <FormControl><Input type="number" step="0.1" {...field} className="h-9 rounded-xl text-sm" data-testid="input-referral-commission" /></FormControl>
                   </FormItem>
                 )}
               />

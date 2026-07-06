@@ -6,7 +6,7 @@ import { Layout } from "@/components/Layout";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   User as UserIcon, Shield, FileCheck, Bell, HelpCircle, LogOut,
-  ChevronRight, Copy, Check, CreditCard, Settings, Bot, Gift,
+  ChevronRight, Copy, Check, CreditCard, Settings, Bot,
   History, MessageSquare, BadgeCheck, Pencil, BarChart2,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -48,7 +48,6 @@ export default function Profile() {
 
   const QUICK_TILES = [
     { label: "AI Bots",     icon: Bot,      href: "/bots",                iconBg: "linear-gradient(135deg,#7C3AED,#4F46E5)", color: "#fff" },
-    { label: "Rewards",     icon: Gift,     href: "/rewards",             iconBg: "linear-gradient(135deg,#F59E0B,#EF4444)", color: "#fff" },
     { label: "History",     icon: History,  href: "/cashier/transactions",iconBg: "linear-gradient(135deg,#3B82F6,#06B6D4)", color: "#fff" },
     { label: "Live Chat",   icon: MessageSquare, href: "/support/chat",   iconBg: "linear-gradient(135deg,#10B981,#22C55E)", color: "#fff" },
   ];

@@ -421,8 +421,8 @@ export default function UserDetail() {
                                   {txn.status}
                                 </Badge>
                               </TableCell>
-                              <TableCell className={`text-right font-medium ${txn.type === 'deposit' || txn.type === 'trade_profit' || txn.type === 'referral_bonus' ? 'text-emerald-500' : txn.type === 'withdrawal' || txn.type === 'trade_loss' || txn.type === 'trade_loss_return' ? 'text-red-500' : ''}`}>
-                                {txn.type === 'deposit' || txn.type === 'trade_profit' || txn.type === 'referral_bonus' ? '+' : txn.type === 'withdrawal' || txn.type === 'trade_loss' || txn.type === 'trade_loss_return' ? '−' : ''}
+                              <TableCell className={`text-right font-medium ${txn.type === 'deposit' || txn.type === 'trade_profit' ? 'text-emerald-500' : txn.type === 'withdrawal' || txn.type === 'trade_loss' || txn.type === 'trade_loss_return' ? 'text-red-500' : ''}`}>
+                                {txn.type === 'deposit' || txn.type === 'trade_profit' ? '+' : txn.type === 'withdrawal' || txn.type === 'trade_loss' || txn.type === 'trade_loss_return' ? '−' : ''}
                                 ${txn.amount.toFixed(2)}
                               </TableCell>
                             </TableRow>
