@@ -10,7 +10,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Search, ChevronRight, CheckCircle, XCircle, Landmark, AlertTriangle } from "lucide-react";
+import { Search, ChevronRight, CheckCircle, XCircle, Landmark } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,19 +20,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-
-function resolveKycFileUrl(value: string): string {
-  if (value.startsWith("data:")) {
-    return value;
-  }
-  if (/\.blob\.vercel-storage\.com\//.test(value)) {
-    return `/api/storage/blob-proxy?url=${encodeURIComponent(value)}`;
-  }
-  if (value.startsWith("http://") || value.startsWith("https://")) {
-    return value;
-  }
-  return `/api/storage${value}`;
-}
 
 export default function Users() {
   const [search, setSearch] = useState("");
@@ -75,9 +62,9 @@ export default function Users() {
     );
   };
 
-  const handleKycReview = (userId: number, tier: string, action: "approve" | "reject") => {
+  const handleKycReview = (userId: number, action: "approve" | "reject") => {
     reviewKyc.mutate(
-      { userId, tier, data: { action, reason: action === "reject" ? "Documents unclear" : undefined } },
+      { userId, data: { action, reason: action === "reject" ? "Documents unclear" : undefined } },
       {
         onSuccess: () => {
           toast({ title: `KYC ${action}d` });
@@ -89,8 +76,6 @@ export default function Users() {
       }
     );
   };
-
-  const maskSsn = (ssn?: string | null) => (ssn ? `•••-••-${ssn.slice(-4)}` : "—");
 
   return (
     <div className="p-4 space-y-4 pb-2">
@@ -235,7 +220,7 @@ export default function Users() {
             </div>
           ) : (
             kycItems?.map(item => (
-              <Card key={`${item.userId}-${item.tier}`} className="rounded-2xl border-border/60" data-testid={`row-kyc-${item.userId}-${item.tier}`}>
+              <Card key={item.userId} className="rounded-2xl border-border/60" data-testid={`row-kyc-${item.userId}`}>
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3 mb-3">
                     <div className="w-9 h-9 rounded-full bg-amber-500/20 border border-amber-500/20 flex items-center justify-center shrink-0">
@@ -244,48 +229,11 @@ export default function Users() {
                       </span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <p className="text-sm font-semibold truncate">{item.fullName}</p>
-                        <Badge variant="secondary" className="text-[10px] h-4 px-1.5 shrink-0">
-                          {item.tier === "tier1" ? "Tier 1" : "Tier 2"}
-                        </Badge>
-                        {item.idFlagged && (
-                          <Badge className="text-[10px] h-4 px-1.5 shrink-0 bg-red-500/15 text-red-500 border border-red-500/30 hover:bg-red-500/15">
-                            <AlertTriangle className="w-3 h-3 mr-1" /> Flagged ID
-                          </Badge>
-                        )}
-                      </div>
+                      <p className="text-sm font-semibold truncate">{item.fullName}</p>
                       <p className="text-[11px] text-muted-foreground truncate">{item.email}</p>
-                      <div className="mt-1.5 space-y-0.5 text-[11px] text-muted-foreground">
-                        {item.country && <p>Country: {item.country}</p>}
-                        {item.address && <p className="truncate">Address: {item.address}</p>}
-                        {item.ssn && <p>ID/SSN: {maskSsn(item.ssn)}</p>}
-                        {item.idType && <p>ID Type: {item.idType}</p>}
-                        {item.idFlagged && item.idFlagReason && (
-                          <p className="text-red-500 truncate">⚠ {item.idFlagReason}</p>
-                        )}
-                      </div>
-                      <div className="flex gap-1.5 mt-1.5 flex-wrap">
-                        {item.documentFrontUrl && (
-                          <a href={resolveKycFileUrl(item.documentFrontUrl)} target="_blank" rel="noreferrer">
-                            <Badge variant="outline" className="text-[10px] h-4 px-1.5 hover:bg-accent">View ID Front</Badge>
-                          </a>
-                        )}
-                        {item.documentBackUrl && (
-                          <a href={resolveKycFileUrl(item.documentBackUrl)} target="_blank" rel="noreferrer">
-                            <Badge variant="outline" className="text-[10px] h-4 px-1.5 hover:bg-accent">View ID Back</Badge>
-                          </a>
-                        )}
-                        {item.selfieUrl && (
-                          <a href={resolveKycFileUrl(item.selfieUrl)} target="_blank" rel="noreferrer">
-                            <Badge variant="outline" className="text-[10px] h-4 px-1.5 hover:bg-accent">View Selfie</Badge>
-                          </a>
-                        )}
-                        {item.proofOfAddressUrl && (
-                          <a href={resolveKycFileUrl(item.proofOfAddressUrl)} target="_blank" rel="noreferrer">
-                            <Badge variant="outline" className="text-[10px] h-4 px-1.5 hover:bg-accent">View Proof of Address</Badge>
-                          </a>
-                        )}
+                      <div className="flex gap-1.5 mt-1.5">
+                        {item.documentFrontUrl && <Badge variant="outline" className="text-[10px] h-4 px-1.5">ID Front</Badge>}
+                        {item.selfieUrl && <Badge variant="outline" className="text-[10px] h-4 px-1.5">Selfie</Badge>}
                       </div>
                       {item.submittedAt && (
                         <p className="text-[10px] text-muted-foreground/60 mt-1">{format(new Date(item.submittedAt), "PP")}</p>
@@ -297,9 +245,9 @@ export default function Users() {
                       variant="outline"
                       size="sm"
                       className="flex-1 h-8 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10 rounded-xl"
-                      onClick={() => handleKycReview(item.userId, item.tier, "approve")}
+                      onClick={() => handleKycReview(item.userId, "approve")}
                       disabled={reviewKyc.isPending}
-                      data-testid={`btn-approve-kyc-${item.userId}-${item.tier}`}
+                      data-testid={`btn-approve-kyc-${item.userId}`}
                     >
                       <CheckCircle className="w-3.5 h-3.5 mr-1.5" /> Approve
                     </Button>
@@ -307,9 +255,9 @@ export default function Users() {
                       variant="outline"
                       size="sm"
                       className="flex-1 h-8 text-destructive border-destructive/30 hover:bg-destructive/10 rounded-xl"
-                      onClick={() => handleKycReview(item.userId, item.tier, "reject")}
+                      onClick={() => handleKycReview(item.userId, "reject")}
                       disabled={reviewKyc.isPending}
-                      data-testid={`btn-reject-kyc-${item.userId}-${item.tier}`}
+                      data-testid={`btn-reject-kyc-${item.userId}`}
                     >
                       <XCircle className="w-3.5 h-3.5 mr-1.5" /> Reject
                     </Button>

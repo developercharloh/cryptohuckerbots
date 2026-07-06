@@ -275,7 +275,6 @@ export interface TwoFAToggleInput {
 }
 
 export interface KYCStatus {
-  tier: string;
   status: string;
   /** @nullable */
   submittedAt?: string | null;
@@ -285,29 +284,22 @@ export interface KYCStatus {
   rejectionReason?: string | null;
 }
 
-export type KYCInputTier = typeof KYCInputTier[keyof typeof KYCInputTier];
+export interface KYCSessionInput {
+  firstName: string;
+  lastName: string;
+  country: string;
+  documentType: string;
+}
 
-
-export const KYCInputTier = {
-  tier1: 'tier1',
-  tier2: 'tier2',
-} as const;
+export interface KYCSession {
+  url: string;
+  sessionId: string;
+}
 
 export interface KYCInput {
-  tier: KYCInputTier;
-  fullName: string;
-  country: string;
-  address?: string;
-  ssn: string;
-  idType?: string;
-  /** @nullable */
-  documentType?: string | null;
-  /** @nullable */
-  documentFrontUrl?: string | null;
-  /** @nullable */
-  documentBackUrl?: string | null;
-  /** @nullable */
-  selfieUrl?: string | null;
+  documentType: string;
+  documentFrontUrl: string;
+  selfieUrl: string;
   /** @nullable */
   proofOfAddressUrl?: string | null;
 }
@@ -484,18 +476,9 @@ export interface AdminBalanceAdjustInput {
 
 export interface AdminKycItem {
   userId: number;
-  tier: string;
   fullName: string;
   email: string;
   status: string;
-  /** @nullable */
-  country?: string | null;
-  /** @nullable */
-  address?: string | null;
-  /** @nullable */
-  ssn?: string | null;
-  /** @nullable */
-  idType?: string | null;
   /** @nullable */
   documentType?: string | null;
   /** @nullable */
@@ -505,31 +488,12 @@ export interface AdminKycItem {
   /** @nullable */
   selfieUrl?: string | null;
   /** @nullable */
-  proofOfAddressUrl?: string | null;
-  idFlagged?: boolean;
-  /** @nullable */
-  idFlagReason?: string | null;
-  /** @nullable */
   submittedAt?: string | null;
 }
 
 export interface AdminKycReviewInput {
   action: string;
   reason?: string;
-}
-
-export interface UploadUrlRequest {
-  /** @minLength 1 */
-  name: string;
-  /** @minimum 1 */
-  size: number;
-  /** @minLength 1 */
-  contentType: string;
-}
-
-export interface UploadUrlResponse {
-  uploadURL: string;
-  objectPath: string;
 }
 
 export interface AdminBot {

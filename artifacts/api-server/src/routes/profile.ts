@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, usersTable, sessionsTable, kycTable, notificationSettingsTable, userProfilesTable } from "@workspace/db";
-import { eq, ne, and } from "drizzle-orm";
+import { eq, ne } from "drizzle-orm";
 import crypto from "crypto";
 import { generateSecret, generateURI, verifySync } from "otplib";
 import QRCode from "qrcode";
@@ -12,7 +12,6 @@ import {
   UpdateNotificationSettingsBody,
 } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
-import { detectFakeId } from "../lib/idValidation";
 
 const router = Router();
 
@@ -178,25 +177,87 @@ router.get("/profile/kyc", async (req, res) => {
     const { user } = await getUserFromToken(token);
     if (!user) return res.status(401).json({ error: "Unauthorized" });
 
-    const kycs = await db.select().from(kycTable).where(eq(kycTable.userId, user.id));
-    const tiers: Array<"tier1" | "tier2"> = ["tier1", "tier2"];
+    const kycs = await db.select().from(kycTable).where(eq(kycTable.userId, user.id)).limit(1);
+    const kyc = kycs[0];
 
-    return res.json(
-      tiers.map((tier) => {
-        const kyc = kycs.find((k) => k.tier === tier);
-        return {
-          tier,
-          status: kyc?.status ?? "not_submitted",
-          submittedAt: kyc?.submittedAt?.toISOString() ?? null,
-          reviewedAt: kyc?.reviewedAt?.toISOString() ?? null,
-          rejectionReason: kyc?.rejectionReason ?? null,
-        };
-      })
-    );
+    return res.json({
+      status: kyc?.status ?? "not_submitted",
+      submittedAt: kyc?.submittedAt?.toISOString() ?? null,
+      reviewedAt: kyc?.reviewedAt?.toISOString() ?? null,
+      rejectionReason: kyc?.rejectionReason ?? null,
+    });
   } catch (err: any) {
     const cause = err?.cause?.message ?? err?.cause ?? "";
     logger.error({ errMsg: err?.message, cause }, "GET /profile/kyc error");
     return res.status(500).json({ error: "Failed to fetch KYC status", detail: err?.message, cause });
+  }
+});
+
+router.post("/profile/kyc/session", async (req, res) => {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  const { user } = await getUserFromToken(token);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+  const { firstName, lastName, country, documentType } = req.body as {
+    firstName: string; lastName: string; country: string; documentType: string;
+  };
+  if (!firstName || !lastName || !country || !documentType) {
+    return res.status(400).json({ error: "firstName, lastName, country and documentType are required" });
+  }
+
+  const apiKey = process.env["DIDIT_API_KEY"];
+  const workflowId = process.env["DIDIT_WORKFLOW_ID"];
+  const callbackUrl = process.env["DIDIT_CALLBACK_URL"];
+
+  if (!apiKey || !workflowId) {
+    return res.status(503).json({ error: "KYC verification service not configured. Set DIDIT_API_KEY and DIDIT_WORKFLOW_ID." });
+  }
+  if (!callbackUrl) {
+    return res.status(503).json({ error: "KYC verification service not configured. Set DIDIT_CALLBACK_URL to this app's /profile/kyc page." });
+  }
+
+  try {
+    // Save personal details to profile
+    const fullName = `${firstName.trim()} ${lastName.trim()}`;
+    await db.update(usersTable).set({ fullName, updatedAt: new Date() }).where(eq(usersTable.id, user.id));
+    const existingProfile = await db.select().from(userProfilesTable).where(eq(userProfilesTable.userId, user.id)).limit(1);
+    if (existingProfile.length === 0) {
+      await db.insert(userProfilesTable).values({ userId: user.id, country });
+    } else {
+      await db.update(userProfilesTable).set({ country }).where(eq(userProfilesTable.userId, user.id));
+    }
+
+    // Create Didit session
+    const response = await fetch("https://verification.didit.me/v3/session/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": apiKey },
+      body: JSON.stringify({ workflow_id: workflowId, callback: callbackUrl, vendor_data: String(user.id) }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      logger.error({ status: response.status, errText }, "Didit session creation failed");
+      return res.status(502).json({ error: "Failed to create verification session", detail: errText });
+    }
+
+    const data = await response.json() as { session_id: string; url: string };
+
+    // Persist session + document type
+    const existingKyc = await db.select().from(kycTable).where(eq(kycTable.userId, user.id)).limit(1);
+    if (existingKyc.length > 0) {
+      await db.update(kycTable)
+        .set({ diditSessionId: data.session_id, documentType, status: "pending", submittedAt: new Date() })
+        .where(eq(kycTable.userId, user.id));
+    } else {
+      await db.insert(kycTable).values({ userId: user.id, documentType, status: "pending", submittedAt: new Date(), diditSessionId: data.session_id });
+    }
+    await db.update(usersTable).set({ kycStatus: "pending" }).where(eq(usersTable.id, user.id));
+
+    return res.json({ url: data.url, sessionId: data.session_id });
+  } catch (err: any) {
+    const cause = err?.cause?.message ?? err?.cause ?? "";
+    logger.error({ errMsg: err?.message, cause, stack: err?.stack }, "Didit session error");
+    return res.status(500).json({ error: "Internal error creating KYC session", detail: err?.message ?? String(err), cause });
   }
 });
 
@@ -208,74 +269,33 @@ router.post("/profile/kyc", async (req, res) => {
   const parsed = SubmitKYCBody.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
 
-  const { tier, fullName, country, address, ssn, idType, documentType, documentFrontUrl, documentBackUrl, selfieUrl, proofOfAddressUrl } = parsed.data;
-  const isKenya = /kenya/i.test(country);
+  const { documentType, documentFrontUrl, selfieUrl, proofOfAddressUrl } = parsed.data;
 
-  if (tier === "tier1" && !documentFrontUrl) {
-    return res.status(400).json({ error: "documentFrontUrl is required for tier 1 verification" });
-  }
-  if (tier === "tier1" && !documentBackUrl) {
-    return res.status(400).json({ error: "documentBackUrl is required for tier 1 verification" });
-  }
-  if (tier === "tier1" && !selfieUrl) {
-    return res.status(400).json({ error: "A selfie photo is required for tier 1 verification" });
-  }
-  if (tier === "tier1" && !isKenya && !address?.trim()) {
-    return res.status(400).json({ error: "address is required for tier 1 verification" });
-  }
-  if (tier === "tier2" && !proofOfAddressUrl) {
-    return res.status(400).json({ error: "proofOfAddressUrl is required for tier 2 verification" });
-  }
-
-  const idCheck = detectFakeId(ssn, country);
-  if (idCheck.hardReject) {
-    return res.status(400).json({
-      error: "This ID number looks invalid. Please double-check and enter your real ID/SSN.",
-      reasons: idCheck.reasons,
+  const existing = await db.select().from(kycTable).where(eq(kycTable.userId, user.id)).limit(1);
+  if (existing.length > 0) {
+    await db.update(kycTable).set({
+      status: "pending",
+      documentType,
+      documentFrontUrl,
+      selfieUrl,
+      proofOfAddressUrl: proofOfAddressUrl ?? null,
+      submittedAt: new Date(),
+    }).where(eq(kycTable.userId, user.id));
+  } else {
+    await db.insert(kycTable).values({
+      userId: user.id,
+      status: "pending",
+      documentType,
+      documentFrontUrl,
+      selfieUrl,
+      proofOfAddressUrl: proofOfAddressUrl ?? null,
+      submittedAt: new Date(),
     });
   }
 
-  const existing = await db.select().from(kycTable)
-    .where(and(eq(kycTable.userId, user.id), eq(kycTable.tier, tier)))
-    .limit(1);
-
-  const values = {
-    status: "pending" as const,
-    fullName,
-    country,
-    address: address ?? null,
-    ssn,
-    idType: idType ?? null,
-    documentType: documentType ?? null,
-    documentFrontUrl: documentFrontUrl ?? null,
-    documentBackUrl: documentBackUrl ?? null,
-    selfieUrl: selfieUrl ?? null,
-    proofOfAddressUrl: proofOfAddressUrl ?? null,
-    idFlagged: idCheck.suspicious,
-    idFlagReason: idCheck.suspicious ? idCheck.reasons.join("; ") : null,
-    submittedAt: new Date(),
-    rejectionReason: null,
-  };
-
-  if (existing.length > 0) {
-    await db.update(kycTable).set(values).where(eq(kycTable.id, existing[0].id));
-  } else {
-    await db.insert(kycTable).values({ userId: user.id, tier, ...values });
-  }
-
-  // Keep the top-line user status in sync with tier1 (drives feature-gating elsewhere in the app)
-  if (tier === "tier1") {
-    await db.update(usersTable).set({ fullName, kycStatus: "pending", updatedAt: new Date() }).where(eq(usersTable.id, user.id));
-  }
-  const existingProfile = await db.select().from(userProfilesTable).where(eq(userProfilesTable.userId, user.id)).limit(1);
-  if (existingProfile.length === 0) {
-    await db.insert(userProfilesTable).values({ userId: user.id, country });
-  } else {
-    await db.update(userProfilesTable).set({ country }).where(eq(userProfilesTable.userId, user.id));
-  }
+  await db.update(usersTable).set({ kycStatus: "pending", updatedAt: new Date() }).where(eq(usersTable.id, user.id));
 
   return res.json({
-    tier,
     status: "pending",
     submittedAt: new Date().toISOString(),
     reviewedAt: null,

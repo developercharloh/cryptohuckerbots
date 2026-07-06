@@ -6,7 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface UploadUrlResponse {
-  uploadURL: string;
-  objectPath: string;
+export interface KYCSessionInput {
+  firstName: string;
+  lastName: string;
+  country: string;
+  documentType: string;
 }

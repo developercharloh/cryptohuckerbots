@@ -8,18 +8,9 @@
 
 export interface AdminKycItem {
   userId: number;
-  tier: string;
   fullName: string;
   email: string;
   status: string;
-  /** @nullable */
-  country?: string | null;
-  /** @nullable */
-  address?: string | null;
-  /** @nullable */
-  ssn?: string | null;
-  /** @nullable */
-  idType?: string | null;
   /** @nullable */
   documentType?: string | null;
   /** @nullable */
@@ -28,11 +19,6 @@ export interface AdminKycItem {
   documentBackUrl?: string | null;
   /** @nullable */
   selfieUrl?: string | null;
-  /** @nullable */
-  proofOfAddressUrl?: string | null;
-  idFlagged?: boolean;
-  /** @nullable */
-  idFlagReason?: string | null;
   /** @nullable */
   submittedAt?: string | null;
 }

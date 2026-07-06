@@ -5,23 +5,11 @@
  * Quantum FX Bot API
  * OpenAPI spec version: 0.1.0
  */
-import type { KYCInputTier } from './kYCInputTier';
 
 export interface KYCInput {
-  tier: KYCInputTier;
-  fullName: string;
-  country: string;
-  address?: string;
-  ssn: string;
-  idType?: string;
-  /** @nullable */
-  documentType?: string | null;
-  /** @nullable */
-  documentFrontUrl?: string | null;
-  /** @nullable */
-  documentBackUrl?: string | null;
-  /** @nullable */
-  selfieUrl?: string | null;
+  documentType: string;
+  documentFrontUrl: string;
+  selfieUrl: string;
   /** @nullable */
   proofOfAddressUrl?: string | null;
 }
