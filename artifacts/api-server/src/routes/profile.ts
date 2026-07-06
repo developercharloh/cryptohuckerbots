@@ -12,6 +12,7 @@ import {
   UpdateNotificationSettingsBody,
 } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
+import { detectFakeId } from "../lib/idValidation";
 
 const router = Router();
 
@@ -207,13 +208,28 @@ router.post("/profile/kyc", async (req, res) => {
   const parsed = SubmitKYCBody.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
 
-  const { tier, fullName, country, address, ssn, idType, documentType, documentFrontUrl, proofOfAddressUrl } = parsed.data;
+  const { tier, fullName, country, address, ssn, idType, documentType, documentFrontUrl, selfieUrl, proofOfAddressUrl } = parsed.data;
+  const isKenya = /kenya/i.test(country);
 
   if (tier === "tier1" && !documentFrontUrl) {
     return res.status(400).json({ error: "documentFrontUrl is required for tier 1 verification" });
   }
+  if (tier === "tier1" && !selfieUrl) {
+    return res.status(400).json({ error: "A selfie photo is required for tier 1 verification" });
+  }
+  if (tier === "tier1" && !isKenya && !address?.trim()) {
+    return res.status(400).json({ error: "address is required for tier 1 verification" });
+  }
   if (tier === "tier2" && !proofOfAddressUrl) {
     return res.status(400).json({ error: "proofOfAddressUrl is required for tier 2 verification" });
+  }
+
+  const idCheck = detectFakeId(ssn, country);
+  if (idCheck.hardReject) {
+    return res.status(400).json({
+      error: "This ID number looks invalid. Please double-check and enter your real ID/SSN.",
+      reasons: idCheck.reasons,
+    });
   }
 
   const existing = await db.select().from(kycTable)
@@ -224,12 +240,15 @@ router.post("/profile/kyc", async (req, res) => {
     status: "pending" as const,
     fullName,
     country,
-    address,
+    address: address ?? null,
     ssn,
     idType: idType ?? null,
     documentType: documentType ?? null,
     documentFrontUrl: documentFrontUrl ?? null,
+    selfieUrl: selfieUrl ?? null,
     proofOfAddressUrl: proofOfAddressUrl ?? null,
+    idFlagged: idCheck.suspicious,
+    idFlagReason: idCheck.suspicious ? idCheck.reasons.join("; ") : null,
     submittedAt: new Date(),
     rejectionReason: null,
   };

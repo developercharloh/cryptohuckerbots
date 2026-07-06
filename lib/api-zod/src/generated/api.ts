@@ -601,11 +601,12 @@ export const SubmitKYCBody = zod.object({
   "tier": zod.enum(['tier1', 'tier2']),
   "fullName": zod.string(),
   "country": zod.string(),
-  "address": zod.string(),
+  "address": zod.string().optional(),
   "ssn": zod.string(),
   "idType": zod.string().optional(),
   "documentType": zod.string().nullish(),
   "documentFrontUrl": zod.string().nullish(),
+  "selfieUrl": zod.string().nullish(),
   "proofOfAddressUrl": zod.string().nullish()
 })
 
@@ -930,7 +931,10 @@ export const AdminListKycResponseItem = zod.object({
   "idType": zod.string().nullish(),
   "documentType": zod.string().nullish(),
   "documentFrontUrl": zod.string().nullish(),
+  "selfieUrl": zod.string().nullish(),
   "proofOfAddressUrl": zod.string().nullish(),
+  "idFlagged": zod.boolean().optional(),
+  "idFlagReason": zod.string().nullish(),
   "submittedAt": zod.string().nullish()
 })
 export const AdminListKycResponse = zod.array(AdminListKycResponseItem)
@@ -958,7 +962,10 @@ export const AdminReviewKycResponse = zod.object({
   "idType": zod.string().nullish(),
   "documentType": zod.string().nullish(),
   "documentFrontUrl": zod.string().nullish(),
+  "selfieUrl": zod.string().nullish(),
   "proofOfAddressUrl": zod.string().nullish(),
+  "idFlagged": zod.boolean().optional(),
+  "idFlagReason": zod.string().nullish(),
   "submittedAt": zod.string().nullish()
 })
 

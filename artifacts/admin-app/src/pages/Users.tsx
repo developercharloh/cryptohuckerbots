@@ -10,7 +10,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Search, ChevronRight, CheckCircle, XCircle, Landmark } from "lucide-react";
+import { Search, ChevronRight, CheckCircle, XCircle, Landmark, AlertTriangle } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -231,23 +231,36 @@ export default function Users() {
                       </span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <p className="text-sm font-semibold truncate">{item.fullName}</p>
                         <Badge variant="secondary" className="text-[10px] h-4 px-1.5 shrink-0">
                           {item.tier === "tier1" ? "Tier 1" : "Tier 2"}
                         </Badge>
+                        {item.idFlagged && (
+                          <Badge className="text-[10px] h-4 px-1.5 shrink-0 bg-red-500/15 text-red-500 border border-red-500/30 hover:bg-red-500/15">
+                            <AlertTriangle className="w-3 h-3 mr-1" /> Flagged ID
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-[11px] text-muted-foreground truncate">{item.email}</p>
                       <div className="mt-1.5 space-y-0.5 text-[11px] text-muted-foreground">
                         {item.country && <p>Country: {item.country}</p>}
                         {item.address && <p className="truncate">Address: {item.address}</p>}
-                        {item.ssn && <p>SSN: {maskSsn(item.ssn)}</p>}
+                        {item.ssn && <p>ID/SSN: {maskSsn(item.ssn)}</p>}
                         {item.idType && <p>ID Type: {item.idType}</p>}
+                        {item.idFlagged && item.idFlagReason && (
+                          <p className="text-red-500 truncate">⚠ {item.idFlagReason}</p>
+                        )}
                       </div>
                       <div className="flex gap-1.5 mt-1.5 flex-wrap">
                         {item.documentFrontUrl && (
                           <a href={`/api/storage${item.documentFrontUrl}`} target="_blank" rel="noreferrer">
                             <Badge variant="outline" className="text-[10px] h-4 px-1.5 hover:bg-accent">View ID Document</Badge>
+                          </a>
+                        )}
+                        {item.selfieUrl && (
+                          <a href={`/api/storage${item.selfieUrl}`} target="_blank" rel="noreferrer">
+                            <Badge variant="outline" className="text-[10px] h-4 px-1.5 hover:bg-accent">View Selfie</Badge>
                           </a>
                         )}
                         {item.proofOfAddressUrl && (

@@ -79,11 +79,13 @@ function FileUploadField({
   hint,
   fileUrl,
   onUploaded,
+  capture,
 }: {
   label: string;
   hint: string;
   fileUrl: string | null;
   onUploaded: (objectPath: string) => void;
+  capture?: "user" | "environment";
 }) {
   const { toast } = useToast();
   const { uploadFile, isUploading, progress } = useUpload({
@@ -101,7 +103,14 @@ function FileUploadField({
     <div className="space-y-1.5">
       <Label className="text-xs text-muted-foreground">{label}</Label>
       <label className="flex items-center gap-3 h-14 rounded-xl bg-card border-0 px-3 cursor-pointer">
-        <input type="file" accept="image/*,application/pdf" className="hidden" onChange={handleChange} disabled={isUploading} />
+        <input
+          type="file"
+          accept={capture ? "image/*" : "image/*,application/pdf"}
+          capture={capture}
+          className="hidden"
+          onChange={handleChange}
+          disabled={isUploading}
+        />
         {isUploading ? (
           <>
             <Loader2 className="w-5 h-5 text-primary animate-spin shrink-0" />
@@ -129,6 +138,8 @@ function TierForm({
   subtitle,
   prefillFullName,
   prefillCountry,
+  onCountryChange,
+  isKenya,
   onSubmitted,
 }: {
   tier: Tier;
@@ -136,6 +147,8 @@ function TierForm({
   subtitle: string;
   prefillFullName: string;
   prefillCountry: string;
+  onCountryChange?: (country: string) => void;
+  isKenya?: boolean;
   onSubmitted: () => void;
 }) {
   const { toast } = useToast();
@@ -147,19 +160,33 @@ function TierForm({
   const [ssn, setSsn] = useState("");
   const [idType, setIdType] = useState("");
   const [documentFrontUrl, setDocumentFrontUrl] = useState<string | null>(null);
+  const [selfieUrl, setSelfieUrl] = useState<string | null>(null);
   const [proofOfAddressUrl, setProofOfAddressUrl] = useState<string | null>(null);
 
   useEffect(() => setFullName((prev) => prev || prefillFullName), [prefillFullName]);
   useEffect(() => setCountry((prev) => prev || prefillCountry), [prefillCountry]);
 
+  const handleCountryChange = (value: string) => {
+    setCountry(value);
+    onCountryChange?.(value);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName.trim() || !country || !address.trim() || !ssn.trim()) {
+    if (!fullName.trim() || !country || !ssn.trim()) {
       toast({ title: "Please fill in all fields", variant: "destructive" });
       return;
     }
-    if (tier === "tier1" && (!idType || !documentFrontUrl)) {
-      toast({ title: "Please select an ID type and upload your document", variant: "destructive" });
+    if (tier === "tier1" && !isKenya && !address.trim()) {
+      toast({ title: "Please fill in all fields", variant: "destructive" });
+      return;
+    }
+    if (tier === "tier1" && (!documentFrontUrl || !selfieUrl)) {
+      toast({ title: "Please upload your ID document and a selfie photo", variant: "destructive" });
+      return;
+    }
+    if (tier === "tier1" && !isKenya && !idType) {
+      toast({ title: "Please select an ID type", variant: "destructive" });
       return;
     }
     if (tier === "tier2" && !proofOfAddressUrl) {
@@ -173,11 +200,12 @@ function TierForm({
           tier,
           fullName: fullName.trim(),
           country,
-          address: address.trim(),
+          address: isKenya ? undefined : address.trim(),
           ssn: ssn.trim(),
           idType: idType || undefined,
           documentType: tier === "tier1" ? idType : undefined,
           documentFrontUrl: documentFrontUrl ?? undefined,
+          selfieUrl: selfieUrl ?? undefined,
           proofOfAddressUrl: proofOfAddressUrl ?? undefined,
         },
       },
@@ -215,7 +243,7 @@ function TierForm({
         <select
           id={`country-${tier}`}
           value={country}
-          onChange={(e) => setCountry(e.target.value)}
+          onChange={(e) => handleCountryChange(e.target.value)}
           required
           className="w-full h-12 rounded-xl bg-card text-sm px-3 outline-none appearance-none border-0 text-foreground"
         >
@@ -226,23 +254,27 @@ function TierForm({
         </select>
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor={`address-${tier}`} className="text-xs text-muted-foreground">Residential Address</Label>
-        <Textarea
-          id={`address-${tier}`}
-          placeholder="123 Main St, Apt 4B, City, State, ZIP"
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          className="rounded-xl bg-card border-0 min-h-[80px]"
-          required
-        />
-      </div>
+      {!isKenya && (
+        <div className="space-y-1.5">
+          <Label htmlFor={`address-${tier}`} className="text-xs text-muted-foreground">Residential Address</Label>
+          <Textarea
+            id={`address-${tier}`}
+            placeholder="123 Main St, Apt 4B, City, State, ZIP"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            className="rounded-xl bg-card border-0 min-h-[80px]"
+            required
+          />
+        </div>
+      )}
 
       <div className="space-y-1.5">
-        <Label htmlFor={`ssn-${tier}`} className="text-xs text-muted-foreground">Social Security Number (SSN)</Label>
+        <Label htmlFor={`ssn-${tier}`} className="text-xs text-muted-foreground">
+          {isKenya ? "National ID Number" : "Social Security Number (SSN)"}
+        </Label>
         <Input
           id={`ssn-${tier}`}
-          placeholder="XXX-XX-XXXX"
+          placeholder={isKenya ? "12345678" : "XXX-XX-XXXX"}
           value={ssn}
           onChange={(e) => setSsn(e.target.value)}
           className="h-12 rounded-xl bg-card border-0"
@@ -252,27 +284,37 @@ function TierForm({
 
       {tier === "tier1" && (
         <>
-          <div className="space-y-1.5">
-            <Label htmlFor={`idType-${tier}`} className="text-xs text-muted-foreground">ID Type</Label>
-            <select
-              id={`idType-${tier}`}
-              value={idType}
-              onChange={(e) => setIdType(e.target.value)}
-              required
-              className="w-full h-12 rounded-xl bg-card text-sm px-3 outline-none appearance-none border-0 text-foreground"
-            >
-              <option value="">Select document type</option>
-              {DOC_TYPES.map((d) => (
-                <option key={d.value} value={d.value}>{d.label}</option>
-              ))}
-            </select>
-          </div>
+          {!isKenya && (
+            <div className="space-y-1.5">
+              <Label htmlFor={`idType-${tier}`} className="text-xs text-muted-foreground">ID Type</Label>
+              <select
+                id={`idType-${tier}`}
+                value={idType}
+                onChange={(e) => setIdType(e.target.value)}
+                required
+                className="w-full h-12 rounded-xl bg-card text-sm px-3 outline-none appearance-none border-0 text-foreground"
+              >
+                <option value="">Select document type</option>
+                {DOC_TYPES.map((d) => (
+                  <option key={d.value} value={d.value}>{d.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <FileUploadField
             label="ID Document"
             hint="Upload a clear photo or scan of your ID"
             fileUrl={documentFrontUrl}
             onUploaded={setDocumentFrontUrl}
+          />
+
+          <FileUploadField
+            label="Selfie Photo"
+            hint="Take or upload a clear selfie photo"
+            fileUrl={selfieUrl}
+            onUploaded={setSelfieUrl}
+            capture="user"
           />
         </>
       )}
@@ -362,7 +404,10 @@ export default function KYC() {
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["/api/profile/kyc"] });
 
   const fullName = (profile as any)?.fullName ?? "";
-  const country = (profile as any)?.country ?? "";
+  const profileCountry = (profile as any)?.country ?? "";
+  const [selectedCountry, setSelectedCountry] = useState(profileCountry);
+  useEffect(() => setSelectedCountry((prev: string) => prev || profileCountry), [profileCountry]);
+  const isKenya = /kenya/i.test(selectedCountry || "");
 
   return (
     <Layout>
@@ -392,27 +437,31 @@ export default function KYC() {
             {tier1Meta.canStart && (
               <TierForm
                 tier="tier1"
-                title="Tier 1: Identity Verification"
-                subtitle="Provide your details and a government-issued ID"
+                title="Identity Verification"
+                subtitle={isKenya ? "Provide your ID number, name, ID document and a selfie" : "Provide your details and a government-issued ID"}
                 prefillFullName={fullName}
-                prefillCountry={country}
+                prefillCountry={selectedCountry}
+                onCountryChange={setSelectedCountry}
+                isKenya={isKenya}
                 onSubmitted={invalidate}
               />
             )}
 
-            <div className="border-t border-border/50 pt-5">
-              <TierStatusCard tier="tier2" status={tier2Status} rejectionReason={tier2?.rejectionReason} />
-              {tier2Meta.canStart && (
-                <TierForm
-                  tier="tier2"
-                  title="Tier 2: Address Verification"
-                  subtitle="Provide your details and a proof of address document"
-                  prefillFullName={fullName}
-                  prefillCountry={country}
-                  onSubmitted={invalidate}
-                />
-              )}
-            </div>
+            {!isKenya && (
+              <div className="border-t border-border/50 pt-5">
+                <TierStatusCard tier="tier2" status={tier2Status} rejectionReason={tier2?.rejectionReason} />
+                {tier2Meta.canStart && (
+                  <TierForm
+                    tier="tier2"
+                    title="Tier 2: Address Verification"
+                    subtitle="Provide your details and a proof of address document"
+                    prefillFullName={fullName}
+                    prefillCountry={selectedCountry}
+                    onSubmitted={invalidate}
+                  />
+                )}
+              </div>
+            )}
           </>
         )}
       </div>

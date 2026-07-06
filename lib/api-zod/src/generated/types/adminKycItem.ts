@@ -25,7 +25,12 @@ export interface AdminKycItem {
   /** @nullable */
   documentFrontUrl?: string | null;
   /** @nullable */
+  selfieUrl?: string | null;
+  /** @nullable */
   proofOfAddressUrl?: string | null;
+  idFlagged?: boolean;
+  /** @nullable */
+  idFlagReason?: string | null;
   /** @nullable */
   submittedAt?: string | null;
 }

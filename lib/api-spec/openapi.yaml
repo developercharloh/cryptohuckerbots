@@ -2007,9 +2007,11 @@ components:
           type: ["string", "null"]
         documentFrontUrl:
           type: ["string", "null"]
+        selfieUrl:
+          type: ["string", "null"]
         proofOfAddressUrl:
           type: ["string", "null"]
-      required: [tier, fullName, country, address, ssn]
+      required: [tier, fullName, country, ssn]
 
     NotificationSettings:
       type: object
@@ -2239,7 +2241,10 @@ components:
         idType: { type: ["string", "null"] }
         documentType: { type: ["string", "null"] }
         documentFrontUrl: { type: ["string", "null"] }
+        selfieUrl: { type: ["string", "null"] }
         proofOfAddressUrl: { type: ["string", "null"] }
+        idFlagged: { type: boolean }
+        idFlagReason: { type: ["string", "null"] }
         submittedAt: { type: ["string", "null"] }
       required: [userId, tier, fullName, email, status]
 

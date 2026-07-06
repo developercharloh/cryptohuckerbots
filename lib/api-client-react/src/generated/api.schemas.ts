@@ -297,13 +297,15 @@ export interface KYCInput {
   tier: KYCInputTier;
   fullName: string;
   country: string;
-  address: string;
+  address?: string;
   ssn: string;
   idType?: string;
   /** @nullable */
   documentType?: string | null;
   /** @nullable */
   documentFrontUrl?: string | null;
+  /** @nullable */
+  selfieUrl?: string | null;
   /** @nullable */
   proofOfAddressUrl?: string | null;
 }
@@ -497,7 +499,12 @@ export interface AdminKycItem {
   /** @nullable */
   documentFrontUrl?: string | null;
   /** @nullable */
+  selfieUrl?: string | null;
+  /** @nullable */
   proofOfAddressUrl?: string | null;
+  idFlagged?: boolean;
+  /** @nullable */
+  idFlagReason?: string | null;
   /** @nullable */
   submittedAt?: string | null;
 }

@@ -162,6 +162,8 @@ export const kycTable = pgTable("kyc", {
   documentFrontUrl: text("document_front_url"),
   selfieUrl: text("selfie_url"),
   proofOfAddressUrl: text("proof_of_address_url"),
+  idFlagged: boolean("id_flagged").notNull().default(false),
+  idFlagReason: text("id_flag_reason"),
   rejectionReason: text("rejection_reason"),
   submittedAt: timestamp("submitted_at"),
   reviewedAt: timestamp("reviewed_at"),

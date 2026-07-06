@@ -472,7 +472,10 @@ function mapKycRow(r: { kyc: typeof kycTable.$inferSelect; user: typeof usersTab
     idType: r.kyc.idType,
     documentType: r.kyc.documentType,
     documentFrontUrl: r.kyc.documentFrontUrl,
+    selfieUrl: r.kyc.selfieUrl,
     proofOfAddressUrl: r.kyc.proofOfAddressUrl,
+    idFlagged: r.kyc.idFlagged,
+    idFlagReason: r.kyc.idFlagReason,
     submittedAt: r.kyc.submittedAt ? r.kyc.submittedAt.toISOString() : null,
   };
 }
