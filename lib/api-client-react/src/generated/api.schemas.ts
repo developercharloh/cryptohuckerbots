@@ -305,6 +305,8 @@ export interface KYCInput {
   /** @nullable */
   documentFrontUrl?: string | null;
   /** @nullable */
+  documentBackUrl?: string | null;
+  /** @nullable */
   selfieUrl?: string | null;
   /** @nullable */
   proofOfAddressUrl?: string | null;
@@ -498,6 +500,8 @@ export interface AdminKycItem {
   documentType?: string | null;
   /** @nullable */
   documentFrontUrl?: string | null;
+  /** @nullable */
+  documentBackUrl?: string | null;
   /** @nullable */
   selfieUrl?: string | null;
   /** @nullable */

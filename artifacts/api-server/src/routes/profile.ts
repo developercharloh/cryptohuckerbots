@@ -208,11 +208,14 @@ router.post("/profile/kyc", async (req, res) => {
   const parsed = SubmitKYCBody.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
 
-  const { tier, fullName, country, address, ssn, idType, documentType, documentFrontUrl, selfieUrl, proofOfAddressUrl } = parsed.data;
+  const { tier, fullName, country, address, ssn, idType, documentType, documentFrontUrl, documentBackUrl, selfieUrl, proofOfAddressUrl } = parsed.data;
   const isKenya = /kenya/i.test(country);
 
   if (tier === "tier1" && !documentFrontUrl) {
     return res.status(400).json({ error: "documentFrontUrl is required for tier 1 verification" });
+  }
+  if (tier === "tier1" && !documentBackUrl) {
+    return res.status(400).json({ error: "documentBackUrl is required for tier 1 verification" });
   }
   if (tier === "tier1" && !selfieUrl) {
     return res.status(400).json({ error: "A selfie photo is required for tier 1 verification" });
@@ -245,6 +248,7 @@ router.post("/profile/kyc", async (req, res) => {
     idType: idType ?? null,
     documentType: documentType ?? null,
     documentFrontUrl: documentFrontUrl ?? null,
+    documentBackUrl: documentBackUrl ?? null,
     selfieUrl: selfieUrl ?? null,
     proofOfAddressUrl: proofOfAddressUrl ?? null,
     idFlagged: idCheck.suspicious,

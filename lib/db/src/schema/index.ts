@@ -160,6 +160,7 @@ export const kycTable = pgTable("kyc", {
   idType: varchar("id_type", { length: 100 }),
   documentType: varchar("document_type", { length: 100 }),
   documentFrontUrl: text("document_front_url"),
+  documentBackUrl: text("document_back_url"),
   selfieUrl: text("selfie_url"),
   proofOfAddressUrl: text("proof_of_address_url"),
   idFlagged: boolean("id_flagged").notNull().default(false),

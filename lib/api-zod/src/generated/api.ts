@@ -606,6 +606,7 @@ export const SubmitKYCBody = zod.object({
   "idType": zod.string().optional(),
   "documentType": zod.string().nullish(),
   "documentFrontUrl": zod.string().nullish(),
+  "documentBackUrl": zod.string().nullish(),
   "selfieUrl": zod.string().nullish(),
   "proofOfAddressUrl": zod.string().nullish()
 })
@@ -931,6 +932,7 @@ export const AdminListKycResponseItem = zod.object({
   "idType": zod.string().nullish(),
   "documentType": zod.string().nullish(),
   "documentFrontUrl": zod.string().nullish(),
+  "documentBackUrl": zod.string().nullish(),
   "selfieUrl": zod.string().nullish(),
   "proofOfAddressUrl": zod.string().nullish(),
   "idFlagged": zod.boolean().optional(),
@@ -962,6 +964,7 @@ export const AdminReviewKycResponse = zod.object({
   "idType": zod.string().nullish(),
   "documentType": zod.string().nullish(),
   "documentFrontUrl": zod.string().nullish(),
+  "documentBackUrl": zod.string().nullish(),
   "selfieUrl": zod.string().nullish(),
   "proofOfAddressUrl": zod.string().nullish(),
   "idFlagged": zod.boolean().optional(),

@@ -25,6 +25,8 @@ export interface AdminKycItem {
   /** @nullable */
   documentFrontUrl?: string | null;
   /** @nullable */
+  documentBackUrl?: string | null;
+  /** @nullable */
   selfieUrl?: string | null;
   /** @nullable */
   proofOfAddressUrl?: string | null;

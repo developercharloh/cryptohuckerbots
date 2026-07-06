@@ -2007,6 +2007,8 @@ components:
           type: ["string", "null"]
         documentFrontUrl:
           type: ["string", "null"]
+        documentBackUrl:
+          type: ["string", "null"]
         selfieUrl:
           type: ["string", "null"]
         proofOfAddressUrl:
@@ -2241,6 +2243,7 @@ components:
         idType: { type: ["string", "null"] }
         documentType: { type: ["string", "null"] }
         documentFrontUrl: { type: ["string", "null"] }
+        documentBackUrl: { type: ["string", "null"] }
         selfieUrl: { type: ["string", "null"] }
         proofOfAddressUrl: { type: ["string", "null"] }
         idFlagged: { type: boolean }

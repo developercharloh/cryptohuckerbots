@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useGetKYC, useGetProfile, useSubmitKYC } from "@workspace/api-client-react";
-import { useUpload } from "@workspace/object-storage-web";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,6 +73,17 @@ function statusMeta(status: string) {
   return { isVerified, isPending, isRejected, canStart: !isVerified && !isPending };
 }
 
+const MAX_UPLOAD_BYTES = 8 * 1024 * 1024; // 8MB
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error ?? new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
 function FileUploadField({
   label,
   hint,
@@ -84,19 +94,28 @@ function FileUploadField({
   label: string;
   hint: string;
   fileUrl: string | null;
-  onUploaded: (objectPath: string) => void;
+  onUploaded: (dataUrl: string) => void;
   capture?: "user" | "environment";
 }) {
   const { toast } = useToast();
-  const { uploadFile, isUploading, progress } = useUpload({
-    onError: (err) => toast({ title: "Upload failed", description: err.message, variant: "destructive" }),
-  });
+  const [isReading, setIsReading] = useState(false);
 
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const result = await uploadFile(file);
-    if (result) onUploaded(result.objectPath);
+    if (file.size > MAX_UPLOAD_BYTES) {
+      toast({ title: "File too large", description: "Please upload an image under 8MB.", variant: "destructive" });
+      return;
+    }
+    setIsReading(true);
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      onUploaded(dataUrl);
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err?.message ?? "Could not read file", variant: "destructive" });
+    } finally {
+      setIsReading(false);
+    }
   };
 
   return (
@@ -109,12 +128,12 @@ function FileUploadField({
           capture={capture}
           className="hidden"
           onChange={handleChange}
-          disabled={isUploading}
+          disabled={isReading}
         />
-        {isUploading ? (
+        {isReading ? (
           <>
             <Loader2 className="w-5 h-5 text-primary animate-spin shrink-0" />
-            <span className="text-sm text-muted-foreground">Uploading… {progress}%</span>
+            <span className="text-sm text-muted-foreground">Processing…</span>
           </>
         ) : fileUrl ? (
           <>
@@ -160,6 +179,7 @@ function TierForm({
   const [ssn, setSsn] = useState("");
   const [idType, setIdType] = useState("");
   const [documentFrontUrl, setDocumentFrontUrl] = useState<string | null>(null);
+  const [documentBackUrl, setDocumentBackUrl] = useState<string | null>(null);
   const [selfieUrl, setSelfieUrl] = useState<string | null>(null);
   const [proofOfAddressUrl, setProofOfAddressUrl] = useState<string | null>(null);
 
@@ -181,8 +201,8 @@ function TierForm({
       toast({ title: "Please fill in all fields", variant: "destructive" });
       return;
     }
-    if (tier === "tier1" && (!documentFrontUrl || !selfieUrl)) {
-      toast({ title: "Please upload your ID document and a selfie photo", variant: "destructive" });
+    if (tier === "tier1" && (!documentFrontUrl || !documentBackUrl || !selfieUrl)) {
+      toast({ title: "Please upload both sides of your ID and a selfie photo", variant: "destructive" });
       return;
     }
     if (tier === "tier1" && !isKenya && !idType) {
@@ -205,6 +225,7 @@ function TierForm({
           idType: idType || undefined,
           documentType: tier === "tier1" ? idType : undefined,
           documentFrontUrl: documentFrontUrl ?? undefined,
+          documentBackUrl: documentBackUrl ?? undefined,
           selfieUrl: selfieUrl ?? undefined,
           proofOfAddressUrl: proofOfAddressUrl ?? undefined,
         },
@@ -303,10 +324,17 @@ function TierForm({
           )}
 
           <FileUploadField
-            label="ID Document"
-            hint="Upload a clear photo or scan of your ID"
+            label="ID Document (Front)"
+            hint="Upload a clear photo or scan of the front of your ID"
             fileUrl={documentFrontUrl}
             onUploaded={setDocumentFrontUrl}
+          />
+
+          <FileUploadField
+            label="ID Document (Back)"
+            hint="Upload a clear photo or scan of the back of your ID"
+            fileUrl={documentBackUrl}
+            onUploaded={setDocumentBackUrl}
           />
 
           <FileUploadField

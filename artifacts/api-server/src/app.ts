@@ -35,11 +35,12 @@ app.use(
 );
 app.use(cors());
 app.use(express.json({
+  limit: "20mb",
   verify: (_req, _res, buf) => {
     (_req as any).rawBody = buf;
   },
 }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true, limit: "20mb" }));
 
 app.use("/api", router);
 

@@ -472,6 +472,7 @@ function mapKycRow(r: { kyc: typeof kycTable.$inferSelect; user: typeof usersTab
     idType: r.kyc.idType,
     documentType: r.kyc.documentType,
     documentFrontUrl: r.kyc.documentFrontUrl,
+    documentBackUrl: r.kyc.documentBackUrl,
     selfieUrl: r.kyc.selfieUrl,
     proofOfAddressUrl: r.kyc.proofOfAddressUrl,
     idFlagged: r.kyc.idFlagged,

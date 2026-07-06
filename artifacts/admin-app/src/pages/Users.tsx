@@ -21,6 +21,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
+function resolveKycFileUrl(value: string): string {
+  return value.startsWith("data:") ? value : `/api/storage${value}`;
+}
+
 export default function Users() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -254,17 +258,22 @@ export default function Users() {
                       </div>
                       <div className="flex gap-1.5 mt-1.5 flex-wrap">
                         {item.documentFrontUrl && (
-                          <a href={`/api/storage${item.documentFrontUrl}`} target="_blank" rel="noreferrer">
-                            <Badge variant="outline" className="text-[10px] h-4 px-1.5 hover:bg-accent">View ID Document</Badge>
+                          <a href={resolveKycFileUrl(item.documentFrontUrl)} target="_blank" rel="noreferrer">
+                            <Badge variant="outline" className="text-[10px] h-4 px-1.5 hover:bg-accent">View ID Front</Badge>
+                          </a>
+                        )}
+                        {item.documentBackUrl && (
+                          <a href={resolveKycFileUrl(item.documentBackUrl)} target="_blank" rel="noreferrer">
+                            <Badge variant="outline" className="text-[10px] h-4 px-1.5 hover:bg-accent">View ID Back</Badge>
                           </a>
                         )}
                         {item.selfieUrl && (
-                          <a href={`/api/storage${item.selfieUrl}`} target="_blank" rel="noreferrer">
+                          <a href={resolveKycFileUrl(item.selfieUrl)} target="_blank" rel="noreferrer">
                             <Badge variant="outline" className="text-[10px] h-4 px-1.5 hover:bg-accent">View Selfie</Badge>
                           </a>
                         )}
                         {item.proofOfAddressUrl && (
-                          <a href={`/api/storage${item.proofOfAddressUrl}`} target="_blank" rel="noreferrer">
+                          <a href={resolveKycFileUrl(item.proofOfAddressUrl)} target="_blank" rel="noreferrer">
                             <Badge variant="outline" className="text-[10px] h-4 px-1.5 hover:bg-accent">View Proof of Address</Badge>
                           </a>
                         )}
