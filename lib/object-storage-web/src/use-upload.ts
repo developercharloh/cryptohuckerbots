@@ -27,44 +27,79 @@ const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // stay safely under Vercel's ~4.5MB c
 const COMPRESSIBLE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_IMAGE_DIMENSION = 2000; // px, long edge
 
+// Decoding a full-resolution 12MP+ photo (common on phone cameras) into a
+// bitmap before downscaling can exhaust memory on lower-end/older Android
+// devices, causing createImageBitmap (or the subsequent canvas draw) to
+// silently fail — which previously meant we'd fall back to sending the
+// original, oversized file and hitting Vercel's 413 anyway. Passing resize
+// options directly into createImageBitmap lets the browser decode straight
+// to a smaller target size, using far less peak memory, which is much more
+// reliable on constrained devices.
+async function decodeDownscaled(file: File, targetLongEdge: number): Promise<ImageBitmap> {
+  // Probe natural dimensions first via a cheap decode-free path when possible.
+  const probe = await createImageBitmap(file);
+  const scale = Math.min(1, targetLongEdge / Math.max(probe.width, probe.height));
+  if (scale === 1) return probe;
+  const resizeWidth = Math.round(probe.width * scale);
+  const resizeHeight = Math.round(probe.height * scale);
+  probe.close?.();
+  return createImageBitmap(file, {
+    resizeWidth,
+    resizeHeight,
+    resizeQuality: "medium",
+  });
+}
+
 async function compressImageIfNeeded(file: File): Promise<File> {
   if (!COMPRESSIBLE_TYPES.has(file.type) || file.size <= MAX_UPLOAD_BYTES) {
     return file;
   }
 
-  const bitmap = await createImageBitmap(file).catch(() => null);
-  if (!bitmap) {
-    // Can't decode client-side (unsupported format, corrupt file, etc.) —
-    // let it through as-is; the server/Vercel will reject it with a clear
-    // size error if it's actually too big, instead of us silently dropping it.
-    return file;
+  let bitmap: ImageBitmap | null = null;
+  try {
+    bitmap = await decodeDownscaled(file, MAX_IMAGE_DIMENSION);
+  } catch {
+    bitmap = null;
   }
 
-  const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(bitmap.width, bitmap.height));
-  const targetWidth = Math.round(bitmap.width * scale);
-  const targetHeight = Math.round(bitmap.height * scale);
+  if (!bitmap) {
+    // Can't decode client-side (unsupported format, corrupt file, low
+    // memory, etc.). Rather than silently sending the original oversized
+    // file (which just produces a cryptic failure later), fail loudly now
+    // with a message the user can act on.
+    throw new Error(
+      "This photo couldn't be processed on your device. Try taking a new photo at a lower resolution, or choose a smaller existing file.",
+    );
+  }
 
   const canvas = document.createElement("canvas");
-  canvas.width = targetWidth;
-  canvas.height = targetHeight;
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
   const ctx = canvas.getContext("2d");
-  if (!ctx) return file;
-  ctx.drawImage(bitmap, 0, 0, targetWidth, targetHeight);
+  if (!ctx) {
+    bitmap.close?.();
+    throw new Error("This device's browser doesn't support image processing needed for upload.");
+  }
+  ctx.drawImage(bitmap, 0, 0);
   bitmap.close?.();
 
   let quality = 0.85;
-  for (let attempt = 0; attempt < 5; attempt++) {
+  for (let attempt = 0; attempt < 6; attempt++) {
     const blob: Blob | null = await new Promise((resolve) =>
       canvas.toBlob(resolve, "image/jpeg", quality),
     );
-    if (!blob) break;
-    if (blob.size <= MAX_UPLOAD_BYTES || quality <= 0.4) {
+    if (!blob) {
+      throw new Error("Couldn't compress this photo. Please try a different file.");
+    }
+    if (blob.size <= MAX_UPLOAD_BYTES || quality <= 0.35) {
       return new File([blob], file.name.replace(/\.\w+$/, ".jpg"), { type: "image/jpeg" });
     }
     quality -= 0.15;
   }
 
-  return file;
+  throw new Error(
+    "This photo is too large to upload even after compression. Please choose a smaller photo.",
+  );
 }
 
 /**
@@ -117,12 +152,6 @@ export function useUpload(options: UseUploadOptions = {}) {
 
       try {
         const uploadable = await compressImageIfNeeded(file);
-
-        if (uploadable.size > MAX_UPLOAD_BYTES) {
-          throw new Error(
-            "This file is too large even after compression. Please choose a smaller photo (under 4MB).",
-          );
-        }
 
         const formData = new FormData();
         formData.append("file", uploadable);

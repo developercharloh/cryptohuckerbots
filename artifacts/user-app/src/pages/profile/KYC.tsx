@@ -90,7 +90,7 @@ function FileUploadField({
   capture?: "user" | "environment";
 }) {
   const { toast } = useToast();
-  const { uploadFile, isUploading, progress } = useUpload();
+  const { uploadFile, isUploading, progress, error: uploadError } = useUpload();
 
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -103,7 +103,11 @@ function FileUploadField({
     if (result) {
       onUploaded(result.uploadURL);
     } else {
-      toast({ title: "Upload failed", description: "Could not upload file. Please try again.", variant: "destructive" });
+      toast({
+        title: "Upload failed",
+        description: uploadError?.message || "Could not upload file. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
