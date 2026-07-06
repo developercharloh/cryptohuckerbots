@@ -26,6 +26,14 @@ const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
  * size limits). Works identically on Replit and on Vercel since it only
  * needs BLOB_READ_WRITE_TOKEN and outbound HTTPS access.
  */
+function getSanitizedBlobToken(): string | undefined {
+  const raw = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!raw) return undefined;
+  // Defensively strip accidental surrounding quotes/whitespace from copy-paste
+  // (e.g. pasting the full `.env.local` line value with quotes intact).
+  return raw.trim().replace(/^["']|["']$/g, "");
+}
+
 router.post("/storage/uploads/request-url", async (req: Request, res: Response) => {
   const body = req.body as HandleUploadBody;
 
@@ -33,6 +41,7 @@ router.post("/storage/uploads/request-url", async (req: Request, res: Response) 
     const jsonResponse = await handleUpload({
       body,
       request: req,
+      token: getSanitizedBlobToken(),
       onBeforeGenerateToken: async () => {
         return {
           allowedContentTypes: ALLOWED_UPLOAD_CONTENT_TYPES,
