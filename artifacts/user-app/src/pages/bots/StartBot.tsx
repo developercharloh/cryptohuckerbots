@@ -120,11 +120,18 @@ export default function StartBot() {
   const [tradeCount, setTradeCount] = useState(1);
   const [showConfetti, setShowConfetti] = useState(false);
 
+  // Local overrides for bots the server just told us are on cooldown (e.g. a stale
+  // client-side lock state) — lets the bot row switch to the countdown immediately
+  // without a page refresh, instead of showing a separate popup/toast.
+  const [lockOverrides, setLockOverrides] = useState<Record<number, number>>({});
+
   const stakeNum = parseFloat(stakeAmount) || 0;
   const profitTarget = Math.round(stakeNum * 0.04 * 100) / 100;
   const selectedBot = bots.find(b => b.id === selectedBotId);
-  const isBotLocked = (bot: { secondsUntilNextTrade?: number | null }) =>
-    (bot.secondsUntilNextTrade ?? 0) > 0;
+  const getSecondsUntilNextTrade = (bot: { id: number; secondsUntilNextTrade?: number | null }) =>
+    lockOverrides[bot.id] ?? bot.secondsUntilNextTrade ?? 0;
+  const isBotLocked = (bot: { id: number; secondsUntilNextTrade?: number | null }) =>
+    getSecondsUntilNextTrade(bot) > 0;
   const canStart = stakeNum >= 1 && selectedBotId !== null && !!selectedBot && !isBotLocked(selectedBot);
 
   const [startingTrade, setStartingTrade] = useState(false);
@@ -223,7 +230,11 @@ export default function StartBot() {
       });
       if (!res.ok) {
         const err = await res.json() as { error?: string; secondsUntilNextTrade?: number };
-        toast({ title: err.error ?? "Failed to start bot", variant: "destructive" });
+        if (typeof err.secondsUntilNextTrade === "number" && err.secondsUntilNextTrade > 0 && selectedBotId !== null) {
+          setLockOverrides(prev => ({ ...prev, [selectedBotId]: err.secondsUntilNextTrade! }));
+        } else {
+          toast({ title: err.error ?? "Failed to start bot", variant: "destructive" });
+        }
         return;
       }
       const pos = await res.json() as { id?: number };
@@ -361,7 +372,7 @@ export default function StartBot() {
                         <p className="font-semibold text-sm truncate">{bot.name}</p>
                         {locked ? (
                           <div className="mt-0.5">
-                            <TradeCountdown secondsUntilNextTrade={bot.secondsUntilNextTrade} compact />
+                            <TradeCountdown secondsUntilNextTrade={getSecondsUntilNextTrade(bot)} compact />
                           </div>
                         ) : (
                           <div className="flex items-center gap-2 mt-0.5">
@@ -413,7 +424,7 @@ export default function StartBot() {
         <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] px-5 pb-8 pt-4 bg-gradient-to-t from-background via-background/95 to-transparent">
           {selectedBot && isBotLocked(selectedBot) && (
             <div className="mb-2 text-center">
-              <TradeCountdown secondsUntilNextTrade={selectedBot.secondsUntilNextTrade} compact />
+              <TradeCountdown secondsUntilNextTrade={getSecondsUntilNextTrade(selectedBot)} compact />
             </div>
           )}
           <Button
