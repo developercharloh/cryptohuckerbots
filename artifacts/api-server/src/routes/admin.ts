@@ -459,6 +459,24 @@ router.post("/admin/refund-by-uid", async (req, res) => {
 });
 
 // ---------------- KYC ----------------
+function mapKycRow(r: { kyc: typeof kycTable.$inferSelect; user: typeof usersTable.$inferSelect }) {
+  return {
+    userId: r.kyc.userId,
+    tier: r.kyc.tier,
+    fullName: r.kyc.fullName ?? r.user.fullName,
+    email: r.user.email,
+    status: r.kyc.status,
+    country: r.kyc.country,
+    address: r.kyc.address,
+    ssn: r.kyc.ssn,
+    idType: r.kyc.idType,
+    documentType: r.kyc.documentType,
+    documentFrontUrl: r.kyc.documentFrontUrl,
+    proofOfAddressUrl: r.kyc.proofOfAddressUrl,
+    submittedAt: r.kyc.submittedAt ? r.kyc.submittedAt.toISOString() : null,
+  };
+}
+
 router.get("/admin/kyc", async (req, res) => {
   const status = req.query.status as string | undefined;
   const rows = await db
@@ -467,25 +485,17 @@ router.get("/admin/kyc", async (req, res) => {
     .innerJoin(usersTable, eq(kycTable.userId, usersTable.id))
     .orderBy(desc(kycTable.submittedAt));
 
-  let result = rows.map((r) => ({
-    userId: r.kyc.userId,
-    fullName: r.user.fullName,
-    email: r.user.email,
-    status: r.kyc.status,
-    documentType: r.kyc.documentType,
-    documentFrontUrl: r.kyc.documentFrontUrl,
-    selfieUrl: r.kyc.selfieUrl,
-    submittedAt: r.kyc.submittedAt ? r.kyc.submittedAt.toISOString() : null,
-  }));
+  let result = rows.map(mapKycRow);
   if (status && status !== "all") {
     result = status === "pending" ? result.filter((r) => KYC_PENDING.includes(r.status)) : result.filter((r) => r.status === status);
   }
   return res.json(result);
 });
 
-router.post("/admin/kyc/:userId/review", async (req, res) => {
+router.post("/admin/kyc/:userId/:tier/review", async (req, res) => {
   const userId = Number(req.params.userId);
-  if (Number.isNaN(userId)) return res.status(400).json({ error: "Invalid id" });
+  const tier = req.params.tier;
+  if (Number.isNaN(userId) || (tier !== "tier1" && tier !== "tier2")) return res.status(400).json({ error: "Invalid id or tier" });
   const parsed = AdminReviewKycBody.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
 
@@ -494,35 +504,30 @@ router.post("/admin/kyc/:userId/review", async (req, res) => {
   await db
     .update(kycTable)
     .set({ status: newStatus, rejectionReason: approve ? null : parsed.data.reason ?? null, reviewedAt: new Date() })
-    .where(eq(kycTable.userId, userId));
-  await db.update(usersTable).set({ kycStatus: newStatus }).where(eq(usersTable.id, userId));
+    .where(and(eq(kycTable.userId, userId), eq(kycTable.tier, tier)));
+
+  // The top-line user kycStatus tracks tier1 (basic verification gate)
+  if (tier === "tier1") {
+    await db.update(usersTable).set({ kycStatus: newStatus }).where(eq(usersTable.id, userId));
+  }
 
   await db.insert(notificationsTable).values({
     userId,
     type: "kyc",
-    title: approve ? "KYC Verified ✓" : "KYC Rejected",
+    title: approve ? `Tier ${tier === "tier1" ? "1" : "2"} Verified ✓` : `Tier ${tier === "tier1" ? "1" : "2"} Verification Rejected`,
     message: approve
-      ? "Your identity verification has been approved. You now have full access to all features."
-      : `Your KYC submission was rejected. Reason: ${parsed.data.reason ?? "Please resubmit with clearer documents."}`,
+      ? `Your ${tier === "tier1" ? "identity" : "address"} verification has been approved.`
+      : `Your ${tier === "tier1" ? "identity" : "address"} verification was rejected. Reason: ${parsed.data.reason ?? "Please resubmit with clearer documents."}`,
   });
 
   const [row] = await db
     .select({ kyc: kycTable, user: usersTable })
     .from(kycTable)
     .innerJoin(usersTable, eq(kycTable.userId, usersTable.id))
-    .where(eq(kycTable.userId, userId))
+    .where(and(eq(kycTable.userId, userId), eq(kycTable.tier, tier)))
     .limit(1);
   if (!row) return res.status(404).json({ error: "KYC not found" });
-  return res.json({
-    userId: row.kyc.userId,
-    fullName: row.user.fullName,
-    email: row.user.email,
-    status: row.kyc.status,
-    documentType: row.kyc.documentType,
-    documentFrontUrl: row.kyc.documentFrontUrl,
-    selfieUrl: row.kyc.selfieUrl,
-    submittedAt: row.kyc.submittedAt ? row.kyc.submittedAt.toISOString() : null,
-  });
+  return res.json(mapKycRow(row));
 });
 
 // ---------------- Bots ----------------

@@ -587,39 +587,34 @@ export const Toggle2FAResponse = zod.object({
 })
 
 
-export const GetKYCResponse = zod.object({
+export const GetKYCResponseItem = zod.object({
+  "tier": zod.string(),
   "status": zod.string(),
   "submittedAt": zod.string().nullish(),
   "reviewedAt": zod.string().nullish(),
   "rejectionReason": zod.string().nullish()
 })
+export const GetKYCResponse = zod.array(GetKYCResponseItem)
 
 
 export const SubmitKYCBody = zod.object({
-  "documentType": zod.string(),
-  "documentFrontUrl": zod.string(),
-  "selfieUrl": zod.string(),
+  "tier": zod.enum(['tier1', 'tier2']),
+  "fullName": zod.string(),
+  "country": zod.string(),
+  "address": zod.string(),
+  "ssn": zod.string(),
+  "idType": zod.string().optional(),
+  "documentType": zod.string().nullish(),
+  "documentFrontUrl": zod.string().nullish(),
   "proofOfAddressUrl": zod.string().nullish()
 })
 
 export const SubmitKYCResponse = zod.object({
+  "tier": zod.string(),
   "status": zod.string(),
   "submittedAt": zod.string().nullish(),
   "reviewedAt": zod.string().nullish(),
   "rejectionReason": zod.string().nullish()
-})
-
-
-export const CreateKycSessionBody = zod.object({
-  "firstName": zod.string(),
-  "lastName": zod.string(),
-  "country": zod.string(),
-  "documentType": zod.string()
-})
-
-export const CreateKycSessionResponse = zod.object({
-  "url": zod.string(),
-  "sessionId": zod.string()
 })
 
 
@@ -925,20 +920,25 @@ export const AdminListKycQueryParams = zod.object({
 
 export const AdminListKycResponseItem = zod.object({
   "userId": zod.number(),
+  "tier": zod.string(),
   "fullName": zod.string(),
   "email": zod.string(),
   "status": zod.string(),
+  "country": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "ssn": zod.string().nullish(),
+  "idType": zod.string().nullish(),
   "documentType": zod.string().nullish(),
   "documentFrontUrl": zod.string().nullish(),
-  "documentBackUrl": zod.string().nullish(),
-  "selfieUrl": zod.string().nullish(),
+  "proofOfAddressUrl": zod.string().nullish(),
   "submittedAt": zod.string().nullish()
 })
 export const AdminListKycResponse = zod.array(AdminListKycResponseItem)
 
 
 export const AdminReviewKycParams = zod.object({
-  "userId": zod.coerce.number()
+  "userId": zod.coerce.number(),
+  "tier": zod.coerce.string()
 })
 
 export const AdminReviewKycBody = zod.object({
@@ -948,15 +948,49 @@ export const AdminReviewKycBody = zod.object({
 
 export const AdminReviewKycResponse = zod.object({
   "userId": zod.number(),
+  "tier": zod.string(),
   "fullName": zod.string(),
   "email": zod.string(),
   "status": zod.string(),
+  "country": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "ssn": zod.string().nullish(),
+  "idType": zod.string().nullish(),
   "documentType": zod.string().nullish(),
   "documentFrontUrl": zod.string().nullish(),
-  "documentBackUrl": zod.string().nullish(),
-  "selfieUrl": zod.string().nullish(),
+  "proofOfAddressUrl": zod.string().nullish(),
   "submittedAt": zod.string().nullish()
 })
+
+
+/**
+ * @summary Request a presigned URL for file upload
+ */
+
+
+
+
+
+export const RequestUploadUrlBody = zod.object({
+  "name": zod.string().min(1),
+  "size": zod.number().min(1),
+  "contentType": zod.string().min(1)
+})
+
+export const RequestUploadUrlResponse = zod.object({
+  "uploadURL": zod.string().url(),
+  "objectPath": zod.string()
+})
+
+
+/**
+ * @summary Serve an object entity from PRIVATE_OBJECT_DIR
+ */
+export const GetStorageObjectParams = zod.object({
+  "objectPath": zod.coerce.string()
+})
+
+export const GetStorageObjectResponse = zod.unknown()
 
 
 export const AdminListBotsResponseItem = zod.object({

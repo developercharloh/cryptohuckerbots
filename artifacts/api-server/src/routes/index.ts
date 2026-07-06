@@ -9,7 +9,7 @@ import profileRouter from "./profile";
 import notificationsRouter from "./notifications";
 import supportRouter from "./support";
 import adminRouter from "./admin";
-import webhooksRouter from "./webhooks";
+import storageRouter from "./storage";
 
 const router: IRouter = Router();
 
@@ -23,6 +23,6 @@ router.use(profileRouter);
 router.use(notificationsRouter);
 router.use(supportRouter);
 router.use(adminRouter);
-router.use(webhooksRouter);
+router.use(storageRouter);
 
 export default router;

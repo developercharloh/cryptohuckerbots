@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, numeric, boolean, timestamp, varchar, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, numeric, boolean, timestamp, varchar, jsonb, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -147,11 +147,17 @@ export const notificationSettingsTable = pgTable("notification_settings", {
 
 export type NotificationSetting = typeof notificationSettingsTable.$inferSelect;
 
-// KYC
+// KYC (tiered: tier1 = ID verification, tier2 = proof of address, both unlock via manual admin review)
 export const kycTable = pgTable("kyc", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().unique(),
+  userId: integer("user_id").notNull(),
+  tier: varchar("tier", { length: 10 }).notNull().default("tier1"),
   status: varchar("status", { length: 50 }).notNull().default("not_submitted"),
+  fullName: text("full_name"),
+  country: varchar("country", { length: 100 }),
+  address: text("address"),
+  ssn: text("ssn"),
+  idType: varchar("id_type", { length: 100 }),
   documentType: varchar("document_type", { length: 100 }),
   documentFrontUrl: text("document_front_url"),
   selfieUrl: text("selfie_url"),
@@ -159,8 +165,9 @@ export const kycTable = pgTable("kyc", {
   rejectionReason: text("rejection_reason"),
   submittedAt: timestamp("submitted_at"),
   reviewedAt: timestamp("reviewed_at"),
-  diditSessionId: text("didit_session_id"),
-});
+}, (table) => [
+  uniqueIndex("kyc_user_tier_idx").on(table.userId, table.tier),
+]);
 
 export type KYC = typeof kycTable.$inferSelect;
 

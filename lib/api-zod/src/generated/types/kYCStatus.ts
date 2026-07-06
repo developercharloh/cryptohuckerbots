@@ -7,6 +7,7 @@
  */
 
 export interface KYCStatus {
+  tier: string;
   status: string;
   /** @nullable */
   submittedAt?: string | null;

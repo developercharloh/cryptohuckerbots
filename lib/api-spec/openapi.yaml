@@ -17,6 +17,7 @@ tags:
   - name: notifications
   - name: support
   - name: admin
+  - name: Storage
 
 paths:
   /healthz:
@@ -700,11 +701,13 @@ paths:
       tags: [profile]
       responses:
         "200":
-          description: KYC status
+          description: KYC status for both tiers
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/KYCStatus"
+                type: array
+                items:
+                  $ref: "#/components/schemas/KYCStatus"
     post:
       operationId: submitKYC
       tags: [profile]
@@ -721,24 +724,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/KYCStatus"
-
-  /profile/kyc/session:
-    post:
-      operationId: createKycSession
-      tags: [profile]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/KYCSessionInput"
-      responses:
-        "200":
-          description: Didit verification session created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/KYCSession"
 
   /profile/notification-settings:
     get:
@@ -1062,7 +1047,7 @@ paths:
                 items:
                   $ref: "#/components/schemas/AdminKycItem"
 
-  /admin/kyc/{userId}/review:
+  /admin/kyc/{userId}/{tier}/review:
     post:
       operationId: adminReviewKyc
       tags: [admin]
@@ -1072,6 +1057,11 @@ paths:
           required: true
           schema:
             type: integer
+        - name: tier
+          in: path
+          required: true
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -1085,6 +1075,45 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdminKycItem"
+
+  /storage/uploads/request-url:
+    post:
+      tags: [Storage]
+      operationId: requestUploadUrl
+      summary: Request a presigned URL for file upload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadUrlRequest"
+      responses:
+        "200":
+          description: Presigned upload URL generated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadUrlResponse"
+
+  /storage/objects/{objectPath}:
+    get:
+      tags: [Storage]
+      operationId: getStorageObject
+      summary: Serve an object entity from PRIVATE_OBJECT_DIR
+      parameters:
+        - name: objectPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Object content streamed with correct Content-Type.
+          content:
+            "*/*":
+              schema:
+                type: string
+                format: binary
 
   /admin/bots:
     get:
@@ -1946,6 +1975,8 @@ components:
     KYCStatus:
       type: object
       properties:
+        tier:
+          type: string
         status:
           type: string
         submittedAt:
@@ -1954,36 +1985,31 @@ components:
           type: ["string", "null"]
         rejectionReason:
           type: ["string", "null"]
-      required: [status]
-
-    KYCSessionInput:
-      type: object
-      properties:
-        firstName: { type: string }
-        lastName: { type: string }
-        country: { type: string }
-        documentType: { type: string }
-      required: [firstName, lastName, country, documentType]
-
-    KYCSession:
-      type: object
-      properties:
-        url: { type: string }
-        sessionId: { type: string }
-      required: [url, sessionId]
+      required: [tier, status]
 
     KYCInput:
       type: object
       properties:
+        tier:
+          type: string
+          enum: [tier1, tier2]
+        fullName:
+          type: string
+        country:
+          type: string
+        address:
+          type: string
+        ssn:
+          type: string
+        idType:
+          type: string
         documentType:
-          type: string
+          type: ["string", "null"]
         documentFrontUrl:
-          type: string
-        selfieUrl:
-          type: string
+          type: ["string", "null"]
         proofOfAddressUrl:
           type: ["string", "null"]
-      required: [documentType, documentFrontUrl, selfieUrl]
+      required: [tier, fullName, country, address, ssn]
 
     NotificationSettings:
       type: object
@@ -2203,15 +2229,19 @@ components:
       type: object
       properties:
         userId: { type: integer }
+        tier: { type: string }
         fullName: { type: string }
         email: { type: string }
         status: { type: string }
+        country: { type: ["string", "null"] }
+        address: { type: ["string", "null"] }
+        ssn: { type: ["string", "null"] }
+        idType: { type: ["string", "null"] }
         documentType: { type: ["string", "null"] }
         documentFrontUrl: { type: ["string", "null"] }
-        documentBackUrl: { type: ["string", "null"] }
-        selfieUrl: { type: ["string", "null"] }
+        proofOfAddressUrl: { type: ["string", "null"] }
         submittedAt: { type: ["string", "null"] }
-      required: [userId, fullName, email, status]
+      required: [userId, tier, fullName, email, status]
 
     AdminKycReviewInput:
       type: object
@@ -2219,6 +2249,30 @@ components:
         action: { type: string }
         reason: { type: string }
       required: [action]
+
+    UploadUrlRequest:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        size:
+          type: integer
+          minimum: 1
+        contentType:
+          type: string
+          minLength: 1
+
+    UploadUrlResponse:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL:
+          type: string
+          format: uri
+        objectPath:
+          type: string
 
     AdminBot:
       type: object

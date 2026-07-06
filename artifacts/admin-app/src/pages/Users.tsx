@@ -62,9 +62,9 @@ export default function Users() {
     );
   };
 
-  const handleKycReview = (userId: number, action: "approve" | "reject") => {
+  const handleKycReview = (userId: number, tier: string, action: "approve" | "reject") => {
     reviewKyc.mutate(
-      { userId, data: { action, reason: action === "reject" ? "Documents unclear" : undefined } },
+      { userId, tier, data: { action, reason: action === "reject" ? "Documents unclear" : undefined } },
       {
         onSuccess: () => {
           toast({ title: `KYC ${action}d` });
@@ -76,6 +76,8 @@ export default function Users() {
       }
     );
   };
+
+  const maskSsn = (ssn?: string | null) => (ssn ? `•••-••-${ssn.slice(-4)}` : "—");
 
   return (
     <div className="p-4 space-y-4 pb-2">
@@ -220,7 +222,7 @@ export default function Users() {
             </div>
           ) : (
             kycItems?.map(item => (
-              <Card key={item.userId} className="rounded-2xl border-border/60" data-testid={`row-kyc-${item.userId}`}>
+              <Card key={`${item.userId}-${item.tier}`} className="rounded-2xl border-border/60" data-testid={`row-kyc-${item.userId}-${item.tier}`}>
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3 mb-3">
                     <div className="w-9 h-9 rounded-full bg-amber-500/20 border border-amber-500/20 flex items-center justify-center shrink-0">
@@ -229,11 +231,30 @@ export default function Users() {
                       </span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate">{item.fullName}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-semibold truncate">{item.fullName}</p>
+                        <Badge variant="secondary" className="text-[10px] h-4 px-1.5 shrink-0">
+                          {item.tier === "tier1" ? "Tier 1" : "Tier 2"}
+                        </Badge>
+                      </div>
                       <p className="text-[11px] text-muted-foreground truncate">{item.email}</p>
-                      <div className="flex gap-1.5 mt-1.5">
-                        {item.documentFrontUrl && <Badge variant="outline" className="text-[10px] h-4 px-1.5">ID Front</Badge>}
-                        {item.selfieUrl && <Badge variant="outline" className="text-[10px] h-4 px-1.5">Selfie</Badge>}
+                      <div className="mt-1.5 space-y-0.5 text-[11px] text-muted-foreground">
+                        {item.country && <p>Country: {item.country}</p>}
+                        {item.address && <p className="truncate">Address: {item.address}</p>}
+                        {item.ssn && <p>SSN: {maskSsn(item.ssn)}</p>}
+                        {item.idType && <p>ID Type: {item.idType}</p>}
+                      </div>
+                      <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                        {item.documentFrontUrl && (
+                          <a href={`/api/storage${item.documentFrontUrl}`} target="_blank" rel="noreferrer">
+                            <Badge variant="outline" className="text-[10px] h-4 px-1.5 hover:bg-accent">View ID Document</Badge>
+                          </a>
+                        )}
+                        {item.proofOfAddressUrl && (
+                          <a href={`/api/storage${item.proofOfAddressUrl}`} target="_blank" rel="noreferrer">
+                            <Badge variant="outline" className="text-[10px] h-4 px-1.5 hover:bg-accent">View Proof of Address</Badge>
+                          </a>
+                        )}
                       </div>
                       {item.submittedAt && (
                         <p className="text-[10px] text-muted-foreground/60 mt-1">{format(new Date(item.submittedAt), "PP")}</p>
@@ -245,9 +266,9 @@ export default function Users() {
                       variant="outline"
                       size="sm"
                       className="flex-1 h-8 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10 rounded-xl"
-                      onClick={() => handleKycReview(item.userId, "approve")}
+                      onClick={() => handleKycReview(item.userId, item.tier, "approve")}
                       disabled={reviewKyc.isPending}
-                      data-testid={`btn-approve-kyc-${item.userId}`}
+                      data-testid={`btn-approve-kyc-${item.userId}-${item.tier}`}
                     >
                       <CheckCircle className="w-3.5 h-3.5 mr-1.5" /> Approve
                     </Button>
@@ -255,9 +276,9 @@ export default function Users() {
                       variant="outline"
                       size="sm"
                       className="flex-1 h-8 text-destructive border-destructive/30 hover:bg-destructive/10 rounded-xl"
-                      onClick={() => handleKycReview(item.userId, "reject")}
+                      onClick={() => handleKycReview(item.userId, item.tier, "reject")}
                       disabled={reviewKyc.isPending}
-                      data-testid={`btn-reject-kyc-${item.userId}`}
+                      data-testid={`btn-reject-kyc-${item.userId}-${item.tier}`}
                     >
                       <XCircle className="w-3.5 h-3.5 mr-1.5" /> Reject
                     </Button>

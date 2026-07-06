@@ -8,17 +8,24 @@
 
 export interface AdminKycItem {
   userId: number;
+  tier: string;
   fullName: string;
   email: string;
   status: string;
+  /** @nullable */
+  country?: string | null;
+  /** @nullable */
+  address?: string | null;
+  /** @nullable */
+  ssn?: string | null;
+  /** @nullable */
+  idType?: string | null;
   /** @nullable */
   documentType?: string | null;
   /** @nullable */
   documentFrontUrl?: string | null;
   /** @nullable */
-  documentBackUrl?: string | null;
-  /** @nullable */
-  selfieUrl?: string | null;
+  proofOfAddressUrl?: string | null;
   /** @nullable */
   submittedAt?: string | null;
 }

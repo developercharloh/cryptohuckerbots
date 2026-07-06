@@ -1,4 +1,5 @@
 - [VIXUS AI platform](vixus-ai-platform.md) — FX trading bot admin panel; rebrand from Quantum-FX-Bot; key env vars, admin credentials, and seeding behavior.
 - [VIXUS AI crypto deposits](vixus-ai-crypto-deposits.md) — BTC/ETH deposits are entered in coin units and locked to a server-fetched USDT rate at submission, not admin-approval, time.
 - [VIXUS AI bot trade cooldown](vixus-ai-bot-trade-cooldown.md) — one `next_trade_at` clock shared by scheduled auto-trades and manual "Start Bot" trades; use `psql "$NEON_DATABASE_URL"` for test data, not sandbox executeSql.
+- [VIXUS AI DB connection mismatch](vixus-ai-db-connection.md) — `executeSql` hits a different DB (`heliumdb`) than the running app (`NEON_DATABASE_URL`/`neondb`); verify before any schema fix via executeSql.
 - [VIXUS AI scheduled bot trades](vixus-ai-bot-trade-schedule.md) — mandatory 24h always-win bot trade + countdown; lazy-executed on read since api-server is serverless (no cron).
