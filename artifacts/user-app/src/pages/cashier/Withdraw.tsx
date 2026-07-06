@@ -273,7 +273,6 @@ export default function Withdraw() {
                   "Submit your request — funds are reserved immediately",
                   "Your withdrawal is verified and processed securely",
                   "Crypto is sent to your wallet address",
-                  "Balance is fully deducted once complete",
                 ].map((step, i) => (
                   <div key={i} className="flex items-start gap-2">
                     <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
