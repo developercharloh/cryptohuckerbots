@@ -1,5 +1,4 @@
 import { useState, useCallback } from "react";
-import { upload } from "@vercel/blob/client";
 
 interface UploadResponse {
   uploadURL: string;
@@ -14,13 +13,14 @@ interface UseUploadOptions {
 }
 
 /**
- * React hook for handling file uploads via Vercel Blob's client-upload flow.
+ * React hook for handling file uploads.
  *
- * The file is uploaded directly from the browser to Vercel Blob storage —
- * it never passes through this server's request body, so it isn't subject
- * to serverless function body-size limits (e.g. Vercel's ~4.5MB cap).
- * Works identically in Replit dev and on Vercel in production, since it
- * only needs the BLOB_READ_WRITE_TOKEN env var and outbound HTTPS access.
+ * The file is sent as multipart/form-data (binary, not base64-encoded JSON)
+ * directly to our server, which streams it to Vercel Blob storage using the
+ * server's blob token. Multipart avoids the ~33% size overhead of base64
+ * JSON payloads, which is what previously pushed uploads over Vercel's
+ * ~4.5MB serverless function body limit. Works identically in Replit dev
+ * and on Vercel in production.
  *
  * @example
  * ```tsx
@@ -61,18 +61,44 @@ export function useUpload(options: UseUploadOptions = {}) {
       setProgress(0);
 
       try {
-        const pathname = `uploads/${crypto.randomUUID()}-${file.name}`;
-        const blob = await upload(pathname, file, {
-          access: "public",
-          handleUploadUrl: `${basePath}/uploads/request-url`,
-          contentType: file.type || "application/octet-stream",
-          onUploadProgress: (event) => setProgress(event.percentage),
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const uploadResponse = await new Promise<UploadResponse>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST", `${basePath}/uploads`);
+          xhr.withCredentials = true;
+
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              setProgress(Math.round((event.loaded / event.total) * 100));
+            }
+          };
+
+          xhr.onload = () => {
+            let data: unknown;
+            try {
+              data = JSON.parse(xhr.responseText);
+            } catch {
+              reject(new Error("Invalid response from server"));
+              return;
+            }
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve(data as UploadResponse);
+            } else {
+              const message =
+                (data as { error?: string } | null)?.error || `Upload failed (${xhr.status})`;
+              reject(new Error(message));
+            }
+          };
+
+          xhr.onerror = () => reject(new Error("Network error during upload"));
+          xhr.send(formData);
         });
 
-        const response: UploadResponse = { uploadURL: blob.url, objectPath: blob.url };
         setProgress(100);
-        options.onSuccess?.(response);
-        return response;
+        options.onSuccess?.(uploadResponse);
+        return uploadResponse;
       } catch (err) {
         const error = err instanceof Error ? err : new Error("Upload failed");
         setError(error);

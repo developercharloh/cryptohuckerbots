@@ -22,7 +22,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { useToast } from "@/hooks/use-toast";
 
 function resolveKycFileUrl(value: string): string {
-  if (value.startsWith("data:") || value.startsWith("http://") || value.startsWith("https://")) {
+  if (value.startsWith("data:")) {
+    return value;
+  }
+  if (/\.blob\.vercel-storage\.com\//.test(value)) {
+    return `/api/storage/blob-proxy?url=${encodeURIComponent(value)}`;
+  }
+  if (value.startsWith("http://") || value.startsWith("https://")) {
     return value;
   }
   return `/api/storage${value}`;
