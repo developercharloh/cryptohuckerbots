@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useLocation, useSearch } from "wouter";
-import { useListBots, useGetDashboardSummary } from "@workspace/api-client-react";
+import { useListBots, useGetDashboardSummary, useListTradePositions } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -135,6 +135,7 @@ export default function StartBot() {
   const canStart = stakeNum >= 1 && selectedBotId !== null && !!selectedBot && !isBotLocked(selectedBot);
 
   const [startingTrade, setStartingTrade] = useState(false);
+  const [activePositionId, setActivePositionId] = useState<number | null>(null);
   const resolvedRef = useRef(false);
 
   useEffect(() => {
@@ -143,35 +144,33 @@ export default function StartBot() {
     if (firstAvailable) setSelectedBotId(firstAvailable.id);
   }, [bots, selectedBotId]);
 
-  // P&L simulation — always trends upward toward exactly 4% of stake
-  useEffect(() => {
-    if (step !== "running") return;
-    resolvedRef.current = false;
-    const id = setInterval(() => {
-      setPnl(p => {
-        if (resolvedRef.current) return p;
-        const target = Math.round(stakeNum * 0.04 * 100) / 100;
-        if (p >= target) return target;
-        const remaining = target - p;
-        const delta = Math.max(0.001 * stakeNum, remaining * 0.07) + (Math.random() * 0.006 * stakeNum);
-        return Math.min(target, p + delta);
-      });
-    }, 650);
-    return () => clearInterval(id);
-  }, [step, stakeNum]);
+  // Poll the real backend position while the bot is "running" so the on-screen
+  // P&L and completion timing exactly match what the Orders page shows —
+  // the server resolves TP/SL over the same simulated ~1.5min walk for both.
+  const { data: positions = [] } = useListTradePositions({
+    query: { refetchInterval: step === "running" ? 4000 : false } as any,
+  });
+  const activePosition = positions.find(p => p.id === activePositionId);
 
-  // Transition to results when profit target is hit
+  // Mirror the live server-computed P&L onto the progress ring/card
   useEffect(() => {
-    if (step !== "running" || resolvedRef.current) return;
-    const target = Math.round(stakeNum * 0.04 * 100) / 100;
-    if (pnl >= target && target > 0) {
+    if (step !== "running" || !activePosition) return;
+    setPnl(Math.max(0, activePosition.pnl));
+  }, [step, activePosition]);
+
+  // Transition to results only once the server has actually closed the position
+  // in profit (tp_hit) — never before, so this screen never outruns reality.
+  useEffect(() => {
+    if (step !== "running" || resolvedRef.current || !activePosition) return;
+    if (activePosition.status === "tp_hit") {
       resolvedRef.current = true;
+      const target = Math.round(stakeNum * 0.04 * 100) / 100;
       setPnl(target);
       setStep("results");
       setShowConfetti(true);
       setTimeout(() => setShowConfetti(false), 5500);
     }
-  }, [pnl, step, stakeNum]);
+  }, [activePosition, step, stakeNum]);
 
   // AI messages
   useEffect(() => {
@@ -239,9 +238,9 @@ export default function StartBot() {
       }
       const pos = await res.json() as { id?: number };
       if (pos.id) {
+        setActivePositionId(pos.id);
         localStorage.setItem("vixus_active_trade", JSON.stringify({
           positionId: pos.id,
-          endTimeMs: Date.now() + 5 * 60 * 1000,
         }));
       }
     } catch {
@@ -262,6 +261,7 @@ export default function StartBot() {
     setStakeAmount("");
     setPnl(0);
     setShowConfetti(false);
+    setActivePositionId(null);
     resolvedRef.current = false;
   };
 
