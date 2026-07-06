@@ -22,7 +22,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { useToast } from "@/hooks/use-toast";
 
 function resolveKycFileUrl(value: string): string {
-  return value.startsWith("data:") ? value : `/api/storage${value}`;
+  if (value.startsWith("data:") || value.startsWith("http://") || value.startsWith("https://")) {
+    return value;
+  }
+  return `/api/storage${value}`;
 }
 
 export default function Users() {

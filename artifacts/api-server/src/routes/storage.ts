@@ -1,45 +1,55 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { Readable } from "stream";
-import {
-  RequestUploadUrlBody,
-  RequestUploadUrlResponse,
-} from "@workspace/api-zod";
+import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
-import { ObjectPermission } from "../lib/objectAcl";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
 
+const ALLOWED_UPLOAD_CONTENT_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+  "application/pdf",
+];
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
+
 /**
  * POST /storage/uploads/request-url
  *
- * Request a presigned URL for file upload.
- * The client sends JSON metadata (name, size, contentType) — NOT the file.
- * Then uploads the file directly to the returned presigned URL.
+ * Vercel Blob client-upload handshake. The browser calls this via the
+ * `upload()` helper from `@vercel/blob/client`, which POSTs a
+ * "generate client token" event here, then uploads the file bytes
+ * directly to Vercel Blob storage (never through this server / its body
+ * size limits). Works identically on Replit and on Vercel since it only
+ * needs BLOB_READ_WRITE_TOKEN and outbound HTTPS access.
  */
 router.post("/storage/uploads/request-url", async (req: Request, res: Response) => {
-  const parsed = RequestUploadUrlBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Missing or invalid required fields" });
-    return;
-  }
+  const body = req.body as HandleUploadBody;
 
   try {
-    const { name, size, contentType } = parsed.data;
+    const jsonResponse = await handleUpload({
+      body,
+      request: req,
+      onBeforeGenerateToken: async () => {
+        return {
+          allowedContentTypes: ALLOWED_UPLOAD_CONTENT_TYPES,
+          maximumSizeInBytes: MAX_UPLOAD_BYTES,
+          addRandomSuffix: true,
+        };
+      },
+      onUploadCompleted: async () => {
+        // No-op: the client receives the blob URL directly from upload()
+        // and submits it as part of the relevant form (e.g. KYC).
+      },
+    });
 
-    const uploadURL = await objectStorageService.getObjectEntityUploadURL();
-    const objectPath = objectStorageService.normalizeObjectEntityPath(uploadURL);
-
-    res.json(
-      RequestUploadUrlResponse.parse({
-        uploadURL,
-        objectPath,
-        metadata: { name, size, contentType },
-      }),
-    );
+    res.json(jsonResponse);
   } catch (error) {
-    req.log.error({ err: error }, "Error generating upload URL");
-    res.status(500).json({ error: "Failed to generate upload URL" });
+    req.log.error({ err: error }, "Error generating upload token");
+    res.status(400).json({ error: (error as Error).message || "Failed to generate upload URL" });
   }
 });
 
@@ -90,21 +100,6 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
     const wildcardPath = Array.isArray(raw) ? raw.join("/") : raw;
     const objectPath = `/objects/${wildcardPath}`;
     const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
-
-    // --- Protected route example (uncomment when using replit-auth) ---
-    // if (!req.isAuthenticated()) {
-    //   res.status(401).json({ error: "Unauthorized" });
-    //   return;
-    // }
-    // const canAccess = await objectStorageService.canAccessObjectEntity({
-    //   userId: req.user.id,
-    //   objectFile,
-    //   requestedPermission: ObjectPermission.READ,
-    // });
-    // if (!canAccess) {
-    //   res.status(403).json({ error: "Forbidden" });
-    //   return;
-    // }
 
     const response = await objectStorageService.downloadObject(objectFile);
 

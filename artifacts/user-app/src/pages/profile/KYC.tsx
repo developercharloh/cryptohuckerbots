@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useGetKYC, useGetProfile, useSubmitKYC } from "@workspace/api-client-react";
+import { useUpload } from "@workspace/object-storage-web";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,16 +74,7 @@ function statusMeta(status: string) {
   return { isVerified, isPending, isRejected, canStart: !isVerified && !isPending };
 }
 
-const MAX_UPLOAD_BYTES = 8 * 1024 * 1024; // 8MB
-
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(reader.error ?? new Error("Failed to read file"));
-    reader.readAsDataURL(file);
-  });
-}
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
 
 function FileUploadField({
   label,
@@ -94,27 +86,24 @@ function FileUploadField({
   label: string;
   hint: string;
   fileUrl: string | null;
-  onUploaded: (dataUrl: string) => void;
+  onUploaded: (uploadUrl: string) => void;
   capture?: "user" | "environment";
 }) {
   const { toast } = useToast();
-  const [isReading, setIsReading] = useState(false);
+  const { uploadFile, isUploading, progress } = useUpload();
 
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > MAX_UPLOAD_BYTES) {
-      toast({ title: "File too large", description: "Please upload an image under 8MB.", variant: "destructive" });
+      toast({ title: "File too large", description: "Please upload a file under 10MB.", variant: "destructive" });
       return;
     }
-    setIsReading(true);
-    try {
-      const dataUrl = await readFileAsDataUrl(file);
-      onUploaded(dataUrl);
-    } catch (err: any) {
-      toast({ title: "Upload failed", description: err?.message ?? "Could not read file", variant: "destructive" });
-    } finally {
-      setIsReading(false);
+    const result = await uploadFile(file);
+    if (result) {
+      onUploaded(result.uploadURL);
+    } else {
+      toast({ title: "Upload failed", description: "Could not upload file. Please try again.", variant: "destructive" });
     }
   };
 
@@ -128,12 +117,12 @@ function FileUploadField({
           capture={capture}
           className="hidden"
           onChange={handleChange}
-          disabled={isReading}
+          disabled={isUploading}
         />
-        {isReading ? (
+        {isUploading ? (
           <>
             <Loader2 className="w-5 h-5 text-primary animate-spin shrink-0" />
-            <span className="text-sm text-muted-foreground">Processing…</span>
+            <span className="text-sm text-muted-foreground">Uploading… {progress > 0 ? `${progress}%` : ""}</span>
           </>
         ) : fileUrl ? (
           <>
