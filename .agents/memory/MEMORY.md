@@ -1,7 +1,6 @@
 - [VIXUS AI platform](vixus-ai-platform.md) — FX trading bot admin panel; rebrand from Quantum-FX-Bot; key env vars, admin credentials, and seeding behavior.
 - [VIXUS AI crypto deposits](vixus-ai-crypto-deposits.md) — BTC/ETH deposits are entered in coin units and locked to a server-fetched USDT rate at submission, not admin-approval, time.
-- [VIXUS AI KYC country flow](vixus-ai-kyc-country-flow.md) — Kenya uses a simplified single-step KYC; all KYC submissions run through a shared fake-ID/SSN heuristic detector.
 - [VIXUS AI bot trade cooldown](vixus-ai-bot-trade-cooldown.md) — one `next_trade_at` clock shared by scheduled auto-trades and manual "Start Bot" trades; use `psql "$NEON_DATABASE_URL"` for test data, not sandbox executeSql.
 - [VIXUS AI DB connection mismatch](vixus-ai-db-connection.md) — `executeSql` hits a different DB (`heliumdb`) than the running app (`NEON_DATABASE_URL`/`neondb`); verify before any schema fix via executeSql.
 - [VIXUS AI scheduled bot trades](vixus-ai-bot-trade-schedule.md) — mandatory 24h always-win bot trade + countdown; lazy-executed on read since api-server is serverless (no cron).
-- [VIXUS AI KYC/file upload architecture](vixus-ai-blob-upload-fix.md) — multipart upload → server `put()` with raw Blob token; quote-corrupted secrets cause misleading "Access denied"; Vercel project→domain mapping.
+- [VIXUS AI KYC history](vixus-ai-blob-upload-fix.md) — repeated custom self-hosted KYC upload debugging, then a full revert back to Didit-hosted KYC per user decision; don't rebuild the custom flow without confirming first.
