@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider, QueryCache } from "@tanstack/react-query";
 import { setBaseUrl, setAuthTokenGetter, ApiError } from "@workspace/api-client-react";
@@ -75,6 +75,7 @@ function App() {
   const [authed, setAuthed] = useState(false);
   const [adminSession, setAdminSession] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+  const authCheckVersion = useRef(0);
 
   useEffect(() => {
     _forceLogout = () => { setAuthed(false); setAdminSession(false); };
@@ -83,16 +84,17 @@ function App() {
 
   useEffect(() => {
     const base = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
+    const requestVersion = ++authCheckVersion.current;
     let active = true;
     fetch(`${base}/api/admin/session`, { credentials: "include" })
       .then((response) => {
-        if (!active) return;
+        if (!active || requestVersion !== authCheckVersion.current) return;
         setAuthed(response.ok);
         setAdminSession(response.ok);
         setAuthChecked(true);
       })
       .catch(() => {
-        if (!active) return;
+        if (!active || requestVersion !== authCheckVersion.current) return;
         setAuthed(false);
         setAdminSession(false);
         setAuthChecked(true);
@@ -110,6 +112,8 @@ function App() {
   }, []);
 
   const handleLogin = () => {
+    // Ignore the unauthenticated startup probe if it resolves after login.
+    authCheckVersion.current += 1;
     setAuthTokenGetter(null);
     setAdminSession(true);
     setAuthed(true);
@@ -117,6 +121,7 @@ function App() {
   };
 
   const handleLogout = () => {
+    authCheckVersion.current += 1;
     const base = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
     void fetch(`${base}/api/admin/logout`, {
       method: "POST",

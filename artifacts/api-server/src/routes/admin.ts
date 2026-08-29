@@ -19,7 +19,7 @@ import {
   sessionsTable,
   type PaymentMethod,
 } from "@workspace/db";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, inArray, ilike, or, gte } from "drizzle-orm";
 import crypto from "crypto";
 import {
   AdminSetUserStatusBody,
@@ -206,26 +206,10 @@ function txnDelta(type: string, amount: number): number {
 
 // ---------------- Overview ----------------
 router.get("/admin/overview", async (_req, res) => {
-  const [users, bots, userBots, txns, kycs, tickets] = await Promise.all([
-    db.select().from(usersTable),
-    db.select().from(botsTable),
-    db.select().from(userBotsTable),
-    db.select().from(transactionsTable),
-    db.select().from(kycTable),
-    db.select().from(supportTicketsTable),
-  ]);
-
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
-
-  let totalDeposits = 0;
-  let totalWithdrawals = 0;
-  for (const t of txns) {
-    if (t.status !== "completed") continue;
-    const amt = parseFloat(t.amount);
-    if (t.type === "deposit") totalDeposits += amt;
-    if (t.type === "withdrawal") totalWithdrawals += amt;
-  }
+  const startOfSeries = new Date(startOfToday);
+  startOfSeries.setDate(startOfSeries.getDate() - 13);
 
   // Revenue series: net deposits per day, last 14 days
   const series: { date: string; value: number }[] = [];
@@ -236,51 +220,99 @@ router.get("/admin/overview", async (_req, res) => {
     series.push({ date: key, value: 0 });
   }
   const seriesIndex = new Map(series.map((p, idx) => [p.date, idx]));
-  for (const t of txns) {
-    if (t.status !== "completed" || t.type !== "deposit") continue;
-    const key = t.createdAt.toISOString().split("T")[0];
-    const idx = seriesIndex.get(key);
-    if (idx !== undefined) series[idx].value += parseFloat(t.amount);
+
+  const [
+    [userCounts],
+    [botCounts],
+    [runningBotCounts],
+    [financeCounts],
+    [kycCounts],
+    [ticketCounts],
+    revenueRows,
+    recentRows,
+  ] = await Promise.all([
+    db.select({
+      totalUsers: sql<number>`count(*)::int`,
+      activeUsers: sql<number>`count(*) filter (where ${usersTable.status} = 'active')::int`,
+      suspendedUsers: sql<number>`count(*) filter (where ${usersTable.status} = 'suspended')::int`,
+      newUsersToday: sql<number>`count(*) filter (where ${usersTable.createdAt} >= ${startOfToday})::int`,
+    }).from(usersTable),
+    db.select({ totalBots: sql<number>`count(*)::int` }).from(botsTable),
+    db.select({ activeBotInstances: sql<number>`count(*)::int` })
+      .from(userBotsTable)
+      .where(eq(userBotsTable.status, "running")),
+    db.select({
+      totalDeposits: sql<string>`coalesce(sum(case when ${transactionsTable.type} = 'deposit' and ${transactionsTable.status} = 'completed' then ${transactionsTable.amount} else 0 end), 0)`,
+      totalWithdrawals: sql<string>`coalesce(sum(case when ${transactionsTable.type} = 'withdrawal' and ${transactionsTable.status} = 'completed' then ${transactionsTable.amount} else 0 end), 0)`,
+      pendingDeposits: sql<number>`count(*) filter (where ${transactionsTable.type} = 'deposit' and ${transactionsTable.status} = 'pending')::int`,
+      pendingWithdrawals: sql<number>`count(*) filter (where ${transactionsTable.type} = 'withdrawal' and ${transactionsTable.status} = 'pending')::int`,
+    }).from(transactionsTable),
+    db.select({ pendingKyc: sql<number>`count(*)::int` })
+      .from(kycTable)
+      .where(inArray(kycTable.status, KYC_PENDING)),
+    db.select({ openTickets: sql<number>`count(*)::int` })
+      .from(supportTicketsTable)
+      .where(eq(supportTicketsTable.status, "open")),
+    db.select({
+      day: sql<string>`to_char(date_trunc('day', ${transactionsTable.createdAt}), 'YYYY-MM-DD')`,
+      value: sql<string>`coalesce(sum(${transactionsTable.amount}), 0)`,
+    })
+      .from(transactionsTable)
+      .where(and(
+        eq(transactionsTable.type, "deposit"),
+        eq(transactionsTable.status, "completed"),
+        gte(transactionsTable.createdAt, startOfSeries),
+      ))
+      .groupBy(sql`date_trunc('day', ${transactionsTable.createdAt})`),
+    db.select({
+      transaction: transactionsTable,
+      userName: usersTable.fullName,
+      userEmail: usersTable.email,
+    })
+      .from(transactionsTable)
+      .leftJoin(usersTable, eq(transactionsTable.userId, usersTable.id))
+      .orderBy(desc(transactionsTable.createdAt))
+      .limit(10),
+  ]);
+
+  for (const row of revenueRows) {
+    const idx = seriesIndex.get(row.day);
+    if (idx !== undefined) series[idx].value = Number(row.value);
   }
 
-  const userMap = new Map(users.map((u) => [u.id, u]));
-  const recent = [...txns]
-    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-    .slice(0, 10)
-    .map((t) => {
-      const u = userMap.get(t.userId);
-      return {
-        id: t.id,
-        userId: t.userId,
-        userName: u?.fullName ?? "Unknown",
-        userEmail: u?.email ?? "",
-        type: t.type,
-        amount: parseFloat(t.amount),
-        status: t.status,
-        paymentMethod: t.paymentMethod,
-        walletAddress: t.walletAddress,
-        description: t.description,
-        createdAt: t.createdAt.toISOString(),
-        cryptoAmount: t.cryptoAmount ? parseFloat(t.cryptoAmount) : null,
-        cryptoAsset: t.cryptoAsset,
-        conversionRate: t.conversionRate ? parseFloat(t.conversionRate) : null,
-      };
-    });
+  const totalDeposits = Number(financeCounts?.totalDeposits ?? 0);
+  const totalWithdrawals = Number(financeCounts?.totalWithdrawals ?? 0);
+  const recent = recentRows.map(({ transaction: t, userName, userEmail }) => ({
+    id: t.id,
+    userId: t.userId,
+    userName: userName ?? "Unknown",
+    userEmail: userEmail ?? "",
+    type: t.type,
+    amount: parseFloat(t.amount),
+    status: t.status,
+    paymentMethod: t.paymentMethod,
+    walletAddress: t.walletAddress,
+    description: t.description,
+    createdAt: t.createdAt.toISOString(),
+    cryptoAmount: t.cryptoAmount ? parseFloat(t.cryptoAmount) : null,
+    cryptoAsset: t.cryptoAsset,
+    conversionRate: t.conversionRate ? parseFloat(t.conversionRate) : null,
+  }));
 
   return res.json({
-    totalUsers: users.length,
-    activeUsers: users.filter((u) => u.status === "active").length,
-    suspendedUsers: users.filter((u) => u.status === "suspended").length,
-    newUsersToday: users.filter((u) => u.createdAt >= startOfToday).length,
-    totalBots: bots.length,
-    activeBotInstances: userBots.filter((b) => b.status === "running").length,
+    totalUsers: Number(userCounts?.totalUsers ?? 0),
+    activeUsers: Number(userCounts?.activeUsers ?? 0),
+    suspendedUsers: Number(userCounts?.suspendedUsers ?? 0),
+    newUsersToday: Number(userCounts?.newUsersToday ?? 0),
+    totalBots: Number(botCounts?.totalBots ?? 0),
+    activeBotInstances: Number(runningBotCounts?.activeBotInstances ?? 0),
     totalDeposits,
     totalWithdrawals,
     netRevenue: totalDeposits - totalWithdrawals,
-    pendingDeposits: txns.filter((t) => t.type === "deposit" && t.status === "pending").length,
-    pendingWithdrawals: txns.filter((t) => t.type === "withdrawal" && t.status === "pending").length,
-    pendingKyc: kycs.filter((k) => KYC_PENDING.includes(k.status)).length,
-    openTickets: tickets.filter((t) => t.status === "open").length,
+    pendingDeposits: Number(financeCounts?.pendingDeposits ?? 0),
+    pendingWithdrawals: Number(financeCounts?.pendingWithdrawals ?? 0),
+    pendingKyc: Number(kycCounts?.pendingKyc ?? 0),
+    openTickets: Number(ticketCounts?.openTickets ?? 0),
     revenueSeries: series,
     recentTransactions: recent,
   });
@@ -288,30 +320,61 @@ router.get("/admin/overview", async (_req, res) => {
 
 // ---------------- Users ----------------
 router.get("/admin/users", async (req, res) => {
-  const search = (req.query.search as string | undefined)?.trim().toLowerCase();
+  const search = (req.query.search as string | undefined)?.trim().toLowerCase().slice(0, 100);
+  const requestedLimit = Number.parseInt(String(req.query.limit ?? "100"), 10);
+  const requestedOffset = Number.parseInt(String(req.query.offset ?? "0"), 10);
+  const limit = Number.isFinite(requestedLimit) ? Math.min(100, Math.max(1, requestedLimit)) : 100;
+  const offset = Number.isFinite(requestedOffset) ? Math.min(1_000_000, Math.max(0, requestedOffset)) : 0;
+  const escapeLike = (value: string) => value.replace(/[\\%_]/g, "\\$&");
+  const searchFilter = search
+    ? or(
+      ilike(usersTable.fullName, `%${escapeLike(search)}%`),
+      ilike(usersTable.email, `%${escapeLike(search)}%`),
+      ilike(usersTable.accountUid, `%${escapeLike(search)}%`),
+    )
+    : undefined;
 
-  const [users, userBots, txns, profiles] = await Promise.all([
-    db.select().from(usersTable).orderBy(desc(usersTable.createdAt)),
-    db.select().from(userBotsTable),
-    db.select().from(transactionsTable),
-    db.select().from(userProfilesTable),
+  const [users, [{ total }]] = await Promise.all([
+    db.select().from(usersTable)
+      .where(searchFilter)
+      .orderBy(desc(usersTable.createdAt))
+      .limit(limit)
+      .offset(offset),
+    db.select({ total: sql<number>`count(*)::int` }).from(usersTable).where(searchFilter),
+  ]);
+  const userIds = users.map((u) => u.id);
+  res.setHeader("X-Total-Count", String(Number(total ?? 0)));
+
+  if (userIds.length === 0) return res.json([]);
+
+  const [botRows, txnRows, profiles] = await Promise.all([
+    db.select({
+      userId: userBotsTable.userId,
+      totalBots: sql<number>`count(*)::int`,
+      totalProfit: sql<string>`coalesce(sum(${userBotsTable.profitTotal}), 0)`,
+    }).from(userBotsTable).where(inArray(userBotsTable.userId, userIds)).groupBy(userBotsTable.userId),
+    db.select({
+      userId: transactionsTable.userId,
+      balance: sql<string>`coalesce(sum(case
+        when ${transactionsTable.status} = 'completed'
+          and ${transactionsTable.type} in ('deposit', 'trade_profit', 'trade_loss_return')
+          then ${transactionsTable.amount}
+        when ${transactionsTable.status} = 'completed'
+          and ${transactionsTable.type} in ('withdrawal', 'trade_loss', 'bot_purchase')
+          then -${transactionsTable.amount}
+        else 0 end), 0)`,
+    }).from(transactionsTable).where(inArray(transactionsTable.userId, userIds)).groupBy(transactionsTable.userId),
+    db.select().from(userProfilesTable).where(inArray(userProfilesTable.userId, userIds)),
   ]);
 
   const profileMap = new Map(profiles.map((p) => [p.userId, p]));
-  const botCount = new Map<number, number>();
-  const profitByUser = new Map<number, number>();
-  for (const b of userBots) {
-    botCount.set(b.userId, (botCount.get(b.userId) ?? 0) + 1);
-    profitByUser.set(b.userId, (profitByUser.get(b.userId) ?? 0) + parseFloat(b.profitTotal));
-  }
-  const txnByUser = new Map<number, number>();
-  for (const t of txns) {
-    if (t.status !== "completed") continue;
-    txnByUser.set(t.userId, (txnByUser.get(t.userId) ?? 0) + txnDelta(t.type, parseFloat(t.amount)));
-  }
+  const botMap = new Map(botRows.map((row) => [row.userId, row]));
+  const txnMap = new Map(txnRows.map((row) => [row.userId, Number(row.balance)]));
 
-  let result = users.map((u) => {
-    const balance = (txnByUser.get(u.id) ?? 0) + (profitByUser.get(u.id) ?? 0);
+  const result = users.map((u) => {
+    const botRow = botMap.get(u.id);
+    const balance = txnMap.get(u.id) ?? 0;
+    const totalProfit = Number(botRow?.totalProfit ?? 0);
     return {
       id: u.id,
       accountUid: u.accountUid,
@@ -319,22 +382,13 @@ router.get("/admin/users", async (req, res) => {
       email: u.email,
       status: u.status,
       kycStatus: u.kycStatus,
-      balance: Math.max(0, Math.round(balance * 100) / 100),
-      totalBots: botCount.get(u.id) ?? 0,
+      balance: Math.max(0, Math.round((balance + totalProfit) * 100) / 100),
+      totalBots: Number(botRow?.totalBots ?? 0),
       avatarUrl: u.avatarUrl,
       country: profileMap.get(u.id)?.country ?? null,
       createdAt: u.createdAt.toISOString(),
     };
   });
-
-  if (search) {
-    result = result.filter(
-      (u) =>
-        u.fullName.toLowerCase().includes(search) ||
-        u.email.toLowerCase().includes(search) ||
-        u.accountUid.toLowerCase().includes(search),
-    );
-  }
 
   return res.json(result);
 });
@@ -580,16 +634,15 @@ router.post("/admin/kyc/:userId/review", async (req, res) => {
 
 // ---------------- Bots ----------------
 async function mapBots() {
-  const [bots, userBots] = await Promise.all([
+  const [bots, userBotStats] = await Promise.all([
     db.select().from(botsTable).orderBy(desc(botsTable.createdAt)),
-    db.select().from(userBotsTable),
+    db.select({
+      botId: userBotsTable.botId,
+      activeUsers: sql<number>`count(*)::int`,
+      totalProfit: sql<string>`coalesce(sum(${userBotsTable.profitTotal}), 0)`,
+    }).from(userBotsTable).groupBy(userBotsTable.botId),
   ]);
-  const usersByBot = new Map<number, number>();
-  const profitByBot = new Map<number, number>();
-  for (const b of userBots) {
-    usersByBot.set(b.botId, (usersByBot.get(b.botId) ?? 0) + 1);
-    profitByBot.set(b.botId, (profitByBot.get(b.botId) ?? 0) + parseFloat(b.profitTotal));
-  }
+  const statsByBot = new Map(userBotStats.map((row) => [row.botId, row]));
   return bots.map((b) => ({
     id: b.id,
     name: b.name,
@@ -602,8 +655,8 @@ async function mapBots() {
     minInvestment: parseFloat(b.minInvestment),
     iconUrl: b.iconUrl,
     isActive: b.isMarketplace,
-    activeUsers: usersByBot.get(b.id) ?? 0,
-    totalProfit: Math.round((profitByBot.get(b.id) ?? 0) * 100) / 100,
+    activeUsers: Number(statsByBot.get(b.id)?.activeUsers ?? 0),
+    totalProfit: Math.round(Number(statsByBot.get(b.id)?.totalProfit ?? 0) * 100) / 100,
     createdAt: b.createdAt.toISOString(),
   }));
 }
@@ -731,16 +784,29 @@ function mapTxnRow(t: typeof transactionsTable.$inferSelect, u: typeof usersTabl
 router.get("/admin/transactions", async (req, res) => {
   const type = req.query.type as string | undefined;
   const status = req.query.status as string | undefined;
-  const rows = await db
-    .select({ txn: transactionsTable, user: usersTable })
-    .from(transactionsTable)
-    .leftJoin(usersTable, eq(transactionsTable.userId, usersTable.id))
-    .orderBy(desc(transactionsTable.createdAt));
+  const requestedLimit = Number.parseInt(String(req.query.limit ?? "200"), 10);
+  const requestedOffset = Number.parseInt(String(req.query.offset ?? "0"), 10);
+  const limit = Number.isFinite(requestedLimit) ? Math.min(500, Math.max(1, requestedLimit)) : 200;
+  const offset = Number.isFinite(requestedOffset) ? Math.min(1_000_000, Math.max(0, requestedOffset)) : 0;
+  const filters = [];
+  if (type && type !== "all") filters.push(eq(transactionsTable.type, type));
+  if (status && status !== "all") filters.push(eq(transactionsTable.status, status));
 
-  let result = rows.map((r) => mapTxnRow(r.txn, r.user));
-  if (type && type !== "all") result = result.filter((t) => t.type === type);
-  if (status && status !== "all") result = result.filter((t) => t.status === status);
-  return res.json(result);
+  const [[{ total }], rows] = await Promise.all([
+    db.select({ total: sql<number>`count(*)::int` })
+      .from(transactionsTable)
+      .where(filters.length > 0 ? and(...filters) : undefined),
+    db
+      .select({ txn: transactionsTable, user: usersTable })
+      .from(transactionsTable)
+      .leftJoin(usersTable, eq(transactionsTable.userId, usersTable.id))
+      .where(filters.length > 0 ? and(...filters) : undefined)
+      .orderBy(desc(transactionsTable.createdAt))
+      .limit(limit)
+      .offset(offset),
+  ]);
+  res.setHeader("X-Total-Count", String(Number(total ?? 0)));
+  return res.json(rows.map((r) => mapTxnRow(r.txn, r.user)));
 });
 
 router.post("/admin/transactions/:id/review", async (req, res) => {
@@ -1127,30 +1193,28 @@ router.post("/admin/broadcast", async (req, res) => {
   const parsed = AdminBroadcastBody.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
 
-  const users = await db.select({ id: usersTable.id }).from(usersTable);
-  if (users.length > 0) {
-    await db.insert(notificationsTable).values(
-      users.map((u) => ({
-        userId: u.id,
-        type: "announcement",
-        title: parsed.data.title,
-        message: parsed.data.message,
-      })),
-    );
-  }
+  // Keep the million-user fan-out inside PostgreSQL. Loading every user id
+  // into the API process creates avoidable memory pressure and a giant
+  // parameterized INSERT.
+  const fanout = await db.execute(sql`
+    insert into ${notificationsTable} ("user_id", "type", "title", "message")
+    select ${usersTable.id}, 'announcement', ${parsed.data.title}, ${parsed.data.message}
+    from ${usersTable}
+  `);
+  const recipientCount = Number(fanout.rowCount ?? 0);
 
   // Log the broadcast (non-fatal — table may not exist yet on first deploy)
   try {
     await db.insert(broadcastsTable).values({
       title: parsed.data.title,
       message: parsed.data.message,
-      recipientCount: users.length,
+      recipientCount,
     });
   } catch (_e) {
     // broadcastsTable migration pending — log only, notification already sent
   }
 
-  return res.json({ message: `Broadcast sent to ${users.length} users` });
+  return res.json({ message: `Broadcast sent to ${recipientCount} users` });
 });
 
 router.get("/admin/broadcasts", async (_req, res) => {

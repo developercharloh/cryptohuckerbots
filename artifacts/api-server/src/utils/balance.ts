@@ -1,21 +1,24 @@
 import { db, transactionsTable } from "@workspace/db";
-import { and, eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 export async function getAvailableBalance(userId: number): Promise<number> {
-  const txns = await db
-    .select()
+  const [row] = await db
+    .select({
+      balance: sql<string>`coalesce(sum(case
+        when ${transactionsTable.status} = 'completed'
+          and ${transactionsTable.type} in ('deposit', 'trade_profit', 'trade_loss_return')
+          then ${transactionsTable.amount}
+        when ${transactionsTable.status} = 'completed'
+          and ${transactionsTable.type} in ('withdrawal', 'trade_loss', 'bot_purchase')
+          then -${transactionsTable.amount}
+        -- Pending withdrawals lock funds before an admin review.
+        when ${transactionsTable.status} = 'pending'
+          and ${transactionsTable.type} = 'withdrawal'
+          then -${transactionsTable.amount}
+        else 0 end), 0)`,
+    })
     .from(transactionsTable)
     .where(eq(transactionsTable.userId, userId));
 
-  let balance = 0;
-  for (const t of txns) {
-    const amt = parseFloat(t.amount);
-    if (t.status === "completed") {
-      if (t.type === "deposit" || t.type === "trade_profit" || t.type === "trade_loss_return") balance += amt;
-      if (t.type === "withdrawal" || t.type === "trade_loss" || t.type === "bot_purchase") balance -= amt;
-    }
-    // Pending withdrawals also lock the funds so users can't double-spend
-    if (t.status === "pending" && t.type === "withdrawal") balance -= amt;
-  }
-  return balance;
+  return Number(row?.balance ?? 0);
 }

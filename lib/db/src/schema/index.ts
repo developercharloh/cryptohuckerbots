@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, numeric, boolean, timestamp, varchar, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, numeric, boolean, timestamp, varchar, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -17,7 +17,10 @@ export const usersTable = pgTable("users", {
   twoFASecret: text("two_fa_secret"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("users_created_at_idx").on(table.createdAt),
+  index("users_status_created_at_idx").on(table.status, table.createdAt),
+]);
 
 export const insertUserSchema = createInsertSchema(usersTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -33,7 +36,10 @@ export const sessionsTable = pgTable("sessions", {
   location: text("location"),
   lastActive: timestamp("last_active").notNull().defaultNow(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("sessions_user_id_idx").on(table.userId),
+  index("sessions_created_at_idx").on(table.createdAt),
+]);
 
 export type Session = typeof sessionsTable.$inferSelect;
 
@@ -67,7 +73,11 @@ export const userBotsTable = pgTable("user_bots", {
   startedAt: timestamp("started_at"),
   nextTradeAt: timestamp("next_trade_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("user_bots_user_id_idx").on(table.userId),
+  index("user_bots_user_status_idx").on(table.userId, table.status),
+  index("user_bots_next_trade_at_idx").on(table.nextTradeAt),
+]);
 
 export type UserBot = typeof userBotsTable.$inferSelect;
 
@@ -89,7 +99,10 @@ export const positionsTable = pgTable("positions", {
   realizedPnl: numeric("realized_pnl", { precision: 12, scale: 2 }),
   openedAt: timestamp("opened_at").notNull().defaultNow(),
   closedAt: timestamp("closed_at"),
-});
+}, (table) => [
+  index("positions_user_opened_at_idx").on(table.userId, table.openedAt),
+  index("positions_user_status_idx").on(table.userId, table.status),
+]);
 
 export type Position = typeof positionsTable.$inferSelect;
 
@@ -107,7 +120,11 @@ export const transactionsTable = pgTable("transactions", {
   cryptoAsset: varchar("crypto_asset", { length: 20 }),
   conversionRate: numeric("conversion_rate", { precision: 20, scale: 8 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("transactions_user_created_at_idx").on(table.userId, table.createdAt),
+  index("transactions_user_status_created_at_idx").on(table.userId, table.status, table.createdAt),
+  index("transactions_status_type_created_at_idx").on(table.status, table.type, table.createdAt),
+]);
 
 export type Transaction = typeof transactionsTable.$inferSelect;
 
@@ -118,7 +135,9 @@ export const earningsTable = pgTable("earnings", {
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
   source: varchar("source", { length: 100 }).notNull(),
   date: timestamp("date").notNull().defaultNow(),
-});
+}, (table) => [
+  index("earnings_user_date_idx").on(table.userId, table.date),
+]);
 
 export type Earning = typeof earningsTable.$inferSelect;
 
@@ -131,7 +150,10 @@ export const notificationsTable = pgTable("notifications", {
   message: text("message").notNull(),
   isRead: boolean("is_read").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("notifications_user_created_at_idx").on(table.userId, table.createdAt),
+  index("notifications_user_read_created_at_idx").on(table.userId, table.isRead, table.createdAt),
+]);
 
 export type Notification = typeof notificationsTable.$inferSelect;
 
@@ -185,7 +207,10 @@ export const depositSessionsTable = pgTable("deposit_sessions", {
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("deposit_sessions_user_created_at_idx").on(table.userId, table.createdAt),
+  index("deposit_sessions_status_expires_at_idx").on(table.status, table.expiresAt),
+]);
 
 export type DepositSession = typeof depositSessionsTable.$inferSelect;
 
@@ -196,7 +221,9 @@ export const chatMessagesTable = pgTable("chat_messages", {
   sender: varchar("sender", { length: 10 }).notNull(), // 'user' | 'admin'
   message: text("message").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("chat_messages_user_created_at_idx").on(table.userId, table.createdAt),
+]);
 
 export type ChatMessage = typeof chatMessagesTable.$inferSelect;
 
@@ -211,7 +238,10 @@ export const supportTicketsTable = pgTable("support_tickets", {
   repliedAt: timestamp("replied_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("support_tickets_user_created_at_idx").on(table.userId, table.createdAt),
+  index("support_tickets_status_created_at_idx").on(table.status, table.createdAt),
+]);
 
 export type SupportTicket = typeof supportTicketsTable.$inferSelect;
 
@@ -251,7 +281,9 @@ export const broadcastsTable = pgTable("broadcasts", {
   message: text("message").notNull(),
   recipientCount: integer("recipient_count").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("broadcasts_created_at_idx").on(table.createdAt),
+]);
 
 export type Broadcast = typeof broadcastsTable.$inferSelect;
 
@@ -266,7 +298,10 @@ export const adminLoginNotificationsTable = pgTable("admin_login_notifications",
   country: varchar("country", { length: 100 }).notNull().default("Unknown"),
   isRead: boolean("is_read").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("admin_login_notifications_created_at_idx").on(table.createdAt),
+  index("admin_login_notifications_read_created_at_idx").on(table.isRead, table.createdAt),
+]);
 
 export type AdminLoginNotification = typeof adminLoginNotificationsTable.$inferSelect;
 

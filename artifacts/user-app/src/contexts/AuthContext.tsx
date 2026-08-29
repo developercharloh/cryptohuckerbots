@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
-import { useGetMe, setAuthTokenGetter } from "@workspace/api-client-react";
+import { useGetMe, setAuthTokenGetter, ApiError } from "@workspace/api-client-react";
 import type { User } from "@workspace/api-client-react";
 
 // Web sessions are carried by an HttpOnly cookie. Never expose the session
@@ -29,7 +29,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: meData, isError } = useGetMe({ query: { enabled: !!token, retry: false } as any });
+  const { data: meData, error: meError, isError } = useGetMe({
+    query: {
+      enabled: !!token,
+      retry: (failureCount: number, error: unknown) => {
+        // A missing/expired session is definitive. Network, server, and
+        // transient proxy failures must not log a real user out.
+        if (error instanceof ApiError && error.status === 401) return false;
+        return failureCount < 2;
+      },
+    } as any,
+  });
 
   useEffect(() => {
     if (!token) return;
@@ -38,12 +48,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sessionWasValidated.current = true;
       setUser(meData);
       setIsInitializing(false);
-    } else if (isError && (sessionWasValidated.current || !user)) {
-      setUser(null);
-      setToken(null);
+    } else if (isError) {
       setIsInitializing(false);
+      if (meError instanceof ApiError && meError.status === 401) {
+        setUser(null);
+        setToken(null);
+      }
     }
-  }, [meData, isError, token, user]);
+  }, [meData, meError, isError, token, user]);
 
   const setAuth = (newUser: User) => {
     setAuthTokenGetter(null);
@@ -53,6 +65,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const handleLogout = () => {
+    const apiBase = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
+    void fetch(`${apiBase}/api/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+    }).catch(() => {
+      // Local state is still cleared if the server is temporarily unreachable.
+    });
     setToken(null);
     setUser(null);
   };

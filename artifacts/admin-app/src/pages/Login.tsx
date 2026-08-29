@@ -40,9 +40,7 @@ export default function Login({ onLogin }: LoginProps) {
         return;
       }
 
-      setTimeout(() => {
-        onLogin();
-      }, 900);
+      onLogin();
     } catch {
       triggerShake("Network error. Please try again.");
     } finally {

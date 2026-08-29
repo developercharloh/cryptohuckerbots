@@ -29,23 +29,31 @@ router.get("/dashboard/summary", async (req, res) => {
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
-  const userBots = await db.select().from(userBotsTable).where(eq(userBotsTable.userId, user.id));
-  const activeBots = userBots.filter(b => b.status === "running");
+  const [userBots, [finance]] = await Promise.all([
+    db.select().from(userBotsTable).where(eq(userBotsTable.userId, user.id)),
+    db.select({
+      balance: sql<string>`coalesce(sum(case
+        when ${transactionsTable.status} = 'completed'
+          and ${transactionsTable.type} in ('deposit', 'trade_profit', 'trade_loss_return')
+          then ${transactionsTable.amount}
+        when ${transactionsTable.status} = 'completed'
+          and ${transactionsTable.type} in ('withdrawal', 'trade_loss', 'bot_purchase')
+          then -${transactionsTable.amount}
+        else 0 end), 0)`,
+      pendingOut: sql<string>`coalesce(sum(case
+        when ${transactionsTable.status} = 'pending'
+          and ${transactionsTable.type} in ('withdrawal', 'bot_purchase')
+          then ${transactionsTable.amount}
+        else 0 end), 0)`,
+      totalDeposited: sql<string>`coalesce(sum(case
+        when ${transactionsTable.type} = 'deposit' and ${transactionsTable.status} = 'completed'
+          then ${transactionsTable.amount}
+        else 0 end), 0)`,
+    }).from(transactionsTable).where(eq(transactionsTable.userId, user.id)),
+  ]);
 
-  const txns = await db.select().from(transactionsTable).where(eq(transactionsTable.userId, user.id));
-
-  let balance = 0;
-  let pendingOut = 0;
-  for (const t of txns) {
-    const amt = parseFloat(t.amount);
-    if (t.status === "completed") {
-      if (t.type === "deposit" || t.type === "trade_profit" || t.type === "trade_loss_return") balance += amt;
-      if (t.type === "withdrawal" || t.type === "trade_loss" || t.type === "bot_purchase") balance -= amt;
-    }
-    if (t.status === "pending" && (t.type === "withdrawal" || t.type === "bot_purchase")) {
-      pendingOut += amt;
-    }
-  }
+  const balance = Number(finance?.balance ?? 0);
+  const pendingOut = Number(finance?.pendingOut ?? 0);
 
   const availableBalance = Math.max(0, balance - pendingOut);
   const todayProfit = activeBots.reduce((sum, b) => sum + parseFloat(b.profitToday), 0);
@@ -54,7 +62,7 @@ router.get("/dashboard/summary", async (req, res) => {
   const winRate = userBots.length > 0 ? 72 + (user.id % 20) : 0; // deterministic per user
 
   // Compute ROI as totalEarnings / totalDeposited * 100
-  const totalDeposited = txns.filter(t => t.type === "deposit" && t.status === "completed").reduce((s, t) => s + parseFloat(t.amount), 0);
+  const totalDeposited = Number(finance?.totalDeposited ?? 0);
   const roi = totalDeposited > 0 ? (totalEarnings / totalDeposited) * 100 : 0;
 
   return res.json({
