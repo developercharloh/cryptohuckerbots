@@ -570,6 +570,64 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /trade/vip-packages:
+    get:
+      operationId: listVipPackages
+      tags: [trade]
+      responses:
+        "200":
+          description: Available VIP signal packages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VipPackage"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /trade/vip-packages/{level}/purchase:
+    post:
+      operationId: purchaseVipPackage
+      tags: [trade]
+      parameters:
+        - name: level
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 7
+      responses:
+        "201":
+          description: VIP package purchased
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VipPackagePurchaseResponse"
+        "400":
+          description: Purchase rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Package cannot be purchased
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /trade/execute:
     post:
       operationId: executeTrade
@@ -1631,6 +1689,13 @@ components:
           type: number
         totalDeposited:
           type: number
+        hasPackage:
+          type: boolean
+        packagePrice:
+          type: number
+          nullable: true
+        canExecute:
+          type: boolean
         dailyLimit:
           type: integer
         usedToday:
@@ -1651,7 +1716,44 @@ components:
           nullable: true
         signalAmount:
           type: number
-      required: [vipLevel, minimumDeposit, totalDeposited, dailyLimit, usedToday, remainingToday, timezone, nextLevel, nextLevelDeposit, nextSignalAt, signalAmount]
+      required: [vipLevel, minimumDeposit, totalDeposited, hasPackage, packagePrice, canExecute, dailyLimit, usedToday, remainingToday, timezone, nextLevel, nextLevelDeposit, nextSignalAt, signalAmount]
+
+    VipPackage:
+      type: object
+      properties:
+        level:
+          type: integer
+        price:
+          type: number
+        dailySignals:
+          type: integer
+        isActive:
+          type: boolean
+        isUpgrade:
+          type: boolean
+        isAvailable:
+          type: boolean
+      required: [level, price, dailySignals, isActive, isUpgrade, isAvailable]
+
+    VipPackagePurchaseResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        package:
+          type: object
+          properties:
+            level:
+              type: integer
+            price:
+              type: number
+            dailySignals:
+              type: integer
+            purchasedAt:
+              type: string
+              format: date-time
+          required: [level, price, dailySignals, purchasedAt]
+      required: [message, package]
 
     ExecuteTradeInput:
       type: object

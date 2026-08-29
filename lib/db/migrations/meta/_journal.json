@@ -15,6 +15,13 @@
       "when": 1788023819127,
       "tag": "0001_optimal_wraith",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788025912643,
+      "tag": "0002_numerous_senator_kelly",
+      "breakpoints": true
     }
   ]
 }

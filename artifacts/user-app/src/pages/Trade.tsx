@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useLocation } from "wouter";
 import {
   useListTradeSignals, useGetTradeAccess, useExecuteTrade,
   useListTradePositions, useCloseTradePosition, useGetDashboardSummary,
@@ -136,6 +137,7 @@ type SavedTrade = {
 type SignalInfo = { id?: string | number; opportunityId?: number; confidence?: number; pair?: string; direction?: string; status?: string };
 
 export default function Trade() {
+  const [, setLocation] = useLocation();
   const { data: signals = [] } = useListTradeSignals();
   const { data: vipAccess } = useGetTradeAccess({ query: { refetchInterval: 15000 } as any });
   const { data: positions } = useListTradePositions({ query: { refetchInterval: 4000 } as any });
@@ -556,21 +558,35 @@ export default function Trade() {
                         {vipAccess.remainingToday} of {vipAccess.dailyLimit} left
                       </p>
                       <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 3 }}>
-                        ${vipAccess.totalDeposited.toLocaleString()} completed deposits
+                        {vipAccess.hasPackage
+                          ? `$${(vipAccess.packagePrice ?? 0).toLocaleString()} package purchased`
+                          : "Purchase a package to unlock signals"}
                       </p>
                     </div>
                   </div>
                   {vipAccess.vipLevel === 0 ? (
-                    <p style={{ fontSize: 11, color: "#FCD34D", lineHeight: 1.5, marginTop: 10 }}>
-                      Complete at least $500 in deposits to unlock VIP 1 and receive 3 scheduled signals per day.
-                    </p>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 10 }}>
+                      <p style={{ fontSize: 11, color: "#FCD34D", lineHeight: 1.5 }}>
+                        Buy VIP 1 or higher to unlock scheduled AI Signals.
+                      </p>
+                      <button onClick={() => setLocation("/vip-packages")} style={{ flexShrink: 0, border: "none", borderRadius: 9, padding: "8px 10px", background: "linear-gradient(135deg, #F5B942, #2563EB)", color: "#fff", fontSize: 10, fontWeight: 800, cursor: "pointer" }}>
+                        Buy VIP Package
+                      </button>
+                    </div>
                   ) : (
-                    <p style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.5, marginTop: 10 }}>
-                      {vipAccess.nextLevel
-                        ? `Deposit $${Math.max(0, (vipAccess.nextLevelDeposit ?? 0) - vipAccess.totalDeposited).toLocaleString()} more to reach VIP ${vipAccess.nextLevel}.`
-                        : "You are at the highest available VIP level."}
-                      {" "}Timezone: {vipAccess.timezone}.
-                    </p>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 10 }}>
+                      <p style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.5 }}>
+                        {vipAccess.nextLevel
+                          ? `Upgrade to VIP ${vipAccess.nextLevel} with a ${vipAccess.nextLevelDeposit?.toLocaleString()} package.`
+                          : "You are at the highest available VIP level."}
+                        {" "}Timezone: {vipAccess.timezone}.
+                      </p>
+                      {vipAccess.nextLevel && (
+                        <button onClick={() => setLocation("/vip-packages")} style={{ flexShrink: 0, border: "1px solid rgba(245,185,66,0.35)", borderRadius: 9, padding: "8px 10px", background: "rgba(245,185,66,0.08)", color: "#FFD86B", fontSize: 10, fontWeight: 800, cursor: "pointer" }}>
+                          Upgrade VIP
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
@@ -607,7 +623,7 @@ export default function Trade() {
                 <div style={{ borderRadius: 16, padding: 16, border: "1px solid rgba(245,185,66,0.25)", background: "rgba(245,185,66,0.06)" }}>
                   <p style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>VIP 1 access required</p>
                   <p style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.5, marginTop: 6 }}>
-                    AI Signals unlock after $500 in completed deposits. Your funds remain withdrawable under the normal withdrawal rules.
+                    AI Signals unlock after you purchase a VIP package from your available wallet balance.
                   </p>
                 </div>
               )}

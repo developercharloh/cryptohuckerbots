@@ -93,4 +93,7 @@ export * from './transaction';
 export * from './twoFAStatus';
 export * from './twoFAToggleInput';
 export * from './user';
+export * from './vipPackage';
+export * from './vipPackagePurchaseResponse';
+export * from './vipPackagePurchaseResponsePackage';
 export * from './withdrawInput';

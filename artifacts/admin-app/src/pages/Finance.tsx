@@ -152,8 +152,8 @@ function TransactionsTab() {
                     <p className="text-[10px] text-muted-foreground/60 mt-0.5">{format(new Date(txn.createdAt), "PP · p")}</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <div className={`text-lg font-bold ${txn.type === "deposit" || txn.type === "trade_profit" ? "text-emerald-400" : txn.type === "withdrawal" || txn.type === "trade_loss" || txn.type === "trade_loss_return" ? "text-red-400" : "text-foreground"}`}>
-                      {txn.type === "deposit" || txn.type === "trade_profit" ? "+" : txn.type === "withdrawal" || txn.type === "trade_loss" || txn.type === "trade_loss_return" ? "−" : ""}${txn.amount.toFixed(2)}
+                    <div className={`text-lg font-bold ${txn.type === "deposit" || txn.type === "trade_profit" ? "text-emerald-400" : txn.type === "withdrawal" || txn.type === "trade_loss" || txn.type === "trade_loss_return" || txn.type === "vip_package_purchase" ? "text-red-400" : "text-foreground"}`}>
+                      {txn.type === "deposit" || txn.type === "trade_profit" ? "+" : txn.type === "withdrawal" || txn.type === "trade_loss" || txn.type === "trade_loss_return" || txn.type === "vip_package_purchase" ? "−" : ""}${txn.amount.toFixed(2)}
                     </div>
                   </div>
                 </div>

@@ -385,20 +385,26 @@ export default function TradePairPage() {
             </p>
             {vipAccess && (
               <div style={{ borderRadius: 10, padding: "9px 10px", marginBottom: 12, background: vipAccess.vipLevel > 0 ? "rgba(245,185,66,0.08)" : "rgba(239,68,68,0.08)", border: `1px solid ${vipAccess.vipLevel > 0 ? "rgba(245,185,66,0.18)" : "rgba(239,68,68,0.18)"}` }}>
-                <p style={{ fontSize: 10, color: vipAccess.vipLevel > 0 ? "#FFD86B" : "#FCA5A5", fontWeight: 700 }}>
-                  {vipAccess.vipLevel > 0
-                    ? `VIP ${vipAccess.vipLevel} · ${vipAccess.remainingToday} signal${vipAccess.remainingToday === 1 ? "" : "s"} remaining today`
-                    : "VIP 1 access required before signal execution"}
-                </p>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                  <p style={{ fontSize: 10, color: vipAccess.vipLevel > 0 ? "#FFD86B" : "#FCA5A5", fontWeight: 700 }}>
+                    {vipAccess.vipLevel > 0
+                      ? `VIP ${vipAccess.vipLevel} · ${vipAccess.remainingToday} signal${vipAccess.remainingToday === 1 ? "" : "s"} remaining today`
+                      : "VIP 1 access required before signal execution"}
+                  </p>
+                  {vipAccess.vipLevel > 0 && vipAccess.nextLevel && (
+                    <button onClick={() => setLocation("/vip-packages")} style={{ flexShrink: 0, border: "none", background: "transparent", color: "#FFD86B", fontSize: 10, fontWeight: 800, cursor: "pointer" }}>
+                      Upgrade
+                    </button>
+                  )}
+                </div>
               </div>
             )}
-            <button onClick={() => setLocation(`/trade?pair=${encodeURIComponent(meta.label)}`)} style={{
+            <button onClick={() => setLocation(vipAccess?.vipLevel === 0 ? "/vip-packages" : `/trade?pair=${encodeURIComponent(meta.label)}`)} style={{
               width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "14px 0", borderRadius: 12,
-              border: "none", cursor: vipAccess?.vipLevel === 0 ? "not-allowed" : "pointer", fontSize: 14, fontWeight: 900, color: "#fff",
-              background: vipAccess?.vipLevel === 0 ? "rgba(107,114,128,0.35)" : "linear-gradient(135deg, #F5B942, #2563EB)",
-              opacity: vipAccess?.vipLevel === 0 ? 0.7 : 1,
-            }} disabled={vipAccess?.vipLevel === 0}>
-              {vipAccess?.vipLevel === 0 ? "VIP 1 REQUIRED" : "REVIEW AI SIGNAL"} {vipAccess?.vipLevel !== 0 && <ArrowRight size={16} />}
+              border: "none", cursor: "pointer", fontSize: 14, fontWeight: 900, color: "#fff",
+              background: "linear-gradient(135deg, #F5B942, #2563EB)",
+            }}>
+              {vipAccess?.vipLevel === 0 ? "BUY VIP PACKAGE" : "REVIEW AI SIGNAL"} <ArrowRight size={16} />
             </button>
           </div>
 

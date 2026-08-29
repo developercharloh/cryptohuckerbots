@@ -98,6 +98,8 @@ import type {
   TwoFAStatus,
   TwoFAToggleInput,
   User,
+  VipPackage,
+  VipPackagePurchaseResponse,
   WithdrawInput
 } from './api.schemas';
 
@@ -2149,6 +2151,141 @@ export function useGetTradeAccess<TData = Awaited<ReturnType<typeof getTradeAcce
 
 
 
+
+export const getListVipPackagesUrl = () => {
+
+
+
+
+  return `/api/trade/vip-packages`
+}
+
+export const listVipPackages = async ( options?: RequestInit): Promise<VipPackage[]> => {
+
+  return customFetch<VipPackage[]>(getListVipPackagesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListVipPackagesQueryKey = () => {
+    return [
+    `/api/trade/vip-packages`
+    ] as const;
+    }
+
+
+export const getListVipPackagesQueryOptions = <TData = Awaited<ReturnType<typeof listVipPackages>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listVipPackages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListVipPackagesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listVipPackages>>> = ({ signal }) => listVipPackages({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listVipPackages>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListVipPackagesQueryResult = NonNullable<Awaited<ReturnType<typeof listVipPackages>>>
+export type ListVipPackagesQueryError = ErrorType<ErrorResponse>
+
+
+
+export function useListVipPackages<TData = Awaited<ReturnType<typeof listVipPackages>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listVipPackages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListVipPackagesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPurchaseVipPackageUrl = (level: number,) => {
+
+
+
+
+  return `/api/trade/vip-packages/${level}/purchase`
+}
+
+export const purchaseVipPackage = async (level: number, options?: RequestInit): Promise<VipPackagePurchaseResponse> => {
+
+  return customFetch<VipPackagePurchaseResponse>(getPurchaseVipPackageUrl(level),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getPurchaseVipPackageMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof purchaseVipPackage>>, TError,{level: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof purchaseVipPackage>>, TError,{level: number}, TContext> => {
+
+const mutationKey = ['purchaseVipPackage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof purchaseVipPackage>>, {level: number}> = (props) => {
+          const {level} = props ?? {};
+
+          return  purchaseVipPackage(level,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PurchaseVipPackageMutationResult = NonNullable<Awaited<ReturnType<typeof purchaseVipPackage>>>
+
+    export type PurchaseVipPackageMutationError = ErrorType<ErrorResponse>
+
+    export const usePurchaseVipPackage = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof purchaseVipPackage>>, TError,{level: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof purchaseVipPackage>>,
+        TError,
+        {level: number},
+        TContext
+      > => {
+      return useMutation(getPurchaseVipPackageMutationOptions(options));
+    }
 
 export const getExecuteTradeUrl = () => {
 

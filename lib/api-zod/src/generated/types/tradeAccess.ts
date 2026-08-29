@@ -10,6 +10,9 @@ export interface TradeAccess {
   vipLevel: number;
   minimumDeposit: number;
   totalDeposited: number;
+  hasPackage: boolean;
+  packagePrice: number | null;
+  canExecute: boolean;
   dailyLimit: number;
   usedToday: number;
   remainingToday: number;

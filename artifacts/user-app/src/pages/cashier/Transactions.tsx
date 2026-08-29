@@ -69,18 +69,21 @@ export default function Transactions() {
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                     tx.type === "deposit" ? "bg-green-500/10" :
-                    tx.type === "withdrawal" ? "bg-red-500/10" : "bg-primary/10"
+                    tx.type === "withdrawal" || tx.type === "vip_package_purchase" ? "bg-red-500/10" : "bg-primary/10"
                   }`}>
                     {tx.type === "deposit"
                       ? <ArrowDownRight className="w-5 h-5 text-green-500" />
                       : tx.type === "withdrawal"
                         ? <ArrowUpRight className="w-5 h-5 text-red-500" />
-                        : <Zap className="w-4 h-4 text-primary fill-primary" />}
+                        : tx.type === "vip_package_purchase"
+                          ? <Zap className="w-4 h-4 text-red-500" />
+                          : <Zap className="w-4 h-4 text-primary fill-primary" />}
                   </div>
                   <div>
                     <div className="font-semibold text-sm mb-0.5 capitalize">{
                       tx.type === "trade_loss" ? "Contract Opened" :
                       tx.type === "trade_profit" || tx.type === "trade_loss_return" ? "Contract Closed" :
+                      tx.type === "vip_package_purchase" ? "VIP Package Purchase" :
                       tx.type.replace("_", " ")
                     }</div>
                     <div className="text-xs text-muted-foreground">
@@ -91,9 +94,9 @@ export default function Transactions() {
                 <div className="text-right">
                   <div className={`font-bold text-sm mb-0.5 ${
                     tx.type === "deposit" || tx.type === "trade_profit"    ? "text-green-500" :
-                    tx.type === "withdrawal" || tx.type === "trade_loss" || tx.type === "trade_loss_return" ? "text-red-500"   : "text-foreground"
+                    tx.type === "withdrawal" || tx.type === "trade_loss" || tx.type === "trade_loss_return" || tx.type === "vip_package_purchase" ? "text-red-500"   : "text-foreground"
                   }`}>
-                    {tx.type === "deposit" || tx.type === "trade_profit" ? "+" : tx.type === "withdrawal" || tx.type === "trade_loss" || tx.type === "trade_loss_return" ? "−" : ""}{formatUSD(tx.amount)}
+                    {tx.type === "deposit" || tx.type === "trade_profit" ? "+" : tx.type === "withdrawal" || tx.type === "trade_loss" || tx.type === "trade_loss_return" || tx.type === "vip_package_purchase" ? "−" : ""}{formatUSD(tx.amount)}
                   </div>
                   <div className={`text-[10px] px-2 py-0.5 rounded-full inline-block ${
                     tx.status === "Completed" ? "bg-green-500/10 text-green-500" :

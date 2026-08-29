@@ -1,0 +1,173 @@
+import assert from "node:assert/strict";
+import { createServer, type Server } from "node:http";
+import { after, before, test } from "node:test";
+
+process.env.NODE_ENV = "test";
+process.env.ADMIN_PANEL_PASSWORD = "vip-package-test-admin-password";
+process.env.ADMIN_JWT_SECRET = "vip-package-test-jwt-secret";
+
+const { default: app } = await import("../src/app.ts");
+const database = await import("@workspace/db");
+const { db, pool, sql, eq, transactionsTable, vipPackagePurchasesTable, usersTable, sessionsTable } = {
+  ...database,
+  ...(await import("drizzle-orm")),
+};
+
+const origin = "https://vixus.trade";
+const userEmail = `vip-package-${Date.now()}-${process.pid}@example.test`;
+const noBalanceEmail = `vip-package-empty-${Date.now()}-${process.pid}@example.test`;
+const userPassword = "VipPackageTestPassword1!";
+
+class CookieJar {
+  private readonly cookies = new Map<string, string>();
+
+  absorb(response: Response) {
+    const headers = response.headers as Headers & { getSetCookie?: () => string[] };
+    const values = headers.getSetCookie?.() ?? (response.headers.get("set-cookie") ? [response.headers.get("set-cookie")!] : []);
+    for (const value of values) {
+      const separator = value.indexOf("=");
+      if (separator < 0) continue;
+      const name = value.slice(0, separator);
+      const cookieValue = value.slice(separator + 1).split(";", 1)[0];
+      if (!cookieValue || value.toLowerCase().includes("max-age=0")) this.cookies.delete(name);
+      else this.cookies.set(name, cookieValue);
+    }
+  }
+
+  header() {
+    return this.cookies.size ? [...this.cookies.entries()].map(([name, value]) => `${name}=${value}`).join("; ") : undefined;
+  }
+}
+
+let server: Server;
+let baseUrl: string;
+let userId = 0;
+let noBalanceUserId = 0;
+let databaseAvailable = false;
+const jar = new CookieJar();
+const noBalanceJar = new CookieJar();
+
+async function request<T = any>(path: string, options: { method?: string; body?: unknown; cookieJar?: CookieJar } = {}) {
+  const headers = new Headers({ Origin: origin });
+  const cookie = (options.cookieJar ?? jar).header();
+  if (cookie) headers.set("Cookie", cookie);
+  if (options.body !== undefined) headers.set("Content-Type", "application/json");
+  const response = await fetch(new URL(path, baseUrl), {
+    method: options.method ?? "GET",
+    headers,
+    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+  });
+  (options.cookieJar ?? jar).absorb(response);
+  const raw = await response.text();
+  return { response, body: raw ? JSON.parse(raw) as T : undefined };
+}
+
+before(async () => {
+  server = createServer(app);
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("Test server did not expose a port");
+  baseUrl = `http://127.0.0.1:${address.port}`;
+
+  const status = await db.execute(sql`select to_regclass('public.vip_package_purchases') as table_name`);
+  if (!status.rows[0]?.table_name) return;
+  const registration = await request<{ user: { id: number } }>("/api/auth/register", {
+    method: "POST",
+    body: { fullName: "VIP Package Test User", email: userEmail, password: userPassword },
+  });
+  assert.equal(registration.response.status, 201);
+  userId = registration.body.user.id;
+  const emptyRegistration = await request<{ user: { id: number } }>("/api/auth/register", {
+    method: "POST",
+    cookieJar: noBalanceJar,
+    body: { fullName: "VIP Empty Wallet User", email: noBalanceEmail, password: userPassword },
+  });
+  assert.equal(emptyRegistration.response.status, 201);
+  noBalanceUserId = emptyRegistration.body.user.id;
+  await db.insert(transactionsTable).values({
+    userId,
+    type: "deposit",
+    amount: "50000.00",
+    status: "completed",
+    paymentMethod: "test",
+    description: "VIP package regression funding",
+  });
+  databaseAvailable = true;
+});
+
+after(async () => {
+  if (userId) {
+    await db.delete(vipPackagePurchasesTable).where(eq(vipPackagePurchasesTable.userId, userId));
+    await db.delete(transactionsTable).where(eq(transactionsTable.userId, userId));
+    await db.delete(sessionsTable).where(eq(sessionsTable.userId, userId));
+    await db.delete(usersTable).where(eq(usersTable.id, userId));
+  }
+  if (noBalanceUserId) {
+    await db.delete(sessionsTable).where(eq(sessionsTable.userId, noBalanceUserId));
+    await db.delete(usersTable).where(eq(usersTable.id, noBalanceUserId));
+  }
+  await pool.end();
+  await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+});
+
+test("deposit funding does not grant VIP, purchase unlocks access, and purchases are atomic", async (t) => {
+  if (!databaseAvailable) {
+    t.skip("requires a provisioned PostgreSQL test schema");
+    return;
+  }
+
+  const beforePurchase = await request<{ vipLevel: number; hasPackage: boolean; canExecute: boolean; totalDeposited: number }>("/api/trade/access");
+  assert.equal(beforePurchase.response.status, 200);
+  assert.equal(beforePurchase.body.vipLevel, 0);
+  assert.equal(beforePurchase.body.hasPackage, false);
+  assert.equal(beforePurchase.body.canExecute, false);
+  assert.equal(beforePurchase.body.totalDeposited, 50000);
+
+  const blocked = await request("/api/trade/execute", {
+    method: "POST",
+    body: { signalId: "forged-signal", opportunityId: 1, consent: true },
+  });
+  assert.equal(blocked.response.status, 403);
+  assert.equal(blocked.body.code, "VIP_REQUIRED");
+
+  const insufficient = await request<{ code: string }>("/api/trade/vip-packages/1/purchase", {
+    method: "POST",
+    cookieJar: noBalanceJar,
+  });
+  assert.equal(insufficient.response.status, 400);
+  assert.equal(insufficient.body.code, "INSUFFICIENT_BALANCE");
+
+  const first = await request<{ package: { level: number } }>("/api/trade/vip-packages/1/purchase", { method: "POST" });
+  assert.equal(first.response.status, 201);
+  assert.equal(first.body.package.level, 1);
+
+  const active = await request<{ vipLevel: number; hasPackage: boolean; canExecute: boolean }>("/api/trade/access");
+  assert.equal(active.body.vipLevel, 1);
+  assert.equal(active.body.hasPackage, true);
+  assert.equal(active.body.canExecute, true);
+
+  const duplicate = await request<{ code: string }>("/api/trade/vip-packages/1/purchase", { method: "POST" });
+  assert.equal(duplicate.response.status, 409);
+  assert.equal(duplicate.body.code, "VIP_PACKAGE_NOT_UPGRADABLE");
+
+  const upgrade = await request<{ package: { level: number } }>("/api/trade/vip-packages/2/purchase", { method: "POST" });
+  assert.equal(upgrade.response.status, 201);
+  assert.equal(upgrade.body.package.level, 2);
+
+  const concurrent = await Promise.all([
+    request("/api/trade/vip-packages/5/purchase", { method: "POST" }),
+    request("/api/trade/vip-packages/5/purchase", { method: "POST" }),
+  ]);
+  assert.deepEqual(concurrent.map((result) => result.response.status).sort(), [201, 409]);
+
+  const lowerTier = await request<{ code: string }>("/api/trade/vip-packages/3/purchase", { method: "POST" });
+  assert.equal(lowerTier.response.status, 409);
+  assert.equal(lowerTier.body.code, "VIP_PACKAGE_NOT_UPGRADABLE");
+
+  const finalAccess = await request<{ vipLevel: number; remainingToday: number }>("/api/trade/access");
+  assert.equal(finalAccess.body.vipLevel, 5);
+  assert.equal(finalAccess.body.remainingToday, 7);
+});

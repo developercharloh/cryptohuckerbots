@@ -362,7 +362,7 @@ router.get("/admin/users", async (req, res) => {
           and ${transactionsTable.type} in ('deposit', 'trade_profit', 'trade_loss_return')
           then ${transactionsTable.amount}
         when ${transactionsTable.status} = 'completed'
-          and ${transactionsTable.type} in ('withdrawal', 'trade_loss', 'bot_purchase')
+          and ${transactionsTable.type} in ('withdrawal', 'trade_loss', 'bot_purchase', 'vip_package_purchase')
           then -${transactionsTable.amount}
         else 0 end), 0)`,
     }).from(transactionsTable).where(inArray(transactionsTable.userId, userIds)).groupBy(transactionsTable.userId),

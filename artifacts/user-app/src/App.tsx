@@ -56,6 +56,7 @@ import Markets from "@/pages/Markets";
 import News from "@/pages/News";
 import TradePairPage from "@/pages/TradePairPage";
 import Trade from "@/pages/Trade";
+import VipPackages from "@/pages/VipPackages";
 import Orders from "@/pages/Orders";
 import Profile from "@/pages/profile/Profile";
 import PersonalInfo from "@/pages/profile/PersonalInfo";
@@ -127,6 +128,9 @@ function Router() {
       </Route>
       <Route path="/trade">
         <AuthGuard><Trade /></AuthGuard>
+      </Route>
+      <Route path="/vip-packages">
+        <AuthGuard><VipPackages /></AuthGuard>
       </Route>
       <Route path="/trade/:symbol">
         <AuthGuard><TradePairPage /></AuthGuard>

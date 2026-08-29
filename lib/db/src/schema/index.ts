@@ -149,6 +149,22 @@ export const signalClaimsTable = pgTable("signal_claims", {
 
 export type SignalClaim = typeof signalClaimsTable.$inferSelect;
 
+// One-time VIP package purchases. The highest completed package level is the
+// user's permanent active access tier.
+export const vipPackagePurchasesTable = pgTable("vip_package_purchases", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  vipLevel: integer("vip_level").notNull(),
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  status: varchar("status", { length: 50 }).notNull().default("completed"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("vip_package_purchases_user_level_unique").on(table.userId, table.vipLevel),
+  index("vip_package_purchases_user_created_at_idx").on(table.userId, table.createdAt),
+]);
+
+export type VipPackagePurchase = typeof vipPackagePurchasesTable.$inferSelect;
+
 // Transactions
 export const transactionsTable = pgTable("transactions", {
   id: serial("id").primaryKey(),

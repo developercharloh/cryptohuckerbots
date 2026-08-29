@@ -489,6 +489,9 @@ export const GetTradeAccessResponse = zod.object({
   "vipLevel": zod.number(),
   "minimumDeposit": zod.number(),
   "totalDeposited": zod.number(),
+  "hasPackage": zod.boolean(),
+  "packagePrice": zod.number().nullable(),
+  "canExecute": zod.boolean(),
   "dailyLimit": zod.number(),
   "usedToday": zod.number(),
   "remainingToday": zod.number(),
@@ -497,6 +500,36 @@ export const GetTradeAccessResponse = zod.object({
   "timezone": zod.string(),
   "nextSignalAt": zod.coerce.date().nullable(),
   "signalAmount": zod.number()
+})
+
+
+export const ListVipPackagesResponseItem = zod.object({
+  "level": zod.number(),
+  "price": zod.number(),
+  "dailySignals": zod.number(),
+  "isActive": zod.boolean(),
+  "isUpgrade": zod.boolean(),
+  "isAvailable": zod.boolean()
+})
+export const ListVipPackagesResponse = zod.array(ListVipPackagesResponseItem)
+
+
+export const purchaseVipPackagePathLevelMax = 7;
+
+
+
+export const PurchaseVipPackageParams = zod.object({
+  "level": zod.coerce.number().min(1).max(purchaseVipPackagePathLevelMax)
+})
+
+export const PurchaseVipPackageResponse = zod.object({
+  "message": zod.string(),
+  "package": zod.object({
+  "level": zod.number(),
+  "price": zod.number(),
+  "dailySignals": zod.number(),
+  "purchasedAt": zod.coerce.date()
+})
 })
 
 

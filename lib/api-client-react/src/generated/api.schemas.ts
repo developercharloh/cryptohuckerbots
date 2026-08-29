@@ -68,6 +68,9 @@ export interface TradeAccess {
   vipLevel: number;
   minimumDeposit: number;
   totalDeposited: number;
+  hasPackage: boolean;
+  packagePrice: number | null;
+  canExecute: boolean;
   dailyLimit: number;
   usedToday: number;
   remainingToday: number;
@@ -76,6 +79,27 @@ export interface TradeAccess {
   timezone: string;
   nextSignalAt: string | null;
   signalAmount: number;
+}
+
+export interface VipPackage {
+  level: number;
+  price: number;
+  dailySignals: number;
+  isActive: boolean;
+  isUpgrade: boolean;
+  isAvailable: boolean;
+}
+
+export type VipPackagePurchaseResponsePackage = {
+  level: number;
+  price: number;
+  dailySignals: number;
+  purchasedAt: string;
+};
+
+export interface VipPackagePurchaseResponse {
+  message: string;
+  package: VipPackagePurchaseResponsePackage;
 }
 
 export interface ExecuteTradeInput {

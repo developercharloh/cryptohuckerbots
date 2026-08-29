@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, usersTable, sessionsTable, userBotsTable, botsTable, transactionsTable, earningsTable, notificationsTable, positionsTable, settingsTable, signalOpportunitiesTable, signalClaimsTable } from "@workspace/db";
+import { db, usersTable, sessionsTable, userBotsTable, botsTable, transactionsTable, vipPackagePurchasesTable, earningsTable, notificationsTable, positionsTable, settingsTable, signalOpportunitiesTable, signalClaimsTable } from "@workspace/db";
 import { eq, and, desc, asc, gte, lt, inArray, sql } from "drizzle-orm";
 import { ExecuteTradeBody } from "@workspace/api-zod";
 import { getRequestToken, isUserSessionExpired } from "../lib/session";
@@ -9,13 +9,13 @@ const SIGNAL_EXECUTION_AMOUNT = 2.5;
 const DEFAULT_SIGNAL_TIMES = ["07:00", "09:00", "11:00", "13:00", "15:00", "17:00", "19:00", "21:00", "23:00"];
 const LEGACY_DEFAULT_SIGNAL_TIMES = ["19:00", "21:00", "23:00"];
 const VIP_TIERS = [
-  { level: 1, minimumDeposit: 500, dailySignals: 3 },
-  { level: 2, minimumDeposit: 1_000, dailySignals: 4 },
-  { level: 3, minimumDeposit: 2_000, dailySignals: 5 },
-  { level: 4, minimumDeposit: 4_000, dailySignals: 6 },
-  { level: 5, minimumDeposit: 8_000, dailySignals: 7 },
-  { level: 6, minimumDeposit: 16_000, dailySignals: 8 },
-  { level: 7, minimumDeposit: 32_000, dailySignals: 9 },
+  { level: 1, price: 500, dailySignals: 3 },
+  { level: 2, price: 1_000, dailySignals: 4 },
+  { level: 3, price: 2_000, dailySignals: 5 },
+  { level: 4, price: 4_000, dailySignals: 6 },
+  { level: 5, price: 8_000, dailySignals: 7 },
+  { level: 6, price: 16_000, dailySignals: 8 },
+  { level: 7, price: 32_000, dailySignals: 9 },
 ] as const;
 
 async function getUserFromToken(token: string | undefined) {
@@ -83,6 +83,8 @@ type VipAccess = {
   level: number;
   minimumDeposit: number;
   totalDeposited: number;
+  hasPackage: boolean;
+  packagePrice: number | null;
   dailyLimit: number;
   usedToday: number;
   remainingToday: number;
@@ -94,14 +96,6 @@ type VipAccess = {
   nextDayStart: Date;
 };
 
-function getVipTier(totalDeposited: number) {
-  let tier: typeof VIP_TIERS[number] | null = null;
-  for (const candidate of VIP_TIERS) {
-    if (totalDeposited >= candidate.minimumDeposit) tier = candidate;
-  }
-  return tier;
-}
-
 async function getVipAccess(userId: number, config: ReturnType<typeof getSignalSettings>): Promise<VipAccess> {
   const [depositTotal] = await db.select({
     total: sql<string>`coalesce(sum(${transactionsTable.amount}), 0)`,
@@ -111,7 +105,11 @@ async function getVipAccess(userId: number, config: ReturnType<typeof getSignalS
     eq(transactionsTable.status, "completed"),
   ));
   const totalDeposited = Number(depositTotal?.total ?? 0);
-  const tier = getVipTier(totalDeposited);
+  const [purchase] = await db.select().from(vipPackagePurchasesTable).where(and(
+    eq(vipPackagePurchasesTable.userId, userId),
+    eq(vipPackagePurchasesTable.status, "completed"),
+  )).orderBy(desc(vipPackagePurchasesTable.vipLevel)).limit(1);
+  const tier = VIP_TIERS.find((candidate) => candidate.level === purchase?.vipLevel) ?? null;
   const todayKey = localDateKey(new Date(), config.timezone);
   const dayStart = zonedTimeToUtc(todayKey, "00:00", config.timezone);
   const nextDayStart = zonedTimeToUtc(addLocalDays(todayKey, 1), "00:00", config.timezone);
@@ -124,14 +122,16 @@ async function getVipAccess(userId: number, config: ReturnType<typeof getSignalS
   const nextTier = VIP_TIERS.find((candidate) => candidate.level === (tier?.level ?? 0) + 1);
   return {
     level: tier?.level ?? 0,
-    minimumDeposit: tier?.minimumDeposit ?? 0,
+    minimumDeposit: tier?.price ?? 0,
     totalDeposited: Math.round(totalDeposited * 100) / 100,
+    hasPackage: Boolean(purchase),
+    packagePrice: purchase ? Number(purchase.amount) : null,
     dailyLimit,
     usedToday: claims.length,
     remainingToday: Math.max(0, dailyLimit - claims.length),
     signalAmount: SIGNAL_EXECUTION_AMOUNT,
     nextLevel: nextTier?.level ?? null,
-    nextLevelDeposit: nextTier?.minimumDeposit ?? null,
+    nextLevelDeposit: nextTier?.price ?? null,
     timezone: config.timezone,
     dayStart,
     nextDayStart,
@@ -156,6 +156,12 @@ function getVipEligibleOpportunities(
 
 class SignalRuleError extends Error {
   constructor(public code: string, message: string, public statusCode = 429) {
+    super(message);
+  }
+}
+
+class VipPurchaseError extends Error {
+  constructor(public code: string, message: string, public statusCode = 400) {
     super(message);
   }
 }
@@ -222,19 +228,23 @@ function shuffleSignals(seed: number) {
   return arr;
 }
 
-async function computeAvailableBalance(userId: number): Promise<number> {
-  const txns = await db.select().from(transactionsTable).where(
-    and(eq(transactionsTable.userId, userId), eq(transactionsTable.status, "completed"))
-  );
+function calculateAvailableBalance(txns: Array<{ type: string; amount: string }>) {
   let balance = 0;
   for (const t of txns) {
     const amt = parseFloat(t.amount);
     if (t.type === "deposit") balance += amt;
     if (t.type === "withdrawal") balance -= amt;
     if (t.type === "trade_profit" || t.type === "trade_loss_return") balance += amt;
-    if (t.type === "trade_loss" || t.type === "reserved_stake" || t.type === "trade_fee" || t.type === "bot_purchase") balance -= amt;
+    if (t.type === "trade_loss" || t.type === "reserved_stake" || t.type === "trade_fee" || t.type === "bot_purchase" || t.type === "vip_package_purchase") balance -= amt;
   }
   return Math.max(0, balance);
+}
+
+async function computeAvailableBalance(userId: number): Promise<number> {
+  const txns = await db.select({ type: transactionsTable.type, amount: transactionsTable.amount }).from(transactionsTable).where(
+    and(eq(transactionsTable.userId, userId), eq(transactionsTable.status, "completed"))
+  );
+  return calculateAvailableBalance(txns);
 }
 
 // This remains a deterministic simulation because live broker execution is out
@@ -522,6 +532,9 @@ router.get("/trade/access", async (req, res) => {
     vipLevel: access.level,
     minimumDeposit: access.minimumDeposit,
     totalDeposited: access.totalDeposited,
+    hasPackage: access.hasPackage,
+    packagePrice: access.packagePrice,
+    canExecute: access.level > 0,
     dailyLimit: access.dailyLimit,
     usedToday: access.usedToday,
     remainingToday: access.remainingToday,
@@ -531,6 +544,100 @@ router.get("/trade/access", async (req, res) => {
     timezone: access.timezone,
     nextSignalAt: nextSignal?.scheduledAt.toISOString() ?? null,
   });
+});
+
+router.get("/trade/vip-packages", async (req, res) => {
+  const token = getRequestToken(req);
+  const user = await getUserFromToken(token);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+  const settings = await getOrCreateSettings();
+  const access = await getVipAccess(user.id, getSignalSettings(settings));
+  return res.json(VIP_TIERS.map((tier) => ({
+    level: tier.level,
+    price: tier.price,
+    dailySignals: tier.dailySignals,
+    isActive: tier.level === access.level,
+    isUpgrade: tier.level > access.level,
+    isAvailable: tier.level > access.level,
+  })));
+});
+
+router.post("/trade/vip-packages/:level/purchase", async (req, res) => {
+  const token = getRequestToken(req);
+  const user = await getUserFromToken(token);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+  const level = Number(req.params.level);
+  const tier = VIP_TIERS.find((candidate) => candidate.level === level);
+  if (!Number.isInteger(level) || !tier) {
+    return res.status(400).json({ code: "INVALID_VIP_PACKAGE", error: "Choose a valid VIP package." });
+  }
+
+  try {
+    const purchase = await db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(${user.id})`);
+
+      const [active] = await tx.select().from(vipPackagePurchasesTable).where(and(
+        eq(vipPackagePurchasesTable.userId, user.id),
+        eq(vipPackagePurchasesTable.status, "completed"),
+      )).orderBy(desc(vipPackagePurchasesTable.vipLevel)).limit(1);
+      if (active && active.vipLevel >= tier.level) {
+        throw new VipPurchaseError(
+          "VIP_PACKAGE_NOT_UPGRADABLE",
+          active.vipLevel === tier.level
+            ? `VIP ${tier.level} is already active on your account.`
+            : `VIP ${tier.level} is below your active VIP ${active.vipLevel} package.`,
+          409,
+        );
+      }
+
+      const ledger = await tx.select({
+        type: transactionsTable.type,
+        amount: transactionsTable.amount,
+      }).from(transactionsTable).where(and(
+        eq(transactionsTable.userId, user.id),
+        eq(transactionsTable.status, "completed"),
+      ));
+      const available = calculateAvailableBalance(ledger);
+      if (available < tier.price) {
+        throw new VipPurchaseError(
+          "INSUFFICIENT_BALANCE",
+          `You need $${tier.price.toFixed(2)} to purchase VIP ${tier.level}. Available balance: $${available.toFixed(2)}.`,
+        );
+      }
+
+      const [created] = await tx.insert(vipPackagePurchasesTable).values({
+        userId: user.id,
+        vipLevel: tier.level,
+        amount: tier.price.toFixed(2),
+        status: "completed",
+      }).returning();
+      await tx.insert(transactionsTable).values({
+        userId: user.id,
+        type: "vip_package_purchase",
+        amount: tier.price.toFixed(2),
+        status: "completed",
+        paymentMethod: "balance",
+        description: `VIP ${tier.level} Package Purchase`,
+      });
+      return created;
+    });
+
+    return res.status(201).json({
+      message: `VIP ${tier.level} package purchased successfully.`,
+      package: {
+        level: tier.level,
+        price: tier.price,
+        dailySignals: tier.dailySignals,
+        purchasedAt: purchase.createdAt.toISOString(),
+      },
+    });
+  } catch (error) {
+    if (error instanceof VipPurchaseError) {
+      return res.status(error.statusCode).json({ code: error.code, error: error.message });
+    }
+    return res.status(409).json({ code: "VIP_PACKAGE_PURCHASE_FAILED", error: "The package could not be purchased. Please try again." });
+  }
 });
 
 // Open a trade position only from a current, unclaimed AI Signal opportunity.
@@ -551,8 +658,8 @@ router.post("/trade/execute", async (req, res) => {
   if (access.level === 0) {
     return res.status(403).json({
       code: "VIP_REQUIRED",
-      error: "A completed deposit of at least $500 is required to access AI Signals.",
-      minimumDeposit: VIP_TIERS[0].minimumDeposit,
+      error: "Purchase a VIP package to access AI Signals.",
+      minimumDeposit: VIP_TIERS[0].price,
       totalDeposited: access.totalDeposited,
     });
   }
