@@ -14,8 +14,8 @@ export function VixusLogo({ className }: VixusLogoProps) {
     >
       <defs>
         <linearGradient id="vixus-grad" x1="20" y1="14" x2="80" y2="86" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#A78BFA" />
-          <stop offset="55%" stopColor="#7C3AED" />
+          <stop offset="0%" stopColor="#FFD86B" />
+          <stop offset="55%" stopColor="#F5B942" />
           <stop offset="100%" stopColor="#6D28D9" />
         </linearGradient>
       </defs>

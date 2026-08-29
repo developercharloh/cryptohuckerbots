@@ -57,12 +57,12 @@ export default function Cashier() {
         <div className="px-4 pt-5 pb-2">
           <div
             style={{
-              background: "linear-gradient(135deg, #4C1D95 0%, #3730A3 60%, #1E1B4B 100%)",
+              background: "linear-gradient(135deg, #3A2B0D 0%, #17130A 60%, #0B1220 100%)",
               borderRadius: 20,
               padding: "22px 20px 20px",
               position: "relative",
               overflow: "hidden",
-              boxShadow: "0 8px 32px rgba(124,58,237,0.35)",
+              boxShadow: "0 8px 32px rgba(245,185,66,0.18)",
             }}
           >
             {/* Glow orbs */}
@@ -74,7 +74,7 @@ export default function Cashier() {
                 width: 140,
                 height: 140,
                 borderRadius: "50%",
-                background: "radial-gradient(circle, rgba(167,139,250,0.25) 0%, transparent 70%)",
+                background: "radial-gradient(circle, rgba(245,185,66,0.22) 0%, transparent 70%)",
                 pointerEvents: "none",
               }}
             />
@@ -86,7 +86,7 @@ export default function Cashier() {
                 width: 100,
                 height: 100,
                 borderRadius: "50%",
-                background: "radial-gradient(circle, rgba(79,70,229,0.2) 0%, transparent 70%)",
+                background: "radial-gradient(circle, rgba(37,99,235,0.2) 0%, transparent 70%)",
                 pointerEvents: "none",
               }}
             />

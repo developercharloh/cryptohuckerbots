@@ -1,11 +1,11 @@
 import { Link, useLocation } from "wouter";
-import { Home, BarChart2, ClipboardList, Wallet, LayoutGrid, Newspaper } from "lucide-react";
+import { Home, BarChart2, Wallet, LayoutGrid, TrendingUp, Bot } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Home",    icon: Home,          center: false },
   { href: "/markets",   label: "Markets", icon: BarChart2,     center: false },
-  { href: "/news",      label: "News",    icon: Newspaper,     center: false },
-  { href: "/orders",    label: "Orders",  icon: ClipboardList, center: true  },
+  { href: "/trade",     label: "Trade",  icon: TrendingUp,    center: true  },
+  { href: "/bots",      label: "AI Bots", icon: Bot,           center: false },
   { href: "/cashier",   label: "Wallet",  icon: Wallet,        center: false },
   { href: "/profile",   label: "More",    icon: LayoutGrid,    center: false },
 ];
@@ -21,8 +21,8 @@ export function BottomNav() {
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-none lg:hidden"
       style={{
-        background: "rgba(7,9,26,0.96)",
-        borderTop: "1px solid rgba(124,58,237,0.2)",
+        background: "rgba(7,9,26,0.97)",
+        borderTop: "1px solid rgba(245,185,66,0.22)",
         backdropFilter: "blur(24px)",
         WebkitBackdropFilter: "blur(24px)",
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
@@ -43,18 +43,18 @@ export function BottomNav() {
                 <div style={{
                   width: 50, height: 50, borderRadius: "50%",
                   background: active
-                    ? "linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)"
-                    : "linear-gradient(135deg, #5B21B6 0%, #3730A3 100%)",
+                    ? "linear-gradient(135deg, #F5B942 0%, #D99B18 100%)"
+                    : "linear-gradient(135deg, #2B2415 0%, #111827 100%)",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   boxShadow: active
-                    ? "0 0 24px rgba(124,58,237,0.6), 0 4px 16px rgba(124,58,237,0.4)"
-                    : "0 4px 16px rgba(79,70,229,0.3)",
+                    ? "0 0 24px rgba(245,185,66,0.45), 0 4px 16px rgba(245,185,66,0.25)"
+                    : "0 4px 16px rgba(0,0,0,0.3)",
                   marginBottom: 2,
-                  border: "2px solid rgba(167,139,250,0.3)",
+                  border: "2px solid rgba(255,216,107,0.35)",
                 }}>
                   <Icon size={22} style={{ color: "#fff" }} />
                 </div>
-                <span style={{ fontSize: 9, fontWeight: 700, color: active ? "#A78BFA" : "#4B5563", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                <span style={{ fontSize: 9, fontWeight: 700, color: active ? "#FFD86B" : "#64748B", letterSpacing: "0.04em", textTransform: "uppercase" }}>
                   {item.label}
                 </span>
               </Link>
@@ -72,22 +72,22 @@ export function BottomNav() {
                   <div style={{
                     position: "absolute", top: -5, left: "50%", transform: "translateX(-50%)",
                     width: 16, height: 2, borderRadius: 1,
-                    background: "linear-gradient(90deg, #7C3AED, #A78BFA)",
+                    background: "linear-gradient(90deg, #F5B942, #FFD86B)",
                   }} />
                 )}
                 <Icon
                   size={20}
                   style={{
-                    color: active ? "#A78BFA" : "#4B5563",
+                    color: active ? "#FFD86B" : "#64748B",
                     transition: "color 0.2s ease",
-                    filter: active ? "drop-shadow(0 0 8px rgba(167,139,250,0.7))" : "none",
+                    filter: active ? "drop-shadow(0 0 8px rgba(245,185,66,0.55))" : "none",
                   }}
                 />
               </div>
               <span style={{
                 fontSize: 9, fontWeight: active ? 700 : 500,
                 letterSpacing: "0.04em", textTransform: "uppercase",
-                color: active ? "#A78BFA" : "#4B5563",
+                color: active ? "#FFD86B" : "#64748B",
                 transition: "color 0.2s ease",
               }}>
                 {item.label}

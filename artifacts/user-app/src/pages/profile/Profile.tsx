@@ -47,13 +47,15 @@ export default function Profile() {
   const kycColors  = getKycColor(profile?.kycStatus ?? "unverified");
 
   const QUICK_TILES = [
-    { label: "AI Bots",     icon: Bot,      href: "/bots",                iconBg: "linear-gradient(135deg,#7C3AED,#4F46E5)", color: "#fff" },
+    { label: "AI Bots",     icon: Bot,      href: "/bots",                iconBg: "linear-gradient(135deg,#F5B942,#D99B18)", color: "#111827" },
     { label: "History",     icon: History,  href: "/cashier/transactions",iconBg: "linear-gradient(135deg,#3B82F6,#06B6D4)", color: "#fff" },
     { label: "Live Chat",   icon: MessageSquare, href: "/support/chat",   iconBg: "linear-gradient(135deg,#10B981,#22C55E)", color: "#fff" },
+    { label: "News",        icon: Bell,     href: "/news",                iconBg: "linear-gradient(135deg,#2563EB,#38BDF8)", color: "#fff" },
+    { label: "Orders",      icon: BarChart2, href: "/orders",              iconBg: "linear-gradient(135deg,#F59E0B,#F5B942)", color: "#111827" },
   ];
 
   const MENU_ITEMS = [
-    { label: "Personal Info",     icon: UserIcon,    href: "/profile/personal-info", color: "#A78BFA", bg: "rgba(124,58,237,0.12)" },
+    { label: "Personal Info",     icon: UserIcon,    href: "/profile/personal-info", color: "#FFD86B", bg: "rgba(245,185,66,0.12)" },
     { label: "Security",          icon: Shield,       href: "/profile/security",      color: "#60A5FA", bg: "rgba(59,130,246,0.12)"  },
     { label: "KYC Verification",  icon: FileCheck,    href: "/profile/kyc",           color: "#FB923C", bg: "rgba(249,115,22,0.12)"  },
     { label: "Notifications",     icon: Bell,         href: "/profile/notifications", color: "#4ADE80", bg: "rgba(34,197,94,0.12)"   },

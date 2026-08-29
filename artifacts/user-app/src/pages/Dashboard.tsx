@@ -65,7 +65,7 @@ export default function Dashboard() {
         {/* ── Header ─────────────────────────────────────────────── */}
         <div className="user-dashboard-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 16px 12px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 10, background: "linear-gradient(135deg, #7C3AED, #4F46E5)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: 32, height: 32, borderRadius: 10, background: "linear-gradient(135deg, #F5B942, #D99B18)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Zap style={{ width: 16, height: 16, color: "#fff", fill: "#fff" }} />
             </div>
             <span style={{ fontSize: 16, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em" }}>VIXUS AI</span>
@@ -75,7 +75,7 @@ export default function Dashboard() {
               <button style={{ width: 36, height: 36, borderRadius: 12, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", cursor: "pointer" }}>
                 <Bell style={{ width: 16, height: 16, color: "#9CA3AF" }} />
                 {unreadCount > 0 && (
-                  <span style={{ position: "absolute", top: 6, right: 6, width: 8, height: 8, borderRadius: "50%", background: "#7C3AED", border: "2px solid #07091A" }} />
+                  <span style={{ position: "absolute", top: 6, right: 6, width: 8, height: 8, borderRadius: "50%", background: "#F5B942", border: "2px solid #07091A" }} />
                 )}
               </button>
             </Link>
