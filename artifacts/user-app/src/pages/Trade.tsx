@@ -293,12 +293,12 @@ export default function Trade() {
     if (vipAccess?.vipLevel === 0) {
       toast({
         title: "Unlock AI Signals",
-        description: "Purchase a VIP package to execute scheduled signals.",
+        description: "Purchase a VIP package to execute AI Signals.",
       });
       setLocation("/vip-packages");
       return;
     }
-    if (!signal || signal.status !== "available" || !signal.opportunityId) { toast({ title: "No signal is currently available", description: "Wait for the next scheduled window.", variant: "destructive" }); return; }
+    if (!signal || signal.status !== "available" || !signal.opportunityId) { toast({ title: "No signal is currently available", description: "Please check again shortly.", variant: "destructive" }); return; }
     if (!consent) {
       setConsentPrompt(true);
       toast({
@@ -603,7 +603,7 @@ export default function Trade() {
                   {vipAccess.vipLevel === 0 ? (
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 10 }}>
                       <p style={{ fontSize: 11, color: "#FCD34D", lineHeight: 1.5 }}>
-                        Buy VIP 1 or higher to unlock scheduled AI Signals.
+                        Buy VIP 1 or higher to unlock AI Signals.
                       </p>
                       <button onClick={() => setLocation("/vip-packages")} style={{ flexShrink: 0, border: "none", borderRadius: 9, padding: "8px 10px", background: "linear-gradient(135deg, #F5B942, #2563EB)", color: "#fff", fontSize: 10, fontWeight: 800, cursor: "pointer" }}>
                         Buy VIP Package
@@ -667,7 +667,7 @@ export default function Trade() {
                 <div style={{ borderRadius: 16, padding: 16, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)" }}>
                   <p style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>No matching signal available</p>
                   <p style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.5, marginTop: 6 }}>
-                    This pair or direction is not in the current scheduled window. Check back at the next eligible signal time.
+                    No live signal is ready for this pair right now. Please check again shortly.
                   </p>
                 </div>
               )}

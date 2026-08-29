@@ -132,7 +132,7 @@ export default function VipPackages() {
                         <Sparkles className="h-4 w-4 text-blue-300" />
                       )}
                     </div>
-                    <p className="mt-3 text-xs text-gray-400">{pkg.dailySignals} scheduled signal{pkg.dailySignals === 1 ? "" : "s"} per day</p>
+                    <p className="mt-3 text-xs text-gray-400">{pkg.dailySignals} AI Signal{pkg.dailySignals === 1 ? "" : "s"} per day</p>
                     <p className="mt-1 text-[10px] text-gray-600">
                       {active ? "Currently active" : locked ? "Already below your active tier" : "Permanent access"}
                     </p>
@@ -149,7 +149,7 @@ export default function VipPackages() {
                 <div className="flex-1">
                   <p className="text-sm font-bold">VIP {selected.level} package</p>
                   <p className="mt-1 text-xs text-gray-400">
-                    One-time wallet charge of {formatUSD(selected.price)} · {selected.dailySignals} signals per day
+                     One-time wallet charge of {formatUSD(selected.price)} · {selected.dailySignals} AI Signals per day
                   </p>
                 </div>
                 <button
@@ -161,7 +161,7 @@ export default function VipPackages() {
                 </button>
               </div>
               <p className="mt-3 text-[10px] leading-4 text-gray-500">
-                The package purchase is recorded in your wallet history and unlocks scheduled AI Signals.
+                The package purchase is recorded in your wallet history and unlocks AI Signals.
               </p>
             </div>
           )}

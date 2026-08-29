@@ -6,6 +6,7 @@ import { getRequestToken, isUserSessionExpired } from "../lib/session";
 
 const router = Router();
 const SIGNAL_EXECUTION_AMOUNT = 2.5;
+const MANUAL_SIGNAL_PREFIX = "manual-signal";
 const DEFAULT_SIGNAL_TIMES = ["07:00", "09:00", "11:00", "13:00", "15:00", "17:00", "19:00", "21:00", "23:00"];
 const LEGACY_DEFAULT_SIGNAL_TIMES = ["19:00", "21:00", "23:00"];
 const VIP_TIERS = [
@@ -138,20 +139,13 @@ async function getVipAccess(userId: number, config: ReturnType<typeof getSignalS
   };
 }
 
-function slotRank(opportunity: typeof signalOpportunitiesTable.$inferSelect, opportunities: typeof signalOpportunitiesTable.$inferSelect[], timezone: string) {
-  const dateKey = localDateKey(opportunity.scheduledAt, timezone);
-  return opportunities
-    .filter((candidate) => localDateKey(candidate.scheduledAt, timezone) === dateKey)
-    .sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime())
-    .findIndex((candidate) => candidate.id === opportunity.id);
-}
-
 function getVipEligibleOpportunities(
   opportunities: typeof signalOpportunitiesTable.$inferSelect[],
   access: VipAccess,
 ) {
   if (access.level === 0) return [];
-  return opportunities.filter((opportunity) => slotRank(opportunity, opportunities, access.timezone) < access.dailyLimit);
+  if (access.remainingToday <= 0) return [];
+  return opportunities.filter((opportunity) => opportunity.status === "available");
 }
 
 class SignalRuleError extends Error {
@@ -431,18 +425,19 @@ async function resolveOpen(
 
 async function syncSignalOpportunities(settings: typeof settingsTable.$inferSelect) {
   const config = getSignalSettings(settings);
-  const today = localDateKey(new Date(), config.timezone);
-  const keys = config.times.flatMap((time) => [-1, 0, 1].map((offset) => {
-    const dateKey = addLocalDays(today, offset);
-    return { dateKey, time, scheduleKey: `${dateKey}|${time}`, scheduledAt: zonedTimeToUtc(dateKey, time, config.timezone) };
+  const now = new Date();
+  const todayKey = localDateKey(now, config.timezone);
+  const keys = SIGNALS.map((signal) => ({
+    signal,
+    scheduleKey: `${MANUAL_SIGNAL_PREFIX}:${todayKey}:${signal.id}`,
   }));
 
   for (const item of keys) {
-    const signal = SIGNALS[Math.abs([...item.scheduleKey].reduce((n, c) => n + c.charCodeAt(0), 0)) % SIGNALS.length];
+    const signal = item.signal;
     await db.insert(signalOpportunitiesTable).values({
       scheduleKey: item.scheduleKey,
-      scheduledAt: item.scheduledAt,
-      expiresAt: new Date(item.scheduledAt.getTime() + config.spacingMinutes * 60_000),
+      scheduledAt: now,
+      expiresAt: new Date(now.getTime() + 365 * 24 * 60 * 60_000),
       signalId: signal.id,
       pair: signal.pair,
       direction: signal.direction,
@@ -454,14 +449,11 @@ async function syncSignalOpportunities(settings: typeof settingsTable.$inferSele
     }).onConflictDoNothing({ target: signalOpportunitiesTable.scheduleKey });
   }
 
-  const now = new Date();
   const opportunities = await db.select().from(signalOpportunitiesTable)
     .where(inArray(signalOpportunitiesTable.scheduleKey, keys.map((k) => k.scheduleKey)))
-    .orderBy(asc(signalOpportunitiesTable.scheduledAt));
+    .orderBy(asc(signalOpportunitiesTable.id));
   for (const opportunity of opportunities) {
-    const nextStatus = !config.enabled ? "disabled" :
-      now.getTime() < opportunity.scheduledAt.getTime() ? "scheduled" :
-      now.getTime() < opportunity.expiresAt.getTime() ? "available" : "missed";
+    const nextStatus = config.enabled ? "available" : "disabled";
     if (opportunity.status !== nextStatus) {
       await db.update(signalOpportunitiesTable).set({ status: nextStatus, updatedAt: now }).where(eq(signalOpportunitiesTable.id, opportunity.id));
       opportunity.status = nextStatus;
@@ -481,8 +473,8 @@ router.post("/trade/manual", async (req, res) => {
   });
 });
 
-// List server-owned AI Signal opportunities. Future slots are visible as
-// scheduled, but cannot be executed until their scheduled time.
+// List server-owned AI Signal opportunities. Signals are available immediately;
+// VIP daily limits, spacing, and emergency controls are enforced server-side.
 router.get("/trade/signals", async (req, res) => {
   const token = getRequestToken(req);
   const user = await getUserFromToken(token);
@@ -524,10 +516,6 @@ router.get("/trade/access", async (req, res) => {
   const { config, opportunities } = await syncSignalOpportunities(settings);
   const access = await getVipAccess(user.id, config);
   const eligible = getVipEligibleOpportunities(opportunities, access);
-  const now = Date.now();
-  const nextSignal = eligible.find((opportunity) =>
-    opportunity.scheduledAt.getTime() >= now && opportunity.status !== "missed" && opportunity.status !== "disabled"
-  );
   return res.json({
     vipLevel: access.level,
     minimumDeposit: access.minimumDeposit,
@@ -542,7 +530,7 @@ router.get("/trade/access", async (req, res) => {
     nextLevel: access.nextLevel,
     nextLevelDeposit: access.nextLevelDeposit,
     timezone: access.timezone,
-    nextSignalAt: nextSignal?.scheduledAt.toISOString() ?? null,
+    nextSignalAt: null,
   });
 });
 
@@ -663,17 +651,15 @@ router.post("/trade/execute", async (req, res) => {
       totalDeposited: access.totalDeposited,
     });
   }
+  if (!config.enabled) return res.status(409).json({ code: "SIGNALS_DISABLED", error: "AI Signals are temporarily disabled by the administrator." });
   const eligibleOpportunities = getVipEligibleOpportunities(opportunities, access);
   const opportunity = eligibleOpportunities.find((o) => o.id === opportunityId);
-  if (!config.enabled) return res.status(409).json({ code: "SIGNALS_DISABLED", error: "AI Signals are temporarily disabled by the administrator." });
   if (!opportunity || opportunity.signalId !== signalId) return res.status(400).json({ error: "Signal opportunity not found." });
   const now = Date.now();
-  if (opportunity.status !== "available" || now < opportunity.scheduledAt.getTime() || now >= opportunity.expiresAt.getTime()) {
+  if (opportunity.status !== "available") {
     return res.status(409).json({
-      code: opportunity.status === "missed" ? "SIGNAL_MISSED" : "SIGNAL_NOT_AVAILABLE",
-      error: opportunity.status === "missed" ? "This signal window has expired and will not execute automatically." : "This signal is not available yet.",
-      scheduledAt: opportunity.scheduledAt.toISOString(),
-      expiresAt: opportunity.expiresAt.toISOString(),
+      code: "SIGNAL_NOT_AVAILABLE",
+      error: "This signal is temporarily unavailable.",
     });
   }
 
@@ -699,33 +685,19 @@ router.post("/trade/execute", async (req, res) => {
     lt(signalClaimsTable.createdAt, access.nextDayStart),
   ));
   if (dayClaims.length >= access.dailyLimit) return res.status(429).json({ code: "DAILY_LIMIT", error: `You have reached today's ${access.dailyLimit}-signal limit.` });
-  const latestClaim = await db.select().from(signalClaimsTable)
-    .where(eq(signalClaimsTable.userId, user.id)).orderBy(desc(signalClaimsTable.createdAt)).limit(1);
-  if (latestClaim[0] && latestClaim[0].createdAt.getTime() + config.spacingMinutes * 60_000 > now) {
-    return res.status(429).json({ code: "SIGNAL_SPACING", error: "Please wait until the spacing window ends before taking another signal." });
-  }
 
   try {
     const result = await db.transaction(async (tx) => {
       // Serialize claims per user so concurrent tabs cannot bypass the daily
-      // quota or spacing check between the read above and the insert.
+      // quota check between the read above and the insert.
       await tx.execute(sql`select pg_advisory_xact_lock(${user.id})`);
-      const [freshClaims, freshLatestClaim] = await Promise.all([
-        tx.select().from(signalClaimsTable).where(and(
-          eq(signalClaimsTable.userId, user.id),
-          gte(signalClaimsTable.createdAt, access.dayStart),
-          lt(signalClaimsTable.createdAt, access.nextDayStart),
-        )),
-        tx.select().from(signalClaimsTable)
-          .where(eq(signalClaimsTable.userId, user.id))
-          .orderBy(desc(signalClaimsTable.createdAt))
-          .limit(1),
-      ]);
+      const freshClaims = await tx.select().from(signalClaimsTable).where(and(
+        eq(signalClaimsTable.userId, user.id),
+        gte(signalClaimsTable.createdAt, access.dayStart),
+        lt(signalClaimsTable.createdAt, access.nextDayStart),
+      ));
       if (freshClaims.length >= access.dailyLimit) {
         throw new SignalRuleError("DAILY_LIMIT", `You have reached today's ${access.dailyLimit}-signal limit.`);
-      }
-      if (freshLatestClaim[0] && freshLatestClaim[0].createdAt.getTime() + config.spacingMinutes * 60_000 > Date.now()) {
-        throw new SignalRuleError("SIGNAL_SPACING", "Please wait until the spacing window ends before taking another signal.");
       }
       const [claim] = await tx.insert(signalClaimsTable).values({
         userId: user.id,

@@ -3,7 +3,7 @@ import { useParams, useLocation } from "wouter";
 import { createChart, CandlestickSeries, UTCTimestamp, ISeriesApi } from "lightweight-charts";
 import { Layout } from "@/components/Layout";
 import { useGetTradeAccess } from "@workspace/api-client-react";
-import { ArrowLeft, TrendingUp, TrendingDown, Activity, ChevronDown, ArrowRight, Clock3, ShieldCheck } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Activity, ChevronDown, ArrowRight, Zap, ShieldCheck } from "lucide-react";
 
 const PURPLE = "#F5B942";
 
@@ -371,13 +371,13 @@ export default function TradePairPage() {
                 </div>
               </div>
               <span style={{ display: "flex", alignItems: "center", gap: 4, borderRadius: 20, padding: "4px 8px", background: "rgba(34,197,94,0.12)", color: "#22c55e", fontSize: 10, fontWeight: 800 }}>
-                <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#22c55e" }} /> NEXT WINDOW
+                <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#22c55e" }} /> SIGNALS LIVE
               </span>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10, marginBottom: 14 }}>
               <div style={{ padding: "10px 12px", borderRadius: 12, background: "rgba(0,0,0,0.18)" }}>
-                <p style={{ fontSize: 10, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em" }}>Window</p>
-                <p style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5, fontSize: 13, color: "#fff", fontWeight: 700 }}><Clock3 size={13} color={PURPLE} /> Next signal</p>
+                <p style={{ fontSize: 10, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em" }}>Signal access</p>
+                <p style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5, fontSize: 13, color: "#fff", fontWeight: 700 }}><Zap size={13} color={PURPLE} /> Ready when available</p>
               </div>
             </div>
             <p style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.5, marginBottom: 14 }}>
