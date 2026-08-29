@@ -391,7 +391,7 @@ export default function Trade() {
      const available = signals.filter(s => s.status === "available");
      const matchingDirection = requestedDirection ? available.filter(s => s.direction.toUpperCase() === requestedDirection) : available;
      const matchingPair = matchingDirection.filter(s => s.pair === selectedPair);
-     return (matchingPair[0] ?? matchingDirection[0] ?? available[0]) ?? null;
+     return matchingPair[0] ?? null;
   }, [signals, requestedDirection, selectedPair]);
   useEffect(() => {
     if (!bestSignal || !stakeNum) return;

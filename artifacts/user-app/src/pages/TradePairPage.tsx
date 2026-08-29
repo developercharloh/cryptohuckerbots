@@ -2,8 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useLocation } from "wouter";
 import { createChart, CandlestickSeries, UTCTimestamp, ISeriesApi } from "lightweight-charts";
 import { Layout } from "@/components/Layout";
-import { ArrowLeft, TrendingUp, TrendingDown, Activity, ChevronDown, Bot, Zap } from "lucide-react";
-import { useListBots } from "@workspace/api-client-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Activity, ChevronDown, ArrowRight, Clock3, ShieldCheck } from "lucide-react";
 
 const PURPLE = "#F5B942";
 
@@ -110,16 +109,11 @@ function calcRSI(candles: Candle[], period = 14): number {
   return +(100 - 100 / (1 + rs)).toFixed(1);
 }
 
-/* ── Leverage options ───────────────────────────────────────────── */
-const LEVERAGES = [5, 10, 20, 50, 100];
-
 /* ── Main component ─────────────────────────────────────────────── */
 export default function TradePairPage() {
   const params = useParams<{ symbol: string }>();
   const symbol = params.symbol ?? "BTC-USD";
   const [, setLocation] = useLocation();
-  const { data: bots = [] } = useListBots();
-
   const meta = PAIR_META[symbol] ?? {
     label: symbol.replace("-", "/"), price: 1, change: 0, vol: "-", category: "forex" as const
   };
@@ -132,17 +126,6 @@ export default function TradePairPage() {
   const [priceFlash, setPriceFlash]     = useState(false);
   const [rsi, setRsi] = useState(50);
   const priceRef = useRef(meta.price);
-
-  // Trade panel state
-  const [tradeType, setTradeType] = useState<"market" | "limit">("market");
-  const [side, setSide] = useState<"long" | "short">("long");
-  const [amount, setAmount] = useState("1,000.00");
-  const [leverage, setLeverage] = useState(10);
-  const [takeProfit, setTakeProfit] = useState("");
-  const [stopLoss, setStopLoss] = useState("");
-  const [executing, setExecuting] = useState(false);
-  const [tradeError, setTradeError] = useState<string | null>(null);
-  const [executed, setExecuted] = useState(false);
 
   const chartRef      = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<ReturnType<typeof createChart> | null>(null);
@@ -165,10 +148,6 @@ export default function TradePairPage() {
         const last = data[data.length - 1].close;
         setCurrentPrice(last);
         setRsi(calcRSI(data));
-        const tp = last * (side === "long" ? 1.02 : 0.98);
-        const sl = last * (side === "long" ? 0.985 : 1.015);
-        setTakeProfit(tp.toFixed(meta.price < 10 ? 5 : 2));
-        setStopLoss(sl.toFixed(meta.price < 10 ? 5 : 2));
       }
     } catch {
       const data = generateCandles(symbol + tf, meta.price, 100);
@@ -177,7 +156,7 @@ export default function TradePairPage() {
     } finally {
       setLoading(false);
     }
-  }, [symbol, tf, meta.binanceSymbol, meta.price, side]);
+  }, [symbol, tf, meta.binanceSymbol, meta.price]);
 
   useEffect(() => { loadCandles(); }, [loadCandles]);
 
@@ -276,16 +255,11 @@ export default function TradePairPage() {
   }, [candles]);
 
   const up = meta.change >= 0;
-  const risk = leverage <= 10 ? "Low" : leverage <= 20 ? "Medium" : "High";
-  const riskColor = risk === "Low" ? "#22c55e" : risk === "Medium" ? "#F59E0B" : "#ef4444";
-
   function formatPrice(p: number) {
     if (p > 1000) return p.toLocaleString("en-US", { maximumFractionDigits: 2 });
     if (p > 10)   return p.toFixed(3);
     return p.toFixed(5);
   }
-
-  // Manual direct trading is disabled — trades are only placed through bots (see StartBot.tsx / /api/trade/manual with userBotId).
 
   return (
     <Layout>
@@ -357,187 +331,73 @@ export default function TradePairPage() {
           ))}
         </div>
 
-        {/* ── Trade panel ─────────────────────────────────── */}
+        {/* ── AI Signals panel ─────────────────────────────── */}
         <div className="user-pair-panel" style={{ padding: "16px" }}>
-
-          {/* Market / Limit tabs */}
           <div style={{ display: "flex", background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 4, marginBottom: 16 }}>
-            {(["market","limit"] as const).map(t => (
-              <button key={t} onClick={() => setTradeType(t)} style={{
-                flex: 1, padding: "8px 0", borderRadius: 9, border: "none", cursor: "pointer",
-                fontSize: 13, fontWeight: 700, textTransform: "capitalize",
-                background: tradeType === t ? "#fff" : "transparent",
-                color: tradeType === t ? "#111" : "#6B7280",
-              }}>{t.charAt(0).toUpperCase() + t.slice(1)}</button>
-            ))}
+            <div style={{ flex: 1, padding: "9px 0", borderRadius: 9, background: "#fff", color: "#111", textAlign: "center", fontSize: 13, fontWeight: 800 }}>
+              AI Signal
+            </div>
+            <div style={{ flex: 1, padding: "9px 0", color: "#6B7280", textAlign: "center", fontSize: 13, fontWeight: 700 }}>
+              Signal history
+            </div>
           </div>
 
-          {/* Direction selects a signal configuration; it never executes directly. */}
-          <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+          <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
             <button onClick={() => setLocation(`/trade?pair=${encodeURIComponent(meta.label)}&direction=BUY`)} style={{
-              flex: 1, padding: "12px 0", borderRadius: 12, border: "none", cursor: "pointer",
-              fontSize: 14, fontWeight: 800, letterSpacing: "0.05em",
-              background: "rgba(34,197,94,0.08)",
-              color: "#22c55e",
+              flex: 1, padding: "13px 0", borderRadius: 12, border: "1px solid rgba(34,197,94,0.25)", cursor: "pointer",
+              fontSize: 13, fontWeight: 800, letterSpacing: "0.04em", background: "rgba(34,197,94,0.10)", color: "#22c55e",
             }}>
-              <TrendingUp size={14} style={{ display: "inline", marginRight: 6, verticalAlign: "middle" }} />
-              LONG / BUY
+              <TrendingUp size={14} style={{ display: "inline", marginRight: 6, verticalAlign: "middle" }} /> LONG / BUY
             </button>
             <button onClick={() => setLocation(`/trade?pair=${encodeURIComponent(meta.label)}&direction=SELL`)} style={{
-              flex: 1, padding: "12px 0", borderRadius: 12, border: "none", cursor: "pointer",
-              fontSize: 14, fontWeight: 800, letterSpacing: "0.05em",
-              background: "rgba(239,68,68,0.08)",
-              color: "#ef4444",
+              flex: 1, padding: "13px 0", borderRadius: 12, border: "1px solid rgba(239,68,68,0.25)", cursor: "pointer",
+              fontSize: 13, fontWeight: 800, letterSpacing: "0.04em", background: "rgba(239,68,68,0.10)", color: "#ef4444",
             }}>
-              <TrendingDown size={14} style={{ display: "inline", marginRight: 6, verticalAlign: "middle" }} />
-              SHORT / SELL
+              <TrendingDown size={14} style={{ display: "inline", marginRight: 6, verticalAlign: "middle" }} /> SHORT / SELL
             </button>
           </div>
-          <div style={{ marginBottom: 16, padding: "8px 12px", borderRadius: 10, background: "rgba(245,185,66,0.08)", border: `1px solid ${PURPLE}33`, display: "flex", alignItems: "center", gap: 8 }}>
-            <Bot size={13} style={{ color: PURPLE, flexShrink: 0 }} />
-            <span style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.4 }}>Choose a scheduled AI Signal for this direction. Review the risk limits and consent before execution.</span>
-          </div>
 
-          {/* Amount */}
-          <div style={{ marginBottom: 14, opacity: 0.5 }}>
-            <label style={{ fontSize: 10, fontWeight: 600, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>Amount (USDT)</label>
-            <input
-              value={amount}
-              disabled
-              readOnly
-              style={{
-                width: "100%", padding: "12px 14px", borderRadius: 12, fontSize: 16, fontWeight: 700,
-                background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)",
-                color: "#fff", outline: "none", boxSizing: "border-box", fontFamily: "'JetBrains Mono', monospace",
-                cursor: "not-allowed",
-              }}
-            />
-          </div>
-
-          {/* Leverage */}
-          <div style={{ marginBottom: 14, opacity: 0.5 }}>
-            <label style={{ fontSize: 10, fontWeight: 600, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>Leverage</label>
-            <div style={{ display: "flex", gap: 8 }}>
-              {LEVERAGES.map(lv => (
-                <button key={lv} disabled style={{
-                  flex: 1, padding: "8px 0", borderRadius: 10, border: "none", cursor: "not-allowed",
-                  fontSize: 12, fontWeight: 700,
-                  background: leverage === lv ? PURPLE : "rgba(255,255,255,0.06)",
-                  color: leverage === lv ? "#fff" : "#9CA3AF",
-                }}>{lv}x</button>
-              ))}
-            </div>
-          </div>
-
-          {/* Take Profit / Stop Loss */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16, opacity: 0.5 }}>
-            <div>
-              <label style={{ fontSize: 10, fontWeight: 600, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>Take Profit</label>
-              <input value={takeProfit} disabled readOnly style={{
-                width: "100%", padding: "10px 12px", borderRadius: 10, fontSize: 13, fontWeight: 700,
-                background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.3)",
-                color: "#22c55e", outline: "none", boxSizing: "border-box", fontFamily: "'JetBrains Mono', monospace",
-                cursor: "not-allowed",
-              }} />
-            </div>
-            <div>
-              <label style={{ fontSize: 10, fontWeight: 600, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>Stop Loss</label>
-              <input value={stopLoss} disabled readOnly style={{
-                width: "100%", padding: "10px 12px", borderRadius: 10, fontSize: 13, fontWeight: 700,
-                background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.3)",
-                color: "#ef4444", outline: "none", boxSizing: "border-box", fontFamily: "'JetBrains Mono', monospace",
-                cursor: "not-allowed",
-              }} />
-            </div>
-          </div>
-
-          {/* Risk indicator */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14, opacity: 0.5 }}>
-            <Activity size={13} style={{ color: riskColor }} />
-            <span style={{ fontSize: 11, color: "#6B7280" }}>Risk: <span style={{ color: riskColor, fontWeight: 700 }}>{risk}</span></span>
-          </div>
-
-          {/* Direct execution is intentionally not available on the chart page. */}
-          <button
-            onClick={() => setLocation(`/trade?pair=${encodeURIComponent(meta.label)}`)}
-            style={{
-              width: "100%", padding: "16px 0", borderRadius: 14, border: "none",
-              cursor: "pointer",
-              fontSize: 15, fontWeight: 900, letterSpacing: "0.08em", color: "#fff",
-              background: "linear-gradient(135deg, #F5B942, #2563EB)",
-            }}
-          >
-            CHOOSE AN AI SIGNAL
-          </button>
-
-          {/* ── Run Bot on This Pair ─────────────────────────── */}
-          <div style={{ marginTop: 28, borderRadius: 18, border: `1px solid ${PURPLE}33`, background: "rgba(245,185,66,0.07)", padding: 18 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 10, background: PURPLE, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Bot size={16} color="#fff" />
-              </div>
-              <div>
-              <p style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>Use an execution profile on {meta.label}</p>
-              <p style={{ fontSize: 11, color: "#6B7280" }}>Your profile applies the signal after your review</p>
-              </div>
-            </div>
-
-            {bots.length === 0 ? (
-              <button onClick={() => setLocation("/bots")}
-                style={{ width: "100%", padding: "12px 0", borderRadius: 12, border: `1px dashed ${PURPLE}66`, background: "transparent", color: PURPLE, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-                Browse Bot Marketplace →
-              </button>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {bots.slice(0, 3).map((bot, i) => {
-                  const colors = ["#F5B942","#06B6D4","#22c55e"];
-                  const color = colors[i % colors.length];
-                  return (
-                    <div key={bot.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", background: "rgba(255,255,255,0.04)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.07)" }}>
-                      <div style={{ width: 34, height: 34, borderRadius: 10, background: color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
-                        {bot.name?.charAt(0) ?? "B"}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: 12, fontWeight: 700, color: "#fff", marginBottom: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{bot.name}</p>
-                        <p style={{ fontSize: 10, color: "#22c55e" }}>Win {bot.winRate}% · +${bot.profitToday} today</p>
-                      </div>
-                      <button onClick={() => setLocation(`/start-bot?botId=${bot.id}`)}
-                        style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 9, border: "none", background: PURPLE, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>
-                        <Zap size={11} /> Activate
-                      </button>
-                    </div>
-                  );
-                })}
-                {bots.length > 3 && (
-                  <button onClick={() => setLocation("/bots")}
-                    style={{ width: "100%", padding: "9px 0", borderRadius: 10, border: `1px solid rgba(255,255,255,0.08)`, background: "transparent", color: "#6B7280", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-                    View all {bots.length} bots →
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Feature cards */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 20 }}>
-            {[
-              { icon: "🔄", title: "Multi-Exchange", desc: "Execute across 40+ exchanges from a single interface" },
-              { icon: "🛡", title: "Risk Management", desc: "Automated stop-loss, take-profit, and portfolio hedging" },
-              { icon: "⚡", title: "Instant Execution", desc: "Sub-millisecond order routing for optimal fill price" },
-            ].map(c => (
-              <div key={c.title} style={{
-                display: "flex", alignItems: "flex-start", gap: 14, padding: "14px 16px",
-                background: "rgba(255,255,255,0.04)", borderRadius: 14, border: "1px solid rgba(255,255,255,0.07)",
-              }}>
-                <div style={{ width: 38, height: 38, borderRadius: 10, background: "rgba(245,185,66,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>
-                  {c.icon}
+          <div style={{ borderRadius: 18, padding: 16, border: `1px solid ${PURPLE}44`, background: "linear-gradient(145deg, rgba(245,185,66,0.12), rgba(37,99,235,0.08))", marginBottom: 14 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 38, height: 38, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(245,185,66,0.2)", color: PURPLE }}>
+                  <Activity size={19} />
                 </div>
                 <div>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 3 }}>{c.title}</p>
-                  <p style={{ fontSize: 11, color: "#6B7280", lineHeight: 1.5 }}>{c.desc}</p>
+                  <p style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>AI Signal for {meta.label}</p>
+                  <p style={{ fontSize: 11, color: "#9CA3AF", marginTop: 3 }}>Review before you execute</p>
                 </div>
               </div>
-            ))}
+              <span style={{ display: "flex", alignItems: "center", gap: 4, borderRadius: 20, padding: "4px 8px", background: "rgba(34,197,94,0.12)", color: "#22c55e", fontSize: 10, fontWeight: 800 }}>
+                <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#22c55e" }} /> NEXT WINDOW
+              </span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+              <div style={{ padding: "10px 12px", borderRadius: 12, background: "rgba(0,0,0,0.18)" }}>
+                <p style={{ fontSize: 10, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em" }}>Window</p>
+                <p style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5, fontSize: 13, color: "#fff", fontWeight: 700 }}><Clock3 size={13} color={PURPLE} /> Next signal</p>
+              </div>
+              <div style={{ padding: "10px 12px", borderRadius: 12, background: "rgba(0,0,0,0.18)" }}>
+                <p style={{ fontSize: 10, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em" }}>Protection</p>
+                <p style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5, fontSize: 13, color: "#fff", fontWeight: 700 }}><ShieldCheck size={13} color="#22c55e" /> Stop-loss set</p>
+              </div>
+            </div>
+            <p style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.5, marginBottom: 14 }}>
+              Signals can result in a profit or a loss. Stake, target profit, stop loss, and consent are confirmed on the next screen.
+            </p>
+            <button onClick={() => setLocation(`/trade?pair=${encodeURIComponent(meta.label)}`)} style={{
+              width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "14px 0", borderRadius: 12,
+              border: "none", cursor: "pointer", fontSize: 14, fontWeight: 900, color: "#fff", background: "linear-gradient(135deg, #F5B942, #2563EB)",
+            }}>
+              REVIEW AI SIGNAL <ArrowRight size={16} />
+            </button>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "12px 13px", borderRadius: 12, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+            <ShieldCheck size={16} color="#9CA3AF" style={{ flexShrink: 0, marginTop: 1 }} />
+            <p style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.5 }}>
+              No direct orders or leverage on this screen. You stay in control and approve each signal before execution.
+            </p>
           </div>
         </div>
       </div>
