@@ -2,6 +2,7 @@ import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import path from "node:path";
+import crypto from "node:crypto";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import {
@@ -58,18 +59,104 @@ const configuredOrigins = (process.env.ALLOWED_ORIGINS ?? "")
   .map((origin) => origin.trim())
   .filter(Boolean);
 const allowedOrigins = new Set([...DEFAULT_ALLOWED_ORIGINS, ...configuredOrigins]);
+const stateChangingMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const csrfToken = process.env.CSRF_TOKEN?.trim();
+
+function isTrustedOrigin(origin: string | undefined): boolean {
+  if (!origin || !allowedOrigins.has(origin)) {
+    // Replit preview origins are trusted only while the API is running in a
+    // non-production environment. Vercel previews must be explicitly listed
+    // in ALLOWED_ORIGINS so an unrelated Vercel project cannot make a
+    // credentialed mutation against this API.
+    let isReplitPreview = false;
+    try {
+      isReplitPreview = Boolean(origin && /\.replit\.dev$/.test(new URL(origin).hostname));
+    } catch {
+      return false;
+    }
+    if (
+      !origin ||
+      process.env.NODE_ENV === "production" ||
+      !isReplitPreview
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function hasValidCsrfToken(req: express.Request): boolean {
+  if (!csrfToken) return false;
+  const supplied = req.headers["x-csrf-token"];
+  if (typeof supplied !== "string") return false;
+
+  const expectedBytes = Buffer.from(csrfToken);
+  const suppliedBytes = Buffer.from(supplied);
+  return (
+    expectedBytes.length === suppliedBytes.length &&
+    crypto.timingSafeEqual(expectedBytes, suppliedBytes)
+  );
+}
+
+function hasCookieAuthenticatedSession(req: express.Request): boolean {
+  return Boolean(
+    getCookie(req, USER_SESSION_COOKIE) ||
+      getCookie(req, ADMIN_SESSION_COOKIE),
+  );
+}
+
+/**
+ * SameSite=None is required when the frontends and API are separate origins,
+ * so it cannot be the only CSRF defense. Browser requests carry an Origin
+ * header that we can validate against the configured frontend origins. The
+ * optional CSRF_TOKEN header is intended for trusted non-browser callers
+ * configured through the environment; it is never exposed to browser code.
+ *
+ * Bearer-only callers remain compatible with the pre-cookie API contract.
+ * Cookie-authenticated calls, including login/logout and password flows, must
+ * come from a trusted origin (or supply the configured CSRF token).
+ */
+function preventCrossSiteActions(
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction,
+): void {
+  const isAdminEventStream =
+    req.method === "GET" && req.path === "/api/admin/login-events";
+  const isWebhook = req.path === "/api/webhooks/didit";
+
+  if (isWebhook || (!stateChangingMethods.has(req.method) && !isAdminEventStream)) {
+    next();
+    return;
+  }
+
+  const origin = typeof req.headers.origin === "string" ? req.headers.origin : undefined;
+  if (isTrustedOrigin(origin) || hasValidCsrfToken(req)) {
+    next();
+    return;
+  }
+
+  // Keep non-browser bearer clients working. A browser session is identified
+  // by either of the HttpOnly cookies and never takes this bypass.
+  if (!hasCookieAuthenticatedSession(req) && req.headers.authorization?.startsWith("Bearer ")) {
+    next();
+    return;
+  }
+
+  res.status(403).json({
+    error: "Cross-site request blocked. Include a trusted Origin or CSRF token.",
+  });
+}
 
 app.use(
   cors({
     origin: (origin, callback) => {
       // No Origin header (server-to-server, curl, health checks) — allow.
       if (!origin) return callback(null, true);
-      if (allowedOrigins.has(origin)) return callback(null, true);
-      // Allow any Replit dev/preview domain and any Vercel preview deployment
-      // for this project so staging/dev testing isn't blocked.
-      if (/\.replit\.dev$/.test(new URL(origin).hostname)) return callback(null, true);
-      if (/\.vercel\.app$/.test(new URL(origin).hostname)) return callback(null, true);
-      return callback(new Error(`Origin ${origin} not allowed by CORS`));
+      if (isTrustedOrigin(origin)) return callback(null, true);
+      const error = new Error(`Origin ${origin} not allowed by CORS`) as Error & { status?: number };
+      error.status = 403;
+      return callback(error);
     },
     credentials: true,
   }),
@@ -96,6 +183,7 @@ app.use((req, _res, next) => {
   next();
 });
 
+app.use(preventCrossSiteActions);
 app.use("/api", router);
 
 // Single-service deployments (e.g. Render) serve the built React app from the

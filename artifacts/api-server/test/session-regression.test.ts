@@ -42,7 +42,7 @@ type RequestOptions = {
   jar?: CookieJar;
   method?: string;
   body?: unknown;
-  origin?: string;
+  origin?: string | null;
   signal?: AbortSignal;
 };
 
@@ -119,9 +119,10 @@ async function request<T = Record<string, unknown>>(
   const cookie = jar.header();
   jar.assertNoObservedValue(url.search);
 
-  const headers = new Headers({
-    Origin: options.origin ?? TEST_ORIGIN,
-  });
+  const headers = new Headers();
+  if (options.origin !== null) {
+    headers.set("Origin", options.origin ?? TEST_ORIGIN);
+  }
   if (cookie) headers.set("Cookie", cookie);
   if (options.body !== undefined) headers.set("Content-Type", "application/json");
 
@@ -219,6 +220,60 @@ test("rejects unauthenticated requests and returns credentialed CORS headers", a
   assert.equal(result.response.status, 401);
   assert.deepEqual(result.body, { error: "Unauthorized" });
   assertCredentialedCors(result.response);
+});
+
+test("blocks cookie-authenticated mutations without a trusted Origin", async () => {
+  const noOrigin = await request("/api/auth/login", {
+    method: "POST",
+    origin: null,
+    body: { email: userEmail, password: userPassword },
+  });
+  assert.equal(noOrigin.response.status, 403);
+  assert.deepEqual(noOrigin.body, {
+    error: "Cross-site request blocked. Include a trusted Origin or CSRF token.",
+  });
+
+  const untrustedVercelPreview = await request("/api/auth/forgot-password", {
+    method: "POST",
+    origin: "https://unrelated-preview.vercel.app",
+    body: { email: userEmail },
+  });
+  assert.equal(untrustedVercelPreview.response.status, 403);
+
+  const blockedStream = await request("/api/admin/login-events", {
+    origin: "https://unrelated-preview.vercel.app",
+  });
+  assert.equal(blockedStream.response.status, 403);
+});
+
+test("keeps password reset and logout available from a trusted frontend", async () => {
+  const reset = await request("/api/auth/reset-password", {
+    method: "POST",
+    body: { token: "cookie-regression-reset-token", password: "NewCookiePassword1!" },
+  });
+  assert.equal(reset.response.status, 200);
+  assert.deepEqual(reset.body, { message: "Password reset successfully" });
+  assertCredentialedCors(reset.response);
+
+  const logout = await request("/api/auth/logout", { method: "POST" });
+  assert.equal(logout.response.status, 200);
+  assert.deepEqual(logout.body, { message: "Logged out successfully" });
+  assertCredentialedCors(logout.response);
+});
+
+test("handles credentialed preflight for configured frontend origins", async () => {
+  const response = await fetch(`${baseUrl}/api/auth/login`, {
+    method: "OPTIONS",
+    headers: {
+      Origin: TEST_ORIGIN,
+      "Access-Control-Request-Method": "POST",
+      "Access-Control-Request-Headers": "content-type",
+    },
+  });
+  assert.equal(response.status, 204);
+  assertCredentialedCors(response);
+  assert.match(response.headers.get("access-control-allow-methods") ?? "", /POST/);
+  assert.match(response.headers.get("access-control-allow-headers") ?? "", /content-type/i);
 });
 
 test("keeps user sessions in HttpOnly cookies across reloads, logout, and expiry", async (t) => {
