@@ -98,6 +98,12 @@ Each app is a **separate Vercel project** pointing at the same GitHub repo (`dev
 
 The API server runs as a **Vercel Serverless Function**. The build command (`pnpm --filter @workspace/api-server run build`) bundles the entire Express app (including all workspace libraries) into a self-contained `dist/vercel-handler.mjs` file. On each cold start, Vercel runs database migrations and seeds in the background before serving requests.
 
+## Live Neon Operations
+
+- **Runtime target:** The API server's production `NEON_DATABASE_URL` resolves to the pooled Neon endpoint `ep-tiny-wave-aigg4dlv-pooler.c-4.us-east-1.aws.neon.tech`, database `neondb`. The workspace `DATABASE_URL` points to a separate `heliumdb` instance and must not be used for production schema work.
+- **Index rollout (2026-08-29):** Applied the 23 additive indexes defined in `lib/db/src/schema/index.ts` directly to the runtime Neon target with one-at-a-time `CREATE INDEX CONCURRENTLY IF NOT EXISTS` statements. Verification found all 23 indexes present, valid, and ready; their current combined footprint is approximately 552 KiB.
+- **Capacity selection for million-user production:** Use Neon **Scale** with autoscaling from **1 CU minimum to 16 CU maximum**, keep scale-to-zero disabled for the always-on API, and retain the maximum available **30-day history window**. Neon storage is usage-based; use a **100 GB alert budget** while the user, transaction, notification, and session retention policy is finalized, then adjust from measured growth. See [Neon plans](https://neon.com/docs/introduction/plans) and [Neon autoscaling](https://neon.com/docs/introduction/autoscaling).
+
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
