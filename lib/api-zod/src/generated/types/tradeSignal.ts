@@ -15,4 +15,9 @@ export interface TradeSignal {
   timeframe: string;
   suggestedTp: number;
   suggestedSl: number;
+  opportunityId: number;
+  scheduledAt: Date;
+  expiresAt: Date;
+  status: string;
+  timezone: string;
 }

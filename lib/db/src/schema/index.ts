@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, numeric, boolean, timestamp, varchar, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, numeric, boolean, timestamp, varchar, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -105,6 +105,49 @@ export const positionsTable = pgTable("positions", {
 ]);
 
 export type Position = typeof positionsTable.$inferSelect;
+
+// Server-owned scheduled AI Signal opportunities. These rows are created lazily
+// for configured schedule slots and are the source of truth for availability,
+// expiry, and missed-signal review.
+export const signalOpportunitiesTable = pgTable("signal_opportunities", {
+  id: serial("id").primaryKey(),
+  scheduleKey: varchar("schedule_key", { length: 80 }).notNull().unique(),
+  scheduledAt: timestamp("scheduled_at").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("scheduled"),
+  signalId: varchar("signal_id", { length: 100 }).notNull(),
+  pair: varchar("pair", { length: 50 }).notNull(),
+  direction: varchar("direction", { length: 10 }).notNull(),
+  market: varchar("market", { length: 50 }).notNull(),
+  confidence: numeric("confidence", { precision: 5, scale: 2 }).notNull(),
+  timeframe: varchar("timeframe", { length: 20 }).notNull(),
+  suggestedTp: numeric("suggested_tp", { precision: 12, scale: 2 }).notNull(),
+  suggestedSl: numeric("suggested_sl", { precision: 12, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => [
+  index("signal_opportunities_scheduled_at_idx").on(table.scheduledAt),
+  index("signal_opportunities_status_expires_at_idx").on(table.status, table.expiresAt),
+]);
+
+export type SignalOpportunity = typeof signalOpportunitiesTable.$inferSelect;
+
+// One claim per user and opportunity prevents duplicate execution even when a
+// browser retries the request or two tabs submit at the same time.
+export const signalClaimsTable = pgTable("signal_claims", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  opportunityId: integer("opportunity_id").notNull(),
+  positionId: integer("position_id"),
+  clientRequestId: varchar("client_request_id", { length: 100 }),
+  consentAt: timestamp("consent_at").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("signal_claims_user_opportunity_unique").on(table.userId, table.opportunityId),
+  index("signal_claims_user_created_at_idx").on(table.userId, table.createdAt),
+]);
+
+export type SignalClaim = typeof signalClaimsTable.$inferSelect;
 
 // Transactions
 export const transactionsTable = pgTable("transactions", {
@@ -316,7 +359,28 @@ export const settingsTable = pgTable("settings", {
   minDeposit: numeric("min_deposit", { precision: 12, scale: 2 }).notNull().default("50"),
   minWithdrawal: numeric("min_withdrawal", { precision: 12, scale: 2 }).notNull().default("20"),
   paymentMethods: jsonb("payment_methods").$type<PaymentMethod[]>().notNull().default([]),
+  signalsEnabled: boolean("signals_enabled").notNull().default(true),
+  signalsEmergencyStop: boolean("signals_emergency_stop").notNull().default(false),
+  signalsTimezone: varchar("signals_timezone", { length: 100 }).notNull().default("Africa/Nairobi"),
+  signalTimes: jsonb("signal_times").$type<string[]>().notNull().default(["19:00", "21:00", "23:00"]),
+  signalDailyLimit: integer("signal_daily_limit").notNull().default(3),
+  signalSpacingMinutes: integer("signal_spacing_minutes").notNull().default(120),
+  signalMaxStakePercent: numeric("signal_max_stake_percent", { precision: 5, scale: 2 }).notNull().default("10"),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 export type Settings = typeof settingsTable.$inferSelect;
+
+// Immutable admin audit trail for schedule/risk availability changes.
+export const signalScheduleAuditTable = pgTable("signal_schedule_audit", {
+  id: serial("id").primaryKey(),
+  adminUserId: integer("admin_user_id").notNull(),
+  action: varchar("action", { length: 50 }).notNull(),
+  previousSettings: jsonb("previous_settings"),
+  nextSettings: jsonb("next_settings"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  index("signal_schedule_audit_created_at_idx").on(table.createdAt),
+]);
+
+export type SignalScheduleAudit = typeof signalScheduleAuditTable.$inferSelect;

@@ -18,4 +18,11 @@ export interface AdminSettingsInput {
   minDeposit?: number;
   minWithdrawal?: number;
   paymentMethods?: AdminPaymentMethod[];
+  signalsEnabled?: boolean;
+  signalsEmergencyStop?: boolean;
+  signalsTimezone?: string;
+  signalTimes?: string[];
+  signalDailyLimit?: number;
+  signalSpacingMinutes?: number;
+  signalMaxStakePercent?: number;
 }

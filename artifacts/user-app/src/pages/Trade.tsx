@@ -27,14 +27,14 @@ const STORAGE_KEY = "vixus_active_trade";
 const AI_MESSAGES = [
   "Analyzing market conditions...",
   "Scanning for optimal entry points...",
-  "Executing high-probability trade...",
+  "Reviewing market conditions and risk...",
   "Monitoring position performance...",
   "Calculating risk-adjusted returns...",
-  "Identifying profitable chart patterns...",
+  "Checking the configured exit levels...",
   "Trend reversal signal detected...",
   "Adjusting position sizing dynamically...",
   "Market volatility managed efficiently...",
-  "Profit target zone approaching...",
+  "Watching for the next price update...",
 ];
 
 const BOT_COLORS = [
@@ -135,7 +135,7 @@ type SavedTrade = {
   signalId: string | number; signalConfidence: number;
   signalPair: string; signalDirection: string;
 };
-type SignalInfo = { id?: string | number; confidence?: number; pair?: string; direction?: string };
+type SignalInfo = { id?: string | number; opportunityId?: number; confidence?: number; pair?: string; direction?: string; status?: string };
 
 export default function Trade() {
   const { data: bots = [], isLoading: loadingBots } = useListBots();
@@ -150,6 +150,9 @@ export default function Trade() {
   const [step, setStep]                   = useState<Step>("configure");
   const [selectedBotId, setSelectedBotId] = useState<number | null>(null);
   const [stake, setStake]                 = useState("");
+  const [targetProfit, setTargetProfit]   = useState("");
+  const [stopLoss, setStopLoss]           = useState("");
+  const [consent, setConsent]             = useState(false);
   const [runtime]                         = useState(5);
   const [activePositionId, setActivePositionId] = useState<number | null>(null);
   const [executedSignal, setExecutedSignal]     = useState<SignalInfo | null>(null);
@@ -161,6 +164,7 @@ export default function Trade() {
 
   // Chart state
   const [selectedPair, setSelectedPair] = useState("EUR/USD");
+  const [requestedDirection] = useState(() => new URLSearchParams(window.location.search).get("direction")?.toUpperCase() ?? "");
   const [activeTimeframe, setActiveTimeframe] = useState("5m");
   const [pairDropOpen, setPairDropOpen] = useState(false);
 
@@ -209,12 +213,12 @@ export default function Trade() {
     const pos = positions.find(p => p.id === saved.positionId);
     if (!pos) { localStorage.removeItem(STORAGE_KEY); return; }
 
-    const partialSignal: SignalInfo = {
+     const partialSignal: SignalInfo = {
       id: saved.signalId, confidence: saved.signalConfidence,
       pair: saved.signalPair, direction: saved.signalDirection,
     };
 
-    if (pos.status === "open") {
+     if (pos.status === "open") {
       const remaining = Math.max(0, Math.floor((saved.endTimeMs - Date.now()) / 1000));
       setActivePositionId(pos.id);
       setExecutedSignal(partialSignal);
@@ -299,24 +303,26 @@ export default function Trade() {
 
   const handleExecute = () => {
     if (!selectedBotId || stakeNum < 1) return;
-    if (!signals.length) { toast({ title: "No signals available", variant: "destructive" }); return; }
+    const signal = bestSignal;
+    if (!signal || signal.status !== "available" || !signal.opportunityId) { toast({ title: "No signal is currently available", description: "Wait for the next scheduled window.", variant: "destructive" }); return; }
+    if (!consent) { toast({ title: "Confirm the risk disclosure first", variant: "destructive" }); return; }
+    const target = parseFloat(targetProfit);
+    const stop = parseFloat(stopLoss);
+    if (!Number.isFinite(target) || !Number.isFinite(stop) || target <= 0 || stop <= 0 || stop > stakeNum) {
+      toast({ title: "Check your target and stop-loss", description: "Stop-loss must be positive and no greater than your stake.", variant: "destructive" }); return;
+    }
     if (stakeNum > availableBalance) {
       toast({ title: "Insufficient balance", description: `Available: $${availableBalance.toFixed(2)}`, variant: "destructive" });
       return;
     }
-    const lastPair = localStorage.getItem("vixus_last_pair") ?? "";
-    const pool = signals.filter(s => s.pair !== lastPair);
-    const candidates = pool.length > 0 ? pool : signals;
-    const signal = candidates[Math.floor(Math.random() * candidates.length)];
     const secs = runtime * 60;
 
     executeMutation.mutate(
-      { data: { signalId: signal.id, botId: selectedBotId, targetProfit: signal.suggestedTp, stopLoss: signal.suggestedSl, stake: stakeNum } },
+       { data: { signalId: signal.id, opportunityId: signal.opportunityId, botId: selectedBotId, targetProfit: target, stopLoss: stop, stake: stakeNum, consent: true, clientRequestId: crypto.randomUUID() } },
       {
         onSuccess: (pos) => {
           const endTimeMs = Date.now() + secs * 1000;
           localStorage.setItem(STORAGE_KEY, JSON.stringify({ positionId: pos.id, endTimeMs, runtime, signalId: signal.id, signalConfidence: signal.confidence, signalPair: signal.pair, signalDirection: signal.direction } as SavedTrade));
-          localStorage.setItem("vixus_last_pair", signal.pair);
           setActivePositionId(pos.id);
           setExecutedSignal(signal);
           prevStatusRef.current = "open";
@@ -382,16 +388,21 @@ export default function Trade() {
     .slice(0, 30);
 
   const bestSignal = useMemo(() => {
-    if (!signals.length) return null;
-    const lastPair = localStorage.getItem("vixus_last_pair") ?? "";
-    const pool = signals.filter(s => s.pair !== lastPair);
-    const candidates = pool.length > 0 ? pool : signals;
-    return candidates[Math.floor(Date.now() / 60_000) % candidates.length];
-  }, [signals]);
+     const available = signals.filter(s => s.status === "available");
+     const matchingDirection = requestedDirection ? available.filter(s => s.direction.toUpperCase() === requestedDirection) : available;
+     const matchingPair = matchingDirection.filter(s => s.pair === selectedPair);
+     return (matchingPair[0] ?? matchingDirection[0] ?? available[0]) ?? null;
+  }, [signals, requestedDirection, selectedPair]);
+  useEffect(() => {
+    if (!bestSignal || !stakeNum) return;
+    setTargetProfit((stakeNum * 0.02).toFixed(2));
+    setStopLoss((stakeNum * 0.01).toFixed(2));
+    setConsent(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bestSignal?.opportunityId]);
 
   const pos = activePosition;
-  const minDisplayPnl = (pos && secondsLeft <= 10 && secondsLeft > 0) ? pos.stake * 0.04 : -Infinity;
-  const pnl   = Math.max(pos?.pnl ?? 0, minDisplayPnl);
+  const pnl   = pos?.pnl ?? 0;
   const posUp = pnl >= 0;
   const posBuy = pos ? isBuy(pos.direction) : true;
   const pct   = pos
@@ -621,13 +632,38 @@ export default function Trade() {
                 </div>
               </div>
 
-              {/* Bot select */}
+              {/* Transparent risk configuration */}
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
                   <div style={{ width: 18, height: 18, borderRadius: "50%", background: "rgba(124,58,237,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <span style={{ fontSize: 9, fontWeight: 800, color: "#FFD86B" }}>2</span>
                   </div>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>Select AI Bot</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>Set risk limits</span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  <label style={{ fontSize: 10, color: "#9CA3AF" }}>
+                    Target profit ($)
+                    <Input type="number" min="0.01" step="0.01" value={targetProfit} onChange={e => setTargetProfit(e.target.value)} style={{ marginTop: 5, height: 42, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }} />
+                  </label>
+                  <label style={{ fontSize: 10, color: "#9CA3AF" }}>
+                    Stop loss ($)
+                    <Input type="number" min="0.01" step="0.01" value={stopLoss} onChange={e => setStopLoss(e.target.value)} style={{ marginTop: 5, height: 42, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }} />
+                  </label>
+                </div>
+                <p style={{ fontSize: 10, color: "#6B7280", marginTop: 7 }}>An AI Signal is analysis, not a promise. Losses, fees, and partial outcomes are possible.</p>
+                <label style={{ display: "flex", gap: 8, alignItems: "flex-start", marginTop: 10, color: "#D1D5DB", fontSize: 11, lineHeight: 1.4 }}>
+                  <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} style={{ marginTop: 2, accentColor: "#F5B942" }} />
+                  I understand the stake is at risk and consent to execute this configured signal.
+                </label>
+              </div>
+
+              {/* Bot select */}
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                  <div style={{ width: 18, height: 18, borderRadius: "50%", background: "rgba(124,58,237,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <span style={{ fontSize: 9, fontWeight: 800, color: "#FFD86B" }}>3</span>
+                  </div>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>Select execution profile</span>
                 </div>
                 {loadingBots ? (
                   <div style={{ display: "flex", gap: 8 }}>{[1,2].map(i => <Skeleton key={i} className="h-20 flex-1 rounded-2xl" />)}</div>
@@ -653,17 +689,17 @@ export default function Trade() {
               {/* Execute button */}
               <button
                 onClick={handleExecute}
-                disabled={executeMutation.isPending || !selectedBotId || stakeNum < 1 || stakeNum > availableBalance}
+                disabled={executeMutation.isPending || !selectedBotId || !bestSignal || !consent || stakeNum < 1 || stakeNum > availableBalance}
                 style={{
                   width: "100%", height: 56, borderRadius: 16, border: "none", cursor: "pointer",
-                  background: executeMutation.isPending || !selectedBotId || stakeNum < 1 ? "rgba(245,185,66,0.3)" : "linear-gradient(135deg, #F5B942 0%, #2563EB 100%)",
+                  background: executeMutation.isPending || !selectedBotId || !bestSignal || !consent || stakeNum < 1 ? "rgba(245,185,66,0.3)" : "linear-gradient(135deg, #F5B942 0%, #2563EB 100%)",
                   fontSize: 15, fontWeight: 800, color: "#fff",
                   boxShadow: "0 4px 20px rgba(124,58,237,0.4)",
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                 }}
               >
                 <Zap style={{ width: 18, height: 18, fill: "#fff", color: "#fff" }} />
-                {executeMutation.isPending ? "Executing..." : "Execute AI Trade"}
+                {executeMutation.isPending ? "Executing..." : "Execute AI Signal"}
               </button>
 
               {/* Trade Journal */}

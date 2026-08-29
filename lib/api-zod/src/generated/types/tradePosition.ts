@@ -17,6 +17,7 @@ export interface TradePosition {
   stake: number;
   targetProfit: number;
   stopLoss: number;
+  fee: number;
   status: string;
   pnl: number;
   openedAt: string;

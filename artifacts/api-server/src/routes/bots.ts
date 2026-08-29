@@ -6,13 +6,10 @@ import {
   userBotsTable,
   botsTable,
   transactionsTable,
-  positionsTable,
-  earningsTable,
-  notificationsTable,
 } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { getAvailableBalance } from "../utils/balance.js";
-import { isUserSessionExpired } from "../lib/session";
+import { getRequestToken, isUserSessionExpired } from "../lib/session";
 
 const router = Router();
 
@@ -28,113 +25,9 @@ async function getUserFromToken(token: string | undefined) {
   return users[0] ?? null;
 }
 
-const TRADE_INTERVAL_MS = 24 * 60 * 60 * 1000; // every bot must trade exactly once every 24h
-
-const AUTO_PAIRS = [
-  { pair: "EUR/USD", direction: "BUY", market: "Forex" },
-  { pair: "GBP/USD", direction: "SELL", market: "Forex" },
-  { pair: "USD/JPY", direction: "BUY", market: "Forex" },
-  { pair: "BTC/USD", direction: "BUY", market: "Crypto" },
-  { pair: "ETH/USD", direction: "SELL", market: "Crypto" },
-  { pair: "XAU/USD", direction: "BUY", market: "Commodities" },
-];
-
-// Deterministic pick so the same bot/day combination is stable if called twice.
-function pickSignal(seed: number) {
-  const idx = Math.abs(seed) % AUTO_PAIRS.length;
-  return AUTO_PAIRS[idx];
-}
-
-// Execute the mandatory scheduled trade for a running bot that is due.
-// Every scheduled trade is a guaranteed win — never a loss.
-async function runScheduledTrade(ub: typeof userBotsTable.$inferSelect, bot: typeof botsTable.$inferSelect, now: Date) {
-  const minInvestment = parseFloat(bot.minInvestment) || 0;
-  const stake = Math.max(minInvestment, 25);
-  const winRate = parseFloat(bot.winRate) || 75;
-  const profit = Math.round(stake * 0.04 * (0.8 + winRate / 200) * 100) / 100;
-
-  const signal = pickSignal(ub.id * 2654435761 + Math.floor(now.getTime() / TRADE_INTERVAL_MS));
-
-  await db.transaction(async (tx) => {
-    await tx.insert(positionsTable).values({
-      userId: ub.userId,
-      botId: bot.id,
-      botName: bot.name,
-      signalId: `auto-${ub.id}-${now.getTime()}`,
-      pair: signal.pair,
-      direction: signal.direction,
-      market: signal.market,
-      winRate: bot.winRate,
-      stake: stake.toFixed(2),
-      targetProfit: profit.toFixed(2),
-      stopLoss: profit.toFixed(2),
-      status: "tp_hit",
-      realizedPnl: profit.toFixed(2),
-      openedAt: now,
-      closedAt: now,
-    });
-
-    await tx.insert(transactionsTable).values({
-      userId: ub.userId,
-      type: "trade_profit",
-      amount: profit.toFixed(2),
-      status: "completed",
-      paymentMethod: "balance",
-      description: `Scheduled trade win: ${signal.pair} ${signal.direction} (${bot.name})`,
-    });
-
-    await tx.insert(earningsTable).values({ userId: ub.userId, amount: profit.toFixed(2), source: "trade" });
-
-    await tx.insert(notificationsTable).values({
-      userId: ub.userId,
-      type: "trade",
-      title: "Bot Trade Won 🎉",
-      message: `${bot.name} executed its scheduled 24h trade on ${signal.pair} ${signal.direction} and won +$${profit.toFixed(2)}.`,
-    });
-
-    await tx.update(userBotsTable).set({
-      profitToday: (parseFloat(ub.profitToday) + profit).toFixed(2),
-      profitTotal: (parseFloat(ub.profitTotal) + profit).toFixed(2),
-      totalTrades: ub.totalTrades + 1,
-      nextTradeAt: new Date(now.getTime() + TRADE_INTERVAL_MS),
-    }).where(eq(userBotsTable.id, ub.id));
-  });
-}
-
-// Lazily runs the scheduled trade for a running bot if it's due, and ensures
-// every running bot always has a nextTradeAt scheduled. Called on every read
-// so bots trade exactly once per 24h even without a background scheduler.
-async function ensureScheduledTrade(
-  ub: typeof userBotsTable.$inferSelect,
-  bot: typeof botsTable.$inferSelect,
-): Promise<typeof userBotsTable.$inferSelect> {
-  if (ub.status !== "running") return ub;
-
-  const now = new Date();
-
-  if (!ub.nextTradeAt) {
-    const nextTradeAt = new Date(now.getTime() + TRADE_INTERVAL_MS);
-    await db.update(userBotsTable).set({ nextTradeAt }).where(eq(userBotsTable.id, ub.id));
-    return { ...ub, nextTradeAt };
-  }
-
-  if (ub.nextTradeAt.getTime() <= now.getTime()) {
-    await runScheduledTrade(ub, bot, now);
-    const refreshed = await db.select().from(userBotsTable).where(eq(userBotsTable.id, ub.id)).limit(1);
-    return refreshed[0] ?? ub;
-  }
-
-  return ub;
-}
-
-function secondsUntil(nextTradeAt: Date | null): number | null {
-  if (!nextTradeAt) return null;
-  return Math.max(0, Math.round((nextTradeAt.getTime() - Date.now()) / 1000));
-}
-
 // List user's bots
 router.get("/bots", async (req, res) => {
-  const token = req.headers.authorization?.replace("Bearer ", "");
+  const token = getRequestToken(req);
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
@@ -145,12 +38,7 @@ router.get("/bots", async (req, res) => {
     .innerJoin(botsTable, eq(userBotsTable.botId, botsTable.id))
     .where(eq(userBotsTable.userId, user.id));
 
-  const resolved = await Promise.all(userBots.map(async ({ ub, bot }) => ({
-    ub: await ensureScheduledTrade(ub, bot),
-    bot,
-  })));
-
-  return res.json(resolved.map(({ ub, bot }) => ({
+  return res.json(userBots.map(({ ub, bot }) => ({
     id: ub.id,
     name: bot.name,
     status: ub.status,
@@ -159,14 +47,14 @@ router.get("/bots", async (req, res) => {
     totalTrades: ub.totalTrades,
     iconUrl: bot.iconUrl,
     category: bot.category,
-    nextTradeAt: ub.nextTradeAt ? ub.nextTradeAt.toISOString() : null,
-    secondsUntilNextTrade: secondsUntil(ub.nextTradeAt),
+    nextTradeAt: null,
+    secondsUntilNextTrade: null,
   })));
 });
 
 // Get bot detail
 router.get("/bots/:id", async (req, res) => {
-  const token = req.headers.authorization?.replace("Bearer ", "");
+  const token = getRequestToken(req);
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
@@ -180,7 +68,7 @@ router.get("/bots/:id", async (req, res) => {
   if (rows.length === 0) return res.status(404).json({ error: "Bot not found" });
 
   const { bot } = rows[0];
-  const ub = await ensureScheduledTrade(rows[0].ub, bot);
+  const ub = rows[0].ub;
   return res.json({
     id: ub.id,
     name: bot.name,
@@ -193,14 +81,14 @@ router.get("/bots/:id", async (req, res) => {
     category: bot.category,
     description: bot.description,
     performance: parseFloat(bot.winRate),
-    nextTradeAt: ub.nextTradeAt ? ub.nextTradeAt.toISOString() : null,
-    secondsUntilNextTrade: secondsUntil(ub.nextTradeAt),
+    nextTradeAt: null,
+    secondsUntilNextTrade: null,
   });
 });
 
 // Toggle bot status
 router.post("/bots/:id/toggle", async (req, res) => {
-  const token = req.headers.authorization?.replace("Bearer ", "");
+  const token = getRequestToken(req);
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
@@ -215,13 +103,10 @@ router.post("/bots/:id/toggle", async (req, res) => {
 
   const { ub, bot } = rows[0];
   const newStatus = ub.status === "running" ? "paused" : "running";
-  const startingNow = newStatus === "running";
-  const nextTradeAt = startingNow ? new Date(Date.now() + TRADE_INTERVAL_MS) : ub.nextTradeAt;
-
   await db.update(userBotsTable).set({
     status: newStatus,
-    startedAt: startingNow ? new Date() : undefined,
-    nextTradeAt: startingNow ? nextTradeAt : ub.nextTradeAt,
+    startedAt: newStatus === "running" ? new Date() : undefined,
+    nextTradeAt: null,
   }).where(eq(userBotsTable.id, id));
 
   return res.json({
@@ -233,8 +118,8 @@ router.post("/bots/:id/toggle", async (req, res) => {
     totalTrades: ub.totalTrades,
     iconUrl: bot.iconUrl,
     category: bot.category,
-    nextTradeAt: nextTradeAt ? nextTradeAt.toISOString() : null,
-    secondsUntilNextTrade: secondsUntil(nextTradeAt),
+    nextTradeAt: null,
+    secondsUntilNextTrade: null,
   });
 });
 

@@ -1442,6 +1442,20 @@ paths:
               schema:
                 $ref: "#/components/schemas/AdminSettings"
 
+  /admin/signal-audit:
+    get:
+      operationId: adminListSignalAudit
+      tags: [admin]
+      responses:
+        "200":
+          description: AI Signal schedule audit trail
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SignalScheduleAudit"
+
   /admin/broadcast:
     post:
       operationId: adminBroadcast
@@ -1566,7 +1580,19 @@ components:
           type: number
         suggestedSl:
           type: number
-      required: [id, pair, direction, market, confidence, timeframe, suggestedTp, suggestedSl]
+        opportunityId:
+          type: integer
+        scheduledAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+        timezone:
+          type: string
+      required: [id, opportunityId, pair, direction, market, confidence, timeframe, suggestedTp, suggestedSl, scheduledAt, expiresAt, status, timezone]
 
     ExecuteTradeInput:
       type: object
@@ -1581,7 +1607,13 @@ components:
           type: number
         stake:
           type: number
-      required: [signalId, botId, targetProfit, stopLoss, stake]
+        opportunityId:
+          type: integer
+        consent:
+          type: boolean
+        clientRequestId:
+          type: string
+      required: [signalId, opportunityId, botId, targetProfit, stopLoss, stake, consent]
 
     TradeResult:
       type: object
@@ -1627,6 +1659,8 @@ components:
           type: number
         stopLoss:
           type: number
+        fee:
+          type: number
         status:
           type: string
         pnl:
@@ -1637,7 +1671,7 @@ components:
           type: ["string", "null"]
         elapsedMs:
           type: integer
-      required: [id, signalId, pair, direction, market, botId, botName, stake, targetProfit, stopLoss, status, pnl, openedAt, closedAt, elapsedMs]
+      required: [id, signalId, pair, direction, market, botId, botName, stake, targetProfit, stopLoss, fee, status, pnl, openedAt, closedAt, elapsedMs]
 
     # Auth
     RegisterInput:
@@ -2397,7 +2431,16 @@ components:
         paymentMethods:
           type: array
           items: { $ref: "#/components/schemas/AdminPaymentMethod" }
-      required: [appName, supportEmail, maintenanceMode, withdrawalsEnabled, depositsEnabled, minDeposit, minWithdrawal, paymentMethods]
+        signalsEnabled: { type: boolean }
+        signalsEmergencyStop: { type: boolean }
+        signalsTimezone: { type: string }
+        signalTimes:
+          type: array
+          items: { type: string }
+        signalDailyLimit: { type: integer }
+        signalSpacingMinutes: { type: integer }
+        signalMaxStakePercent: { type: number }
+      required: [appName, supportEmail, maintenanceMode, withdrawalsEnabled, depositsEnabled, minDeposit, minWithdrawal, paymentMethods, signalsEnabled, signalsEmergencyStop, signalsTimezone, signalTimes, signalDailyLimit, signalSpacingMinutes, signalMaxStakePercent]
 
     AdminSettingsInput:
       type: object
@@ -2413,6 +2456,26 @@ components:
         paymentMethods:
           type: array
           items: { $ref: "#/components/schemas/AdminPaymentMethod" }
+        signalsEnabled: { type: boolean }
+        signalsEmergencyStop: { type: boolean }
+        signalsTimezone: { type: string }
+        signalTimes:
+          type: array
+          items: { type: string }
+        signalDailyLimit: { type: integer }
+        signalSpacingMinutes: { type: integer }
+        signalMaxStakePercent: { type: number }
+
+    SignalScheduleAudit:
+      type: object
+      properties:
+        id: { type: integer }
+        adminUserId: { type: integer }
+        action: { type: string }
+        previousSettings: { type: ["object", "null"] }
+        nextSettings: { type: ["object", "null"] }
+        createdAt: { type: string, format: date-time }
+      required: [id, adminUserId, action, previousSettings, nextSettings, createdAt]
 
     DepositSession:
       type: object

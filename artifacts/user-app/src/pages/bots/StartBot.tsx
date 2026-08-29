@@ -16,14 +16,14 @@ type Step = "configure" | "running" | "results";
 const AI_MESSAGES = [
   "Analyzing market conditions...",
   "Scanning for optimal entry points...",
-  "Executing high-probability trade...",
+  "Reviewing market conditions and risk...",
   "Monitoring position performance...",
   "Calculating risk-adjusted returns...",
   "Identifying profitable chart patterns...",
   "Trend reversal signal detected...",
   "Adjusting position sizing dynamically...",
   "Market volatility managed efficiently...",
-  "Profit target zone approaching...",
+  "Watching for the next price update...",
 ];
 
 const BOT_COLORS = [
@@ -200,60 +200,9 @@ export default function StartBot() {
   const handleStart = async () => {
     if (!canStart) return;
     if (stakeNum < 1) { toast({ title: "Minimum stake is $1", variant: "destructive" }); return; }
-    const available = summary?.availableBalance ?? 0;
-    if (stakeNum > available) {
-      toast({
-        title: "Insufficient balance",
-        description: `You need $${stakeNum.toFixed(2)} but only have $${available.toFixed(2)} available.`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setStartingTrade(true);
-    try {
-      const { pair, market, direction } = pickPair();
-      const apiBase = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
-      const res = await fetch(`${apiBase}/api/trade/manual`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          pair,
-          direction,
-          market,
-          stake: stakeNum,
-          botName: selectedBot?.name ?? "Bot Trade",
-          userBotId: selectedBotId,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json() as { error?: string; secondsUntilNextTrade?: number };
-        if (typeof err.secondsUntilNextTrade === "number" && err.secondsUntilNextTrade > 0 && selectedBotId !== null) {
-          setLockOverrides(prev => ({ ...prev, [selectedBotId]: err.secondsUntilNextTrade! }));
-        } else {
-          toast({ title: err.error ?? "Failed to start bot", variant: "destructive" });
-        }
-        return;
-      }
-      const pos = await res.json() as { id?: number };
-      if (pos.id) {
-        setActivePositionId(pos.id);
-        localStorage.setItem("vixus_active_trade", JSON.stringify({
-          positionId: pos.id,
-        }));
-      }
-    } catch {
-      toast({ title: "Network error. Try again.", variant: "destructive" });
-      return;
-    } finally {
-      setStartingTrade(false);
-    }
-
-    setPnl(0);
-    setMsgIdx(0);
-    setTradeCount(Math.floor(Math.random() * 2) + 1);
-    setStep("running");
+    // A bot/profile can configure a signal, but it must not bypass the
+    // scheduled opportunity, risk review, or explicit consent flow.
+    setLocation(`/trade?botId=${selectedBotId}`);
   };
 
   const handleStartAgain = () => {
@@ -282,8 +231,8 @@ export default function StartBot() {
             <ChevronLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-xl font-bold leading-tight">Start Bot</h1>
-            <p className="text-[11px] text-muted-foreground">Configure your trade settings</p>
+            <h1 className="text-xl font-bold leading-tight">Configure AI Signal</h1>
+            <p className="text-[11px] text-muted-foreground">Review a scheduled opportunity before execution</p>
           </div>
         </div>
 
@@ -333,7 +282,7 @@ export default function StartBot() {
           <section>
             <div className="flex items-center gap-2 mb-3">
               <div className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center">2</div>
-              <h2 className="text-sm font-bold">Bot Selection</h2>
+              <h2 className="text-sm font-bold">Execution Profile</h2>
             </div>
             {loadingBots ? (
               <div className="space-y-2.5">
@@ -407,8 +356,8 @@ export default function StartBot() {
                 {[
                   { k: "Bot", v: selectedBot.name, vc: "" },
                   { k: "Stake Amount", v: `$${stakeNum.toFixed(2)}`, vc: "" },
-                  { k: "Target Profit", v: `$${profitTarget.toFixed(2)} (4%)`, vc: "text-green-400" },
-                  { k: "Status", v: isBotLocked(selectedBot) ? "Filtering for signals" : "Ready to Start", vc: isBotLocked(selectedBot) ? "text-muted-foreground" : "text-green-400" },
+                  { k: "Risk", v: "Set after signal review", vc: "text-muted-foreground" },
+                  { k: "Status", v: "Review required before execution", vc: "text-amber-400" },
                 ].map(({ k, v, vc }) => (
                   <div key={k} className="flex items-center justify-between">
                     <span className="text-[11px] text-muted-foreground">{k}</span>
@@ -433,7 +382,7 @@ export default function StartBot() {
             className="w-full h-14 rounded-2xl text-base font-bold shadow-none bg-gradient-to-r from-[#F5B942] to-[#2563EB] hover:opacity-90 disabled:opacity-30 transition-opacity"
           >
             <Zap className="w-5 h-5 mr-2 fill-white" />
-            {startingTrade ? "Placing Trade…" : "Start Bot"}
+             {startingTrade ? "Opening signal review…" : "Review AI Signals"}
           </Button>
         </div>
       </div>
@@ -543,8 +492,8 @@ export default function StartBot() {
             ))}
           </div>
 
-          <p className="text-[10px] text-muted-foreground/40 text-center px-6">
-            Bot is scanning for your 4% profit target. Keep this screen open.
+            <p className="text-[10px] text-muted-foreground/40 text-center px-6">
+             Your configured AI Signal is being monitored. Outcomes can be positive or negative.
           </p>
         </div>
       </div>
@@ -575,18 +524,18 @@ export default function StartBot() {
         {/* Heading */}
         <div>
           <h1 className="text-3xl font-bold tracking-tight mb-1.5">Congratulations!</h1>
-          <p className="text-muted-foreground text-sm">Your bot hit the 4% profit target.</p>
+          <p className="text-muted-foreground text-sm">Your AI Signal position has been settled.</p>
         </div>
 
         {/* Profit earned */}
         <div className="w-full bg-gradient-to-br from-green-500/12 to-emerald-900/20 border border-green-500/20 rounded-3xl p-6">
-          <p className="text-[11px] text-muted-foreground font-medium mb-2 uppercase tracking-wider">Profit Earned</p>
+            <p className="text-[11px] text-muted-foreground font-medium mb-2 uppercase tracking-wider">Realized P&L</p>
           <p className="text-6xl font-bold text-green-400 tracking-tight leading-none">
             +${profitTarget.toFixed(2)}
           </p>
           {stakeNum > 0 && (
             <p className="text-sm text-green-400/70 mt-2 font-medium">
-              4.00% return on stake
+              Realized result after the configured exit
             </p>
           )}
         </div>

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   useAdminGetSettings,
   useAdminUpdateSettings,
+  useAdminListSignalAudit,
   getAdminGetSettingsQueryKey
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -20,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 export default function Settings() {
   const { data: settings, isLoading } = useAdminGetSettings();
   const updateMutation = useAdminUpdateSettings();
+  const { data: signalAudit = [] } = useAdminListSignalAudit();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -45,6 +47,13 @@ export default function Settings() {
       minDeposit: 0,
       minWithdrawal: 0,
       paymentMethods: [] as any[]
+      ,signalsEnabled: true,
+      signalsEmergencyStop: false,
+      signalsTimezone: "Africa/Nairobi",
+      signalTimes: ["19:00", "21:00", "23:00"],
+      signalDailyLimit: 3,
+      signalSpacingMinutes: 120,
+      signalMaxStakePercent: 10
     }
   });
 
@@ -64,6 +73,13 @@ export default function Settings() {
         minDeposit: settings.minDeposit,
         minWithdrawal: settings.minWithdrawal,
         paymentMethods: settings.paymentMethods || []
+        ,signalsEnabled: settings.signalsEnabled,
+        signalsEmergencyStop: settings.signalsEmergencyStop,
+        signalsTimezone: settings.signalsTimezone,
+        signalTimes: settings.signalTimes,
+        signalDailyLimit: settings.signalDailyLimit,
+        signalSpacingMinutes: settings.signalSpacingMinutes,
+        signalMaxStakePercent: settings.signalMaxStakePercent
       });
     }
   }, [settings, form]);
@@ -76,7 +92,14 @@ export default function Settings() {
       paymentMethods: data.paymentMethods.map((m: any) => ({
         ...m,
         id: m.id || `pm-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
-      }))
+      })),
+      signalsEnabled: data.signalsEnabled,
+      signalsEmergencyStop: data.signalsEmergencyStop,
+      signalsTimezone: data.signalsTimezone,
+      signalTimes: String(data.signalTimes).split(",").map((v: string) => v.trim()).filter(Boolean),
+      signalDailyLimit: Number(data.signalDailyLimit),
+      signalSpacingMinutes: Number(data.signalSpacingMinutes),
+      signalMaxStakePercent: Number(data.signalMaxStakePercent)
     };
 
     updateMutation.mutate(
@@ -227,6 +250,56 @@ export default function Settings() {
                   </FormItem>
                 )}
               />
+            </CardContent>
+          </Card>
+
+          {/* AI Signals */}
+          <Card className="rounded-2xl border-amber-500/30">
+            <CardHeader className="px-4 pt-4 pb-2">
+              <CardTitle className="text-sm">AI Signals schedule</CardTitle>
+              <CardDescription className="text-xs">Server-owned opportunities; missed windows never execute automatically.</CardDescription>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 space-y-3">
+              <FormField control={form.control} name="signalsEnabled" render={({ field }) => (
+                <FormItem className="flex items-center justify-between p-3 rounded-xl border border-border bg-secondary/10">
+                  <div><FormLabel className="text-sm font-medium">Enable AI Signals</FormLabel><FormDescription className="text-[11px]">Allow users to execute current opportunities</FormDescription></div>
+                  <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="signalsEmergencyStop" render={({ field }) => (
+                <FormItem className="flex items-center justify-between p-3 rounded-xl border border-destructive/30 bg-destructive/5">
+                  <div><FormLabel className="text-sm text-destructive font-semibold">Emergency stop</FormLabel><FormDescription className="text-[11px]">Immediately disable all new signal claims</FormDescription></div>
+                  <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                </FormItem>
+              )} />
+              <div className="grid grid-cols-2 gap-2">
+                <FormField control={form.control} name="signalsTimezone" render={({ field }) => (
+                  <FormItem><FormLabel className="text-xs">IANA timezone</FormLabel><FormControl><Input {...field} className="h-9 rounded-xl text-sm" placeholder="Africa/Nairobi" /></FormControl></FormItem>
+                )} />
+                <FormField control={form.control} name="signalTimes" render={({ field }) => (
+                  <FormItem><FormLabel className="text-xs">Times (HH:MM)</FormLabel><FormControl><Input value={field.value.join(", ")} onChange={e => field.onChange(e.target.value.split(",").map(v => v.trim()))} className="h-9 rounded-xl text-sm" placeholder="19:00, 21:00, 23:00" /></FormControl></FormItem>
+                )} />
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <FormField control={form.control} name="signalDailyLimit" render={({ field }) => (
+                  <FormItem><FormLabel className="text-xs">Daily limit</FormLabel><FormControl><Input type="number" min="1" max="20" {...field} className="h-9 rounded-xl text-sm" /></FormControl></FormItem>
+                )} />
+                <FormField control={form.control} name="signalSpacingMinutes" render={({ field }) => (
+                  <FormItem><FormLabel className="text-xs">Spacing (min)</FormLabel><FormControl><Input type="number" min="30" {...field} className="h-9 rounded-xl text-sm" /></FormControl></FormItem>
+                )} />
+                <FormField control={form.control} name="signalMaxStakePercent" render={({ field }) => (
+                  <FormItem><FormLabel className="text-xs">Max stake %</FormLabel><FormControl><Input type="number" min="1" max="100" {...field} className="h-9 rounded-xl text-sm" /></FormControl></FormItem>
+                )} />
+              </div>
+              <div className="rounded-xl border border-border/60 bg-secondary/10 p-3">
+                <p className="text-xs font-semibold mb-2">Recent schedule changes</p>
+                {signalAudit.length === 0 ? <p className="text-[11px] text-muted-foreground">No changes recorded yet.</p> : signalAudit.slice(0, 5).map(item => (
+                  <div key={item.id} className="flex justify-between gap-3 py-1.5 border-t border-border/40 first:border-0">
+                    <span className="text-[11px]">{item.action}</span>
+                    <span className="text-[10px] text-muted-foreground">{new Date(item.createdAt).toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
 

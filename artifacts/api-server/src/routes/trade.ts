@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { db, usersTable, sessionsTable, userBotsTable, botsTable, transactionsTable, earningsTable, notificationsTable, positionsTable } from "@workspace/db";
-import { eq, and, desc, asc } from "drizzle-orm";
+import { db, usersTable, sessionsTable, userBotsTable, botsTable, transactionsTable, earningsTable, notificationsTable, positionsTable, settingsTable, signalOpportunitiesTable, signalClaimsTable } from "@workspace/db";
+import { eq, and, desc, asc, gte, lt, inArray } from "drizzle-orm";
 import { ExecuteTradeBody } from "@workspace/api-zod";
-import { isUserSessionExpired } from "../lib/session";
+import { getRequestToken, isUserSessionExpired } from "../lib/session";
 
 const router = Router();
 
@@ -16,6 +16,62 @@ async function getUserFromToken(token: string | undefined) {
   }
   const users = await db.select().from(usersTable).where(eq(usersTable.id, sessions[0].userId)).limit(1);
   return users[0] ?? null;
+}
+
+function getLocalParts(date: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone, year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+  return { year: Number(values.year), month: Number(values.month), day: Number(values.day), hour: Number(values.hour), minute: Number(values.minute) };
+}
+
+function localDateKey(date: Date, timeZone: string) {
+  const p = getLocalParts(date, timeZone);
+  return `${p.year}-${String(p.month).padStart(2, "0")}-${String(p.day).padStart(2, "0")}`;
+}
+
+function addLocalDays(dateKey: string, days: number) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + days));
+  return date.toISOString().slice(0, 10);
+}
+
+// Convert a wall-clock time in the configured IANA timezone into an instant.
+// The two correction passes also handle DST transitions without a dependency.
+function zonedTimeToUtc(dateKey: string, time: string, timeZone: string) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const [hour, minute] = time.split(":").map(Number);
+  const target = Date.UTC(year, month - 1, day, hour, minute);
+  let guess = target;
+  for (let i = 0; i < 2; i++) {
+    const p = getLocalParts(new Date(guess), timeZone);
+    const observed = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute);
+    guess += target - observed;
+  }
+  return new Date(guess);
+}
+
+function getSignalSettings(row: typeof settingsTable.$inferSelect) {
+  const timezone = row.signalsTimezone || "Africa/Nairobi";
+  try { new Intl.DateTimeFormat("en-US", { timeZone: timezone }); } catch { throw new Error("Invalid signal timezone configured"); }
+  const times = Array.from(new Set((Array.isArray(row.signalTimes) ? row.signalTimes : []).filter((t): t is string => /^\d{2}:\d{2}$/.test(t) && Number(t.slice(0, 2)) < 24 && Number(t.slice(3)) < 60))).sort();
+  return {
+    enabled: row.signalsEnabled && !row.signalsEmergencyStop,
+    timezone,
+    times: times.length > 0 ? times : ["19:00", "21:00", "23:00"],
+    dailyLimit: Math.min(20, Math.max(1, row.signalDailyLimit || 3)),
+    spacingMinutes: Math.min(24 * 60, Math.max(30, row.signalSpacingMinutes || 120)),
+    maxStakePercent: Math.min(100, Math.max(1, Number(row.signalMaxStakePercent || 10))),
+  };
+}
+
+async function getOrCreateSettings() {
+  const rows = await db.select().from(settingsTable).limit(1);
+  if (rows.length > 0) return rows[0];
+  const [created] = await db.insert(settingsTable).values({}).returning();
+  return created;
 }
 
 const SIGNALS = [
@@ -66,15 +122,16 @@ async function computeAvailableBalance(userId: number): Promise<number> {
     if (t.type === "deposit") balance += amt;
     if (t.type === "withdrawal") balance -= amt;
     if (t.type === "trade_profit" || t.type === "trade_loss_return") balance += amt;
-    if (t.type === "trade_loss" || t.type === "bot_purchase") balance -= amt;
+    if (t.type === "trade_loss" || t.type === "reserved_stake" || t.type === "trade_fee" || t.type === "bot_purchase") balance -= amt;
   }
   return Math.max(0, balance);
 }
 
-// All trades always close in profit — 4% of stake guaranteed.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function getTradeOutcome(_userId: number, _positionId: number, _isAdmin: boolean): Promise<"profit" | "loss"> {
-  return "profit";
+// This remains a deterministic simulation because live broker execution is out
+// of scope. It deliberately allows losses and never guarantees an outcome.
+async function getTradeOutcome(_userId: number, positionId: number, _isAdmin: boolean): Promise<"profit" | "loss"> {
+  const bucket = Math.abs(Math.imul(positionId, 1103515245) + 12345) % 100;
+  return bucket < 62 ? "profit" : "loss";
 }
 
 // Deterministic PRNG (mulberry32) seeded per position so the simulated price
@@ -123,7 +180,7 @@ function simulateWalk(
     return { pnl, crossed: null, step: steps, expired: wanted >= MAX_STEPS };
   }
 
-  // profit outcome — positive drift reaching TP in ~20 steps
+  // Positive scenario — reaching TP is possible, not promised.
   const drift = unit * 0.04 * (0.5 + winRate / 100);
   let pnl = 0;
   for (let i = 1; i <= steps; i++) {
@@ -147,6 +204,7 @@ function serialize(p: AnyPosition, livePnl: number, elapsedMs: number) {
     stake: parseFloat(p.stake),
     targetProfit: parseFloat(p.targetProfit),
     stopLoss: parseFloat(p.stopLoss),
+    fee: Math.round(parseFloat(p.stake) * 0.001 * 100) / 100,
     status: p.status,
     pnl: Math.round(livePnl * 100) / 100,
     openedAt: p.openedAt.toISOString(),
@@ -161,8 +219,10 @@ async function closePosition(
   opts: { status: string; realized: number; closedAt: Date; title: string; message: string },
 ): Promise<AnyPosition> {
   return await db.transaction(async (tx) => {
+    const fee = Math.round(parseFloat(p.stake) * 0.001 * 100) / 100;
+    const netRealized = Math.round((opts.realized - fee) * 100) / 100;
     const updated = await tx.update(positionsTable)
-      .set({ status: opts.status, realizedPnl: opts.realized.toFixed(2), closedAt: opts.closedAt })
+      .set({ status: opts.status, realizedPnl: netRealized.toFixed(2), closedAt: opts.closedAt })
       .where(and(eq(positionsTable.id, p.id), eq(positionsTable.status, "open")))
       .returning();
 
@@ -185,12 +245,22 @@ async function closePosition(
         description: `${opts.title}: ${p.pair} ${p.direction} (${p.botName})`,
       });
     }
-    await tx.insert(earningsTable).values({ userId: p.userId, amount: opts.realized.toFixed(2), source: "trade" });
+    if (fee > 0) {
+      await tx.insert(transactionsTable).values({
+        userId: p.userId,
+        type: "trade_fee",
+        amount: fee.toFixed(2),
+        status: "completed",
+        paymentMethod: "balance",
+        description: `AI Signal execution fee: ${p.pair} (${p.botName})`,
+      });
+    }
+    await tx.insert(earningsTable).values({ userId: p.userId, amount: netRealized.toFixed(2), source: "trade" });
     await tx.insert(notificationsTable).values({
       userId: p.userId,
       type: "trade",
       title: opts.title,
-      message: opts.message,
+       message: `${opts.message} Net realized P&L after a ${fee.toFixed(2)} fee: ${netRealized >= 0 ? "+" : "-"}$${Math.abs(netRealized).toFixed(2)}.`,
     });
 
     return updated[0];
@@ -224,10 +294,7 @@ async function resolveOpen(
   }
 
   if (walk.expired) {
-    // Profit trades expire with a small guaranteed gain; loss trades expire at full SL.
-    const realized = outcome === "profit"
-      ? Math.max(parseFloat(p.stake) * 0.04, Math.round(walk.pnl * 100) / 100)
-      : -parseFloat(p.stopLoss);
+    const realized = Math.max(-parseFloat(p.stopLoss), Math.min(parseFloat(p.targetProfit), Math.round(walk.pnl * 100) / 100));
     const closedAt = new Date(p.openedAt.getTime() + MAX_STEPS * STEP_MS);
     const row = await closePosition(p, {
       status: "closed_expired",
@@ -242,119 +309,114 @@ async function resolveOpen(
   return { row: p, pnl: walk.pnl, elapsedMs: elapsed };
 }
 
-const MANUAL_TRADE_INTERVAL_MS = 24 * 60 * 60 * 1000; // a bot may only be manually started once every 24h
+async function syncSignalOpportunities(settings: typeof settingsTable.$inferSelect) {
+  const config = getSignalSettings(settings);
+  const today = localDateKey(new Date(), config.timezone);
+  const keys = config.times.flatMap((time) => [-1, 0, 1].map((offset) => {
+    const dateKey = addLocalDays(today, offset);
+    return { dateKey, time, scheduleKey: `${dateKey}|${time}`, scheduledAt: zonedTimeToUtc(dateKey, time, config.timezone) };
+  }));
 
-function secondsUntilTrade(nextTradeAt: Date | null): number {
-  if (!nextTradeAt) return 0;
-  return Math.max(0, Math.round((nextTradeAt.getTime() - Date.now()) / 1000));
+  for (const item of keys) {
+    const signal = SIGNALS[Math.abs([...item.scheduleKey].reduce((n, c) => n + c.charCodeAt(0), 0)) % SIGNALS.length];
+    await db.insert(signalOpportunitiesTable).values({
+      scheduleKey: item.scheduleKey,
+      scheduledAt: item.scheduledAt,
+      expiresAt: new Date(item.scheduledAt.getTime() + config.spacingMinutes * 60_000),
+      signalId: signal.id,
+      pair: signal.pair,
+      direction: signal.direction,
+      market: signal.market,
+      confidence: signal.confidence.toFixed(2),
+      timeframe: signal.timeframe,
+      suggestedTp: signal.suggestedTp.toFixed(2),
+      suggestedSl: signal.suggestedSl.toFixed(2),
+    }).onConflictDoNothing({ target: signalOpportunitiesTable.scheduleKey });
+  }
+
+  const now = new Date();
+  const opportunities = await db.select().from(signalOpportunitiesTable)
+    .where(inArray(signalOpportunitiesTable.scheduleKey, keys.map((k) => k.scheduleKey)))
+    .orderBy(asc(signalOpportunitiesTable.scheduledAt));
+  for (const opportunity of opportunities) {
+    const nextStatus = !config.enabled ? "disabled" :
+      now.getTime() < opportunity.scheduledAt.getTime() ? "scheduled" :
+      now.getTime() < opportunity.expiresAt.getTime() ? "available" : "missed";
+    if (opportunity.status !== nextStatus) {
+      await db.update(signalOpportunitiesTable).set({ status: nextStatus, updatedAt: now }).where(eq(signalOpportunitiesTable.id, opportunity.id));
+      opportunity.status = nextStatus;
+    }
+  }
+  return { config, opportunities };
 }
 
 // ── Manual trade ────────────────────────────────────────────────────────────
 router.post("/trade/manual", async (req, res) => {
-  const token = req.headers.authorization?.replace("Bearer ", "");
+  const token = getRequestToken(req);
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
-
-  const { pair, direction, market, stake, botName: customBotName, userBotId } = req.body as {
-    pair?: string; direction?: string; market?: string; stake?: number; botName?: string; userBotId?: number;
-  };
-
-  if (!pair || typeof pair !== "string") return res.status(400).json({ error: "pair is required" });
-  if (direction !== "BUY" && direction !== "SELL") return res.status(400).json({ error: "direction must be BUY or SELL" });
-  if (!market || typeof market !== "string") return res.status(400).json({ error: "market is required" });
-  if (typeof stake !== "number" || stake <= 0) return res.status(400).json({ error: "stake must be a positive number" });
-
-  const available = await computeAvailableBalance(user.id);
-  if (stake > available) {
-    return res.status(400).json({ error: `Insufficient balance. Available: $${available.toFixed(2)}, required: $${stake.toFixed(2)}` });
-  }
-
-  // If trading with an owned bot, enforce the once-per-24h cooldown for that bot.
-  let ub: typeof userBotsTable.$inferSelect | null = null;
-  let bot: typeof botsTable.$inferSelect | null = null;
-  if (typeof userBotId === "number") {
-    const rows = await db.select({ ub: userBotsTable, bot: botsTable })
-      .from(userBotsTable)
-      .innerJoin(botsTable, eq(userBotsTable.botId, botsTable.id))
-      .where(and(eq(userBotsTable.id, userBotId), eq(userBotsTable.userId, user.id)))
-      .limit(1);
-    if (rows.length === 0) return res.status(400).json({ error: "You don't own this bot. Purchase it first." });
-    ub = rows[0].ub;
-    bot = rows[0].bot;
-
-    if (ub.nextTradeAt && ub.nextTradeAt.getTime() > Date.now()) {
-      return res.status(400).json({
-        error: "This bot is filtering for high-quality, high-probability signals. Please wait for the countdown to finish.",
-        secondsUntilNextTrade: secondsUntilTrade(ub.nextTradeAt),
-      });
-    }
-  }
-
-  const tp = Math.round(stake * 0.04 * 100) / 100;
-  const sl = Math.round(stake * 0.04 * 100) / 100;
-
-  const signalId = `manual-${pair.toLowerCase().replace("/", "")}-${direction.toLowerCase()}-${Date.now()}`;
-
-  const inserted = await db.insert(positionsTable).values({
-    userId: user.id,
-    botId: bot ? bot.id : 0,
-    botName: bot ? bot.name : (customBotName?.trim() || "Manual Trade"),
-    signalId,
-    pair,
-    direction,
-    market,
-    winRate: bot ? bot.winRate : "75.00",
-    stake: stake.toFixed(2),
-    targetProfit: tp.toFixed(2),
-    stopLoss: sl.toFixed(2),
-    status: "open",
-  }).returning();
-
-  await db.insert(transactionsTable).values({
-    userId: user.id,
-    type: "trade_loss",
-    amount: stake.toFixed(2),
-    status: "completed",
-    paymentMethod: "balance",
-    description: `Manual trade stake: ${pair} ${direction}`,
+  return res.status(400).json({
+    code: "SIGNAL_REQUIRED",
+    error: "Choose a currently available AI Signal, review its risk parameters, and confirm consent before execution.",
   });
-
-  if (ub) {
-    await db.update(userBotsTable).set({
-      totalTrades: ub.totalTrades + 1,
-      nextTradeAt: new Date(Date.now() + MANUAL_TRADE_INTERVAL_MS),
-    }).where(eq(userBotsTable.id, ub.id));
-  }
-
-  return res.json(serialize(inserted[0], 0, 0));
 });
 
-// List AI trading signals — shuffled per-minute so the "best" signal rotates
+// List server-owned AI Signal opportunities. Future slots are visible as
+// scheduled, but cannot be executed until their scheduled time.
 router.get("/trade/signals", async (req, res) => {
-  const token = req.headers.authorization?.replace("Bearer ", "");
+  const token = getRequestToken(req);
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
-  const minuteSeed = Math.floor(Date.now() / 60_000) ^ (user.id * 2654435761);
-  return res.json(shuffleSignals(minuteSeed));
+  const settings = await getOrCreateSettings();
+  const { config, opportunities } = await syncSignalOpportunities(settings);
+  const claims = opportunities.length === 0 ? [] : await db.select().from(signalClaimsTable)
+    .where(and(eq(signalClaimsTable.userId, user.id), inArray(signalClaimsTable.opportunityId, opportunities.map((o) => o.id))));
+  const claimed = new Set(claims.map((claim) => claim.opportunityId));
+  return res.json(opportunities.map((o) => ({
+    id: o.signalId,
+    opportunityId: o.id,
+    pair: o.pair,
+    direction: o.direction,
+    market: o.market,
+    confidence: Number(o.confidence),
+    timeframe: o.timeframe,
+    suggestedTp: Number(o.suggestedTp),
+    suggestedSl: Number(o.suggestedSl),
+    scheduledAt: o.scheduledAt.toISOString(),
+    expiresAt: o.expiresAt.toISOString(),
+    status: claimed.has(o.id) ? "executed" : o.status,
+    timezone: config.timezone,
+  })));
 });
 
-// Open a trade position on a signal using an owned bot
+// Open a trade position only from a current, unclaimed AI Signal opportunity.
 router.post("/trade/execute", async (req, res) => {
-  const token = req.headers.authorization?.replace("Bearer ", "");
+  const token = getRequestToken(req);
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
   const parsed = ExecuteTradeBody.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
 
-  const { signalId, botId, targetProfit, stopLoss, stake } = parsed.data;
+  const { signalId, opportunityId, botId, targetProfit, stopLoss, stake, consent, clientRequestId } = parsed.data;
+  if (!consent) return res.status(400).json({ code: "CONSENT_REQUIRED", error: "You must confirm the risk disclosure before execution." });
+  if (targetProfit <= 0 || stopLoss <= 0 || stake <= 0) return res.status(400).json({ error: "Stake, target profit, and stop loss must be greater than 0" });
+  if (stopLoss > stake || targetProfit > stake * 5) return res.status(400).json({ error: "Risk parameters are outside the permitted range for this stake." });
 
-  const signal = SIGNALS.find((s) => s.id === signalId);
-  if (!signal) return res.status(400).json({ error: "Signal not found" });
-
-  if (targetProfit <= 0) return res.status(400).json({ error: "Target profit must be greater than 0" });
-  if (stopLoss <= 0) return res.status(400).json({ error: "Stop loss must be greater than 0" });
-  if (stake <= 0) return res.status(400).json({ error: "Stake must be greater than 0" });
+  const settings = await getOrCreateSettings();
+  const { config, opportunities } = await syncSignalOpportunities(settings);
+  const opportunity = opportunities.find((o) => o.id === opportunityId);
+  if (!config.enabled) return res.status(409).json({ code: "SIGNALS_DISABLED", error: "AI Signals are temporarily disabled by the administrator." });
+  if (!opportunity || opportunity.signalId !== signalId) return res.status(400).json({ error: "Signal opportunity not found." });
+  const now = Date.now();
+  if (opportunity.status !== "available" || now < opportunity.scheduledAt.getTime() || now >= opportunity.expiresAt.getTime()) {
+    return res.status(409).json({
+      code: opportunity.status === "missed" ? "SIGNAL_MISSED" : "SIGNAL_NOT_AVAILABLE",
+      error: opportunity.status === "missed" ? "This signal window has expired and will not execute automatically." : "This signal is not available yet.",
+      scheduledAt: opportunity.scheduledAt.toISOString(),
+      expiresAt: opportunity.expiresAt.toISOString(),
+    });
+  }
 
   // Must own the bot
   const rows = await db.select({ ub: userBotsTable, bot: botsTable })
@@ -369,43 +431,78 @@ router.post("/trade/execute", async (req, res) => {
 
   const available = await computeAvailableBalance(user.id);
   if (stake > available) return res.status(400).json({ error: "Insufficient balance for this stake" });
+  if (stake > available * (config.maxStakePercent / 100)) {
+    return res.status(400).json({ error: `Stake exceeds the ${config.maxStakePercent}% maximum of available balance.` });
+  }
 
-  const guaranteedTp = Math.round(stake * 0.04 * 100) / 100;
-  const guaranteedSl = Math.round(stake * 0.04 * 100) / 100;
+  const [dayStart, nextDayStart] = [
+    zonedTimeToUtc(localDateKey(new Date(), config.timezone), "00:00", config.timezone),
+    zonedTimeToUtc(addLocalDays(localDateKey(new Date(), config.timezone), 1), "00:00", config.timezone),
+  ];
+  const dayClaims = await db.select().from(signalClaimsTable).where(and(
+    eq(signalClaimsTable.userId, user.id),
+    gte(signalClaimsTable.createdAt, dayStart),
+    lt(signalClaimsTable.createdAt, nextDayStart),
+  ));
+  if (dayClaims.length >= config.dailyLimit) return res.status(429).json({ code: "DAILY_LIMIT", error: `You have reached today's ${config.dailyLimit}-signal limit.` });
+  const latestClaim = await db.select().from(signalClaimsTable)
+    .where(eq(signalClaimsTable.userId, user.id)).orderBy(desc(signalClaimsTable.createdAt)).limit(1);
+  if (latestClaim[0] && latestClaim[0].createdAt.getTime() + config.spacingMinutes * 60_000 > now) {
+    return res.status(429).json({ code: "SIGNAL_SPACING", error: "Please wait until the spacing window ends before taking another signal." });
+  }
 
-  const inserted = await db.insert(positionsTable).values({
-    userId: user.id,
-    botId: bot.id,
-    botName: bot.name,
-    signalId: signal.id,
-    pair: signal.pair,
-    direction: signal.direction,
-    market: signal.market,
-    winRate: bot.winRate,
-    stake: stake.toFixed(2),
-    targetProfit: guaranteedTp.toFixed(2),
-    stopLoss: guaranteedSl.toFixed(2),
-    status: "open",
-  }).returning();
-
-  // Deduct stake immediately; returned (with realized P&L) when position closes
-  await db.insert(transactionsTable).values({
-    userId: user.id,
-    type: "trade_loss",
-    amount: stake.toFixed(2),
-    status: "completed",
-    paymentMethod: "balance",
-    description: `Trade stake: ${signal.pair} ${signal.direction} (${bot.name})`,
-  });
-
-  await db.update(userBotsTable).set({ totalTrades: ub.totalTrades + 1 }).where(eq(userBotsTable.id, ub.id));
-
-  return res.json(serialize(inserted[0], 0, 0));
+  try {
+    const result = await db.transaction(async (tx) => {
+      const [claim] = await tx.insert(signalClaimsTable).values({
+        userId: user.id,
+        opportunityId: opportunity.id,
+        consentAt: new Date(),
+        clientRequestId: clientRequestId ?? null,
+      }).returning();
+      const [inserted] = await tx.insert(positionsTable).values({
+        userId: user.id,
+        botId: bot.id,
+        botName: bot.name,
+        signalId: opportunity.signalId,
+        pair: opportunity.pair,
+        direction: opportunity.direction,
+        market: opportunity.market,
+        winRate: bot.winRate,
+        stake: stake.toFixed(2),
+        targetProfit: targetProfit.toFixed(2),
+        stopLoss: stopLoss.toFixed(2),
+        status: "open",
+      }).returning();
+      await tx.update(signalClaimsTable).set({ positionId: inserted.id }).where(eq(signalClaimsTable.id, claim.id));
+      await tx.insert(transactionsTable).values({
+        userId: user.id,
+        type: "reserved_stake",
+        amount: stake.toFixed(2),
+        status: "completed",
+        paymentMethod: "balance",
+        description: `Reserved stake for AI Signal: ${opportunity.pair} ${opportunity.direction} (${bot.name})`,
+      });
+      await tx.update(userBotsTable).set({ totalTrades: ub.totalTrades + 1 }).where(eq(userBotsTable.id, ub.id));
+      return inserted;
+    });
+    return res.json(serialize(result, 0, 0));
+  } catch (error) {
+    // A unique claim conflict is an idempotent retry, not a second position.
+    const existing = await db.select().from(signalClaimsTable).where(and(
+      eq(signalClaimsTable.userId, user.id),
+      eq(signalClaimsTable.opportunityId, opportunity.id),
+    )).limit(1);
+    if (existing[0]?.positionId) {
+      const [position] = await db.select().from(positionsTable).where(eq(positionsTable.id, existing[0].positionId)).limit(1);
+      if (position) return res.json(serialize(position, 0, 0));
+    }
+    throw error;
+  }
 });
 
 // List the user's positions, resolving any that have crossed TP/SL on read
 router.get("/trade/positions", async (req, res) => {
-  const token = req.headers.authorization?.replace("Bearer ", "");
+  const token = getRequestToken(req);
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
@@ -432,7 +529,7 @@ router.get("/trade/positions", async (req, res) => {
 
 // Manually close an open position at its current simulated P&L
 router.post("/trade/positions/:id/close", async (req, res) => {
-  const token = req.headers.authorization?.replace("Bearer ", "");
+  const token = getRequestToken(req);
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
@@ -461,16 +558,7 @@ router.post("/trade/positions/:id/close", async (req, res) => {
     return res.json(serialize(row, pnl, elapsedMs));
   }
 
-  let realized: number;
-  if (outcome === "profit") {
-    // Guarantee at least 4% of stake on early manual cash-out
-    const rawPnl = Math.round(walk.pnl * 100) / 100;
-    const minProfit = Math.round(parseFloat(p.stake) * 0.04 * 100) / 100;
-    realized = Math.max(rawPnl, minProfit);
-  } else {
-    // Loss trade: manual close loses the full SL amount
-    realized = -parseFloat(p.stopLoss);
-  }
+  const realized = Math.max(-parseFloat(p.stopLoss), Math.min(parseFloat(p.targetProfit), Math.round(walk.pnl * 100) / 100));
 
   const row = await closePosition(p, {
     status: "closed_manual",

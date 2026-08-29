@@ -9,7 +9,7 @@ export async function getAvailableBalance(userId: number): Promise<number> {
           and ${transactionsTable.type} in ('deposit', 'trade_profit', 'trade_loss_return')
           then ${transactionsTable.amount}
         when ${transactionsTable.status} = 'completed'
-          and ${transactionsTable.type} in ('withdrawal', 'trade_loss', 'bot_purchase')
+          and ${transactionsTable.type} in ('withdrawal', 'trade_loss', 'reserved_stake', 'trade_fee', 'bot_purchase')
           then -${transactionsTable.amount}
         -- Pending withdrawals lock funds before an admin review.
         when ${transactionsTable.status} = 'pending'

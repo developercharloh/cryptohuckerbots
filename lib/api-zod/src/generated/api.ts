@@ -470,7 +470,12 @@ export const ListTradeSignalsResponseItem = zod.object({
   "confidence": zod.number(),
   "timeframe": zod.string(),
   "suggestedTp": zod.number(),
-  "suggestedSl": zod.number()
+  "suggestedSl": zod.number(),
+  "opportunityId": zod.number(),
+  "scheduledAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "status": zod.string(),
+  "timezone": zod.string()
 })
 export const ListTradeSignalsResponse = zod.array(ListTradeSignalsResponseItem)
 
@@ -480,7 +485,10 @@ export const ExecuteTradeBody = zod.object({
   "botId": zod.number(),
   "targetProfit": zod.number(),
   "stopLoss": zod.number(),
-  "stake": zod.number()
+  "stake": zod.number(),
+  "opportunityId": zod.number(),
+  "consent": zod.boolean(),
+  "clientRequestId": zod.string().optional()
 })
 
 export const ExecuteTradeResponse = zod.object({
@@ -494,6 +502,7 @@ export const ExecuteTradeResponse = zod.object({
   "stake": zod.number(),
   "targetProfit": zod.number(),
   "stopLoss": zod.number(),
+  "fee": zod.number(),
   "status": zod.string(),
   "pnl": zod.number(),
   "openedAt": zod.string(),
@@ -513,6 +522,7 @@ export const ListTradePositionsResponseItem = zod.object({
   "stake": zod.number(),
   "targetProfit": zod.number(),
   "stopLoss": zod.number(),
+  "fee": zod.number(),
   "status": zod.string(),
   "pnl": zod.number(),
   "openedAt": zod.string(),
@@ -537,6 +547,7 @@ export const CloseTradePositionResponse = zod.object({
   "stake": zod.number(),
   "targetProfit": zod.number(),
   "stopLoss": zod.number(),
+  "fee": zod.number(),
   "status": zod.string(),
   "pnl": zod.number(),
   "openedAt": zod.string(),
@@ -1297,7 +1308,14 @@ export const AdminGetSettingsResponse = zod.object({
   "network": zod.string().nullish(),
   "address": zod.string(),
   "enabled": zod.boolean()
-}))
+})),
+  "signalsEnabled": zod.boolean(),
+  "signalsEmergencyStop": zod.boolean(),
+  "signalsTimezone": zod.string(),
+  "signalTimes": zod.array(zod.string()),
+  "signalDailyLimit": zod.number(),
+  "signalSpacingMinutes": zod.number(),
+  "signalMaxStakePercent": zod.number()
 })
 
 
@@ -1316,7 +1334,14 @@ export const AdminUpdateSettingsBody = zod.object({
   "network": zod.string().nullish(),
   "address": zod.string(),
   "enabled": zod.boolean()
-})).optional()
+})).optional(),
+  "signalsEnabled": zod.boolean().optional(),
+  "signalsEmergencyStop": zod.boolean().optional(),
+  "signalsTimezone": zod.string().optional(),
+  "signalTimes": zod.array(zod.string()).optional(),
+  "signalDailyLimit": zod.number().optional(),
+  "signalSpacingMinutes": zod.number().optional(),
+  "signalMaxStakePercent": zod.number().optional()
 })
 
 export const AdminUpdateSettingsResponse = zod.object({
@@ -1334,8 +1359,30 @@ export const AdminUpdateSettingsResponse = zod.object({
   "network": zod.string().nullish(),
   "address": zod.string(),
   "enabled": zod.boolean()
-}))
+})),
+  "signalsEnabled": zod.boolean(),
+  "signalsEmergencyStop": zod.boolean(),
+  "signalsTimezone": zod.string(),
+  "signalTimes": zod.array(zod.string()),
+  "signalDailyLimit": zod.number(),
+  "signalSpacingMinutes": zod.number(),
+  "signalMaxStakePercent": zod.number()
 })
+
+
+export const AdminListSignalAuditResponseItem = zod.object({
+  "id": zod.number(),
+  "adminUserId": zod.number(),
+  "action": zod.string(),
+  "previousSettings": zod.object({
+
+}).passthrough().nullable(),
+  "nextSettings": zod.object({
+
+}).passthrough().nullable(),
+  "createdAt": zod.coerce.date()
+})
+export const AdminListSignalAuditResponse = zod.array(AdminListSignalAuditResponseItem)
 
 
 export const AdminBroadcastBody = zod.object({

@@ -12,6 +12,7 @@ import {
   supportTicketsTable,
   userProfilesTable,
   settingsTable,
+  signalScheduleAuditTable,
   chatMessagesTable,
   depositSessionsTable,
   broadcastsTable,
@@ -201,7 +202,7 @@ const KYC_PENDING = ["pending", "submitted", "under_review"];
 
 function txnDelta(type: string, amount: number): number {
   if (type === "deposit" || type === "trade_profit" || type === "trade_loss_return") return amount;
-  if (type === "withdrawal" || type === "trade_loss") return -amount;
+  if (type === "withdrawal" || type === "trade_loss" || type === "reserved_stake" || type === "trade_fee") return -amount;
   return 0;
 }
 
@@ -1021,6 +1022,13 @@ function mapSettings(s: typeof settingsTable.$inferSelect) {
     minDeposit: parseFloat(s.minDeposit),
     minWithdrawal: parseFloat(s.minWithdrawal),
     paymentMethods: s.paymentMethods ?? [],
+    signalsEnabled: s.signalsEnabled,
+    signalsEmergencyStop: s.signalsEmergencyStop,
+    signalsTimezone: s.signalsTimezone,
+    signalTimes: s.signalTimes ?? ["19:00", "21:00", "23:00"],
+    signalDailyLimit: s.signalDailyLimit,
+    signalSpacingMinutes: s.signalSpacingMinutes,
+    signalMaxStakePercent: parseFloat(s.signalMaxStakePercent),
   };
 }
 
@@ -1034,6 +1042,15 @@ router.put("/admin/settings", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
   const d = parsed.data;
   const current = await getOrCreateSettings();
+  const previousSignalSettings = {
+    signalsEnabled: current.signalsEnabled,
+    signalsEmergencyStop: current.signalsEmergencyStop,
+    signalsTimezone: current.signalsTimezone,
+    signalTimes: current.signalTimes ?? ["19:00", "21:00", "23:00"],
+    signalDailyLimit: current.signalDailyLimit,
+    signalSpacingMinutes: current.signalSpacingMinutes,
+    signalMaxStakePercent: parseFloat(current.signalMaxStakePercent),
+  };
 
   const update: Record<string, unknown> = { updatedAt: new Date() };
   if (d.appName !== undefined) update.appName = d.appName;
@@ -1053,10 +1070,72 @@ router.put("/admin/settings", async (req, res) => {
       enabled: p.enabled,
     }));
   }
+  if (d.signalsEnabled !== undefined) update.signalsEnabled = d.signalsEnabled;
+  if (d.signalsEmergencyStop !== undefined) update.signalsEmergencyStop = d.signalsEmergencyStop;
+  if (d.signalsTimezone !== undefined) {
+    try { new Intl.DateTimeFormat("en-US", { timeZone: d.signalsTimezone }); }
+    catch { return res.status(400).json({ error: "signalsTimezone must be a valid IANA timezone." }); }
+    update.signalsTimezone = d.signalsTimezone;
+  }
+  if (d.signalTimes !== undefined) {
+    const times = Array.from(new Set(d.signalTimes)).sort();
+    if (times.length < 1 || times.length > 6 || times.some((time) => !/^\d{2}:\d{2}$/.test(time) || Number(time.slice(0, 2)) > 23 || Number(time.slice(3)) > 59)) {
+      return res.status(400).json({ error: "Provide between 1 and 6 valid schedule times in HH:MM format." });
+    }
+    update.signalTimes = times;
+  }
+  if (d.signalDailyLimit !== undefined) {
+    if (!Number.isInteger(d.signalDailyLimit) || d.signalDailyLimit < 1 || d.signalDailyLimit > 20) return res.status(400).json({ error: "Daily signal limit must be between 1 and 20." });
+    update.signalDailyLimit = d.signalDailyLimit;
+  }
+  if (d.signalSpacingMinutes !== undefined) {
+    if (!Number.isInteger(d.signalSpacingMinutes) || d.signalSpacingMinutes < 30 || d.signalSpacingMinutes > 1440) return res.status(400).json({ error: "Signal spacing must be between 30 and 1440 minutes." });
+    update.signalSpacingMinutes = d.signalSpacingMinutes;
+  }
+  if (d.signalMaxStakePercent !== undefined) {
+    if (d.signalMaxStakePercent < 1 || d.signalMaxStakePercent > 100) return res.status(400).json({ error: "Maximum stake percentage must be between 1 and 100." });
+    update.signalMaxStakePercent = d.signalMaxStakePercent.toString();
+  }
 
   await db.update(settingsTable).set(update).where(eq(settingsTable.id, current.id));
   const s = await getOrCreateSettings();
+  const nextSignalSettings = {
+    signalsEnabled: s.signalsEnabled,
+    signalsEmergencyStop: s.signalsEmergencyStop,
+    signalsTimezone: s.signalsTimezone,
+    signalTimes: s.signalTimes ?? ["19:00", "21:00", "23:00"],
+    signalDailyLimit: s.signalDailyLimit,
+    signalSpacingMinutes: s.signalSpacingMinutes,
+    signalMaxStakePercent: parseFloat(s.signalMaxStakePercent),
+  };
+  const signalChanged = JSON.stringify(previousSignalSettings) !== JSON.stringify(nextSignalSettings);
+  if (signalChanged) {
+    const adminToken = getRequestToken(req, ADMIN_SESSION_COOKIE);
+    const adminSession = adminToken ? await db.select({ userId: sessionsTable.userId }).from(sessionsTable).where(eq(sessionsTable.token, adminToken)).limit(1) : [];
+    if (adminSession[0]) {
+      await db.insert(signalScheduleAuditTable).values({
+        adminUserId: adminSession[0].userId,
+        action: "settings_updated",
+        previousSettings: previousSignalSettings,
+        nextSettings: nextSignalSettings,
+      });
+    }
+  }
   return res.json(mapSettings(s));
+});
+
+router.get("/admin/signal-audit", async (_req, res) => {
+  const rows = await db.select().from(signalScheduleAuditTable)
+    .orderBy(desc(signalScheduleAuditTable.createdAt))
+    .limit(100);
+  return res.json(rows.map((row) => ({
+    id: row.id,
+    adminUserId: row.adminUserId,
+    action: row.action,
+    previousSettings: row.previousSettings,
+    nextSettings: row.nextSettings,
+    createdAt: row.createdAt.toISOString(),
+  })));
 });
 
 // ---------------- Live Chat ----------------

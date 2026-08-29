@@ -12,4 +12,7 @@ export interface ExecuteTradeInput {
   targetProfit: number;
   stopLoss: number;
   stake: number;
+  opportunityId: number;
+  consent: boolean;
+  clientRequestId?: string;
 }

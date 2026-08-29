@@ -86,6 +86,7 @@ import type {
   ResetPasswordInput,
   SendChatMessageInput,
   Session,
+  SignalScheduleAudit,
   SubmitTxidInput,
   SuccessResponse,
   SupportTicket,
@@ -5388,6 +5389,77 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getAdminUpdateSettingsMutationOptions(options));
     }
+
+export const getAdminListSignalAuditUrl = () => {
+
+
+
+
+  return `/api/admin/signal-audit`
+}
+
+export const adminListSignalAudit = async ( options?: RequestInit): Promise<SignalScheduleAudit[]> => {
+
+  return customFetch<SignalScheduleAudit[]>(getAdminListSignalAuditUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminListSignalAuditQueryKey = () => {
+    return [
+    `/api/admin/signal-audit`
+    ] as const;
+    }
+
+
+export const getAdminListSignalAuditQueryOptions = <TData = Awaited<ReturnType<typeof adminListSignalAudit>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListSignalAudit>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminListSignalAuditQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminListSignalAudit>>> = ({ signal }) => adminListSignalAudit({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminListSignalAudit>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminListSignalAuditQueryResult = NonNullable<Awaited<ReturnType<typeof adminListSignalAudit>>>
+export type AdminListSignalAuditQueryError = ErrorType<unknown>
+
+
+
+export function useAdminListSignalAudit<TData = Awaited<ReturnType<typeof adminListSignalAudit>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListSignalAudit>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminListSignalAuditQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getAdminBroadcastUrl = () => {
 

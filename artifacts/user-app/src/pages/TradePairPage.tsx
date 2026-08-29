@@ -372,22 +372,22 @@ export default function TradePairPage() {
             ))}
           </div>
 
-          {/* Long / Short toggle — disabled: manual direction trading is not allowed, bots only */}
+          {/* Direction selects a signal configuration; it never executes directly. */}
           <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
-            <button disabled style={{
-              flex: 1, padding: "12px 0", borderRadius: 12, border: "none", cursor: "not-allowed",
+            <button onClick={() => setLocation(`/trade?pair=${encodeURIComponent(meta.label)}&direction=BUY`)} style={{
+              flex: 1, padding: "12px 0", borderRadius: 12, border: "none", cursor: "pointer",
               fontSize: 14, fontWeight: 800, letterSpacing: "0.05em",
               background: "rgba(34,197,94,0.08)",
-              color: "rgba(34,197,94,0.4)",
+              color: "#22c55e",
             }}>
               <TrendingUp size={14} style={{ display: "inline", marginRight: 6, verticalAlign: "middle" }} />
               LONG / BUY
             </button>
-            <button disabled style={{
-              flex: 1, padding: "12px 0", borderRadius: 12, border: "none", cursor: "not-allowed",
+            <button onClick={() => setLocation(`/trade?pair=${encodeURIComponent(meta.label)}&direction=SELL`)} style={{
+              flex: 1, padding: "12px 0", borderRadius: 12, border: "none", cursor: "pointer",
               fontSize: 14, fontWeight: 800, letterSpacing: "0.05em",
               background: "rgba(239,68,68,0.08)",
-              color: "rgba(239,68,68,0.4)",
+              color: "#ef4444",
             }}>
               <TrendingDown size={14} style={{ display: "inline", marginRight: 6, verticalAlign: "middle" }} />
               SHORT / SELL
@@ -395,7 +395,7 @@ export default function TradePairPage() {
           </div>
           <div style={{ marginBottom: 16, padding: "8px 12px", borderRadius: 10, background: "rgba(245,185,66,0.08)", border: `1px solid ${PURPLE}33`, display: "flex", alignItems: "center", gap: 8 }}>
             <Bot size={13} style={{ color: PURPLE, flexShrink: 0 }} />
-            <span style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.4 }}>Manual trading is disabled. Activate a bot below to trade this pair.</span>
+            <span style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.4 }}>Choose a scheduled AI Signal for this direction. Review the risk limits and consent before execution.</span>
           </div>
 
           {/* Amount */}
@@ -457,17 +457,17 @@ export default function TradePairPage() {
             <span style={{ fontSize: 11, color: "#6B7280" }}>Risk: <span style={{ color: riskColor, fontWeight: 700 }}>{risk}</span></span>
           </div>
 
-          {/* Execute button — disabled: manual trading is bots-only now */}
+          {/* Direct execution is intentionally not available on the chart page. */}
           <button
-            disabled
+            onClick={() => setLocation(`/trade?pair=${encodeURIComponent(meta.label)}`)}
             style={{
               width: "100%", padding: "16px 0", borderRadius: 14, border: "none",
-              cursor: "not-allowed",
-              fontSize: 15, fontWeight: 900, letterSpacing: "0.08em", color: "rgba(255,255,255,0.4)",
-              background: "rgba(245,185,66,0.25)",
+              cursor: "pointer",
+              fontSize: 15, fontWeight: 900, letterSpacing: "0.08em", color: "#fff",
+              background: "linear-gradient(135deg, #F5B942, #2563EB)",
             }}
           >
-            MANUAL TRADING DISABLED — USE A BOT
+            CHOOSE AN AI SIGNAL
           </button>
 
           {/* ── Run Bot on This Pair ─────────────────────────── */}
@@ -477,8 +477,8 @@ export default function TradePairPage() {
                 <Bot size={16} color="#fff" />
               </div>
               <div>
-                <p style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>Run a Bot on {meta.label}</p>
-                <p style={{ fontSize: 11, color: "#6B7280" }}>Let AI trade this pair automatically</p>
+              <p style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>Use an execution profile on {meta.label}</p>
+              <p style={{ fontSize: 11, color: "#6B7280" }}>Your profile applies the signal after your review</p>
               </div>
             </div>
 

@@ -52,6 +52,11 @@ export interface TradeSignal {
   timeframe: string;
   suggestedTp: number;
   suggestedSl: number;
+  opportunityId: number;
+  scheduledAt: string;
+  expiresAt: string;
+  status: string;
+  timezone: string;
 }
 
 export interface ExecuteTradeInput {
@@ -60,6 +65,9 @@ export interface ExecuteTradeInput {
   targetProfit: number;
   stopLoss: number;
   stake: number;
+  opportunityId: number;
+  consent: boolean;
+  clientRequestId?: string;
 }
 
 export interface TradeResult {
@@ -84,6 +92,7 @@ export interface TradePosition {
   stake: number;
   targetProfit: number;
   stopLoss: number;
+  fee: number;
   status: string;
   pnl: number;
   openedAt: string;
@@ -616,6 +625,13 @@ export interface AdminSettings {
   minDeposit: number;
   minWithdrawal: number;
   paymentMethods: AdminPaymentMethod[];
+  signalsEnabled: boolean;
+  signalsEmergencyStop: boolean;
+  signalsTimezone: string;
+  signalTimes: string[];
+  signalDailyLimit: number;
+  signalSpacingMinutes: number;
+  signalMaxStakePercent: number;
 }
 
 export interface AdminSettingsInput {
@@ -629,6 +645,34 @@ export interface AdminSettingsInput {
   minDeposit?: number;
   minWithdrawal?: number;
   paymentMethods?: AdminPaymentMethod[];
+  signalsEnabled?: boolean;
+  signalsEmergencyStop?: boolean;
+  signalsTimezone?: string;
+  signalTimes?: string[];
+  signalDailyLimit?: number;
+  signalSpacingMinutes?: number;
+  signalMaxStakePercent?: number;
+}
+
+/**
+ * @nullable
+ */
+export type SignalScheduleAuditPreviousSettings = { [key: string]: unknown } | null;
+
+/**
+ * @nullable
+ */
+export type SignalScheduleAuditNextSettings = { [key: string]: unknown } | null;
+
+export interface SignalScheduleAudit {
+  id: number;
+  adminUserId: number;
+  action: string;
+  /** @nullable */
+  previousSettings: SignalScheduleAuditPreviousSettings;
+  /** @nullable */
+  nextSettings: SignalScheduleAuditNextSettings;
+  createdAt: string;
 }
 
 export interface DepositSession {

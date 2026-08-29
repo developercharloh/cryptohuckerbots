@@ -37,12 +37,12 @@ router.get("/dashboard/summary", async (req, res) => {
           and ${transactionsTable.type} in ('deposit', 'trade_profit', 'trade_loss_return')
           then ${transactionsTable.amount}
         when ${transactionsTable.status} = 'completed'
-          and ${transactionsTable.type} in ('withdrawal', 'trade_loss', 'bot_purchase')
+          and ${transactionsTable.type} in ('withdrawal', 'trade_loss', 'reserved_stake', 'trade_fee', 'bot_purchase')
           then -${transactionsTable.amount}
         else 0 end), 0)`,
       pendingOut: sql<string>`coalesce(sum(case
         when ${transactionsTable.status} = 'pending'
-          and ${transactionsTable.type} in ('withdrawal', 'bot_purchase')
+          and ${transactionsTable.type} in ('withdrawal', 'reserved_stake', 'trade_fee', 'bot_purchase')
           then ${transactionsTable.amount}
         else 0 end), 0)`,
       totalDeposited: sql<string>`coalesce(sum(case
