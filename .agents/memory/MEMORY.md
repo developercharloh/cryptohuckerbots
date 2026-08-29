@@ -5,3 +5,4 @@
 - [VIXUS AI scheduled bot trades](vixus-ai-bot-trade-schedule.md) — mandatory 24h always-win bot trade + countdown; lazy-executed on read since api-server is serverless (no cron).
 - [VIXUS AI KYC history](vixus-ai-blob-upload-fix.md) — repeated custom self-hosted KYC upload debugging, then a full revert back to Didit-hosted KYC per user decision; don't rebuild the custom flow without confirming first.
 - [VIXUS AI cross-origin security](vixus-ai-csrf.md) — credentialed browser mutations must use exact configured frontend origins; broad Vercel preview matching is not trusted.
+- [VIXUS AI Vercel deployment](vixus-ai-vercel-deployment.md) — when Vercel kills the monorepo build for memory, deploy prebuilt web output and the bundled API handler through the Vercel API.
