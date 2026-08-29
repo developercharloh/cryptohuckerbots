@@ -10,8 +10,8 @@ description: FX trading bot admin panel — architecture, credentials, seeding, 
 - Account UID prefix: `VAI`
 - Admin token localStorage key: `vixus_admin_token`
 - Theme localStorage key: `vixus_theme`
-- Admin login endpoint: `POST /api/admin/login` — checks hardcoded username/password in route code (NOT the DB password hash)
-- Admin credentials: email `admin@vixus.ai`, username `admin.vixus-ai`, password `admin@2027/org` (hardcoded in `artifacts/api-server/src/routes/admin.ts` as `ADMIN_PASSWORD`)
+- Admin login endpoint: `POST /api/admin/login` — checks the configured panel password (not the DB password hash)
+- Admin credentials: email `admin@vixus.ai`, username `admin.vixus-ai`, password defaults to `Admin@VIXUS2027!` and can be overridden with `ADMIN_PANEL_PASSWORD`
 - `ADMIN_ACCOUNT_PASSWORD` env var only affects the DB password hash (used for regular user auth), NOT the admin panel login
 
 ## DB
