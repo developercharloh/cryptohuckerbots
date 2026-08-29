@@ -27,6 +27,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 const passwordSchema = z.object({
@@ -54,6 +55,7 @@ async function api2FA(path: string, body?: object) {
 
 export default function Security() {
   const [, setLocation] = useLocation();
+  const { logout } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -91,6 +93,9 @@ export default function Security() {
         toast({ title: "Password changed successfully" });
         form.reset();
         setPwdOpen(false);
+        logout();
+        queryClient.clear();
+        setLocation("/login");
       },
       onError: (err: any) => {
         toast({ title: "Failed to change password", description: err.message, variant: "destructive" });

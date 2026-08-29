@@ -1,4 +1,6 @@
 import type { Request, Response } from "express";
+import { and, eq, ne } from "drizzle-orm";
+import { db, sessionsTable } from "@workspace/db";
 
 export const USER_SESSION_COOKIE = "vixus_session";
 export const ADMIN_SESSION_COOKIE = "vixus_admin_session";
@@ -66,6 +68,21 @@ export function setAdminSessionCookie(res: Response, token: string): void {
 
 export function clearAdminSessionCookie(res: Response): void {
   res.clearCookie(ADMIN_SESSION_COOKIE, cookieOptions(ADMIN_SESSION_TTL_MS));
+}
+
+/**
+ * Invalidate every session belonging to a user after a credential change.
+ *
+ * A caller may provide a session token when a credential-change flow
+ * explicitly re-establishes one session. Password changes in the web app do
+ * not pass one so the current browser is required to sign in again.
+ */
+export async function revokeUserSessions(userId: number, exceptToken?: string): Promise<void> {
+  const conditions = [eq(sessionsTable.userId, userId)];
+  if (exceptToken) {
+    conditions.push(ne(sessionsTable.token, exceptToken));
+  }
+  await db.delete(sessionsTable).where(and(...conditions));
 }
 
 export function isUserSessionExpired(createdAt: Date): boolean {

@@ -9,6 +9,7 @@ import {
   clearUserSessionCookie,
   getRequestToken,
   isUserSessionExpired,
+  revokeUserSessions,
   setUserSessionCookie,
 } from "../lib/session";
 import {
@@ -248,6 +249,23 @@ router.post("/auth/reset-password", async (req, res) => {
     return res.status(400).json({ error: "Invalid input" });
   }
   // In production, verify token and update password
+  //
+  // The current reset-token implementation does not persist a reset identity.
+  // If reset completion is performed from an authenticated browser, invalidate
+  // that user's sessions as a safe fallback rather than leaving the active
+  // session alive after a password credential change.
+  const requestToken = getRequestToken(req);
+  if (requestToken) {
+    const [session] = await db
+      .select({ userId: sessionsTable.userId })
+      .from(sessionsTable)
+      .where(eq(sessionsTable.token, requestToken))
+      .limit(1);
+    if (session) {
+      await revokeUserSessions(session.userId);
+      clearUserSessionCookie(res);
+    }
+  }
   return res.json({ message: "Password reset successfully" });
 });
 

@@ -37,6 +37,7 @@ import {
   ADMIN_SESSION_COOKIE,
   clearAdminSessionCookie,
   getRequestToken,
+  revokeUserSessions,
   setAdminSessionCookie,
 } from "../lib/session";
 
@@ -513,6 +514,7 @@ router.post("/admin/users/:id/reset-password", async (req, res) => {
 
   const tempPassword = "Qfx-" + crypto.randomBytes(4).toString("hex");
   await db.update(usersTable).set({ passwordHash: hashPassword(tempPassword) }).where(eq(usersTable.id, id));
+  await revokeUserSessions(id);
   return res.json({ tempPassword });
 });
 

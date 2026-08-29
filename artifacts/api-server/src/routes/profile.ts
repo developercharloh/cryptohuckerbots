@@ -12,7 +12,7 @@ import {
   UpdateNotificationSettingsBody,
 } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
-import { isUserSessionExpired } from "../lib/session";
+import { clearUserSessionCookie, isUserSessionExpired, revokeUserSessions } from "../lib/session";
 
 const router = Router();
 
@@ -111,7 +111,10 @@ router.post("/profile/change-password", async (req, res) => {
     updatedAt: new Date(),
   }).where(eq(usersTable.id, user.id));
 
-  return res.json({ message: "Password changed successfully" });
+  await revokeUserSessions(user.id);
+  clearUserSessionCookie(res);
+
+  return res.json({ message: "Password changed successfully. Please sign in again." });
 });
 
 router.get("/profile/2fa", async (req, res) => {
