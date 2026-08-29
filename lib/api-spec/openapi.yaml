@@ -552,6 +552,24 @@ paths:
                 items:
                   $ref: "#/components/schemas/TradeSignal"
 
+  /trade/access:
+    get:
+      operationId: getTradeAccess
+      tags: [trade]
+      responses:
+        "200":
+          description: VIP signal access summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TradeAccess"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /trade/execute:
     post:
       operationId: executeTrade
@@ -1592,7 +1610,44 @@ components:
           type: string
         timezone:
           type: string
-      required: [id, opportunityId, pair, direction, market, confidence, timeframe, suggestedTp, suggestedSl, scheduledAt, expiresAt, status, timezone]
+        vipLevel:
+          type: integer
+        dailyLimit:
+          type: integer
+        usedToday:
+          type: integer
+        remainingToday:
+          type: integer
+      required: [id, opportunityId, pair, direction, market, confidence, timeframe, suggestedTp, suggestedSl, scheduledAt, expiresAt, status, timezone, vipLevel, dailyLimit, usedToday, remainingToday]
+
+    TradeAccess:
+      type: object
+      properties:
+        vipLevel:
+          type: integer
+        minimumDeposit:
+          type: number
+        totalDeposited:
+          type: number
+        dailyLimit:
+          type: integer
+        usedToday:
+          type: integer
+        remainingToday:
+          type: integer
+        nextLevel:
+          type: integer
+          nullable: true
+        nextLevelDeposit:
+          type: number
+          nullable: true
+        timezone:
+          type: string
+        nextSignalAt:
+          type: string
+          format: date-time
+          nullable: true
+      required: [vipLevel, minimumDeposit, totalDeposited, dailyLimit, usedToday, remainingToday, timezone, nextLevel, nextLevelDeposit, nextSignalAt]
 
     ExecuteTradeInput:
       type: object

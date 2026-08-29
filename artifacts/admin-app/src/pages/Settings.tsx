@@ -50,8 +50,8 @@ export default function Settings() {
       ,signalsEnabled: true,
       signalsEmergencyStop: false,
       signalsTimezone: "Africa/Nairobi",
-      signalTimes: ["19:00", "21:00", "23:00"],
-      signalDailyLimit: 3,
+       signalTimes: ["07:00", "09:00", "11:00", "13:00", "15:00", "17:00", "19:00", "21:00", "23:00"],
+       signalDailyLimit: 9,
       signalSpacingMinutes: 120,
       signalMaxStakePercent: 10
     }
@@ -257,7 +257,7 @@ export default function Settings() {
           <Card className="rounded-2xl border-amber-500/30">
             <CardHeader className="px-4 pt-4 pb-2">
               <CardTitle className="text-sm">AI Signals schedule</CardTitle>
-              <CardDescription className="text-xs">Server-owned opportunities; missed windows never execute automatically.</CardDescription>
+              <CardDescription className="text-xs">Server-owned opportunities; missed windows never execute automatically. VIP access is based on completed deposits.</CardDescription>
             </CardHeader>
             <CardContent className="px-4 pb-4 space-y-3">
               <FormField control={form.control} name="signalsEnabled" render={({ field }) => (
@@ -277,7 +277,7 @@ export default function Settings() {
                   <FormItem><FormLabel className="text-xs">IANA timezone</FormLabel><FormControl><Input {...field} className="h-9 rounded-xl text-sm" placeholder="Africa/Nairobi" /></FormControl></FormItem>
                 )} />
                 <FormField control={form.control} name="signalTimes" render={({ field }) => (
-                  <FormItem><FormLabel className="text-xs">Times (HH:MM)</FormLabel><FormControl><Input value={field.value.join(", ")} onChange={e => field.onChange(e.target.value.split(",").map(v => v.trim()))} className="h-9 rounded-xl text-sm" placeholder="19:00, 21:00, 23:00" /></FormControl></FormItem>
+                  <FormItem><FormLabel className="text-xs">Times (HH:MM)</FormLabel><FormControl><Input value={field.value.join(", ")} onChange={e => field.onChange(e.target.value.split(",").map(v => v.trim()))} className="h-9 rounded-xl text-sm" placeholder="07:00, 09:00, 11:00, ..." /></FormControl></FormItem>
                 )} />
               </div>
               <div className="grid grid-cols-3 gap-2">
@@ -290,6 +290,13 @@ export default function Settings() {
                 <FormField control={form.control} name="signalMaxStakePercent" render={({ field }) => (
                   <FormItem><FormLabel className="text-xs">Max stake %</FormLabel><FormControl><Input type="number" min="1" max="100" {...field} className="h-9 rounded-xl text-sm" /></FormControl></FormItem>
                 )} />
+              </div>
+              <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
+                <p className="text-xs font-semibold">VIP signal policy</p>
+                <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                  Completed deposits determine access: VIP 1 starts at $500, then each level doubles through VIP 7 at $32,000.
+                  Daily allowances are 3, 4, 5, 6, 7, 8, and 9 signals. VIP status changes signal access only and never guarantees returns or restricts withdrawals.
+                </p>
               </div>
               <div className="rounded-xl border border-border/60 bg-secondary/10 p-3">
                 <p className="text-xs font-semibold mb-2">Recent schedule changes</p>

@@ -20,4 +20,8 @@ export interface TradeSignal {
   expiresAt: Date;
   status: string;
   timezone: string;
+  vipLevel: number;
+  dailyLimit: number;
+  usedToday: number;
+  remainingToday: number;
 }

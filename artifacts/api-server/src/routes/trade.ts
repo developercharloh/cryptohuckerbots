@@ -1,10 +1,21 @@
 import { Router } from "express";
 import { db, usersTable, sessionsTable, userBotsTable, botsTable, transactionsTable, earningsTable, notificationsTable, positionsTable, settingsTable, signalOpportunitiesTable, signalClaimsTable } from "@workspace/db";
-import { eq, and, desc, asc, gte, lt, inArray } from "drizzle-orm";
+import { eq, and, desc, asc, gte, lt, inArray, sql } from "drizzle-orm";
 import { ExecuteTradeBody } from "@workspace/api-zod";
 import { getRequestToken, isUserSessionExpired } from "../lib/session";
 
 const router = Router();
+const DEFAULT_SIGNAL_TIMES = ["07:00", "09:00", "11:00", "13:00", "15:00", "17:00", "19:00", "21:00", "23:00"];
+const LEGACY_DEFAULT_SIGNAL_TIMES = ["19:00", "21:00", "23:00"];
+const VIP_TIERS = [
+  { level: 1, minimumDeposit: 500, dailySignals: 3 },
+  { level: 2, minimumDeposit: 1_000, dailySignals: 4 },
+  { level: 3, minimumDeposit: 2_000, dailySignals: 5 },
+  { level: 4, minimumDeposit: 4_000, dailySignals: 6 },
+  { level: 5, minimumDeposit: 8_000, dailySignals: 7 },
+  { level: 6, minimumDeposit: 16_000, dailySignals: 8 },
+  { level: 7, minimumDeposit: 32_000, dailySignals: 9 },
+] as const;
 
 async function getUserFromToken(token: string | undefined) {
   if (!token) return null;
@@ -60,17 +71,113 @@ function getSignalSettings(row: typeof settingsTable.$inferSelect) {
   return {
     enabled: row.signalsEnabled && !row.signalsEmergencyStop,
     timezone,
-    times: times.length > 0 ? times : ["19:00", "21:00", "23:00"],
-    dailyLimit: Math.min(20, Math.max(1, row.signalDailyLimit || 3)),
+    times: times.length > 0 ? times : DEFAULT_SIGNAL_TIMES,
+    dailyLimit: Math.min(20, Math.max(1, row.signalDailyLimit || 9)),
     spacingMinutes: Math.min(24 * 60, Math.max(30, row.signalSpacingMinutes || 120)),
     maxStakePercent: Math.min(100, Math.max(1, Number(row.signalMaxStakePercent || 10))),
   };
 }
 
+type VipAccess = {
+  level: number;
+  minimumDeposit: number;
+  totalDeposited: number;
+  dailyLimit: number;
+  usedToday: number;
+  remainingToday: number;
+  nextLevel: number | null;
+  nextLevelDeposit: number | null;
+  timezone: string;
+  dayStart: Date;
+  nextDayStart: Date;
+};
+
+function getVipTier(totalDeposited: number) {
+  let tier: typeof VIP_TIERS[number] | null = null;
+  for (const candidate of VIP_TIERS) {
+    if (totalDeposited >= candidate.minimumDeposit) tier = candidate;
+  }
+  return tier;
+}
+
+async function getVipAccess(userId: number, config: ReturnType<typeof getSignalSettings>): Promise<VipAccess> {
+  const [depositTotal] = await db.select({
+    total: sql<string>`coalesce(sum(${transactionsTable.amount}), 0)`,
+  }).from(transactionsTable).where(and(
+    eq(transactionsTable.userId, userId),
+    eq(transactionsTable.type, "deposit"),
+    eq(transactionsTable.status, "completed"),
+  ));
+  const totalDeposited = Number(depositTotal?.total ?? 0);
+  const tier = getVipTier(totalDeposited);
+  const todayKey = localDateKey(new Date(), config.timezone);
+  const dayStart = zonedTimeToUtc(todayKey, "00:00", config.timezone);
+  const nextDayStart = zonedTimeToUtc(addLocalDays(todayKey, 1), "00:00", config.timezone);
+  const claims = await db.select({ id: signalClaimsTable.id }).from(signalClaimsTable).where(and(
+    eq(signalClaimsTable.userId, userId),
+    gte(signalClaimsTable.createdAt, dayStart),
+    lt(signalClaimsTable.createdAt, nextDayStart),
+  ));
+  const dailyLimit = tier?.dailySignals ?? 0;
+  const nextTier = VIP_TIERS.find((candidate) => candidate.level === (tier?.level ?? 0) + 1);
+  return {
+    level: tier?.level ?? 0,
+    minimumDeposit: tier?.minimumDeposit ?? 0,
+    totalDeposited: Math.round(totalDeposited * 100) / 100,
+    dailyLimit,
+    usedToday: claims.length,
+    remainingToday: Math.max(0, dailyLimit - claims.length),
+    nextLevel: nextTier?.level ?? null,
+    nextLevelDeposit: nextTier?.minimumDeposit ?? null,
+    timezone: config.timezone,
+    dayStart,
+    nextDayStart,
+  };
+}
+
+function slotRank(opportunity: typeof signalOpportunitiesTable.$inferSelect, opportunities: typeof signalOpportunitiesTable.$inferSelect[], timezone: string) {
+  const dateKey = localDateKey(opportunity.scheduledAt, timezone);
+  return opportunities
+    .filter((candidate) => localDateKey(candidate.scheduledAt, timezone) === dateKey)
+    .sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime())
+    .findIndex((candidate) => candidate.id === opportunity.id);
+}
+
+function getVipEligibleOpportunities(
+  opportunities: typeof signalOpportunitiesTable.$inferSelect[],
+  access: VipAccess,
+) {
+  if (access.level === 0) return [];
+  return opportunities.filter((opportunity) => slotRank(opportunity, opportunities, access.timezone) < access.dailyLimit);
+}
+
+class SignalRuleError extends Error {
+  constructor(public code: string, message: string, public statusCode = 429) {
+    super(message);
+  }
+}
+
 async function getOrCreateSettings() {
   const rows = await db.select().from(settingsTable).limit(1);
-  if (rows.length > 0) return rows[0];
-  const [created] = await db.insert(settingsTable).values({}).returning();
+  if (rows.length > 0) {
+    const current = rows[0];
+    const isLegacyDefault = current.signalDailyLimit === 3 &&
+      Array.isArray(current.signalTimes) &&
+      current.signalTimes.length === LEGACY_DEFAULT_SIGNAL_TIMES.length &&
+      current.signalTimes.every((time, index) => time === LEGACY_DEFAULT_SIGNAL_TIMES[index]);
+    if (isLegacyDefault) {
+      const [upgraded] = await db.update(settingsTable)
+        .set({ signalTimes: DEFAULT_SIGNAL_TIMES, signalDailyLimit: 9 })
+        .where(eq(settingsTable.id, current.id))
+        .returning();
+      return upgraded;
+    }
+    return current;
+  }
+  const [created] = await db.insert(settingsTable).values({
+    signalTimes: DEFAULT_SIGNAL_TIMES,
+    signalDailyLimit: 9,
+  }).returning();
   return created;
 }
 
@@ -369,10 +476,12 @@ router.get("/trade/signals", async (req, res) => {
   if (!user) return res.status(401).json({ error: "Unauthorized" });
   const settings = await getOrCreateSettings();
   const { config, opportunities } = await syncSignalOpportunities(settings);
-  const claims = opportunities.length === 0 ? [] : await db.select().from(signalClaimsTable)
-    .where(and(eq(signalClaimsTable.userId, user.id), inArray(signalClaimsTable.opportunityId, opportunities.map((o) => o.id))));
+  const access = await getVipAccess(user.id, config);
+  const eligibleOpportunities = getVipEligibleOpportunities(opportunities, access);
+  const claims = eligibleOpportunities.length === 0 ? [] : await db.select().from(signalClaimsTable)
+    .where(and(eq(signalClaimsTable.userId, user.id), inArray(signalClaimsTable.opportunityId, eligibleOpportunities.map((o) => o.id))));
   const claimed = new Set(claims.map((claim) => claim.opportunityId));
-  return res.json(opportunities.map((o) => ({
+  return res.json(eligibleOpportunities.map((o) => ({
     id: o.signalId,
     opportunityId: o.id,
     pair: o.pair,
@@ -386,7 +495,37 @@ router.get("/trade/signals", async (req, res) => {
     expiresAt: o.expiresAt.toISOString(),
     status: claimed.has(o.id) ? "executed" : o.status,
     timezone: config.timezone,
+    vipLevel: access.level,
+    dailyLimit: access.dailyLimit,
+    usedToday: access.usedToday,
+    remainingToday: access.remainingToday,
   })));
+});
+
+router.get("/trade/access", async (req, res) => {
+  const token = getRequestToken(req);
+  const user = await getUserFromToken(token);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+  const settings = await getOrCreateSettings();
+  const { config, opportunities } = await syncSignalOpportunities(settings);
+  const access = await getVipAccess(user.id, config);
+  const eligible = getVipEligibleOpportunities(opportunities, access);
+  const now = Date.now();
+  const nextSignal = eligible.find((opportunity) =>
+    opportunity.scheduledAt.getTime() >= now && opportunity.status !== "missed" && opportunity.status !== "disabled"
+  );
+  return res.json({
+    vipLevel: access.level,
+    minimumDeposit: access.minimumDeposit,
+    totalDeposited: access.totalDeposited,
+    dailyLimit: access.dailyLimit,
+    usedToday: access.usedToday,
+    remainingToday: access.remainingToday,
+    nextLevel: access.nextLevel,
+    nextLevelDeposit: access.nextLevelDeposit,
+    timezone: access.timezone,
+    nextSignalAt: nextSignal?.scheduledAt.toISOString() ?? null,
+  });
 });
 
 // Open a trade position only from a current, unclaimed AI Signal opportunity.
@@ -405,7 +544,17 @@ router.post("/trade/execute", async (req, res) => {
 
   const settings = await getOrCreateSettings();
   const { config, opportunities } = await syncSignalOpportunities(settings);
-  const opportunity = opportunities.find((o) => o.id === opportunityId);
+  const access = await getVipAccess(user.id, config);
+  if (access.level === 0) {
+    return res.status(403).json({
+      code: "VIP_REQUIRED",
+      error: "A completed deposit of at least $500 is required to access AI Signals.",
+      minimumDeposit: VIP_TIERS[0].minimumDeposit,
+      totalDeposited: access.totalDeposited,
+    });
+  }
+  const eligibleOpportunities = getVipEligibleOpportunities(opportunities, access);
+  const opportunity = eligibleOpportunities.find((o) => o.id === opportunityId);
   if (!config.enabled) return res.status(409).json({ code: "SIGNALS_DISABLED", error: "AI Signals are temporarily disabled by the administrator." });
   if (!opportunity || opportunity.signalId !== signalId) return res.status(400).json({ error: "Signal opportunity not found." });
   const now = Date.now();
@@ -453,6 +602,26 @@ router.post("/trade/execute", async (req, res) => {
 
   try {
     const result = await db.transaction(async (tx) => {
+      // Serialize claims per user so concurrent tabs cannot bypass the daily
+      // quota or spacing check between the read above and the insert.
+      await tx.execute(sql`select pg_advisory_xact_lock(${user.id})`);
+      const [freshClaims, freshLatestClaim] = await Promise.all([
+        tx.select().from(signalClaimsTable).where(and(
+          eq(signalClaimsTable.userId, user.id),
+          gte(signalClaimsTable.createdAt, access.dayStart),
+          lt(signalClaimsTable.createdAt, access.nextDayStart),
+        )),
+        tx.select().from(signalClaimsTable)
+          .where(eq(signalClaimsTable.userId, user.id))
+          .orderBy(desc(signalClaimsTable.createdAt))
+          .limit(1),
+      ]);
+      if (freshClaims.length >= access.dailyLimit) {
+        throw new SignalRuleError("DAILY_LIMIT", `You have reached today's ${access.dailyLimit}-signal limit.`);
+      }
+      if (freshLatestClaim[0] && freshLatestClaim[0].createdAt.getTime() + config.spacingMinutes * 60_000 > Date.now()) {
+        throw new SignalRuleError("SIGNAL_SPACING", "Please wait until the spacing window ends before taking another signal.");
+      }
       const [claim] = await tx.insert(signalClaimsTable).values({
         userId: user.id,
         opportunityId: opportunity.id,
@@ -487,6 +656,9 @@ router.post("/trade/execute", async (req, res) => {
     });
     return res.json(serialize(result, 0, 0));
   } catch (error) {
+    if (error instanceof SignalRuleError) {
+      return res.status(error.statusCode).json({ code: error.code, error: error.message });
+    }
     // A unique claim conflict is an idempotent retry, not a second position.
     const existing = await db.select().from(signalClaimsTable).where(and(
       eq(signalClaimsTable.userId, user.id),

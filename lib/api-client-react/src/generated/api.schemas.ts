@@ -57,6 +57,23 @@ export interface TradeSignal {
   expiresAt: string;
   status: string;
   timezone: string;
+  vipLevel: number;
+  dailyLimit: number;
+  usedToday: number;
+  remainingToday: number;
+}
+
+export interface TradeAccess {
+  vipLevel: number;
+  minimumDeposit: number;
+  totalDeposited: number;
+  dailyLimit: number;
+  usedToday: number;
+  remainingToday: number;
+  nextLevel: number | null;
+  nextLevelDeposit: number | null;
+  timezone: string;
+  nextSignalAt: string | null;
 }
 
 export interface ExecuteTradeInput {

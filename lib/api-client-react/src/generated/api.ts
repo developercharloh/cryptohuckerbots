@@ -91,6 +91,7 @@ import type {
   SuccessResponse,
   SupportTicket,
   SupportTicketInput,
+  TradeAccess,
   TradePosition,
   TradeSignal,
   Transaction,
@@ -2066,6 +2067,77 @@ export function useListTradeSignals<TData = Awaited<ReturnType<typeof listTradeS
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListTradeSignalsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetTradeAccessUrl = () => {
+
+
+
+
+  return `/api/trade/access`
+}
+
+export const getTradeAccess = async ( options?: RequestInit): Promise<TradeAccess> => {
+
+  return customFetch<TradeAccess>(getGetTradeAccessUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTradeAccessQueryKey = () => {
+    return [
+    `/api/trade/access`
+    ] as const;
+    }
+
+
+export const getGetTradeAccessQueryOptions = <TData = Awaited<ReturnType<typeof getTradeAccess>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTradeAccess>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTradeAccessQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTradeAccess>>> = ({ signal }) => getTradeAccess({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTradeAccess>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTradeAccessQueryResult = NonNullable<Awaited<ReturnType<typeof getTradeAccess>>>
+export type GetTradeAccessQueryError = ErrorType<ErrorResponse>
+
+
+
+export function useGetTradeAccess<TData = Awaited<ReturnType<typeof getTradeAccess>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTradeAccess>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTradeAccessQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

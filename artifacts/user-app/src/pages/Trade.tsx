@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
-  useListBots, useListTradeSignals, useExecuteTrade,
+  useListBots, useListTradeSignals, useGetTradeAccess, useExecuteTrade,
   useListTradePositions, useCloseTradePosition, useGetDashboardSummary,
   TradePosition,
 } from "@workspace/api-client-react";
@@ -140,6 +140,7 @@ type SignalInfo = { id?: string | number; opportunityId?: number; confidence?: n
 export default function Trade() {
   const { data: bots = [], isLoading: loadingBots } = useListBots();
   const { data: signals = [] } = useListTradeSignals();
+  const { data: vipAccess } = useGetTradeAccess({ query: { refetchInterval: 15000 } as any });
   const { data: positions } = useListTradePositions({ query: { refetchInterval: 4000 } as any });
   const { data: summary } = useGetDashboardSummary({ query: { refetchInterval: 10000 } as any });
   const executeMutation = useExecuteTrade();
@@ -571,6 +572,40 @@ export default function Trade() {
           {/* ── CONFIGURE ── */}
           {step === "configure" && (
             <div className="space-y-5">
+              {/* VIP access summary */}
+              {vipAccess && (
+                <div style={{ borderRadius: 16, padding: 14, border: "1px solid rgba(245,185,66,0.3)", background: "linear-gradient(135deg, rgba(245,185,66,0.12), rgba(37,99,235,0.08))" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                    <div>
+                      <p style={{ fontSize: 9, color: "#F5B942", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 800 }}>VIP Signal Access</p>
+                      <p style={{ fontSize: 18, color: "#fff", fontWeight: 900, marginTop: 3 }}>
+                        {vipAccess.vipLevel > 0 ? `VIP ${vipAccess.vipLevel}` : "VIP access locked"}
+                      </p>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <p style={{ fontSize: 12, color: "#fff", fontWeight: 800 }}>
+                        {vipAccess.remainingToday} of {vipAccess.dailyLimit} left
+                      </p>
+                      <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 3 }}>
+                        ${vipAccess.totalDeposited.toLocaleString()} completed deposits
+                      </p>
+                    </div>
+                  </div>
+                  {vipAccess.vipLevel === 0 ? (
+                    <p style={{ fontSize: 11, color: "#FCD34D", lineHeight: 1.5, marginTop: 10 }}>
+                      Complete at least $500 in deposits to unlock VIP 1 and receive 3 scheduled signals per day.
+                    </p>
+                  ) : (
+                    <p style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.5, marginTop: 10 }}>
+                      {vipAccess.nextLevel
+                        ? `Deposit $${Math.max(0, (vipAccess.nextLevelDeposit ?? 0) - vipAccess.totalDeposited).toLocaleString()} more to reach VIP ${vipAccess.nextLevel}.`
+                        : "You are at the highest available VIP level."}
+                      {" "}Timezone: {vipAccess.timezone}.
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Best signal */}
               {bestSignal && (() => {
                 const buy = isBuy(bestSignal.direction);
@@ -599,6 +634,22 @@ export default function Trade() {
                   </div>
                 );
               })()}
+              {!bestSignal && vipAccess?.vipLevel === 0 && (
+                <div style={{ borderRadius: 16, padding: 16, border: "1px solid rgba(245,185,66,0.25)", background: "rgba(245,185,66,0.06)" }}>
+                  <p style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>VIP 1 access required</p>
+                  <p style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.5, marginTop: 6 }}>
+                    AI Signals unlock after $500 in completed deposits. Your funds remain withdrawable under the normal withdrawal rules.
+                  </p>
+                </div>
+              )}
+              {!bestSignal && vipAccess && vipAccess.vipLevel > 0 && (
+                <div style={{ borderRadius: 16, padding: 16, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)" }}>
+                  <p style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>No matching signal available</p>
+                  <p style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.5, marginTop: 6 }}>
+                    This pair or direction is not in the current scheduled window. Check back at the next eligible signal time.
+                  </p>
+                </div>
+              )}
 
               {/* Stake */}
               <div>

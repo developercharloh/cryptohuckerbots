@@ -475,9 +475,27 @@ export const ListTradeSignalsResponseItem = zod.object({
   "scheduledAt": zod.coerce.date(),
   "expiresAt": zod.coerce.date(),
   "status": zod.string(),
-  "timezone": zod.string()
+  "timezone": zod.string(),
+  "vipLevel": zod.number(),
+  "dailyLimit": zod.number(),
+  "usedToday": zod.number(),
+  "remainingToday": zod.number()
 })
 export const ListTradeSignalsResponse = zod.array(ListTradeSignalsResponseItem)
+
+
+export const GetTradeAccessResponse = zod.object({
+  "vipLevel": zod.number(),
+  "minimumDeposit": zod.number(),
+  "totalDeposited": zod.number(),
+  "dailyLimit": zod.number(),
+  "usedToday": zod.number(),
+  "remainingToday": zod.number(),
+  "nextLevel": zod.number().nullable(),
+  "nextLevelDeposit": zod.number().nullable(),
+  "timezone": zod.string(),
+  "nextSignalAt": zod.coerce.date().nullable()
+})
 
 
 export const ExecuteTradeBody = zod.object({

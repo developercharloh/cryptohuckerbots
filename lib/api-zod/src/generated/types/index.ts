@@ -85,6 +85,7 @@ export * from './submitTxidInput';
 export * from './successResponse';
 export * from './supportTicket';
 export * from './supportTicketInput';
+export * from './tradeAccess';
 export * from './tradePosition';
 export * from './tradeResult';
 export * from './tradeSignal';
