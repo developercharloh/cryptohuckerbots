@@ -20,7 +20,7 @@ const MARKET_COLORS: Record<string, string> = {
   "BTC/USD": "#F7931A",
   "ETH/USD": "#627EEA",
   "EUR/USD": "#3B82F6",
-  "GBP/USD": "#8B5CF6",
+  "GBP/USD": "#38BDF8",
   "XAU/USD": "#F59E0B",
   "USD/JPY": "#EC4899",
   "SOL/USD": "#14F195",
@@ -100,12 +100,12 @@ export default function Dashboard() {
           <div style={{
             borderRadius: 24, padding: "22px 20px 20px",
             background: "linear-gradient(135deg, #3A2B0D 0%, #17130A 55%, #0B1220 100%)",
-            boxShadow: "0 8px 40px rgba(124,58,237,0.4), inset 0 1px 0 rgba(255,255,255,0.1)",
+             boxShadow: "0 8px 40px rgba(245,185,66,0.22), inset 0 1px 0 rgba(255,255,255,0.1)",
             position: "relative", overflow: "hidden",
           }}>
             {/* Glow orbs */}
-            <div style={{ position: "absolute", top: -60, right: -40, width: 180, height: 180, borderRadius: "50%", background: "radial-gradient(circle, rgba(167,139,250,0.3) 0%, transparent 70%)", pointerEvents: "none" }} />
-            <div style={{ position: "absolute", bottom: -40, left: "20%", width: 120, height: 120, borderRadius: "50%", background: "radial-gradient(circle, rgba(79,70,229,0.25) 0%, transparent 70%)", pointerEvents: "none" }} />
+             <div style={{ position: "absolute", top: -60, right: -40, width: 180, height: 180, borderRadius: "50%", background: "radial-gradient(circle, rgba(245,185,66,0.25) 0%, transparent 70%)", pointerEvents: "none" }} />
+             <div style={{ position: "absolute", bottom: -40, left: "20%", width: 120, height: 120, borderRadius: "50%", background: "radial-gradient(circle, rgba(37,99,235,0.25) 0%, transparent 70%)", pointerEvents: "none" }} />
 
             {/* Balance label + eye */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, position: "relative" }}>
@@ -293,7 +293,7 @@ export default function Dashboard() {
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {activeBots.slice(0, 2).map(bot => (
                 <Link key={bot.id} href={`/bots/${bot.id}`} style={{ textDecoration: "none" }}>
-                  <div style={{ background: "rgba(124,58,237,0.08)", borderRadius: 16, padding: "12px 14px", border: "1px solid rgba(124,58,237,0.2)", display: "flex", alignItems: "center", gap: 12 }}>
+                   <div style={{ background: "rgba(245,185,66,0.08)", borderRadius: 16, padding: "12px 14px", border: "1px solid rgba(245,185,66,0.2)", display: "flex", alignItems: "center", gap: 12 }}>
                     <div style={{ width: 40, height: 40, borderRadius: 12, background: "linear-gradient(135deg, #F5B942, #D99B18)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                       <Bot style={{ width: 18, height: 18, color: "#fff" }} />
                     </div>
