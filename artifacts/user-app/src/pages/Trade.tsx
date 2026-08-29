@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   TrendingUp, TrendingDown, Zap, Activity, Clock, Check,
   ArrowUpRight, ArrowDownRight, ChevronDown, CheckCircle2,
-  XCircle, BarChart2, Bell, ChevronLeft,
+  XCircle, BarChart2, Bell, ChevronLeft, ShieldCheck, WalletCards,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -28,7 +28,7 @@ const AI_MESSAGES = [
   "Scanning for optimal entry points...",
   "Reviewing market conditions and risk...",
   "Monitoring position performance...",
-  "Calculating risk-adjusted returns...",
+  "Calibrating execution timing...",
   "Checking the configured exit levels...",
   "Trend reversal signal detected...",
   "Adjusting position sizing dynamically...",
@@ -149,6 +149,7 @@ export default function Trade() {
 
   const [step, setStep]                   = useState<Step>("configure");
   const [consent, setConsent]             = useState(false);
+  const [consentPrompt, setConsentPrompt] = useState(false);
   const [runtime]                         = useState(5);
   const [activePositionId, setActivePositionId] = useState<number | null>(null);
   const [executedSignal, setExecutedSignal]     = useState<SignalInfo | null>(null);
@@ -165,6 +166,7 @@ export default function Trade() {
   const [pairDropOpen, setPairDropOpen] = useState(false);
 
   const timerRef     = useRef<ReturnType<typeof setInterval> | null>(null);
+  const consentRef   = useRef<HTMLInputElement>(null);
   const finishedRef  = useRef(false);
   const restoringRef = useRef<SavedTrade | null>(null);
   const positionsReadyRef = useRef(false);
@@ -288,8 +290,24 @@ export default function Trade() {
 
   const handleExecute = () => {
     const signal = bestSignal;
+    if (vipAccess?.vipLevel === 0) {
+      toast({
+        title: "Unlock AI Signals",
+        description: "Purchase a VIP package to execute scheduled signals.",
+      });
+      setLocation("/vip-packages");
+      return;
+    }
     if (!signal || signal.status !== "available" || !signal.opportunityId) { toast({ title: "No signal is currently available", description: "Wait for the next scheduled window.", variant: "destructive" }); return; }
-    if (!consent) { toast({ title: "Confirm the risk disclosure first", variant: "destructive" }); return; }
+    if (!consent) {
+      setConsentPrompt(true);
+      toast({
+        title: "Confirm the fixed amount to continue",
+        description: "Tick the confirmation box above, then tap Execute AI Signal.",
+      });
+      consentRef.current?.focus();
+      return;
+    }
     const signalAmount = vipAccess?.signalAmount ?? 2.5;
     if (signalAmount > availableBalance) {
       toast({ title: "Insufficient balance", description: `Each signal requires $${signalAmount.toFixed(2)}. Available: $${availableBalance.toFixed(2)}`, variant: "destructive" });
@@ -310,6 +328,8 @@ export default function Trade() {
           setTotalSecs(secs);
           setSecondsLeft(secs);
           setMsgIdx(0);
+           setConsent(false);
+           setConsentPrompt(false);
           setStep("running");
           queryClient.invalidateQueries({ queryKey: ["/api/trade/positions"] });
           queryClient.invalidateQueries({ queryKey: ["/api/dashboard/summary"] });
@@ -327,7 +347,11 @@ export default function Trade() {
             });
           }, 1000);
         },
-        onError: (err: any) => toast({ title: "Trade failed", description: err.message, variant: "destructive" }),
+         onError: (err: any) => toast({
+           title: "Signal could not be executed",
+           description: err?.data?.error ?? err?.message ?? "Please try again.",
+           variant: "destructive",
+         }),
       }
     );
   };
@@ -373,6 +397,18 @@ export default function Trade() {
      const matchingPair = matchingDirection.filter(s => s.pair === selectedPair);
      return matchingPair[0] ?? null;
   }, [signals, requestedDirection, selectedPair]);
+  const signalAmount = vipAccess?.signalAmount ?? 2.5;
+  const executeButtonLabel = executeMutation.isPending
+    ? "Executing signal…"
+    : vipAccess?.vipLevel === 0
+      ? "Unlock AI Signals"
+      : !bestSignal
+        ? "Waiting for a live signal"
+        : signalAmount > availableBalance
+          ? "Add balance to continue"
+          : !consent
+            ? "Confirm & execute signal"
+            : "Execute AI Signal";
   const pos = activePosition;
   const pnl   = pos?.pnl ?? 0;
   const posUp = pnl >= 0;
@@ -637,45 +673,111 @@ export default function Trade() {
               )}
 
               {/* Fixed signal execution */}
-              <div style={{ borderRadius: 16, padding: 14, border: "1px solid rgba(245,185,66,0.25)", background: "rgba(245,185,66,0.06)" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                  <div style={{ width: 18, height: 18, borderRadius: "50%", background: "rgba(124,58,237,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <span style={{ fontSize: 9, fontWeight: 800, color: "#FFD86B" }}>1</span>
-                  </div>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>Signal execution</span>
-                </div>
+              <div style={{
+                borderRadius: 20,
+                padding: 16,
+                border: "1px solid rgba(245,185,66,0.28)",
+                background: "linear-gradient(145deg, rgba(32,29,48,0.98), rgba(15,19,38,0.98))",
+                boxShadow: "0 12px 32px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.04)",
+              }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                  <div>
-                    <p style={{ fontSize: 20, color: "#FFD86B", fontWeight: 900 }}>${(vipAccess?.signalAmount ?? 2.5).toFixed(2)}</p>
-                    <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 3 }}>Fixed amount per executed signal</p>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{
+                      width: 38, height: 38, borderRadius: 12,
+                      background: "linear-gradient(135deg, rgba(245,185,66,0.24), rgba(37,99,235,0.25))",
+                      border: "1px solid rgba(255,216,107,0.18)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      <ShieldCheck style={{ width: 20, height: 20, color: "#FFD86B" }} />
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 14, fontWeight: 850, color: "#fff" }}>Ready to execute</p>
+                      <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 3 }}>Simple, server-controlled signal entry</p>
+                    </div>
                   </div>
-                  <p style={{ fontSize: 11, color: "#9CA3AF", textAlign: "right", maxWidth: 170 }}>
-                    Available balance: ${availableBalance.toFixed(2)}
-                  </p>
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: 5,
+                    borderRadius: 999, padding: "5px 8px",
+                    background: bestSignal ? "rgba(34,197,94,0.1)" : "rgba(255,255,255,0.06)",
+                    border: `1px solid ${bestSignal ? "rgba(34,197,94,0.24)" : "rgba(255,255,255,0.1)"}`,
+                  }}>
+                    <span style={{
+                      width: 5, height: 5, borderRadius: "50%",
+                      background: bestSignal ? "#4ade80" : "#9CA3AF",
+                      boxShadow: bestSignal ? "0 0 8px #4ade80" : "none",
+                    }} />
+                    <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: "0.08em", color: bestSignal ? "#86EFAC" : "#9CA3AF" }}>
+                      {bestSignal ? "LIVE" : "WAITING"}
+                    </span>
+                  </div>
                 </div>
-                <p style={{ fontSize: 10, color: "#6B7280", lineHeight: 1.5, marginTop: 9 }}>
-                  The $2.50 amount is fixed by the server. You do not set a stake, target profit, or stop-loss.
+
+                <div style={{
+                  display: "grid", gridTemplateColumns: "1fr 1px 1fr", alignItems: "center",
+                  gap: 12, marginTop: 16, padding: "13px 12px",
+                  borderRadius: 14, background: "rgba(255,255,255,0.045)",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                }}>
+                  <div>
+                    <p style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", color: "#7C849D", fontWeight: 800 }}>Signal amount</p>
+                    <p style={{ fontSize: 23, color: "#FFD86B", fontWeight: 900, marginTop: 3 }}>${signalAmount.toFixed(2)}</p>
+                  </div>
+                  <div style={{ height: 34, width: 1, background: "rgba(255,255,255,0.1)" }} />
+                  <div style={{ textAlign: "right" }}>
+                    <p style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", color: "#7C849D", fontWeight: 800 }}>Wallet available</p>
+                    <p style={{ fontSize: 16, color: "#fff", fontWeight: 850, marginTop: 6, display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 5 }}>
+                      <WalletCards style={{ width: 14, height: 14, color: "#9CA3AF" }} />
+                      ${availableBalance.toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+
+                <p style={{ fontSize: 10, color: "#8D94A8", lineHeight: 1.5, marginTop: 11 }}>
+                  The amount is fixed by the server. Review the live signal, then confirm below to continue.
                 </p>
-                <label style={{ display: "flex", gap: 8, alignItems: "flex-start", marginTop: 10, color: "#D1D5DB", fontSize: 11, lineHeight: 1.4 }}>
-                  <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} style={{ marginTop: 2, accentColor: "#F5B942" }} />
-                  I understand the fixed $2.50 amount is at risk and consent to execute this signal.
+                <label style={{
+                  display: "flex", gap: 10, alignItems: "flex-start", marginTop: 12,
+                  padding: "11px 12px", borderRadius: 13,
+                  color: "#E5E7EB", fontSize: 11, lineHeight: 1.45, cursor: "pointer",
+                  border: `1px solid ${consentPrompt ? "rgba(245,185,66,0.7)" : consent ? "rgba(34,197,94,0.36)" : "rgba(255,255,255,0.1)"}`,
+                  background: consentPrompt ? "rgba(245,185,66,0.09)" : consent ? "rgba(34,197,94,0.08)" : "rgba(255,255,255,0.035)",
+                  transition: "all 160ms ease",
+                }}>
+                  <input
+                    ref={consentRef}
+                    type="checkbox"
+                    checked={consent}
+                    onChange={e => { setConsent(e.target.checked); setConsentPrompt(false); }}
+                    style={{ marginTop: 2, accentColor: "#F5B942", width: 16, height: 16, flexShrink: 0 }}
+                  />
+                  <span>
+                    <strong style={{ display: "block", color: consent ? "#86EFAC" : "#fff", fontSize: 11 }}>
+                      {consent ? "Confirmed — ready to execute" : "Confirm fixed amount"}
+                    </strong>
+                    <span style={{ display: "block", color: "#9CA3AF", marginTop: 3 }}>
+                      I understand the fixed $2.50 amount is at risk and consent to execute this signal.
+                    </span>
+                  </span>
                 </label>
               </div>
 
               {/* Execute button */}
               <button
                 onClick={handleExecute}
-                disabled={executeMutation.isPending || !bestSignal || !consent || (vipAccess?.signalAmount ?? 2.5) > availableBalance}
+                type="button"
+                disabled={executeMutation.isPending}
                 style={{
                   width: "100%", height: 56, borderRadius: 16, border: "none", cursor: "pointer",
-                  background: executeMutation.isPending || !bestSignal || !consent || (vipAccess?.signalAmount ?? 2.5) > availableBalance ? "rgba(245,185,66,0.3)" : "linear-gradient(135deg, #F5B942 0%, #2563EB 100%)",
+                  background: executeMutation.isPending ? "rgba(245,185,66,0.3)" : "linear-gradient(135deg, #F5B942 0%, #2563EB 100%)",
                   fontSize: 15, fontWeight: 800, color: "#fff",
-                  boxShadow: "0 4px 20px rgba(124,58,237,0.4)",
+                  boxShadow: executeMutation.isPending ? "none" : "0 7px 24px rgba(124,58,237,0.38)",
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  opacity: executeMutation.isPending ? 0.72 : 1,
+                  transition: "transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease",
                 }}
               >
                 <Zap style={{ width: 18, height: 18, fill: "#fff", color: "#fff" }} />
-                {executeMutation.isPending ? "Executing..." : "Execute AI Signal"}
+                {executeButtonLabel}
               </button>
 
               {/* Trade Journal */}
