@@ -302,7 +302,7 @@ export default function Trade() {
     if (!consent) {
       setConsentPrompt(true);
       toast({
-        title: "Confirm the fixed amount to continue",
+        title: "Confirm execution to continue",
         description: "Tick the confirmation box above, then tap Execute AI Signal.",
       });
       consentRef.current?.focus();
@@ -310,7 +310,7 @@ export default function Trade() {
     }
     const signalAmount = vipAccess?.signalAmount ?? 2.5;
     if (signalAmount > availableBalance) {
-      toast({ title: "Insufficient balance", description: `Each signal requires $${signalAmount.toFixed(2)}. Available: $${availableBalance.toFixed(2)}`, variant: "destructive" });
+      toast({ title: "Insufficient balance", description: `Your available balance is $${availableBalance.toFixed(2)}. Add funds and try again.`, variant: "destructive" });
       return;
     }
     const secs = runtime * 60;
@@ -713,27 +713,23 @@ export default function Trade() {
                 </div>
 
                 <div style={{
-                  display: "grid", gridTemplateColumns: "1fr 1px 1fr", alignItems: "center",
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
                   gap: 12, marginTop: 16, padding: "13px 12px",
                   borderRadius: 14, background: "rgba(255,255,255,0.045)",
                   border: "1px solid rgba(255,255,255,0.06)",
                 }}>
                   <div>
-                    <p style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", color: "#7C849D", fontWeight: 800 }}>Signal amount</p>
-                    <p style={{ fontSize: 23, color: "#FFD86B", fontWeight: 900, marginTop: 3 }}>${signalAmount.toFixed(2)}</p>
-                  </div>
-                  <div style={{ height: 34, width: 1, background: "rgba(255,255,255,0.1)" }} />
-                  <div style={{ textAlign: "right" }}>
                     <p style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", color: "#7C849D", fontWeight: 800 }}>Wallet available</p>
-                    <p style={{ fontSize: 16, color: "#fff", fontWeight: 850, marginTop: 6, display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 5 }}>
-                      <WalletCards style={{ width: 14, height: 14, color: "#9CA3AF" }} />
-                      ${availableBalance.toFixed(2)}
-                    </p>
+                    <p style={{ fontSize: 23, color: "#fff", fontWeight: 900, marginTop: 3 }}>${availableBalance.toFixed(2)}</p>
                   </div>
+                  <p style={{ fontSize: 11, color: "#9CA3AF", textAlign: "right", display: "flex", alignItems: "center", gap: 5 }}>
+                      <WalletCards style={{ width: 14, height: 14, color: "#9CA3AF" }} />
+                    Available to use
+                  </p>
                 </div>
 
                 <p style={{ fontSize: 10, color: "#8D94A8", lineHeight: 1.5, marginTop: 11 }}>
-                  The amount is fixed by the server. Review the live signal, then confirm below to continue.
+                  Review the live signal, then confirm below to continue.
                 </p>
                 <label style={{
                   display: "flex", gap: 10, alignItems: "flex-start", marginTop: 12,
@@ -752,10 +748,10 @@ export default function Trade() {
                   />
                   <span>
                     <strong style={{ display: "block", color: consent ? "#86EFAC" : "#fff", fontSize: 11 }}>
-                      {consent ? "Confirmed — ready to execute" : "Confirm fixed amount"}
+                      {consent ? "Confirmed — ready to execute" : "Confirm signal execution"}
                     </strong>
                     <span style={{ display: "block", color: "#9CA3AF", marginTop: 3 }}>
-                      I understand the fixed $2.50 amount is at risk and consent to execute this signal.
+                      I have reviewed this live signal and consent to execute it.
                     </span>
                   </span>
                 </label>
@@ -835,15 +831,11 @@ export default function Trade() {
                 <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2, marginTop: 12 }}>
                   <div style={{ height: 4, borderRadius: 2, background: posUp ? "#22c55e" : "#ef4444", width: `${pct}%`, transition: "width 1s ease" }} />
                 </div>
-                <p style={{ fontSize: 9, color: "#6B7280", marginTop: 6 }}>Fixed $2.50 signal amount · outcome is server-managed</p>
+                 <p style={{ fontSize: 9, color: "#6B7280", marginTop: 6 }}>Signal execution is managed securely by the server</p>
               </div>
 
-              {/* Stake info */}
+               {/* Signal info */}
               <div style={{ width: "100%", display: "flex", gap: 8 }}>
-                <div style={{ flex: 1, background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: "10px 12px", border: "1px solid rgba(255,255,255,0.07)", textAlign: "center" }}>
-                    <p style={{ fontSize: 9, color: "#6B7280", marginBottom: 3 }}>SIGNAL AMOUNT</p>
-                  <p style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>${pos.stake.toFixed(2)}</p>
-                </div>
                 <div style={{ flex: 1, background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: "10px 12px", border: "1px solid rgba(255,255,255,0.07)", textAlign: "center" }}>
                   <p style={{ fontSize: 9, color: "#6B7280", marginBottom: 3 }}>AI CONF.</p>
                   <p style={{ fontSize: 15, fontWeight: 800, color: "#FFD86B" }}>{executedSignal?.confidence ?? "—"}%</p>

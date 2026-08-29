@@ -381,7 +381,7 @@ export default function TradePairPage() {
               </div>
             </div>
             <p style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.5, marginBottom: 14 }}>
-              Each signal uses a fixed $2.50 amount. Review the signal and confirm consent before execution; outcomes are not guaranteed.
+              Review the live signal and confirm consent before execution.
             </p>
             {vipAccess && (
               <div style={{ borderRadius: 10, padding: "9px 10px", marginBottom: 12, background: vipAccess.vipLevel > 0 ? "rgba(245,185,66,0.08)" : "rgba(239,68,68,0.08)", border: `1px solid ${vipAccess.vipLevel > 0 ? "rgba(245,185,66,0.18)" : "rgba(239,68,68,0.18)"}` }}>

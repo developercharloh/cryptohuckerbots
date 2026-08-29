@@ -161,7 +161,7 @@ export default function VipPackages() {
                 </button>
               </div>
               <p className="mt-3 text-[10px] leading-4 text-gray-500">
-                The package purchase is recorded in your wallet history. Signal outcomes are not guaranteed, and each executed signal remains a separate fixed $2.50 amount.
+                The package purchase is recorded in your wallet history and unlocks scheduled AI Signals.
               </p>
             </div>
           )}
