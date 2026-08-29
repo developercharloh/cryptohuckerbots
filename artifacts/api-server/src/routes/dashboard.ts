@@ -52,6 +52,7 @@ router.get("/dashboard/summary", async (req, res) => {
     }).from(transactionsTable).where(eq(transactionsTable.userId, user.id)),
   ]);
 
+  const activeBots = userBots.filter(b => b.status === "running");
   const balance = Number(finance?.balance ?? 0);
   const pendingOut = Number(finance?.pendingOut ?? 0);
 
