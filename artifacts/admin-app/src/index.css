@@ -220,6 +220,26 @@
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }
+
+  html, body, #root {
+    min-width: 320px;
+    min-height: 100%;
+  }
+}
+
+@layer utilities {
+  @media (min-width: 640px) {
+    .admin-page {
+      max-width: 1280px;
+      margin-inline: auto;
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .admin-page {
+      max-width: 1440px;
+    }
+  }
 }
 
 @layer utilities {

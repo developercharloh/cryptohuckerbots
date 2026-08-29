@@ -79,7 +79,7 @@ export default function Broadcast() {
   };
 
   return (
-    <div className="p-4 pb-6">
+    <div className="admin-page p-4 pb-6">
       <div className="pt-1 mb-4">
         <h1 className="text-xl font-bold tracking-tight">Broadcast</h1>
         <p className="text-xs text-muted-foreground">Send announcements to all users</p>

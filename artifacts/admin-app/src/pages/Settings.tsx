@@ -104,7 +104,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="p-4 pb-2">
+      <div className="admin-page p-4 pb-2">
       <div className="pt-1 mb-4">
         <h1 className="text-xl font-bold tracking-tight">Settings</h1>
         <p className="text-xs text-muted-foreground">Platform configuration</p>

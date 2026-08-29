@@ -48,7 +48,7 @@ export default function Markets() {
 
   return (
     <Layout showNav>
-      <div className="pb-24 min-h-screen" style={{ background: "#07091A" }}>
+      <div className="user-markets pb-24 min-h-screen" style={{ background: "#07091A" }}>
 
         {/* Header */}
         <div style={{ padding: "20px 16px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>

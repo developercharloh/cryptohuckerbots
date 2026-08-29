@@ -100,7 +100,7 @@ export default function Dashboard() {
   const pendingWork = overview.pendingDeposits + overview.pendingWithdrawals + overview.pendingKyc + overview.openTickets;
 
   return (
-    <div className="p-4 space-y-4 pb-2">
+    <div className="admin-page p-4 space-y-4 pb-2">
       {/* Header row */}
       <div className="flex items-center justify-between pt-1">
         <div>

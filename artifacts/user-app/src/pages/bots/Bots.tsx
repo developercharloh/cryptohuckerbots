@@ -70,7 +70,7 @@ export default function Bots() {
 
   return (
     <Layout showNav>
-      <div className="pb-28">
+      <div className="user-bots pb-28">
         {/* ── Header ── */}
         <div
           style={{
@@ -99,7 +99,7 @@ export default function Bots() {
           ))}
         </div>
 
-        <div className="px-4 space-y-3">
+        <div className="user-bots-grid px-4 space-y-3">
           {/* ── My Bots Tab ── */}
           {activeTab === "my-bots" && (
             <>

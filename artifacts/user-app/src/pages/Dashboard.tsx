@@ -60,10 +60,10 @@ export default function Dashboard() {
 
   return (
     <Layout showNav>
-      <div style={{ background: "#07091A", minHeight: "100vh", paddingBottom: 88 }}>
+      <div className="user-dashboard" style={{ background: "#07091A", minHeight: "100vh", paddingBottom: 88 }}>
 
         {/* ── Header ─────────────────────────────────────────────── */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 16px 12px" }}>
+        <div className="user-dashboard-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 16px 12px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{ width: 32, height: 32, borderRadius: 10, background: "linear-gradient(135deg, #7C3AED, #4F46E5)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Zap style={{ width: 16, height: 16, color: "#fff", fill: "#fff" }} />
@@ -88,7 +88,7 @@ export default function Dashboard() {
         </div>
 
         {/* ── Greeting ────────────────────────────────────────────── */}
-        <div style={{ padding: "0 16px 16px" }}>
+        <div className="user-dashboard-greeting" style={{ padding: "0 16px 16px" }}>
           <p style={{ fontSize: 12, color: "#6B7280" }}>Good day,</p>
           <h2 style={{ fontSize: 20, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em" }}>
             {user?.fullName?.split(" ")[0] ?? "Trader"} 👋
@@ -96,7 +96,7 @@ export default function Dashboard() {
         </div>
 
         {/* ── Portfolio Card ──────────────────────────────────────── */}
-        <div style={{ padding: "0 16px 16px" }}>
+        <div className="user-dashboard-portfolio" style={{ padding: "0 16px 16px" }}>
           <div style={{
             borderRadius: 24, padding: "22px 20px 20px",
             background: "linear-gradient(135deg, #4C1D95 0%, #3730A3 55%, #1E1B4B 100%)",
@@ -169,7 +169,7 @@ export default function Dashboard() {
         </div>
 
         {/* ── Stats Row ──────────────────────────────────────────── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, padding: "0 16px 16px" }}>
+        <div className="user-dashboard-stats" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, padding: "0 16px 16px" }}>
           <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 16, padding: "14px 14px", border: "1px solid rgba(255,255,255,0.07)" }}>
             <p style={{ fontSize: 10, color: "#6B7280", marginBottom: 6, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Total Profit</p>
             {loadingSummary ? <Skeleton className="h-5 w-20" /> : (
@@ -189,7 +189,7 @@ export default function Dashboard() {
         </div>
 
         {/* ── Markets ─────────────────────────────────────────────── */}
-        <div style={{ padding: "0 16px 16px" }}>
+        <div className="user-dashboard-markets" style={{ padding: "0 16px 16px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <h3 style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>Markets</h3>
@@ -247,7 +247,7 @@ export default function Dashboard() {
         </div>
 
         {/* ── Portfolio Assets ─────────────────────────────────────── */}
-        <div style={{ padding: "0 16px 16px" }}>
+        <div className="user-dashboard-assets" style={{ padding: "0 16px 16px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <h3 style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>My Assets</h3>
             <Link href="/cashier" style={{ textDecoration: "none" }}>
@@ -283,7 +283,7 @@ export default function Dashboard() {
 
         {/* ── Active Bots ──────────────────────────────────────────── */}
         {activeBots.length > 0 && (
-          <div style={{ padding: "0 16px 16px" }}>
+          <div className="user-dashboard-active-bots" style={{ padding: "0 16px 16px" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
               <h3 style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>Active Bots</h3>
               <Link href="/bots" style={{ textDecoration: "none" }}>
@@ -314,7 +314,7 @@ export default function Dashboard() {
 
         {/* ── Recent Activity ──────────────────────────────────────── */}
         {recentActivity.length > 0 && (
-          <div style={{ padding: "0 16px" }}>
+          <div className="user-dashboard-activity" style={{ padding: "0 16px" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
               <h3 style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>Recent Activity</h3>
               <Link href="/cashier/transactions" style={{ textDecoration: "none" }}>

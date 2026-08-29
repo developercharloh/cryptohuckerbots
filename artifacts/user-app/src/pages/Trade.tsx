@@ -458,10 +458,10 @@ export default function Trade() {
   return (
     <Layout showNav>
       {showConfetti && <Confetti />}
-      <div style={{ background: "#07091A", minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
+      <div className="user-trade-page" style={{ background: "#07091A", minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
 
         {/* ── Exchange Header ── */}
-        <div style={{ padding: "16px 16px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div className="user-trade-header" style={{ padding: "16px 16px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {/* Pair selector */}
             <div style={{ position: "relative" }}>
@@ -505,7 +505,7 @@ export default function Trade() {
         </div>
 
         {/* ── Price Chart ── */}
-        <div style={{ padding: "8px 0 0", height: 160, position: "relative" }}>
+        <div className="user-trade-chart" style={{ padding: "8px 0 0", height: 160, position: "relative" }}>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
               <defs>
@@ -534,7 +534,7 @@ export default function Trade() {
         </div>
 
         {/* ── Timeframe selector ── */}
-        <div style={{ display: "flex", gap: 4, padding: "6px 16px 12px", overflowX: "auto" }}>
+        <div className="user-trade-timeframes" style={{ display: "flex", gap: 4, padding: "6px 16px 12px", overflowX: "auto" }}>
           {TIMEFRAMES.map(tf => (
             <button
               key={tf}
@@ -555,7 +555,7 @@ export default function Trade() {
         <div style={{ height: 1, background: "rgba(255,255,255,0.06)", margin: "0 16px" }} />
 
         {/* ── Trade Panel ── */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px", paddingBottom: 88 }}>
+        <div className="user-trade-panel" style={{ flex: 1, overflowY: "auto", padding: "12px 16px", paddingBottom: 88 }}>
 
           {/* ── CONFIGURE ── */}
           {step === "configure" && (

@@ -78,7 +78,7 @@ export default function Users() {
   };
 
   return (
-    <div className="p-4 space-y-4 pb-2">
+    <div className="admin-page p-4 space-y-4 pb-2">
       <div className="pt-1 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold tracking-tight">Users</h1>

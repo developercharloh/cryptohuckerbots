@@ -52,7 +52,7 @@ export default function Cashier() {
 
   return (
     <Layout showNav>
-      <div className="pb-28">
+      <div className="user-cashier pb-28">
         {/* ── Balance Hero Card ── */}
         <div className="px-4 pt-5 pb-2">
           <div

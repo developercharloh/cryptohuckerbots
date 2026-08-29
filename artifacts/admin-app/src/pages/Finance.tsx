@@ -368,7 +368,7 @@ export default function Finance() {
   const [tab, setTab] = useState<"deposits" | "transactions">("deposits");
 
   return (
-    <div className="p-4 space-y-4 pb-8">
+    <div className="admin-page p-4 space-y-4 pb-8">
       <div className="pt-1">
         <h1 className="text-xl font-bold tracking-tight">Finance</h1>
         <p className="text-xs text-muted-foreground">Deposit sessions &amp; transaction ledger</p>

@@ -65,7 +65,7 @@ export default function Profile() {
 
   return (
     <Layout showNav>
-      <div style={{ background: "#07091A", minHeight: "100vh", paddingBottom: 88 }}>
+      <div className="user-profile" style={{ background: "#07091A", minHeight: "100vh", paddingBottom: 88 }}>
 
         {/* ── Profile Hero ── */}
         <div style={{ background: "linear-gradient(180deg, #1a0833 0%, #07091A 100%)", padding: "28px 16px 24px", textAlign: "center" }}>
@@ -151,8 +151,8 @@ export default function Profile() {
         </div>
 
         {/* ── Quick Tiles ── */}
-        <div style={{ padding: "16px 16px 8px" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
+         <div className="user-profile-quick-tiles" style={{ padding: "16px 16px 8px" }}>
+           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
             {QUICK_TILES.map(tile => {
               const Icon = tile.icon;
               return (

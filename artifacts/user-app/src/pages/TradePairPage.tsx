@@ -289,10 +289,10 @@ export default function TradePairPage() {
 
   return (
     <Layout>
-      <div style={{ background: "#0F1117", minHeight: "100vh", paddingBottom: 80 }}>
+      <div className="user-pair-page" style={{ background: "#0F1117", minHeight: "100vh", paddingBottom: 80 }}>
 
         {/* ── Header ─────────────────────────────────────── */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 16px 0" }}>
+        <div className="user-pair-header" style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 16px 0" }}>
           <button onClick={() => setLocation("/markets")}
             style={{ background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 10, padding: 8, cursor: "pointer", color: "#fff", display: "flex" }}>
             <ArrowLeft size={18} />
@@ -333,7 +333,7 @@ export default function TradePairPage() {
         </div>
 
         {/* ── Candlestick chart ───────────────────────────── */}
-        <div style={{ margin: "10px 0 0", position: "relative" }}>
+        <div className="user-pair-chart" style={{ margin: "10px 0 0", position: "relative" }}>
           {loading && (
             <div style={{ position: "absolute", inset: 0, zIndex: 10, display: "flex", alignItems: "center", justifyContent: "center", background: "#0F1117" }}>
               <div style={{ width: 28, height: 28, borderRadius: "50%", border: `3px solid ${PURPLE}`, borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
@@ -358,7 +358,7 @@ export default function TradePairPage() {
         </div>
 
         {/* ── Trade panel ─────────────────────────────────── */}
-        <div style={{ padding: "16px" }}>
+        <div className="user-pair-panel" style={{ padding: "16px" }}>
 
           {/* Market / Limit tabs */}
           <div style={{ display: "flex", background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 4, marginBottom: 16 }}>
