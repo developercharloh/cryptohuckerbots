@@ -3,6 +3,7 @@ import { Layout } from "@/components/Layout";
 import { Search, Star, TrendingUp, TrendingDown } from "lucide-react";
 import { useLocation } from "wouter";
 import { useLivePairs, fmtPrice } from "@/hooks/useLivePairs";
+import { useGetTradeAccess } from "@workspace/api-client-react";
 
 /* ── Animated mini chart (sparkline shifts on each tick) ────────── */
 function MiniChart({ up, seed }: { up: boolean; seed: number }) {
@@ -38,6 +39,7 @@ export default function Markets() {
   const [search, setSearch] = useState("");
   const [, setLocation]     = useLocation();
   const pairs               = useLivePairs();
+  const { data: vipAccess } = useGetTradeAccess({ query: { refetchInterval: 15000 } as any });
 
   const filtered = useMemo(() => pairs.filter(p => {
     const matchTab    = tab === "all" || p.category === tab;
@@ -58,6 +60,15 @@ export default function Markets() {
             <span style={{ fontSize: 10, fontWeight: 700, color: "#22c55e" }}>LIVE</span>
           </div>
         </div>
+        {vipAccess && (
+          <div style={{ margin: "12px 16px 0", padding: "10px 12px", borderRadius: 12, background: vipAccess.vipLevel > 0 ? "rgba(245,185,66,0.08)" : "rgba(239,68,68,0.08)", border: `1px solid ${vipAccess.vipLevel > 0 ? "rgba(245,185,66,0.18)" : "rgba(239,68,68,0.18)"}` }}>
+            <p style={{ fontSize: 11, color: vipAccess.vipLevel > 0 ? "#FFD86B" : "#FCA5A5", fontWeight: 700 }}>
+              {vipAccess.vipLevel > 0
+                ? `VIP ${vipAccess.vipLevel} · ${vipAccess.remainingToday} fixed-price signal${vipAccess.remainingToday === 1 ? "" : "s"} remaining`
+                : "Markets are viewable. VIP 1 access is required to execute signals."}
+            </p>
+          </div>
+        )}
 
         {/* Search */}
         <div style={{ padding: "12px 16px" }}>
