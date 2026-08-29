@@ -298,7 +298,7 @@ export default function Trade() {
       setLocation("/vip-packages");
       return;
     }
-    if (!signal || signal.status !== "available" || !signal.opportunityId) { toast({ title: "No signal is currently available", description: "Please check again shortly.", variant: "destructive" }); return; }
+    if (!signal || !signal.opportunityId) { toast({ title: "AI Signal not loaded", description: "Refresh the page and try again.", variant: "destructive" }); return; }
     if (!consent) {
       setConsentPrompt(true);
       toast({
@@ -392,8 +392,8 @@ export default function Trade() {
     .slice(0, 30);
 
   const bestSignal = useMemo(() => {
-     const available = signals.filter(s => s.status === "available");
-     const matchingDirection = requestedDirection ? available.filter(s => s.direction.toUpperCase() === requestedDirection) : available;
+     const unclaimed = signals.filter(s => s.status !== "executed");
+     const matchingDirection = requestedDirection ? unclaimed.filter(s => s.direction.toUpperCase() === requestedDirection) : unclaimed;
      const matchingPair = matchingDirection.filter(s => s.pair === selectedPair);
      return matchingPair[0] ?? null;
   }, [signals, requestedDirection, selectedPair]);
@@ -402,8 +402,10 @@ export default function Trade() {
     ? "Executing signal…"
     : vipAccess?.vipLevel === 0
       ? "Unlock AI Signals"
-      : !bestSignal
-        ? "Waiting for a live signal"
+      : vipAccess?.remainingToday === 0
+        ? "Daily limit reached"
+        : !bestSignal
+          ? "Refresh AI Signals"
         : signalAmount > availableBalance
           ? "Add balance to continue"
           : !consent
