@@ -16,6 +16,23 @@ export const HealthCheckResponse = zod.object({
 })
 
 
+/**
+ * @summary Live global trading and markets news
+ */
+export const ListMarketNewsResponse = zod.object({
+  "articles": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "summary": zod.string(),
+  "url": zod.string(),
+  "source": zod.string(),
+  "category": zod.enum(['markets', 'forex', 'stocks', 'commodities', 'crypto']),
+  "publishedAt": zod.string()
+})),
+  "updatedAt": zod.string()
+})
+
+
 export const RegisterBody = zod.object({
   "fullName": zod.string(),
   "email": zod.string(),
@@ -23,7 +40,6 @@ export const RegisterBody = zod.object({
 })
 
 export const RegisterResponse = zod.object({
-  "token": zod.string(),
   "user": zod.object({
   "id": zod.number(),
   "fullName": zod.string(),
@@ -31,7 +47,9 @@ export const RegisterResponse = zod.object({
   "avatarUrl": zod.string().nullish(),
   "kycStatus": zod.string(),
   "createdAt": zod.string()
-})
+}).optional(),
+  "requires2FA": zod.boolean().optional(),
+  "tempToken": zod.string().optional()
 })
 
 
@@ -41,7 +59,6 @@ export const LoginBody = zod.object({
 })
 
 export const LoginResponse = zod.object({
-  "token": zod.string(),
   "user": zod.object({
   "id": zod.number(),
   "fullName": zod.string(),
@@ -49,7 +66,9 @@ export const LoginResponse = zod.object({
   "avatarUrl": zod.string().nullish(),
   "kycStatus": zod.string(),
   "createdAt": zod.string()
-})
+}).optional(),
+  "requires2FA": zod.boolean().optional(),
+  "tempToken": zod.string().optional()
 })
 
 

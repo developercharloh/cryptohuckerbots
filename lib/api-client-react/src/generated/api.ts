@@ -74,6 +74,7 @@ import type {
   ListMarketplaceBotsParams,
   ListTransactionsParams,
   LoginInput,
+  MarketNewsResponse,
   MarketplaceBot,
   Notification,
   NotificationSettings,
@@ -190,6 +191,83 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getHealthCheckQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListMarketNewsUrl = () => {
+
+
+
+
+  return `/api/news`
+}
+
+/**
+ * @summary Live global trading and markets news
+ */
+export const listMarketNews = async ( options?: RequestInit): Promise<MarketNewsResponse> => {
+
+  return customFetch<MarketNewsResponse>(getListMarketNewsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMarketNewsQueryKey = () => {
+    return [
+    `/api/news`
+    ] as const;
+    }
+
+
+export const getListMarketNewsQueryOptions = <TData = Awaited<ReturnType<typeof listMarketNews>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMarketNews>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMarketNewsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMarketNews>>> = ({ signal }) => listMarketNews({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMarketNews>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMarketNewsQueryResult = NonNullable<Awaited<ReturnType<typeof listMarketNews>>>
+export type ListMarketNewsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Live global trading and markets news
+ */
+
+export function useListMarketNews<TData = Awaited<ReturnType<typeof listMarketNews>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMarketNews>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMarketNewsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

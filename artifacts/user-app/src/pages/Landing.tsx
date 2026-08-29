@@ -1,20 +1,21 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   ShieldCheck, Lock, Zap, Star, ArrowRight,
   Globe, TrendingUp, BarChart2, Bot,
   Menu, X, Activity, CheckCircle, ChevronRight,
-  Cpu, Clock,
+  Cpu, Clock, Newspaper, ExternalLink, RefreshCw,
 } from "lucide-react";
 import { createChart, ColorType, CrosshairMode, CandlestickSeries } from "lightweight-charts";
 
 /* ─── Design tokens (extracted from Base44 bundle) ────────────── */
-const PURPLE    = "#6C47FF";
-const CYAN      = "#06B6D4";
-const INDIGO    = "#4F46E5";
-const GREEN     = "#10B981";
-const RED       = "#EF4444";
+const PURPLE    = "#F5B942";
+const CYAN      = "#3B82F6";
+const INDIGO    = "#111111";
+const GREEN     = "#F5B942";
+const RED       = "#3B82F6";
 const HERO_GRAD = `linear-gradient(135deg, ${PURPLE} 0%, ${INDIGO} 50%, ${CYAN} 100%)`;
 const CARD_SH   = "0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.06)";
 const CARD_SH_LG= "0 4px 6px rgba(0,0,0,0.05), 0 10px 30px rgba(0,0,0,0.1)";
@@ -22,6 +23,7 @@ const CARD_SH_LG= "0 4px 6px rgba(0,0,0,0.05), 0 10px 30px rgba(0,0,0,0.1)";
 /* ─── Static content ──────────────────────────────────────────── */
 const NAV_LINKS = [
   { label: "Markets",  href: "#markets"  },
+  { label: "News",     href: "#news"     },
   { label: "Trading",  href: "#terminal" },
   { label: "Features", href: "#features" },
   { label: "Company",  href: "#company"  },
@@ -81,6 +83,30 @@ type PriceData = {
   pair: string; symbol: string; price: number; prev: number;
   chg: number; chgPct: number; up: boolean; flash: boolean;
 };
+
+type LandingNewsArticle = {
+  id: string;
+  title: string;
+  summary: string;
+  url: string;
+  source: string;
+  category: string;
+  publishedAt: string;
+};
+
+type LandingNewsResponse = {
+  articles: LandingNewsArticle[];
+  updatedAt: string;
+};
+
+const LANDING_API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
+const ASSET_BASE = import.meta.env.BASE_URL;
+
+function formatNewsTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime()) || date.getTime() === 0) return "Latest";
+  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(date);
+}
 
 const INITIAL_PAIRS: PriceData[] = [
   { pair: "BTC/USD",  symbol: "BTCUSDT", price: 67842.30, prev: 67842.30, chg: 0, chgPct: 0, up: true,  flash: false },
@@ -420,6 +446,16 @@ export default function Landing() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const pairs = useLivePrices();
+  const { data: landingNews, isLoading: landingNewsLoading, isError: landingNewsError, refetch: refetchLandingNews, isFetching: landingNewsFetching } = useQuery<LandingNewsResponse>({
+    queryKey: ["/api/news", "landing"],
+    queryFn: async () => {
+      const response = await fetch(`${LANDING_API_BASE}/api/news`);
+      if (!response.ok) throw new Error("Live market news unavailable");
+      return response.json() as Promise<LandingNewsResponse>;
+    },
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: 10 * 60 * 1000,
+  });
 
   useEffect(() => { if (!isLoading && token) setLocation("/dashboard"); }, [token, isLoading, setLocation]);
   useEffect(() => {
@@ -590,7 +626,7 @@ export default function Landing() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 16 }} className="photo-grid">
           {/* img2 — laptop with trading charts — 2 cols wide */}
           <div style={{ gridColumn: "span 2", borderRadius: 16, overflow: "hidden", height: 288, position: "relative" }} className="photo-large">
-            <img src="/images/img2.png" alt="Laptop trading dashboard with candlestick charts"
+            <img src={`${ASSET_BASE}images/img2.png`} alt="Laptop trading dashboard with candlestick charts"
               style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.7s" }}
               onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.05)")}
               onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")} />
@@ -604,7 +640,7 @@ export default function Landing() {
           </div>
           {/* img3 — hand holding phone with mobile trading app — 1 col */}
           <div style={{ borderRadius: 16, overflow: "hidden", height: 288, position: "relative" }}>
-            <img src="/images/img3.png" alt="Mobile trading app with candlestick charts"
+            <img src={`${ASSET_BASE}images/img3.png`} alt="Mobile trading app with candlestick charts"
               style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.7s" }}
               onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.05)")}
               onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")} />
@@ -621,7 +657,7 @@ export default function Landing() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }} className="photo-grid">
           {/* img4 — woman smiling at desk with trading laptop — 1 col */}
           <div style={{ borderRadius: 16, overflow: "hidden", height: 288, position: "relative" }}>
-            <img src="/images/img4.png" alt="Trader using Vixus AI platform"
+            <img src={`${ASSET_BASE}images/img4.png`} alt="Trader using Vixus AI platform"
               style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.7s" }}
               onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.05)")}
               onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")} />
@@ -635,7 +671,7 @@ export default function Landing() {
           </div>
           {/* img5 — institutional trading floor with multiple monitors — 2 cols wide */}
           <div style={{ gridColumn: "span 2", borderRadius: 16, overflow: "hidden", height: 288, position: "relative" }} className="photo-large">
-            <img src="/images/img5.png" alt="Institutional trading floor"
+            <img src={`${ASSET_BASE}images/img5.png`} alt="Institutional trading floor"
               style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.7s" }}
               onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.05)")}
               onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")} />
@@ -683,6 +719,50 @@ export default function Landing() {
               </div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* ── LIVE MARKET BRIEF ──────────────────────────────────── */}
+      <section id="news" className="landing-news-section" style={{ maxWidth: 1200, margin: "72px auto 0", padding: "0 16px" }}>
+        <div className="landing-news-panel">
+          <div className="landing-news-heading">
+            <div>
+              <span className="landing-news-kicker"><span className="landing-news-pulse" /> Global Market Brief</span>
+              <h2>Stay ahead of<br /><span>the next move.</span></h2>
+              <p>Live headlines from the world’s leading financial desks, curated for traders watching forex, stocks, commodities and crypto.</p>
+            </div>
+            <div className="landing-news-heading-mark"><Newspaper size={48} strokeWidth={1.2} /></div>
+          </div>
+
+          <div className="landing-news-toolbar">
+            <span><span className="landing-news-live-line" /> Live sources · refreshed throughout the day</span>
+            <button onClick={() => refetchLandingNews()} disabled={landingNewsFetching}>
+              <RefreshCw size={13} className={landingNewsFetching ? "landing-news-spin" : ""} />
+              {landingNewsFetching ? "Updating" : "Refresh brief"}
+            </button>
+          </div>
+
+          {landingNewsLoading && <div className="landing-news-state">Loading the latest market brief…</div>}
+          {landingNewsError && <div className="landing-news-state landing-news-error">The live brief is temporarily unavailable. Please check again shortly.</div>}
+          {!landingNewsLoading && !landingNewsError && landingNews?.articles.length === 0 && (
+            <div className="landing-news-state">No live stories are available right now.</div>
+          )}
+          {landingNews?.articles.length ? (
+            <div className="landing-news-grid">
+              {landingNews.articles.slice(0, 3).map((article, index) => (
+                <a key={article.id} href={article.url} target="_blank" rel="noreferrer" className={`landing-news-card ${index === 0 ? "landing-news-card-featured" : ""}`}>
+                  <div className="landing-news-card-meta">
+                    <span>{article.category === "markets" ? "Markets" : article.category}</span>
+                    <ExternalLink size={13} />
+                  </div>
+                  <h3>{article.title}</h3>
+                  {index === 0 && article.summary && <p>{article.summary}</p>}
+                  <div className="landing-news-card-footer"><span>{article.source}</span><span>{formatNewsTime(article.publishedAt)}</span></div>
+                </a>
+              ))}
+            </div>
+          ) : null}
+          {landingNews?.updatedAt && <div className="landing-news-updated">Last checked {formatNewsTime(landingNews.updatedAt)} · CNBC Markets · MarketWatch · Yahoo Finance</div>}
         </div>
       </section>
 
@@ -778,9 +858,9 @@ export default function Landing() {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 40, alignItems: "center" }} className="security-grid">
           {/* Left: security card — img1 as photo background */}
           <div style={{ borderRadius: 24, overflow: "hidden", height: 320, position: "relative", padding: 28, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-            <img src="/images/img1.png" alt="Institutional trading infrastructure"
+            <img src={`${ASSET_BASE}images/img1.png`} alt="Institutional trading infrastructure"
               style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
-            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, rgba(124,58,237,0.92) 0%, rgba(79,70,229,0.88) 50%, rgba(6,182,212,0.85) 100%)" }} />
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, rgba(245,185,66,0.92) 0%, rgba(17,17,17,0.9) 52%, rgba(59,130,246,0.82) 100%)" }} />
             <div style={{ position: "absolute", top: 0, right: 0, width: 200, height: 200, background: "rgba(255,255,255,0.05)", borderRadius: "50%", transform: "translate(30%, -30%)", pointerEvents: "none" }} />
             <div>
               <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(52,211,153,0.2)", border: "1px solid rgba(52,211,153,0.3)", borderRadius: 100, padding: "4px 12px", marginBottom: 16 }}>
@@ -799,7 +879,7 @@ export default function Landing() {
                 <div key={b.label} style={{ display: "flex", alignItems: "center", gap: 12, background: "rgba(255,255,255,0.1)", backdropFilter: "blur(8px)", borderRadius: 10, padding: "8px 12px" }}>
                   <span style={{ fontSize: 11, fontWeight: 500, color: "rgba(255,255,255,0.85)", flex: 1 }}>{b.label}</span>
                   <div style={{ width: 64, height: 5, background: "rgba(255,255,255,0.2)", borderRadius: 3, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${b.pct}%`, background: "linear-gradient(to right, #A78BFA, #06B6D4)", borderRadius: 3 }} />
+                    <div style={{ height: "100%", width: `${b.pct}%`, background: "linear-gradient(to right, #F5B942, #3B82F6)", borderRadius: 3 }} />
                   </div>
                   <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", width: 32, textAlign: "right" }}>{b.pct}%</span>
                 </div>
@@ -915,7 +995,7 @@ export default function Landing() {
                 <div style={{ width: 32, height: 32, borderRadius: 8, background: HERO_GRAD, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <span style={{ fontSize: 13, fontWeight: 900, color: "#fff" }}>V</span>
                 </div>
-                <span style={{ fontWeight: 800, fontSize: 16, color: "#fff", fontFamily: "'Inter Tight', sans-serif" }}>VIXUS <span style={{ color: "#A78BFA" }}>AI</span></span>
+                <span style={{ fontWeight: 800, fontSize: 16, color: "#fff", fontFamily: "'Inter Tight', sans-serif" }}>VIXUS <span style={{ color: "#F5B942" }}>AI</span></span>
               </div>
               <p style={{ fontSize: 13, color: "#6B7280", lineHeight: 1.7, maxWidth: 240, marginBottom: 20 }}>
                 Institutional-grade AI trading for everyone. Automate your strategy across 11+ markets.
@@ -982,6 +1062,37 @@ export default function Landing() {
       </footer>
 
       <style>{`
+        .landing-news-panel {
+          position: relative; overflow: hidden; border-radius: 26px; padding: 42px 42px 30px;
+          color: #fff; background: radial-gradient(circle at 100% 0%, rgba(59,130,246,.16), transparent 32%), linear-gradient(135deg, #17130A, #090A0B 70%);
+          border: 1px solid rgba(245,185,66,.28); box-shadow: 0 20px 70px rgba(9,10,11,.16);
+        }
+        .landing-news-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+        .landing-news-kicker { display: inline-flex; align-items: center; gap: 8px; color: #FFD86B; font-size: 11px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+        .landing-news-pulse { width: 7px; height: 7px; border-radius: 50%; background: #F5B942; box-shadow: 0 0 14px #F5B942; animation: pulse 1.6s infinite; }
+        .landing-news-heading h2 { margin: 15px 0 10px; font-size: clamp(28px, 4vw, 48px); line-height: .98; letter-spacing: -.055em; font-weight: 900; }
+        .landing-news-heading h2 span { color: #F5B942; }
+        .landing-news-heading p { max-width: 570px; margin: 0; color: #B9B2A2; font-size: 14px; line-height: 1.65; }
+        .landing-news-heading-mark { display: flex; align-items: center; justify-content: center; width: 88px; height: 88px; flex: 0 0 88px; color: #F5B942; border: 1px solid rgba(245,185,66,.26); border-radius: 24px; background: rgba(245,185,66,.08); transform: rotate(7deg); }
+        .landing-news-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 30px 0 14px; padding-top: 18px; border-top: 1px solid rgba(245,185,66,.15); color: #8F897C; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; }
+        .landing-news-live-line { display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: #3B82F6; box-shadow: 0 0 10px rgba(59,130,246,.8); }
+        .landing-news-toolbar button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid rgba(245,185,66,.3); border-radius: 9px; padding: 8px 11px; color: #FFD86B; background: rgba(245,185,66,.08); font-size: 10px; font-weight: 800; cursor: pointer; }
+        .landing-news-toolbar button:disabled { opacity: .6; cursor: wait; }
+        .landing-news-grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 12px; }
+        .landing-news-card { min-height: 175px; display: flex; flex-direction: column; padding: 18px; color: #fff; text-decoration: none; border: 1px solid rgba(255,255,255,.1); border-radius: 16px; background: rgba(255,255,255,.045); transition: transform .2s, border-color .2s, background .2s; }
+        .landing-news-card:hover { transform: translateY(-3px); border-color: rgba(245,185,66,.65); background: rgba(245,185,66,.08); }
+        .landing-news-card-featured { background: linear-gradient(145deg, rgba(245,185,66,.16), rgba(255,255,255,.04)); border-color: rgba(245,185,66,.36); }
+        .landing-news-card-meta, .landing-news-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #CBAE68; font-size: 9px; letter-spacing: .08em; font-weight: 800; text-transform: uppercase; }
+        .landing-news-card-meta svg { color: #3B82F6; }
+        .landing-news-card h3 { margin: 14px 0 8px; font-size: 16px; line-height: 1.25; letter-spacing: -.025em; }
+        .landing-news-card p { margin: 0; color: #AAA59A; font-size: 12px; line-height: 1.55; }
+        .landing-news-card-footer { margin-top: auto; padding-top: 18px; color: #777267; font-size: 9px; letter-spacing: .04em; text-transform: none; }
+        .landing-news-card-footer span:first-child { color: #CBAE68; }
+        .landing-news-state { padding: 30px; text-align: center; color: #A5A095; border: 1px dashed rgba(245,185,66,.22); border-radius: 14px; }
+        .landing-news-error { color: #8DB7F4; border-color: rgba(59,130,246,.32); }
+        .landing-news-updated { margin-top: 18px; color: #6F6B61; font-size: 9px; }
+        .landing-news-spin { animation: landing-news-spin 1s linear infinite; }
+        @keyframes landing-news-spin { to { transform: rotate(360deg); } }
         @keyframes ticker { from { transform: translateX(0) } to { transform: translateX(-50%) } }
         @keyframes pulse  { 0%,100% { opacity:1 } 50% { opacity:0.35 } }
         * { box-sizing: border-box; margin: 0; }
@@ -1015,6 +1126,12 @@ export default function Landing() {
           .show-mobile { display: flex !important; }
           .features-grid { grid-template-columns: 1fr !important; }
           .stats-grid { grid-template-columns: 1fr 1fr !important; }
+          .landing-news-panel { padding: 28px 18px 20px; border-radius: 20px; }
+          .landing-news-heading-mark { width: 58px; height: 58px; flex-basis: 58px; border-radius: 17px; }
+          .landing-news-heading-mark svg { width: 30px; height: 30px; }
+          .landing-news-toolbar { align-items: flex-start; flex-direction: column; }
+          .landing-news-grid { grid-template-columns: 1fr; }
+          .landing-news-card { min-height: 145px; }
         }
       `}</style>
     </div>

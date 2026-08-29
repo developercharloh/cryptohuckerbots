@@ -17,10 +17,10 @@ const loginSchema = z.object({
 });
 
 const BG = "#07091A";
-const CARD = "rgba(20,16,48,0.9)";
-const BORDER = "rgba(124,58,237,0.2)";
-const PURPLE = "#7C3AED";
-const LIGHT = "#A78BFA";
+const CARD = "rgba(25,22,14,0.94)";
+const BORDER = "rgba(245,185,66,0.28)";
+const PURPLE = "#F5B942";
+const LIGHT = "#FFD86B";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -88,8 +88,8 @@ export default function Login() {
 
   if (step === "2fa") {
     return (
-      <div style={{ minHeight: "100dvh", background: `linear-gradient(160deg, ${BG} 0%, #0F0A2E 50%, ${BG} 100%)`, display: "flex", flexDirection: "column", padding: "24px 24px", position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "absolute", top: "10%", left: "50%", transform: "translateX(-50%)", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(circle, rgba(124,58,237,0.15) 0%, transparent 70%)", pointerEvents: "none" }} />
+      <div style={{ minHeight: "100dvh", background: `linear-gradient(160deg, ${BG} 0%, #15120B 50%, ${BG} 100%)`, display: "flex", flexDirection: "column", padding: "24px 24px", position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: "10%", left: "50%", transform: "translateX(-50%)", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(circle, rgba(245,185,66,0.15) 0%, transparent 70%)", pointerEvents: "none" }} />
         <div style={{ paddingTop: 40 }}>
           <button onClick={() => setStep("credentials")} style={{ display: "flex", alignItems: "center", gap: 4, color: "#64748B", background: "none", border: "none", cursor: "pointer", fontSize: 13, padding: 0 }}>
             <ChevronLeft size={16} /> Back to login
@@ -97,7 +97,7 @@ export default function Login() {
         </div>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", position: "relative", zIndex: 1 }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", marginBottom: 36 }}>
-            <div style={{ width: 72, height: 72, borderRadius: 20, background: "rgba(124,58,237,0.15)", border: "1px solid rgba(124,58,237,0.3)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
+            <div style={{ width: 72, height: 72, borderRadius: 20, background: "rgba(245,185,66,0.15)", border: "1px solid rgba(245,185,66,0.3)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
               <ShieldCheck size={32} style={{ color: LIGHT }} />
             </div>
             <h1 style={{ fontSize: 26, fontWeight: 800, color: "#F1F5F9", marginBottom: 10, letterSpacing: "-0.02em" }}>Two-Factor Auth</h1>
@@ -125,10 +125,10 @@ export default function Login() {
             disabled={verifying || twoFACode.length !== 6}
             style={{
               width: "100%", height: 54, borderRadius: 14, fontSize: 16, fontWeight: 700,
-              background: twoFACode.length === 6 ? "linear-gradient(135deg, #7C3AED, #4F46E5)" : "rgba(124,58,237,0.2)",
+              background: twoFACode.length === 6 ? "linear-gradient(135deg, #F5B942, #D99B18)" : "rgba(245,185,66,0.2)",
               color: "#fff", border: "none", cursor: twoFACode.length === 6 ? "pointer" : "not-allowed",
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-              boxShadow: twoFACode.length === 6 ? "0 8px 28px rgba(124,58,237,0.4)" : "none",
+               boxShadow: twoFACode.length === 6 ? "0 8px 28px rgba(245,185,66,0.3)" : "none",
               transition: "all 0.2s ease",
             }}
           >
@@ -140,16 +140,16 @@ export default function Login() {
   }
 
   return (
-    <div style={{ minHeight: "100dvh", background: `linear-gradient(160deg, ${BG} 0%, #0F0A2E 50%, ${BG} 100%)`, display: "flex", flexDirection: "column", padding: "0 24px", position: "relative", overflow: "hidden" }}>
+    <div style={{ minHeight: "100dvh", background: `linear-gradient(160deg, ${BG} 0%, #15120B 50%, ${BG} 100%)`, display: "flex", flexDirection: "column", padding: "0 24px", position: "relative", overflow: "hidden" }}>
 
       {/* Glow */}
-      <div style={{ position: "absolute", top: "-5%", left: "50%", transform: "translateX(-50%)", width: 280, height: 280, borderRadius: "50%", background: "radial-gradient(circle, rgba(124,58,237,0.18) 0%, transparent 70%)", pointerEvents: "none" }} />
-      <div style={{ position: "absolute", bottom: "20%", right: "-15%", width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, rgba(79,70,229,0.12) 0%, transparent 70%)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", top: "-5%", left: "50%", transform: "translateX(-50%)", width: 280, height: 280, borderRadius: "50%", background: "radial-gradient(circle, rgba(245,185,66,0.18) 0%, transparent 70%)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", bottom: "20%", right: "-15%", width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, rgba(59,130,246,0.12) 0%, transparent 70%)", pointerEvents: "none" }} />
 
       {/* Header */}
       <div style={{ paddingTop: 56, paddingBottom: 36, display: "flex", flexDirection: "column", alignItems: "center", position: "relative", zIndex: 1 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-          <div style={{ width: 44, height: 44, borderRadius: 14, background: "linear-gradient(135deg, rgba(124,58,237,0.25), rgba(79,70,229,0.15))", border: "1px solid rgba(124,58,237,0.35)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ width: 44, height: 44, borderRadius: 14, background: "linear-gradient(135deg, rgba(245,185,66,0.25), rgba(59,130,246,0.12))", border: "1px solid rgba(245,185,66,0.35)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <VixusLogo className="w-7 h-7" />
           </div>
           <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: "-0.01em", color: "#F1F5F9" }}>
@@ -176,7 +176,7 @@ export default function Login() {
                     <Input
                       placeholder="name@example.com"
                       type="email"
-                      style={{ paddingLeft: 40, height: 50, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(124,58,237,0.15)", borderRadius: 12, color: "#F1F5F9", fontSize: 14 }}
+                       style={{ paddingLeft: 40, height: 50, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(245,185,66,0.2)", borderRadius: 12, color: "#F1F5F9", fontSize: 14 }}
                       {...field}
                     />
                   </div>
@@ -194,7 +194,7 @@ export default function Login() {
                     <Input
                       placeholder="••••••••"
                       type={showPassword ? "text" : "password"}
-                      style={{ paddingLeft: 40, paddingRight: 44, height: 50, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(124,58,237,0.15)", borderRadius: 12, color: "#F1F5F9", fontSize: 14 }}
+                       style={{ paddingLeft: 40, paddingRight: 44, height: 50, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(245,185,66,0.2)", borderRadius: 12, color: "#F1F5F9", fontSize: 14 }}
                       {...field}
                     />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#475569" }}>
@@ -215,10 +215,10 @@ export default function Login() {
               disabled={loginMutation.isPending}
               style={{
                 width: "100%", height: 54, borderRadius: 14, fontSize: 16, fontWeight: 700,
-                background: "linear-gradient(135deg, #7C3AED, #4F46E5)",
+                 background: "linear-gradient(135deg, #F5B942, #D99B18)",
                 color: "#fff", border: "none", cursor: "pointer",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                boxShadow: "0 8px 28px rgba(124,58,237,0.4)",
+                 boxShadow: "0 8px 28px rgba(245,185,66,0.3)",
                 opacity: loginMutation.isPending ? 0.8 : 1,
               }}
             >

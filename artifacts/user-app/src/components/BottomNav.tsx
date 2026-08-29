@@ -1,9 +1,10 @@
 import { Link, useLocation } from "wouter";
-import { Home, BarChart2, ClipboardList, Wallet, LayoutGrid } from "lucide-react";
+import { Home, BarChart2, ClipboardList, Wallet, LayoutGrid, Newspaper } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Home",    icon: Home,          center: false },
   { href: "/markets",   label: "Markets", icon: BarChart2,     center: false },
+  { href: "/news",      label: "News",    icon: Newspaper,     center: false },
   { href: "/orders",    label: "Orders",  icon: ClipboardList, center: true  },
   { href: "/cashier",   label: "Wallet",  icon: Wallet,        center: false },
   { href: "/profile",   label: "More",    icon: LayoutGrid,    center: false },

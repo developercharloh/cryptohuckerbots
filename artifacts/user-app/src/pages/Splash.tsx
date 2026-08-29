@@ -38,7 +38,7 @@ export default function Splash() {
         alignItems: "center",
         justifyContent: "space-between",
         minHeight: "100dvh",
-        background: "linear-gradient(160deg, #07091A 0%, #0F0A2E 50%, #07091A 100%)",
+         background: "linear-gradient(160deg, #070707 0%, #17130A 50%, #070707 100%)",
         padding: "0 24px",
         overflow: "hidden",
         position: "relative",
@@ -46,9 +46,9 @@ export default function Splash() {
     >
       {/* Background glows */}
       <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-        <div style={{ position: "absolute", top: "-10%", left: "50%", transform: "translateX(-50%)", width: 320, height: 320, borderRadius: "50%", background: "radial-gradient(circle, rgba(124,58,237,0.22) 0%, transparent 70%)" }} />
-        <div style={{ position: "absolute", bottom: "15%", right: "-10%", width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, rgba(79,70,229,0.15) 0%, transparent 70%)" }} />
-        <div style={{ position: "absolute", bottom: "30%", left: "-10%", width: 180, height: 180, borderRadius: "50%", background: "radial-gradient(circle, rgba(124,58,237,0.1) 0%, transparent 70%)" }} />
+         <div style={{ position: "absolute", top: "-10%", left: "50%", transform: "translateX(-50%)", width: 320, height: 320, borderRadius: "50%", background: "radial-gradient(circle, rgba(245,185,66,0.22) 0%, transparent 70%)" }} />
+         <div style={{ position: "absolute", bottom: "15%", right: "-10%", width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, rgba(59,130,246,0.15) 0%, transparent 70%)" }} />
+         <div style={{ position: "absolute", bottom: "30%", left: "-10%", width: 180, height: 180, borderRadius: "50%", background: "radial-gradient(circle, rgba(245,185,66,0.1) 0%, transparent 70%)" }} />
       </div>
 
       {/* Top spacer */}
@@ -67,28 +67,28 @@ export default function Splash() {
         <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{
             position: "absolute", width: 160, height: 160, borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(124,58,237,0.3) 0%, transparent 70%)",
+             background: "radial-gradient(circle, rgba(245,185,66,0.3) 0%, transparent 70%)",
             animation: "breathe 3s ease-in-out infinite",
           }} />
           <div style={{
             position: "absolute", width: 120, height: 120, borderRadius: "50%",
-            border: "1px solid rgba(124,58,237,0.25)",
+             border: "1px solid rgba(245,185,66,0.25)",
             animation: "spin 12s linear infinite",
           }} />
           <div style={{
             width: 80, height: 80, borderRadius: 24,
-            background: "linear-gradient(135deg, rgba(124,58,237,0.3), rgba(79,70,229,0.2))",
-            border: "1px solid rgba(124,58,237,0.4)",
+             background: "linear-gradient(135deg, rgba(245,185,66,0.3), rgba(59,130,246,0.15))",
+             border: "1px solid rgba(245,185,66,0.4)",
             display: "flex", alignItems: "center", justifyContent: "center",
             backdropFilter: "blur(8px)",
           }}>
-            <VixusLogo className="w-12 h-12 drop-shadow-[0_0_20px_rgba(124,58,237,0.8)]" />
+             <VixusLogo className="w-12 h-12 drop-shadow-[0_0_20px_rgba(245,185,66,0.8)]" />
           </div>
         </div>
 
         <div style={{ textAlign: "center" }}>
-          <h1 style={{ fontSize: 40, fontWeight: 900, letterSpacing: "-0.03em", color: "#F1F5F9", margin: 0, lineHeight: 1.1 }}>
-            VIXUS<span style={{ background: "linear-gradient(135deg, #A78BFA, #7C3AED)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}> AI</span>
+             <h1 style={{ fontSize: 40, fontWeight: 900, letterSpacing: "-0.03em", color: "#F1F5F9", margin: 0, lineHeight: 1.1 }}>
+             VIXUS<span style={{ background: "linear-gradient(135deg, #FFD86B, #F5B942)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}> AI</span>
           </h1>
           <p style={{ color: "#64748B", fontSize: 13, marginTop: 10, letterSpacing: "0.02em" }}>
             Trade Smarter. Automate the Rest.
@@ -101,8 +101,8 @@ export default function Splash() {
         {/* Stats strip */}
         <div style={{
           display: "flex", gap: 20, marginTop: 8,
-          background: "rgba(124,58,237,0.08)",
-          border: "1px solid rgba(124,58,237,0.15)",
+           background: "rgba(245,185,66,0.08)",
+           border: "1px solid rgba(245,185,66,0.15)",
           borderRadius: 14, padding: "12px 20px",
         }}>
           {[
@@ -111,7 +111,7 @@ export default function Splash() {
             { v: "99.9%",  l: "Uptime" },
           ].map((s) => (
             <div key={s.l} style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 15, fontWeight: 800, color: "#A78BFA" }}>{s.v}</div>
+               <div style={{ fontSize: 15, fontWeight: 800, color: "#FFD86B" }}>{s.v}</div>
               <div style={{ fontSize: 10, color: "#64748B", marginTop: 2 }}>{s.l}</div>
             </div>
           ))}
@@ -131,9 +131,9 @@ export default function Splash() {
           onClick={handleGetStarted}
           style={{
             width: "100%", height: 56, borderRadius: 16, fontSize: 16, fontWeight: 700,
-            background: "linear-gradient(135deg, #7C3AED, #4F46E5)",
+             background: "linear-gradient(135deg, #F5B942, #D99B18)",
             color: "#fff", border: "none", cursor: "pointer",
-            boxShadow: "0 8px 32px rgba(124,58,237,0.5)",
+             boxShadow: "0 8px 32px rgba(245,185,66,0.35)",
             letterSpacing: "0.01em",
           }}
         >

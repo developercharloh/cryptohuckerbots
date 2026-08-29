@@ -9,6 +9,32 @@ export interface HealthStatus {
   status: string;
 }
 
+export type MarketNewsArticleCategory = typeof MarketNewsArticleCategory[keyof typeof MarketNewsArticleCategory];
+
+
+export const MarketNewsArticleCategory = {
+  markets: 'markets',
+  forex: 'forex',
+  stocks: 'stocks',
+  commodities: 'commodities',
+  crypto: 'crypto',
+} as const;
+
+export interface MarketNewsArticle {
+  id: string;
+  title: string;
+  summary: string;
+  url: string;
+  source: string;
+  category: MarketNewsArticleCategory;
+  publishedAt: string;
+}
+
+export interface MarketNewsResponse {
+  articles: MarketNewsArticle[];
+  updatedAt: string;
+}
+
 export interface ErrorResponse {
   error: string;
 }

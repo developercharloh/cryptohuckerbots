@@ -10,6 +10,7 @@ import notificationsRouter from "./notifications";
 import supportRouter from "./support";
 import adminRouter from "./admin";
 import webhooksRouter from "./webhooks";
+import newsRouter from "./news";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(notificationsRouter);
 router.use(supportRouter);
 router.use(adminRouter);
 router.use(webhooksRouter);
+router.use(newsRouter);
 
 export default router;

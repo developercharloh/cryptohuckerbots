@@ -32,6 +32,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
 
+  /news:
+    get:
+      operationId: listMarketNews
+      tags: [news]
+      summary: Live global trading and markets news
+      responses:
+        "200":
+          description: Latest market news from live RSS sources
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketNewsResponse"
+        "502":
+          description: News sources temporarily unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   # Auth
   /auth/register:
     post:
@@ -1481,6 +1500,37 @@ components:
         status:
           type: string
       required: [status]
+
+    MarketNewsResponse:
+      type: object
+      properties:
+        articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/MarketNewsArticle"
+        updatedAt:
+          type: string
+      required: [articles, updatedAt]
+
+    MarketNewsArticle:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        summary:
+          type: string
+        url:
+          type: string
+        source:
+          type: string
+        category:
+          type: string
+          enum: [markets, forex, stocks, commodities, crypto]
+        publishedAt:
+          type: string
+      required: [id, title, summary, url, source, category, publishedAt]
 
     ErrorResponse:
       type: object

@@ -22,13 +22,13 @@ const registerSchema = z.object({
 });
 
 const BG = "#07091A";
-const CARD = "rgba(20,16,48,0.9)";
-const BORDER = "rgba(124,58,237,0.2)";
-const LIGHT = "#A78BFA";
+const CARD = "rgba(25,22,14,0.94)";
+const BORDER = "rgba(245,185,66,0.28)";
+const LIGHT = "#FFD86B";
 
 const fieldStyle = {
   height: 50, background: "rgba(255,255,255,0.04)",
-  border: "1px solid rgba(124,58,237,0.15)", borderRadius: 12,
+  border: "1px solid rgba(245,185,66,0.2)", borderRadius: 12,
   color: "#F1F5F9", fontSize: 14,
 };
 
@@ -59,15 +59,15 @@ export default function Register() {
   };
 
   return (
-    <div style={{ minHeight: "100dvh", background: `linear-gradient(160deg, ${BG} 0%, #0F0A2E 50%, ${BG} 100%)`, display: "flex", flexDirection: "column", padding: "0 24px", position: "relative", overflow: "hidden" }}>
+    <div style={{ minHeight: "100dvh", background: `linear-gradient(160deg, ${BG} 0%, #15120B 50%, ${BG} 100%)`, display: "flex", flexDirection: "column", padding: "0 24px", position: "relative", overflow: "hidden" }}>
 
       {/* Glow */}
-      <div style={{ position: "absolute", top: "-5%", left: "50%", transform: "translateX(-50%)", width: 280, height: 280, borderRadius: "50%", background: "radial-gradient(circle, rgba(124,58,237,0.18) 0%, transparent 70%)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", top: "-5%", left: "50%", transform: "translateX(-50%)", width: 280, height: 280, borderRadius: "50%", background: "radial-gradient(circle, rgba(245,185,66,0.18) 0%, transparent 70%)", pointerEvents: "none" }} />
 
       {/* Header */}
       <div style={{ paddingTop: 52, paddingBottom: 28, display: "flex", flexDirection: "column", alignItems: "center", position: "relative", zIndex: 1 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 12, background: "linear-gradient(135deg, rgba(124,58,237,0.25), rgba(79,70,229,0.15))", border: "1px solid rgba(124,58,237,0.35)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ width: 40, height: 40, borderRadius: 12, background: "linear-gradient(135deg, rgba(245,185,66,0.25), rgba(59,130,246,0.12))", border: "1px solid rgba(245,185,66,0.35)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <VixusLogo className="w-6 h-6" />
           </div>
           <span style={{ fontSize: 17, fontWeight: 800, color: "#F1F5F9" }}>
@@ -150,8 +150,8 @@ export default function Register() {
                 >
                   <div style={{
                     width: 20, height: 20, borderRadius: 6, flexShrink: 0, marginTop: 1,
-                    background: field.value ? "linear-gradient(135deg, #7C3AED, #4F46E5)" : "rgba(255,255,255,0.06)",
-                    border: field.value ? "none" : "1px solid rgba(124,58,237,0.3)",
+                     background: field.value ? "linear-gradient(135deg, #F5B942, #D99B18)" : "rgba(255,255,255,0.06)",
+                     border: field.value ? "none" : "1px solid rgba(245,185,66,0.3)",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     transition: "all 0.2s ease",
                   }}>
@@ -171,10 +171,10 @@ export default function Register() {
               disabled={registerMutation.isPending}
               style={{
                 width: "100%", height: 54, borderRadius: 14, fontSize: 16, fontWeight: 700,
-                background: "linear-gradient(135deg, #7C3AED, #4F46E5)",
+                 background: "linear-gradient(135deg, #F5B942, #D99B18)",
                 color: "#fff", border: "none", cursor: "pointer",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                boxShadow: "0 8px 28px rgba(124,58,237,0.4)",
+                 boxShadow: "0 8px 28px rgba(245,185,66,0.3)",
                 opacity: registerMutation.isPending ? 0.8 : 1,
                 marginTop: 4,
               }}
