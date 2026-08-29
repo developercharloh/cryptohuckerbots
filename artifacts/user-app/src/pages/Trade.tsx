@@ -6,7 +6,6 @@ import {
 } from "@workspace/api-client-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   TrendingUp, TrendingDown, Zap, Activity, Clock, Check,
@@ -420,12 +419,12 @@ export default function Trade() {
                       {win ? "+" : "−"}${Math.abs(p.pnl).toFixed(2)}
                     </p>
                     <p className="text-[10px] text-muted-foreground">
-                      {p.status === "tp_hit" ? "TP Hit" : p.status === "sl_hit" ? "SL Hit" : p.status === "closed_manual" ? "Manual" : "Expired"}
+                      {p.status === "closed_manual" ? "Closed early" : p.pnl >= 0 ? "Profit outcome" : "Loss outcome"}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-2 border-t border-border/30">
-                  <span>Stake ${p.stake.toFixed(0)}</span>
+                  <span>Signal ${p.stake.toFixed(2)}</span>
                   <span>{p.elapsedMs > 0 ? fmtDuration(p.elapsedMs) : "—"}</span>
                   <span className={`font-semibold ${win ? "text-green-400" : "text-red-400"}`}>{roi.toFixed(1)}% ROI</span>
                 </div>
@@ -718,16 +717,13 @@ export default function Trade() {
                 <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2, marginTop: 12 }}>
                   <div style={{ height: 4, borderRadius: 2, background: posUp ? "#22c55e" : "#ef4444", width: `${pct}%`, transition: "width 1s ease" }} />
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
-                  <span style={{ fontSize: 9, color: "#ef4444" }}>SL −${pos.stopLoss.toFixed(2)}</span>
-                  <span style={{ fontSize: 9, color: "#22c55e" }}>TP +${pos.targetProfit.toFixed(2)}</span>
-                </div>
+                <p style={{ fontSize: 9, color: "#6B7280", marginTop: 6 }}>Fixed $2.50 signal amount · outcome is server-managed</p>
               </div>
 
               {/* Stake info */}
               <div style={{ width: "100%", display: "flex", gap: 8 }}>
                 <div style={{ flex: 1, background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: "10px 12px", border: "1px solid rgba(255,255,255,0.07)", textAlign: "center" }}>
-                  <p style={{ fontSize: 9, color: "#6B7280", marginBottom: 3 }}>STAKE</p>
+                    <p style={{ fontSize: 9, color: "#6B7280", marginBottom: 3 }}>SIGNAL AMOUNT</p>
                   <p style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>${pos.stake.toFixed(2)}</p>
                 </div>
                 <div style={{ flex: 1, background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: "10px 12px", border: "1px solid rgba(255,255,255,0.07)", textAlign: "center" }}>
@@ -760,7 +756,7 @@ export default function Trade() {
                   <p style={{ fontSize: 44, fontWeight: 900, color: win ? "#22c55e" : "#ef4444", fontFamily: "monospace", lineHeight: 1 }}>
                     {win ? "+" : "−"}${Math.abs(result.pnl).toFixed(2)}
                   </p>
-                  <p style={{ fontSize: 13, color: "#6B7280", marginTop: 4 }}>{roi > 0 ? "+" : ""}{roi.toFixed(1)}% ROI on ${result.stake.toFixed(0)} stake</p>
+                  <p style={{ fontSize: 13, color: "#6B7280", marginTop: 4 }}>{roi > 0 ? "+" : ""}{roi.toFixed(1)}% outcome on ${result.stake.toFixed(2)} signal</p>
                 </div>
 
                 {/* Stats */}
@@ -769,7 +765,7 @@ export default function Trade() {
                     ["Pair", result.pair],
                     ["Direction", result.direction],
                     ["Duration", result.elapsedMs > 0 ? fmtDuration(result.elapsedMs) : "—"],
-                    ["Status", result.status === "tp_hit" ? "TP Hit ✓" : result.status === "sl_hit" ? "SL Hit ✗" : result.status === "closed_manual" ? "Manual Close" : "Expired"],
+                    ["Status", result.status === "closed_manual" ? "Closed early" : result.pnl >= 0 ? "Profit outcome" : "Loss outcome"],
                   ].map(([label, val]) => (
                     <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
                       <span style={{ fontSize: 12, color: "#6B7280" }}>{label}</span>
