@@ -123,7 +123,7 @@ export default function Bots() {
                     onClick={() => setActiveTab("marketplace")}
                     className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white"
                     style={{
-                      background: "linear-gradient(135deg, #7C3AED 0%, #4C1D95 100%)",
+                      background: "linear-gradient(135deg, #F5B942 0%, #8A6410 100%)",
                       boxShadow: "0 4px 16px rgba(124,58,237,0.35)",
                     }}
                   >
@@ -191,7 +191,7 @@ export default function Bots() {
                   onClick={() => setActiveTab("marketplace")}
                   className="w-full h-14 rounded-2xl flex items-center justify-center gap-2 text-sm font-semibold text-white mt-2"
                   style={{
-                    background: "linear-gradient(135deg, #7C3AED 0%, #4338CA 100%)",
+                    background: "linear-gradient(135deg, #F5B942 0%, #D99B18 100%)",
                     boxShadow: "0 4px 20px rgba(124,58,237,0.3)",
                   }}
                 >
@@ -271,7 +271,7 @@ export default function Bots() {
                         style={
                           !bot.isPurchased
                             ? {
-                                background: "linear-gradient(135deg, #7C3AED 0%, #4338CA 100%)",
+                                background: "linear-gradient(135deg, #F5B942 0%, #D99B18 100%)",
                                 boxShadow: "0 2px 12px rgba(124,58,237,0.35)",
                               }
                             : undefined

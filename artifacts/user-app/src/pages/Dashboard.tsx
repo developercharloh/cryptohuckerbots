@@ -80,7 +80,7 @@ export default function Dashboard() {
               </button>
             </Link>
             <Link href="/profile">
-              <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg, #7C3AED, #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "#fff", cursor: "pointer" }}>
+              <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg, #F5B942, #D99B18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "#111827", cursor: "pointer" }}>
                 {initials}
               </div>
             </Link>
@@ -99,7 +99,7 @@ export default function Dashboard() {
         <div className="user-dashboard-portfolio" style={{ padding: "0 16px 16px" }}>
           <div style={{
             borderRadius: 24, padding: "22px 20px 20px",
-            background: "linear-gradient(135deg, #4C1D95 0%, #3730A3 55%, #1E1B4B 100%)",
+            background: "linear-gradient(135deg, #3A2B0D 0%, #17130A 55%, #0B1220 100%)",
             boxShadow: "0 8px 40px rgba(124,58,237,0.4), inset 0 1px 0 rgba(255,255,255,0.1)",
             position: "relative", overflow: "hidden",
           }}>
@@ -153,7 +153,7 @@ export default function Dashboard() {
                 { label: "Deposit",  href: "/cashier/deposit",  Icon: ArrowDownLeft,  bg: "rgba(34,197,94,0.15)",   color: "#4ade80" },
                 { label: "Withdraw", href: "/cashier/withdraw", Icon: ArrowUpRight,   bg: "rgba(239,68,68,0.15)",   color: "#f87171" },
                 { label: "Transfer", href: "/cashier",          Icon: ArrowLeftRight, bg: "rgba(59,130,246,0.15)",  color: "#60a5fa" },
-                { label: "Trade",    href: "/trade",            Icon: TrendingUp,     bg: "rgba(167,139,250,0.15)", color: "#A78BFA" },
+                { label: "Trade",    href: "/trade",            Icon: TrendingUp,     bg: "rgba(245,185,66,0.15)", color: "#FFD86B" },
               ].map(a => (
                 <Link key={a.href} href={a.href} style={{ textDecoration: "none" }}>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
@@ -173,7 +173,7 @@ export default function Dashboard() {
           <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 16, padding: "14px 14px", border: "1px solid rgba(255,255,255,0.07)" }}>
             <p style={{ fontSize: 10, color: "#6B7280", marginBottom: 6, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Total Profit</p>
             {loadingSummary ? <Skeleton className="h-5 w-20" /> : (
-              <p style={{ fontSize: 18, fontWeight: 800, color: "#A78BFA" }}>{formatUSD(summary?.totalProfit)}</p>
+              <p style={{ fontSize: 18, fontWeight: 800, color: "#FFD86B" }}>{formatUSD(summary?.totalProfit)}</p>
             )}
             <p style={{ fontSize: 10, color: "#22c55e", marginTop: 4 }}>↑ Win Rate {summary?.winRate ?? 0}%</p>
           </div>
@@ -183,7 +183,7 @@ export default function Dashboard() {
               {loadingSummary ? <Skeleton className="h-5 w-12" /> : (
                 <p style={{ fontSize: 18, fontWeight: 800, color: "#fff" }}>{summary?.activeBots ?? 0} <span style={{ fontSize: 12, color: "#6B7280", fontWeight: 500 }}>running</span></p>
               )}
-              <p style={{ fontSize: 10, color: "#7C3AED", marginTop: 4 }}>View all →</p>
+              <p style={{ fontSize: 10, color: "#FFD86B", marginTop: 4 }}>View all →</p>
             </div>
           </Link>
         </div>
@@ -199,7 +199,7 @@ export default function Dashboard() {
               </div>
             </div>
             <Link href="/markets" style={{ textDecoration: "none" }}>
-              <span style={{ fontSize: 11, color: "#7C3AED", fontWeight: 700 }}>See all →</span>
+              <span style={{ fontSize: 11, color: "#FFD86B", fontWeight: 700 }}>See all →</span>
             </Link>
           </div>
 
@@ -207,7 +207,7 @@ export default function Dashboard() {
           <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4 }}>
             {marketData.map(m => {
               const up = m.up;
-              const color = MARKET_COLORS[m.symbol] ?? "#7C3AED";
+              const color = MARKET_COLORS[m.symbol] ?? "#F5B942";
               return (
                 <Link key={m.symbol} href={`/trade/${m.symbol.replace("/", "-")}`} style={{ textDecoration: "none", flexShrink: 0 }}>
                   <div style={{
@@ -251,7 +251,7 @@ export default function Dashboard() {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <h3 style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>My Assets</h3>
             <Link href="/cashier" style={{ textDecoration: "none" }}>
-              <span style={{ fontSize: 11, color: "#7C3AED", fontWeight: 700 }}>Manage →</span>
+              <span style={{ fontSize: 11, color: "#FFD86B", fontWeight: 700 }}>Manage →</span>
             </Link>
           </div>
           <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 20, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden" }}>
@@ -287,14 +287,14 @@ export default function Dashboard() {
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
               <h3 style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>Active Bots</h3>
               <Link href="/bots" style={{ textDecoration: "none" }}>
-                <span style={{ fontSize: 11, color: "#7C3AED", fontWeight: 700 }}>View all →</span>
+                <span style={{ fontSize: 11, color: "#FFD86B", fontWeight: 700 }}>View all →</span>
               </Link>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {activeBots.slice(0, 2).map(bot => (
                 <Link key={bot.id} href={`/bots/${bot.id}`} style={{ textDecoration: "none" }}>
                   <div style={{ background: "rgba(124,58,237,0.08)", borderRadius: 16, padding: "12px 14px", border: "1px solid rgba(124,58,237,0.2)", display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ width: 40, height: 40, borderRadius: 12, background: "linear-gradient(135deg, #7C3AED, #4F46E5)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 12, background: "linear-gradient(135deg, #F5B942, #D99B18)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                       <Bot style={{ width: 18, height: 18, color: "#fff" }} />
                     </div>
                     <div style={{ flex: 1 }}>
@@ -318,7 +318,7 @@ export default function Dashboard() {
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
               <h3 style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>Recent Activity</h3>
               <Link href="/cashier/transactions" style={{ textDecoration: "none" }}>
-                <span style={{ fontSize: 11, color: "#7C3AED", fontWeight: 700 }}>History →</span>
+                <span style={{ fontSize: 11, color: "#FFD86B", fontWeight: 700 }}>History →</span>
               </Link>
             </div>
             <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 20, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden" }}>

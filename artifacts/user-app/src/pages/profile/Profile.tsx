@@ -70,13 +70,13 @@ export default function Profile() {
       <div className="user-profile" style={{ background: "#07091A", minHeight: "100vh", paddingBottom: 88 }}>
 
         {/* ── Profile Hero ── */}
-        <div style={{ background: "linear-gradient(180deg, #1a0833 0%, #07091A 100%)", padding: "28px 16px 24px", textAlign: "center" }}>
+        <div style={{ background: "linear-gradient(180deg, #2A210D 0%, #07091A 100%)", padding: "28px 16px 24px", textAlign: "center" }}>
           {isLoading ? (
             <Skeleton className="w-20 h-20 rounded-full mx-auto mb-3" />
           ) : (
             <div style={{
               width: 80, height: 80, borderRadius: "50%",
-              background: "linear-gradient(135deg, #7C3AED 0%, #A78BFA 100%)",
+              background: "linear-gradient(135deg, #F5B942 0%, #D99B18 100%)",
               display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: 32, fontWeight: 800, color: "#fff",
               margin: "0 auto 12px",
@@ -143,7 +143,7 @@ export default function Profile() {
               {/* Edit button */}
               <button
                 onClick={() => setLocation("/profile/personal-info")}
-                style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "linear-gradient(135deg,#7C3AED,#4338CA)", borderRadius: 12, padding: "9px 20px", border: "none", cursor: "pointer", boxShadow: "0 4px 16px rgba(124,58,237,0.4)" }}
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "linear-gradient(135deg,#F5B942,#D99B18)", borderRadius: 12, padding: "9px 20px", border: "none", cursor: "pointer", boxShadow: "0 4px 16px rgba(245,185,66,0.25)" }}
               >
                 <Pencil style={{ width: 13, height: 13, color: "#fff" }} />
                 <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>Edit Profile</span>

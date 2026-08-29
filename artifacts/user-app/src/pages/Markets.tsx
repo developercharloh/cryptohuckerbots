@@ -81,7 +81,7 @@ export default function Markets() {
           {TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)} style={{
               padding: "6px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600, border: "none",
-              background: tab === t.id ? "linear-gradient(135deg, #7C3AED, #4F46E5)" : "rgba(255,255,255,0.06)",
+              background: tab === t.id ? "linear-gradient(135deg, #F5B942, #D99B18)" : "rgba(255,255,255,0.06)",
               color: tab === t.id ? "#fff" : "#9CA3AF", cursor: "pointer", whiteSpace: "nowrap",
               boxShadow: tab === t.id ? "0 4px 12px rgba(124,58,237,0.4)" : "none", transition: "all 0.2s",
             }}>{t.label}</button>
