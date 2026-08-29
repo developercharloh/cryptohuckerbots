@@ -24,4 +24,5 @@ export interface TradeSignal {
   dailyLimit: number;
   usedToday: number;
   remainingToday: number;
+  signalAmount?: number;
 }

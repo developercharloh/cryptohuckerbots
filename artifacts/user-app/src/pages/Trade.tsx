@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
-  useListBots, useListTradeSignals, useGetTradeAccess, useExecuteTrade,
+  useListTradeSignals, useGetTradeAccess, useExecuteTrade,
   useListTradePositions, useCloseTradePosition, useGetDashboardSummary,
   TradePosition,
 } from "@workspace/api-client-react";
@@ -8,11 +8,10 @@ import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   TrendingUp, TrendingDown, Zap, Activity, Clock, Check,
   ArrowUpRight, ArrowDownRight, ChevronDown, CheckCircle2,
-  XCircle, Bot as BotIcon, BarChart2, Bell, ChevronLeft,
+  XCircle, BarChart2, Bell, ChevronLeft,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -138,7 +137,6 @@ type SavedTrade = {
 type SignalInfo = { id?: string | number; opportunityId?: number; confidence?: number; pair?: string; direction?: string; status?: string };
 
 export default function Trade() {
-  const { data: bots = [], isLoading: loadingBots } = useListBots();
   const { data: signals = [] } = useListTradeSignals();
   const { data: vipAccess } = useGetTradeAccess({ query: { refetchInterval: 15000 } as any });
   const { data: positions } = useListTradePositions({ query: { refetchInterval: 4000 } as any });
@@ -149,10 +147,6 @@ export default function Trade() {
   const queryClient = useQueryClient();
 
   const [step, setStep]                   = useState<Step>("configure");
-  const [selectedBotId, setSelectedBotId] = useState<number | null>(null);
-  const [stake, setStake]                 = useState("");
-  const [targetProfit, setTargetProfit]   = useState("");
-  const [stopLoss, setStopLoss]           = useState("");
   const [consent, setConsent]             = useState(false);
   const [runtime]                         = useState(5);
   const [activePositionId, setActivePositionId] = useState<number | null>(null);
@@ -174,26 +168,15 @@ export default function Trade() {
   const restoringRef = useRef<SavedTrade | null>(null);
   const positionsReadyRef = useRef(false);
 
-  const stakeNum = parseFloat(stake) || 0;
-
   const chartData = useMemo(() => generateChartData(selectedPair, 60), [selectedPair]);
   const pairInfo = PAIR_INFO[selectedPair] ?? { base: "EUR", price: "1.08412", change: 0.23, icon: "€" };
   const priceUp = pairInfo.change >= 0;
 
-  // Auto-select first bot
   useEffect(() => {
-    if (bots.length === 0) return;
     const params = new URLSearchParams(window.location.search);
     const pair = params.get("pair");
     if (pair && PAIR_INFO[pair]) setSelectedPair(pair);
-    const paramId = parseInt(params.get("botId") ?? "0", 10);
-    if (paramId && bots.some(b => b.id === paramId)) {
-      setSelectedBotId(paramId);
-    } else if (!selectedBotId) {
-      setSelectedBotId(bots[0].id);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bots]);
+  }, []);
 
   // Read localStorage on mount
   useEffect(() => {
@@ -303,23 +286,18 @@ export default function Trade() {
   const availableBalance = summary?.availableBalance ?? 0;
 
   const handleExecute = () => {
-    if (!selectedBotId || stakeNum < 1) return;
     const signal = bestSignal;
     if (!signal || signal.status !== "available" || !signal.opportunityId) { toast({ title: "No signal is currently available", description: "Wait for the next scheduled window.", variant: "destructive" }); return; }
     if (!consent) { toast({ title: "Confirm the risk disclosure first", variant: "destructive" }); return; }
-    const target = parseFloat(targetProfit);
-    const stop = parseFloat(stopLoss);
-    if (!Number.isFinite(target) || !Number.isFinite(stop) || target <= 0 || stop <= 0 || stop > stakeNum) {
-      toast({ title: "Check your target and stop-loss", description: "Stop-loss must be positive and no greater than your stake.", variant: "destructive" }); return;
-    }
-    if (stakeNum > availableBalance) {
-      toast({ title: "Insufficient balance", description: `Available: $${availableBalance.toFixed(2)}`, variant: "destructive" });
+    const signalAmount = vipAccess?.signalAmount ?? 2.5;
+    if (signalAmount > availableBalance) {
+      toast({ title: "Insufficient balance", description: `Each signal requires $${signalAmount.toFixed(2)}. Available: $${availableBalance.toFixed(2)}`, variant: "destructive" });
       return;
     }
     const secs = runtime * 60;
 
     executeMutation.mutate(
-       { data: { signalId: signal.id, opportunityId: signal.opportunityId, botId: selectedBotId, targetProfit: target, stopLoss: stop, stake: stakeNum, consent: true, clientRequestId: crypto.randomUUID() } },
+       { data: { signalId: signal.id, opportunityId: signal.opportunityId, consent: true, clientRequestId: crypto.randomUUID() } },
       {
         onSuccess: (pos) => {
           const endTimeMs = Date.now() + secs * 1000;
@@ -356,7 +334,7 @@ export default function Trade() {
   const handleReset = () => {
     localStorage.removeItem(STORAGE_KEY);
     setStep("configure"); setActivePositionId(null); setResult(null);
-    setShowConfetti(false); setStake(""); prevStatusRef.current = null; finishedRef.current = false;
+    setShowConfetti(false); setConsent(false); prevStatusRef.current = null; finishedRef.current = false;
   };
 
   const handleCashOut = useCallback(() => {
@@ -394,14 +372,6 @@ export default function Trade() {
      const matchingPair = matchingDirection.filter(s => s.pair === selectedPair);
      return matchingPair[0] ?? null;
   }, [signals, requestedDirection, selectedPair]);
-  useEffect(() => {
-    if (!bestSignal || !stakeNum) return;
-    setTargetProfit((stakeNum * 0.02).toFixed(2));
-    setStopLoss((stakeNum * 0.01).toFixed(2));
-    setConsent(false);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bestSignal?.opportunityId]);
-
   const pos = activePosition;
   const pnl   = pos?.pnl ?? 0;
   const posUp = pnl >= 0;
@@ -651,99 +621,39 @@ export default function Trade() {
                 </div>
               )}
 
-              {/* Stake */}
-              <div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <div style={{ width: 18, height: 18, borderRadius: "50%", background: "rgba(124,58,237,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <span style={{ fontSize: 9, fontWeight: 800, color: "#FFD86B" }}>1</span>
-                    </div>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>Stake Amount</span>
-                  </div>
-                  <span style={{ fontSize: 11, color: stakeNum > availableBalance && stakeNum > 0 ? "#ef4444" : "#6B7280" }}>
-                    Avail: ${availableBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
-                </div>
-                <div style={{ position: "relative" }}>
-                  <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "#6B7280", fontWeight: 600 }}>$</span>
-                  <Input
-                    type="number" placeholder="Enter amount..." value={stake}
-                    onChange={e => setStake(e.target.value)}
-                    style={{ paddingLeft: 28, height: 52, background: "rgba(255,255,255,0.05)", border: stakeNum > availableBalance && stakeNum > 0 ? "1px solid #ef4444" : "1px solid rgba(255,255,255,0.1)", borderRadius: 12, fontSize: 16, fontWeight: 700, color: "#fff" }}
-                  />
-                </div>
-                {/* Quick amounts */}
-                <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                  {[10, 25, 50, 100].map(amt => (
-                    <button key={amt} onClick={() => setStake(String(amt))}
-                      style={{ flex: 1, padding: "5px 0", borderRadius: 8, background: parseFloat(stake) === amt ? "rgba(245,185,66,0.3)" : "rgba(255,255,255,0.05)", border: `1px solid ${parseFloat(stake) === amt ? "rgba(245,185,66,0.5)" : "rgba(255,255,255,0.08)"}`, fontSize: 11, fontWeight: 700, color: parseFloat(stake) === amt ? "#FFD86B" : "#9CA3AF", cursor: "pointer" }}>
-                      ${amt}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Transparent risk configuration */}
-              <div>
+              {/* Fixed signal execution */}
+              <div style={{ borderRadius: 16, padding: 14, border: "1px solid rgba(245,185,66,0.25)", background: "rgba(245,185,66,0.06)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
                   <div style={{ width: 18, height: 18, borderRadius: "50%", background: "rgba(124,58,237,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <span style={{ fontSize: 9, fontWeight: 800, color: "#FFD86B" }}>2</span>
+                    <span style={{ fontSize: 9, fontWeight: 800, color: "#FFD86B" }}>1</span>
                   </div>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>Set risk limits</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>Signal execution</span>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                  <label style={{ fontSize: 10, color: "#9CA3AF" }}>
-                    Target profit ($)
-                    <Input type="number" min="0.01" step="0.01" value={targetProfit} onChange={e => setTargetProfit(e.target.value)} style={{ marginTop: 5, height: 42, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }} />
-                  </label>
-                  <label style={{ fontSize: 10, color: "#9CA3AF" }}>
-                    Stop loss ($)
-                    <Input type="number" min="0.01" step="0.01" value={stopLoss} onChange={e => setStopLoss(e.target.value)} style={{ marginTop: 5, height: 42, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }} />
-                  </label>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                  <div>
+                    <p style={{ fontSize: 20, color: "#FFD86B", fontWeight: 900 }}>${(vipAccess?.signalAmount ?? 2.5).toFixed(2)}</p>
+                    <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 3 }}>Fixed amount per executed signal</p>
+                  </div>
+                  <p style={{ fontSize: 11, color: "#9CA3AF", textAlign: "right", maxWidth: 170 }}>
+                    Available balance: ${availableBalance.toFixed(2)}
+                  </p>
                 </div>
-                <p style={{ fontSize: 10, color: "#6B7280", marginTop: 7 }}>An AI Signal is analysis, not a promise. Losses, fees, and partial outcomes are possible.</p>
+                <p style={{ fontSize: 10, color: "#6B7280", lineHeight: 1.5, marginTop: 9 }}>
+                  The $2.50 amount is fixed by the server. You do not set a stake, target profit, or stop-loss.
+                </p>
                 <label style={{ display: "flex", gap: 8, alignItems: "flex-start", marginTop: 10, color: "#D1D5DB", fontSize: 11, lineHeight: 1.4 }}>
                   <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} style={{ marginTop: 2, accentColor: "#F5B942" }} />
-                  I understand the stake is at risk and consent to execute this configured signal.
+                  I understand the fixed $2.50 amount is at risk and consent to execute this signal.
                 </label>
-              </div>
-
-              {/* Bot select */}
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                  <div style={{ width: 18, height: 18, borderRadius: "50%", background: "rgba(124,58,237,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <span style={{ fontSize: 9, fontWeight: 800, color: "#FFD86B" }}>3</span>
-                  </div>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>Select execution profile</span>
-                </div>
-                {loadingBots ? (
-                  <div style={{ display: "flex", gap: 8 }}>{[1,2].map(i => <Skeleton key={i} className="h-20 flex-1 rounded-2xl" />)}</div>
-                ) : (
-                  <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
-                    {bots.map((bot, idx) => {
-                      const active = selectedBotId === bot.id;
-                      return (
-                        <button key={bot.id} onClick={() => setSelectedBotId(bot.id)}
-                          style={{ flexShrink: 0, width: 120, padding: "10px 10px", borderRadius: 14, background: active ? "rgba(124,58,237,0.2)" : "rgba(255,255,255,0.04)", border: `1px solid ${active ? "rgba(124,58,237,0.5)" : "rgba(255,255,255,0.08)"}`, cursor: "pointer", textAlign: "center" }}>
-                          <div style={{ width: 32, height: 32, borderRadius: 10, background: `linear-gradient(135deg, ${["#F5B942,#2563EB","#3B82F6,#06B6D4","#F59E0B,#EF4444","#10B981,#22C55E","#EC4899,#F43F5E"][idx%5]})`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 6px" }}>
-                            <BotIcon style={{ width: 16, height: 16, color: "#fff" }} />
-                          </div>
-                          <p style={{ fontSize: 10, fontWeight: 700, color: active ? "#FFD86B" : "#E5E7EB", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{bot.name}</p>
-                          <p style={{ fontSize: 9, color: "#6B7280" }}>{bot.winRate ?? 85}% win</p>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
               </div>
 
               {/* Execute button */}
               <button
                 onClick={handleExecute}
-                disabled={executeMutation.isPending || !selectedBotId || !bestSignal || !consent || stakeNum < 1 || stakeNum > availableBalance}
+                disabled={executeMutation.isPending || !bestSignal || !consent || (vipAccess?.signalAmount ?? 2.5) > availableBalance}
                 style={{
                   width: "100%", height: 56, borderRadius: 16, border: "none", cursor: "pointer",
-                  background: executeMutation.isPending || !selectedBotId || !bestSignal || !consent || stakeNum < 1 ? "rgba(245,185,66,0.3)" : "linear-gradient(135deg, #F5B942 0%, #2563EB 100%)",
+                  background: executeMutation.isPending || !bestSignal || !consent || (vipAccess?.signalAmount ?? 2.5) > availableBalance ? "rgba(245,185,66,0.3)" : "linear-gradient(135deg, #F5B942 0%, #2563EB 100%)",
                   fontSize: 15, fontWeight: 800, color: "#fff",
                   boxShadow: "0 4px 20px rgba(124,58,237,0.4)",
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 8,

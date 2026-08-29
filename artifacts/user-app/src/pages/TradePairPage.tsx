@@ -372,18 +372,14 @@ export default function TradePairPage() {
                 <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#22c55e" }} /> NEXT WINDOW
               </span>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10, marginBottom: 14 }}>
               <div style={{ padding: "10px 12px", borderRadius: 12, background: "rgba(0,0,0,0.18)" }}>
                 <p style={{ fontSize: 10, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em" }}>Window</p>
                 <p style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5, fontSize: 13, color: "#fff", fontWeight: 700 }}><Clock3 size={13} color={PURPLE} /> Next signal</p>
               </div>
-              <div style={{ padding: "10px 12px", borderRadius: 12, background: "rgba(0,0,0,0.18)" }}>
-                <p style={{ fontSize: 10, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em" }}>Protection</p>
-                <p style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5, fontSize: 13, color: "#fff", fontWeight: 700 }}><ShieldCheck size={13} color="#22c55e" /> Stop-loss set</p>
-              </div>
             </div>
             <p style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.5, marginBottom: 14 }}>
-              Signals can result in a profit or a loss. Stake, target profit, stop loss, and consent are confirmed on the next screen.
+              Each signal uses a fixed $2.50 amount. Review the signal and confirm consent before execution; outcomes are not guaranteed.
             </p>
             <button onClick={() => setLocation(`/trade?pair=${encodeURIComponent(meta.label)}`)} style={{
               width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "14px 0", borderRadius: 12,

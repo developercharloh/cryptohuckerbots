@@ -479,7 +479,8 @@ export const ListTradeSignalsResponseItem = zod.object({
   "vipLevel": zod.number(),
   "dailyLimit": zod.number(),
   "usedToday": zod.number(),
-  "remainingToday": zod.number()
+  "remainingToday": zod.number(),
+  "signalAmount": zod.number().optional()
 })
 export const ListTradeSignalsResponse = zod.array(ListTradeSignalsResponseItem)
 
@@ -494,16 +495,17 @@ export const GetTradeAccessResponse = zod.object({
   "nextLevel": zod.number().nullable(),
   "nextLevelDeposit": zod.number().nullable(),
   "timezone": zod.string(),
-  "nextSignalAt": zod.coerce.date().nullable()
+  "nextSignalAt": zod.coerce.date().nullable(),
+  "signalAmount": zod.number()
 })
 
 
 export const ExecuteTradeBody = zod.object({
   "signalId": zod.string(),
-  "botId": zod.number(),
-  "targetProfit": zod.number(),
-  "stopLoss": zod.number(),
-  "stake": zod.number(),
+  "botId": zod.number().optional().describe('Legacy compatibility field; ignored for fixed-price signal execution.'),
+  "targetProfit": zod.number().optional().describe('Legacy compatibility field; ignored for fixed-price signal execution.'),
+  "stopLoss": zod.number().optional().describe('Legacy compatibility field; ignored for fixed-price signal execution.'),
+  "stake": zod.number().optional().describe('Legacy compatibility field; ignored for fixed-price signal execution.'),
   "opportunityId": zod.number(),
   "consent": zod.boolean(),
   "clientRequestId": zod.string().optional()

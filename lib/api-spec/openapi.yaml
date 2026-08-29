@@ -1618,6 +1618,8 @@ components:
           type: integer
         remainingToday:
           type: integer
+        signalAmount:
+          type: number
       required: [id, opportunityId, pair, direction, market, confidence, timeframe, suggestedTp, suggestedSl, scheduledAt, expiresAt, status, timezone, vipLevel, dailyLimit, usedToday, remainingToday]
 
     TradeAccess:
@@ -1647,7 +1649,9 @@ components:
           type: string
           format: date-time
           nullable: true
-      required: [vipLevel, minimumDeposit, totalDeposited, dailyLimit, usedToday, remainingToday, timezone, nextLevel, nextLevelDeposit, nextSignalAt]
+        signalAmount:
+          type: number
+      required: [vipLevel, minimumDeposit, totalDeposited, dailyLimit, usedToday, remainingToday, timezone, nextLevel, nextLevelDeposit, nextSignalAt, signalAmount]
 
     ExecuteTradeInput:
       type: object
@@ -1656,19 +1660,23 @@ components:
           type: string
         botId:
           type: integer
+          description: Legacy compatibility field; ignored for fixed-price signal execution.
         targetProfit:
           type: number
+          description: Legacy compatibility field; ignored for fixed-price signal execution.
         stopLoss:
           type: number
+          description: Legacy compatibility field; ignored for fixed-price signal execution.
         stake:
           type: number
+          description: Legacy compatibility field; ignored for fixed-price signal execution.
         opportunityId:
           type: integer
         consent:
           type: boolean
         clientRequestId:
           type: string
-      required: [signalId, opportunityId, botId, targetProfit, stopLoss, stake, consent]
+      required: [signalId, opportunityId, consent]
 
     TradeResult:
       type: object

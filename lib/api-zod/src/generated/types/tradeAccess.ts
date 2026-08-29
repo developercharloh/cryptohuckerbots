@@ -17,4 +17,5 @@ export interface TradeAccess {
   nextLevelDeposit: number | null;
   timezone: string;
   nextSignalAt: Date | null;
+  signalAmount: number;
 }

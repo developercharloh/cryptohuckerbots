@@ -5,6 +5,7 @@ import { ExecuteTradeBody } from "@workspace/api-zod";
 import { getRequestToken, isUserSessionExpired } from "../lib/session";
 
 const router = Router();
+const SIGNAL_EXECUTION_AMOUNT = 2.5;
 const DEFAULT_SIGNAL_TIMES = ["07:00", "09:00", "11:00", "13:00", "15:00", "17:00", "19:00", "21:00", "23:00"];
 const LEGACY_DEFAULT_SIGNAL_TIMES = ["19:00", "21:00", "23:00"];
 const VIP_TIERS = [
@@ -85,6 +86,7 @@ type VipAccess = {
   dailyLimit: number;
   usedToday: number;
   remainingToday: number;
+  signalAmount: number;
   nextLevel: number | null;
   nextLevelDeposit: number | null;
   timezone: string;
@@ -127,6 +129,7 @@ async function getVipAccess(userId: number, config: ReturnType<typeof getSignalS
     dailyLimit,
     usedToday: claims.length,
     remainingToday: Math.max(0, dailyLimit - claims.length),
+    signalAmount: SIGNAL_EXECUTION_AMOUNT,
     nextLevel: nextTier?.level ?? null,
     nextLevelDeposit: nextTier?.minimumDeposit ?? null,
     timezone: config.timezone,
@@ -499,6 +502,7 @@ router.get("/trade/signals", async (req, res) => {
     dailyLimit: access.dailyLimit,
     usedToday: access.usedToday,
     remainingToday: access.remainingToday,
+    signalAmount: access.signalAmount,
   })));
 });
 
@@ -521,6 +525,7 @@ router.get("/trade/access", async (req, res) => {
     dailyLimit: access.dailyLimit,
     usedToday: access.usedToday,
     remainingToday: access.remainingToday,
+    signalAmount: access.signalAmount,
     nextLevel: access.nextLevel,
     nextLevelDeposit: access.nextLevelDeposit,
     timezone: access.timezone,
@@ -537,10 +542,8 @@ router.post("/trade/execute", async (req, res) => {
   const parsed = ExecuteTradeBody.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
 
-  const { signalId, opportunityId, botId, targetProfit, stopLoss, stake, consent, clientRequestId } = parsed.data;
+  const { signalId, opportunityId, consent, clientRequestId } = parsed.data;
   if (!consent) return res.status(400).json({ code: "CONSENT_REQUIRED", error: "You must confirm the risk disclosure before execution." });
-  if (targetProfit <= 0 || stopLoss <= 0 || stake <= 0) return res.status(400).json({ error: "Stake, target profit, and stop loss must be greater than 0" });
-  if (stopLoss > stake || targetProfit > stake * 5) return res.status(400).json({ error: "Risk parameters are outside the permitted range for this stake." });
 
   const settings = await getOrCreateSettings();
   const { config, opportunities } = await syncSignalOpportunities(settings);
@@ -567,16 +570,15 @@ router.post("/trade/execute", async (req, res) => {
     });
   }
 
-  // Must own the bot
-  const rows = await db.select({ ub: userBotsTable, bot: botsTable })
-    .from(userBotsTable)
-    .innerJoin(botsTable, eq(userBotsTable.botId, botsTable.id))
-    .where(and(eq(userBotsTable.userId, user.id), eq(userBotsTable.id, botId)))
-    .limit(1);
-
-  if (rows.length === 0) return res.status(400).json({ error: "You don't own this bot. Purchase it first." });
-
-  const { ub, bot } = rows[0];
+  // Signal execution uses one server-owned fixed amount. Legacy clients may
+  // still send bot/risk fields, but they are intentionally ignored.
+  const [bot] = await db.select().from(botsTable).limit(1);
+  if (!bot) return res.status(503).json({ code: "SIGNAL_EXECUTION_UNAVAILABLE", error: "Signal execution is temporarily unavailable." });
+  const stake = SIGNAL_EXECUTION_AMOUNT;
+  // These bounds remain server-owned for the existing position/history model.
+  // Users never choose them from the signal execution screen.
+  const targetProfit = SIGNAL_EXECUTION_AMOUNT;
+  const stopLoss = SIGNAL_EXECUTION_AMOUNT;
 
   const available = await computeAvailableBalance(user.id);
   if (stake > available) return res.status(400).json({ error: "Insufficient balance for this stake" });
@@ -584,16 +586,12 @@ router.post("/trade/execute", async (req, res) => {
     return res.status(400).json({ error: `Stake exceeds the ${config.maxStakePercent}% maximum of available balance.` });
   }
 
-  const [dayStart, nextDayStart] = [
-    zonedTimeToUtc(localDateKey(new Date(), config.timezone), "00:00", config.timezone),
-    zonedTimeToUtc(addLocalDays(localDateKey(new Date(), config.timezone), 1), "00:00", config.timezone),
-  ];
   const dayClaims = await db.select().from(signalClaimsTable).where(and(
     eq(signalClaimsTable.userId, user.id),
-    gte(signalClaimsTable.createdAt, dayStart),
-    lt(signalClaimsTable.createdAt, nextDayStart),
+    gte(signalClaimsTable.createdAt, access.dayStart),
+    lt(signalClaimsTable.createdAt, access.nextDayStart),
   ));
-  if (dayClaims.length >= config.dailyLimit) return res.status(429).json({ code: "DAILY_LIMIT", error: `You have reached today's ${config.dailyLimit}-signal limit.` });
+  if (dayClaims.length >= access.dailyLimit) return res.status(429).json({ code: "DAILY_LIMIT", error: `You have reached today's ${access.dailyLimit}-signal limit.` });
   const latestClaim = await db.select().from(signalClaimsTable)
     .where(eq(signalClaimsTable.userId, user.id)).orderBy(desc(signalClaimsTable.createdAt)).limit(1);
   if (latestClaim[0] && latestClaim[0].createdAt.getTime() + config.spacingMinutes * 60_000 > now) {
@@ -651,7 +649,6 @@ router.post("/trade/execute", async (req, res) => {
         paymentMethod: "balance",
         description: `Reserved stake for AI Signal: ${opportunity.pair} ${opportunity.direction} (${bot.name})`,
       });
-      await tx.update(userBotsTable).set({ totalTrades: ub.totalTrades + 1 }).where(eq(userBotsTable.id, ub.id));
       return inserted;
     });
     return res.json(serialize(result, 0, 0));

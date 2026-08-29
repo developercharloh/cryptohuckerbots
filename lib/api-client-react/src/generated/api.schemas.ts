@@ -61,6 +61,7 @@ export interface TradeSignal {
   dailyLimit: number;
   usedToday: number;
   remainingToday: number;
+  signalAmount?: number;
 }
 
 export interface TradeAccess {
@@ -74,14 +75,19 @@ export interface TradeAccess {
   nextLevelDeposit: number | null;
   timezone: string;
   nextSignalAt: string | null;
+  signalAmount: number;
 }
 
 export interface ExecuteTradeInput {
   signalId: string;
-  botId: number;
-  targetProfit: number;
-  stopLoss: number;
-  stake: number;
+  /** Legacy compatibility field; ignored for fixed-price signal execution. */
+  botId?: number;
+  /** Legacy compatibility field; ignored for fixed-price signal execution. */
+  targetProfit?: number;
+  /** Legacy compatibility field; ignored for fixed-price signal execution. */
+  stopLoss?: number;
+  /** Legacy compatibility field; ignored for fixed-price signal execution. */
+  stake?: number;
   opportunityId: number;
   consent: boolean;
   clientRequestId?: string;
