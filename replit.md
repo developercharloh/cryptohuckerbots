@@ -37,7 +37,7 @@ A full-stack FX trading bot platform with an admin panel for managing users, bot
 ## Architecture decisions
 
 - Contract-first API: OpenAPI spec → Orval codegen → typed hooks + Zod schemas
-- Admin auth is separate from user auth: uses `admin.vixus-ai` username + platform email + password via `/api/admin/login`
+- Admin auth is separate from user auth: uses `admin.vixus-ai` username + platform email + admin panel password via `/api/admin/login`
 - Token stored in `localStorage` under key `vixus_admin_token`
 - Password hashing uses SHA-256 with `vixus_salt_2024` (not bcrypt — intentional for performance)
 - Account UIDs prefixed with `VAI` (e.g. `VAI12345`)
@@ -59,11 +59,11 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-- Admin user is auto-seeded on startup via `ensureAdminEmail()` — default email is `admin@vixus.ai`, set `ADMIN_ACCOUNT_PASSWORD` env var to change the default password (`Admin@VIXUS2027!`)
+- Admin user is auto-seeded on startup via `ensureAdminEmail()` — default email is `admin@vixus.ai`, set `ADMIN_PANEL_PASSWORD` to change the admin panel password (`Admin@VIXUS2027!`)
 - DB migrations use Drizzle's push mode (not migration files) — `pnpm --filter @workspace/db run push` for schema changes
 - The migration journal warning on startup is non-fatal — schema is managed via push, not migration files
 - Web push notifications require `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` env vars
-- Set `ADMIN_ACCOUNT_PASSWORD` env var to override the default admin password
+- Set `ADMIN_PANEL_PASSWORD` to override the admin panel password; `ADMIN_ACCOUNT_PASSWORD` only controls the seeded user password hash
 
 ## Vercel Deployment
 
@@ -85,7 +85,8 @@ Each app is a **separate Vercel project** pointing at the same GitHub repo (`dev
    - `DATABASE_URL` — your PostgreSQL connection string
 
    **API Server project also needs:**
-   - `ADMIN_ACCOUNT_PASSWORD` — admin panel password (default `Admin@VIXUS2027!`)
+    - `ADMIN_PANEL_PASSWORD` — admin panel password (default `Admin@VIXUS2027!`)
+    - `ADMIN_ACCOUNT_PASSWORD` — optional seeded user password override
    - `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` — for web push notifications (optional)
 
    **User App & Admin App projects need:**
