@@ -6,6 +6,8 @@ A full-stack FX trading bot platform with an admin panel for managing users, bot
 
 - `pnpm --filter @workspace/api-server run dev` — run the API server (port 8080)
 - `pnpm --filter @workspace/admin-app run dev` — run the admin panel (port 18391, path `/admin-app/`)
+- `pnpm run build` — verify all packages, then commit and push the successful build to GitHub; linked Vercel projects deploy from that push
+- `pnpm run build:verify` — build and typecheck without pushing
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
