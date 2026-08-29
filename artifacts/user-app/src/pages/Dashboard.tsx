@@ -179,7 +179,7 @@ export default function Dashboard() {
           </div>
           <Link href="/bots" style={{ textDecoration: "none" }}>
             <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 16, padding: "14px 14px", border: "1px solid rgba(255,255,255,0.07)", cursor: "pointer" }}>
-              <p style={{ fontSize: 10, color: "#6B7280", marginBottom: 6, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Active Bots</p>
+              <p style={{ fontSize: 10, color: "#6B7280", marginBottom: 6, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Active Signals</p>
               {loadingSummary ? <Skeleton className="h-5 w-12" /> : (
                 <p style={{ fontSize: 18, fontWeight: 800, color: "#fff" }}>{summary?.activeBots ?? 0} <span style={{ fontSize: 12, color: "#6B7280", fontWeight: 500 }}>running</span></p>
               )}
@@ -281,11 +281,11 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ── Active Bots ──────────────────────────────────────────── */}
+        {/* ── Active Signals ──────────────────────────────────────── */}
         {activeBots.length > 0 && (
           <div className="user-dashboard-active-bots" style={{ padding: "0 16px 16px" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>Active Bots</h3>
+              <h3 style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>Active Signals</h3>
               <Link href="/bots" style={{ textDecoration: "none" }}>
                 <span style={{ fontSize: 11, color: "#FFD86B", fontWeight: 700 }}>View all →</span>
               </Link>
@@ -299,7 +299,7 @@ export default function Dashboard() {
                     </div>
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 2 }}>{bot.name}</p>
-                      <p style={{ fontSize: 10, color: "#6B7280" }}>AI Trading Bot · Active</p>
+                       <p style={{ fontSize: 10, color: "#6B7280" }}>AI Signal Strategy · Active</p>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                       <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e", boxShadow: "0 0 8px #22c55e" }} />

@@ -70,7 +70,7 @@ export default function SupportTicket() {
                       <SelectItem value="account">Account & Security</SelectItem>
                       <SelectItem value="billing">Deposits & Withdrawals</SelectItem>
                       <SelectItem value="technical">Technical Issue</SelectItem>
-                      <SelectItem value="bots">Trading Bots</SelectItem>
+                      <SelectItem value="bots">AI Signals</SelectItem>
                       <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                   </Select>

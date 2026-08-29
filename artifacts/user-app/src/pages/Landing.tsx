@@ -1014,7 +1014,7 @@ export default function Landing() {
             {/* Product */}
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, color: "#4B5563", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 16 }}>PRODUCT</div>
-              {["Markets", "Trading", "AI Bots", "Portfolio", "Analytics"].map(l => (
+              {["Markets", "Trading", "AI Signals", "Portfolio", "Analytics"].map(l => (
                 <div key={l} style={{ fontSize: 13, color: "#9CA3AF", marginBottom: 10, cursor: "pointer", transition: "color 0.15s" }}
                   onMouseEnter={e => (e.currentTarget.style.color = "#fff")}
                   onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}>{l}</div>

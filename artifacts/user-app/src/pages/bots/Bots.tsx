@@ -56,7 +56,7 @@ export default function Bots() {
       { id },
       {
         onSuccess: () => {
-          toast({ title: "Bot added successfully" });
+          toast({ title: "Signal added successfully" });
           queryClient.invalidateQueries({ queryKey: ["/api/bots"] });
           queryClient.invalidateQueries({ queryKey: ["/api/marketplace-bots"] });
           setActiveTab("my-bots");
@@ -74,12 +74,12 @@ export default function Bots() {
         {/* ── Header ── */}
         <div
           style={{
-            background: "linear-gradient(180deg, #1a0a3a 0%, #07091A 100%)",
+            background: "linear-gradient(180deg, #2A210D 0%, #07091A 100%)",
             padding: "20px 16px 16px",
           }}
         >
-          <h1 className="text-2xl font-bold tracking-tight mb-0.5">Trading Bots</h1>
-          <p className="text-xs text-muted-foreground">AI Powered Strategies</p>
+          <h1 className="text-2xl font-bold tracking-tight mb-0.5">AI Signals</h1>
+          <p className="text-xs text-muted-foreground">AI-powered market strategies</p>
         </div>
 
         {/* ── Tabs ── */}
@@ -94,13 +94,13 @@ export default function Bots() {
                   : "bg-card text-muted-foreground border border-border/60"
               }`}
             >
-              {tab === "my-bots" ? "My Bots" : "Marketplace"}
+              {tab === "my-bots" ? "My Signals" : "Marketplace"}
             </button>
           ))}
         </div>
 
         <div className="user-bots-grid px-4 space-y-3">
-          {/* ── My Bots Tab ── */}
+          {/* ── My Signals Tab ── */}
           {activeTab === "my-bots" && (
             <>
               {loadingMyBots ? (
@@ -110,21 +110,21 @@ export default function Bots() {
               ) : myBots.length === 0 ? (
                 <div
                   className="rounded-2xl p-8 text-center border border-border/40"
-                  style={{ background: "rgba(124,58,237,0.05)" }}
+                    style={{ background: "rgba(245,185,66,0.05)" }}
                 >
                   <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
                     <Zap className="w-8 h-8 text-primary" />
                   </div>
-                  <p className="font-semibold text-sm mb-1">No active bots</p>
+                  <p className="font-semibold text-sm mb-1">No active signals</p>
                   <p className="text-xs text-muted-foreground mb-4">
-                    Browse the marketplace to add your first AI trading bot.
+                    Browse the marketplace to add your first AI signal strategy.
                   </p>
                   <button
                     onClick={() => setActiveTab("marketplace")}
                     className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white"
                     style={{
                       background: "linear-gradient(135deg, #F5B942 0%, #8A6410 100%)",
-                      boxShadow: "0 4px 16px rgba(124,58,237,0.35)",
+                      boxShadow: "0 4px 16px rgba(245,185,66,0.25)",
                     }}
                   >
                     Browse Marketplace
@@ -196,7 +196,7 @@ export default function Bots() {
                   }}
                 >
                   <Plus className="w-5 h-5" />
-                  Add New Bot
+                  Add New Signal
                 </button>
               )}
             </>
@@ -272,12 +272,12 @@ export default function Bots() {
                           !bot.isPurchased
                             ? {
                                 background: "linear-gradient(135deg, #F5B942 0%, #D99B18 100%)",
-                                boxShadow: "0 2px 12px rgba(124,58,237,0.35)",
+                                 boxShadow: "0 2px 12px rgba(245,185,66,0.25)",
                               }
                             : undefined
                         }
                       >
-                        {bot.isPurchased ? "✓ Owned" : purchaseMutation.isPending ? "Buying..." : "Buy Bot"}
+                        {bot.isPurchased ? "✓ Owned" : purchaseMutation.isPending ? "Adding..." : "Get Signal"}
                       </button>
                     </div>
                   </div>
