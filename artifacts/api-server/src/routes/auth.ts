@@ -22,12 +22,13 @@ import {
 // In-memory store for pending 2FA logins (tempToken → { userId, expires })
 const pending2FA = new Map<string, { userId: number; expires: number }>();
 // Clean up expired entries every 5 minutes
-setInterval(() => {
+const pending2FACleanup = setInterval(() => {
   const now = Date.now();
   for (const [k, v] of pending2FA) {
     if (v.expires < now) pending2FA.delete(k);
   }
 }, 5 * 60 * 1000);
+pending2FACleanup.unref();
 
 const router = Router();
 
