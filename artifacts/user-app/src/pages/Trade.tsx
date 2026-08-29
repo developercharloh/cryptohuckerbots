@@ -667,9 +667,13 @@ export default function Trade() {
               )}
               {!bestSignal && vipAccess && vipAccess.vipLevel > 0 && (
                 <div style={{ borderRadius: 16, padding: 16, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)" }}>
-                  <p style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>No matching signal available</p>
+                  <p style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>
+                    {vipAccess.remainingToday === 0 ? "Daily signal limit reached" : "AI Signal not loaded"}
+                  </p>
                   <p style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.5, marginTop: 6 }}>
-                    No live signal is ready for this pair right now. Please check again shortly.
+                    {vipAccess.remainingToday === 0
+                      ? "Your VIP allowance has been used for today."
+                      : "Refresh the page to load the next available AI Signal."}
                   </p>
                 </div>
               )}
@@ -705,11 +709,11 @@ export default function Trade() {
                   }}>
                     <span style={{
                       width: 5, height: 5, borderRadius: "50%",
-                      background: bestSignal ? "#4ade80" : "#9CA3AF",
+                      background: bestSignal ? "#4ade80" : vipAccess?.remainingToday === 0 ? "#9CA3AF" : "#F5B942",
                       boxShadow: bestSignal ? "0 0 8px #4ade80" : "none",
                     }} />
                     <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: "0.08em", color: bestSignal ? "#86EFAC" : "#9CA3AF" }}>
-                      {bestSignal ? "LIVE" : "WAITING"}
+                      {bestSignal ? "READY" : vipAccess?.remainingToday === 0 ? "LIMIT REACHED" : "AVAILABLE"}
                     </span>
                   </div>
                 </div>
