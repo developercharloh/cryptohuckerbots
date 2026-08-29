@@ -275,7 +275,7 @@ export default function BotAnalytics() {
                     />
                     <Bar dataKey="profit" radius={[4, 4, 0, 0]} maxBarSize={22}>
                       {chartData.map((entry, i) => (
-                        <Cell key={i} fill={entry.profit >= 0 ? "#7C3AED" : "#ef4444"} fillOpacity={0.9} />
+                        <Cell key={i} fill={entry.profit >= 0 ? "#F5B942" : "#ef4444"} fillOpacity={0.9} />
                       ))}
                     </Bar>
                     <Line

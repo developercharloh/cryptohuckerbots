@@ -81,13 +81,13 @@ function ChartVisual() {
          return <circle key={x} cx={x} cy={y} r="4" fill="#FFD86B" />;
       })}
       <rect x="115" y="45" width="55" height="28" rx="8" fill="rgba(124,58,237,0.2)" stroke="rgba(124,58,237,0.3)" strokeWidth="1" />
-      <text x="142" y="62" textAnchor="middle" fill="#A78BFA" fontSize="10" fontWeight="700">+38%</text>
+      <text x="142" y="62" textAnchor="middle" fill="#FFD86B" fontSize="10" fontWeight="700">+38%</text>
       <defs>
         <linearGradient id="cg" x1="35" y1="140" x2="160" y2="50" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#7C3AED" /><stop offset="1" stopColor="#A78BFA" />
+          <stop stopColor="#F5B942" /><stop offset="1" stopColor="#2563EB" />
         </linearGradient>
         <linearGradient id="cf" x1="100" y1="50" x2="100" y2="160" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#7C3AED" stopOpacity="0.6" /><stop offset="1" stopColor="#7C3AED" stopOpacity="0" />
+          <stop stopColor="#F5B942" stopOpacity="0.6" /><stop offset="1" stopColor="#F5B942" stopOpacity="0" />
         </linearGradient>
       </defs>
     </svg>

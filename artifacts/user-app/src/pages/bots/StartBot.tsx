@@ -27,7 +27,7 @@ const AI_MESSAGES = [
 ];
 
 const BOT_COLORS = [
-  "from-purple-500 to-indigo-600",
+  "from-amber-400 to-blue-600",
   "from-blue-500 to-cyan-600",
   "from-orange-500 to-red-500",
   "from-green-500 to-emerald-600",
@@ -44,7 +44,7 @@ function Confetti() {
       x: Math.random() * 100,
       delay: Math.random() * 2.8,
       dur: 2.2 + Math.random() * 2.4,
-      color: ["#7C3AED", "#4ade80", "#f59e0b", "#38bdf8", "#f472b6", "#a78bfa", "#6366f1", "#fbbf24", "#34d399"][i % 9],
+      color: ["#F5B942", "#4ade80", "#f59e0b", "#38bdf8", "#f472b6", "#FFD86B", "#2563EB", "#fbbf24", "#34d399"][i % 9],
       w: 5 + Math.random() * 8,
       h: 4 + Math.random() * 7,
       round: i % 3 !== 0,
@@ -403,7 +403,7 @@ export default function StartBot() {
                 <div className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center">3</div>
                 <h2 className="text-sm font-bold">Summary</h2>
               </div>
-              <div className="bg-gradient-to-br from-primary/15 to-purple-950/40 border border-primary/25 rounded-2xl p-4 space-y-3">
+              <div className="bg-gradient-to-br from-amber-500/15 to-blue-950/40 border border-amber-400/25 rounded-2xl p-4 space-y-3">
                 {[
                   { k: "Bot", v: selectedBot.name, vc: "" },
                   { k: "Stake Amount", v: `$${stakeNum.toFixed(2)}`, vc: "" },
@@ -430,7 +430,7 @@ export default function StartBot() {
           <Button
             onClick={handleStart}
             disabled={!canStart || startingTrade}
-            className="w-full h-14 rounded-2xl text-base font-bold shadow-none bg-gradient-to-r from-[#7C3AED] to-[#9333ea] hover:opacity-90 disabled:opacity-30 transition-opacity"
+            className="w-full h-14 rounded-2xl text-base font-bold shadow-none bg-gradient-to-r from-[#F5B942] to-[#2563EB] hover:opacity-90 disabled:opacity-30 transition-opacity"
           >
             <Zap className="w-5 h-5 mr-2 fill-white" />
             {startingTrade ? "Placing Trade…" : "Start Bot"}
@@ -467,11 +467,11 @@ export default function StartBot() {
             <svg width="190" height="190">
               <defs>
                 <linearGradient id="timerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#7C3AED" />
+                  <stop offset="0%" stopColor="#F5B942" />
                   <stop offset="100%" stopColor="#4ade80" />
                 </linearGradient>
               </defs>
-              <circle cx="95" cy="95" r={RADIUS + 10} fill="none" stroke="#7C3AED" strokeWidth="1" strokeOpacity="0.1" />
+                  <circle cx="95" cy="95" r={RADIUS + 10} fill="none" stroke="#F5B942" strokeWidth="1" strokeOpacity="0.1" />
               <circle cx="95" cy="95" r={RADIUS} fill="none" stroke="#1e293b" strokeWidth="9" />
               <circle
                 cx="95" cy="95" r={RADIUS}
@@ -525,7 +525,7 @@ export default function StartBot() {
               {AI_MESSAGES[msgIdx]}
             </p>
             <div className="h-1 bg-muted/30 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-primary to-purple-400 rounded-full animate-pulse" style={{ width: "60%" }} />
+              <div className="h-full bg-gradient-to-r from-amber-400 to-blue-400 rounded-full animate-pulse" style={{ width: "60%" }} />
             </div>
           </div>
 
@@ -618,7 +618,7 @@ export default function StartBot() {
       <div className="px-5 pb-10 space-y-3 shrink-0">
         <Button
           onClick={handleStartAgain}
-          className="w-full h-14 rounded-2xl text-base font-bold shadow-none bg-gradient-to-r from-[#7C3AED] to-[#9333ea] hover:opacity-90"
+          className="w-full h-14 rounded-2xl text-base font-bold shadow-none bg-gradient-to-r from-[#F5B942] to-[#2563EB] hover:opacity-90"
         >
           <Zap className="w-5 h-5 mr-2 fill-white" />
           Start Again

@@ -173,8 +173,8 @@ export default function BotDetail() {
                 <AreaChart data={analytics || []} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorBot" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#7C3AED" stopOpacity={0.4} />
-                      <stop offset="100%" stopColor="#7C3AED" stopOpacity={0} />
+                      <stop offset="0%" stopColor="#F5B942" stopOpacity={0.4} />
+                      <stop offset="100%" stopColor="#F5B942" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <XAxis dataKey="label" hide />
@@ -188,7 +188,7 @@ export default function BotDetail() {
                   <Area
                     type="monotone"
                     dataKey="cumulative"
-                    stroke="#7C3AED"
+                    stroke="#F5B942"
                     strokeWidth={3}
                     fillOpacity={1}
                     fill="url(#colorBot)"
@@ -202,7 +202,7 @@ export default function BotDetail() {
         {/* Actions */}
         <div className="mt-4">
           <Button
-            className="w-full h-14 rounded-xl text-[15px] font-bold shadow-none bg-gradient-to-r from-[#7C3AED] to-[#9333ea] hover:opacity-90"
+            className="w-full h-14 rounded-xl text-[15px] font-bold shadow-none bg-gradient-to-r from-[#F5B942] to-[#2563EB] hover:opacity-90"
             onClick={() => setLocation(`/bots/${id}/analytics`)}
           >
             View Analytics

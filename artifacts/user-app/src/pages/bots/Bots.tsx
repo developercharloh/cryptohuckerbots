@@ -15,7 +15,7 @@ import { useState } from "react";
 import { TradeCountdown } from "@/components/TradeCountdown";
 
 const BOT_GRADIENTS = [
-  "from-purple-500 to-indigo-600",
+  "from-amber-400 to-blue-600",
   "from-blue-500 to-cyan-600",
   "from-orange-500 to-red-600",
   "from-green-500 to-emerald-600",

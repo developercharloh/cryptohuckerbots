@@ -5,7 +5,7 @@ import { Layout } from "@/components/Layout";
 import { ArrowLeft, TrendingUp, TrendingDown, Activity, ChevronDown, Bot, Zap } from "lucide-react";
 import { useListBots } from "@workspace/api-client-react";
 
-const PURPLE = "#6C47FF";
+const PURPLE = "#F5B942";
 
 /* ── Pair metadata ─────────────────────────────────────────────── */
 interface PairMeta {
@@ -393,7 +393,7 @@ export default function TradePairPage() {
               SHORT / SELL
             </button>
           </div>
-          <div style={{ marginBottom: 16, padding: "8px 12px", borderRadius: 10, background: "rgba(108,71,255,0.08)", border: `1px solid ${PURPLE}33`, display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ marginBottom: 16, padding: "8px 12px", borderRadius: 10, background: "rgba(245,185,66,0.08)", border: `1px solid ${PURPLE}33`, display: "flex", alignItems: "center", gap: 8 }}>
             <Bot size={13} style={{ color: PURPLE, flexShrink: 0 }} />
             <span style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.4 }}>Manual trading is disabled. Activate a bot below to trade this pair.</span>
           </div>
@@ -464,14 +464,14 @@ export default function TradePairPage() {
               width: "100%", padding: "16px 0", borderRadius: 14, border: "none",
               cursor: "not-allowed",
               fontSize: 15, fontWeight: 900, letterSpacing: "0.08em", color: "rgba(255,255,255,0.4)",
-              background: "rgba(108,71,255,0.25)",
+              background: "rgba(245,185,66,0.25)",
             }}
           >
             MANUAL TRADING DISABLED — USE A BOT
           </button>
 
           {/* ── Run Bot on This Pair ─────────────────────────── */}
-          <div style={{ marginTop: 28, borderRadius: 18, border: `1px solid ${PURPLE}33`, background: "rgba(108,71,255,0.07)", padding: 18 }}>
+          <div style={{ marginTop: 28, borderRadius: 18, border: `1px solid ${PURPLE}33`, background: "rgba(245,185,66,0.07)", padding: 18 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
               <div style={{ width: 32, height: 32, borderRadius: 10, background: PURPLE, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <Bot size={16} color="#fff" />
@@ -490,7 +490,7 @@ export default function TradePairPage() {
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {bots.slice(0, 3).map((bot, i) => {
-                  const colors = ["#6C47FF","#06B6D4","#22c55e"];
+                  const colors = ["#F5B942","#06B6D4","#22c55e"];
                   const color = colors[i % colors.length];
                   return (
                     <div key={bot.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", background: "rgba(255,255,255,0.04)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.07)" }}>
@@ -529,7 +529,7 @@ export default function TradePairPage() {
                 display: "flex", alignItems: "flex-start", gap: 14, padding: "14px 16px",
                 background: "rgba(255,255,255,0.04)", borderRadius: 14, border: "1px solid rgba(255,255,255,0.07)",
               }}>
-                <div style={{ width: 38, height: 38, borderRadius: 10, background: "rgba(108,71,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>
+                <div style={{ width: 38, height: 38, borderRadius: 10, background: "rgba(245,185,66,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>
                   {c.icon}
                 </div>
                 <div>

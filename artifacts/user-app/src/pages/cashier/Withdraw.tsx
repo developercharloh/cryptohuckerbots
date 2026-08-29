@@ -295,7 +295,7 @@ export default function Withdraw() {
             <Button
               type="submit"
               disabled={withdrawMutation.isPending}
-              className="w-full h-14 rounded-xl text-base font-bold shadow-none bg-gradient-to-r from-[#7C3AED] to-[#4338CA] hover:opacity-90 transition-opacity"
+              className="w-full h-14 rounded-xl text-base font-bold shadow-none bg-gradient-to-r from-[#F5B942] to-[#2563EB] hover:opacity-90 transition-opacity"
             >
               {withdrawMutation.isPending ? (
                 <Loader2 className="w-5 h-5 animate-spin" />

@@ -38,7 +38,7 @@ const AI_MESSAGES = [
 ];
 
 const BOT_COLORS = [
-  "from-purple-500 to-indigo-600",
+  "from-amber-400 to-blue-600",
   "from-blue-500 to-cyan-600",
   "from-orange-500 to-red-500",
   "from-green-500 to-emerald-600",
@@ -102,7 +102,7 @@ function Confetti() {
   const pieces = useMemo(() =>
     Array.from({ length: 80 }, (_, i) => ({
       id: i, x: Math.random() * 100, delay: Math.random() * 2.5, dur: 2 + Math.random() * 2,
-      color: ["#7C3AED","#4ade80","#f59e0b","#38bdf8","#f472b6","#a78bfa"][i % 6],
+      color: ["#F5B942","#4ade80","#f59e0b","#38bdf8","#f472b6","#FFD86B"][i % 6],
       w: 5 + Math.random() * 7, h: 4 + Math.random() * 6, round: i % 3 !== 0,
     })), []);
   return (
@@ -476,7 +476,7 @@ export default function Trade() {
                 <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 50, background: "#131626", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: 6, minWidth: 130, boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}>
                   {PAIRS_LIST.map(p => (
                     <button key={p} onClick={() => { setSelectedPair(p); setPairDropOpen(false); }}
-                      style={{ width: "100%", textAlign: "left", padding: "7px 10px", borderRadius: 8, background: p === selectedPair ? "rgba(124,58,237,0.2)" : "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, color: p === selectedPair ? "#A78BFA" : "#E5E7EB" }}>
+                      style={{ width: "100%", textAlign: "left", padding: "7px 10px", borderRadius: 8, background: p === selectedPair ? "rgba(245,185,66,0.2)" : "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, color: p === selectedPair ? "#FFD86B" : "#E5E7EB" }}>
                       {p}
                     </button>
                   ))}
@@ -541,7 +541,7 @@ export default function Trade() {
               onClick={() => setActiveTimeframe(tf)}
               style={{
                 padding: "4px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, border: "none", cursor: "pointer",
-                background: activeTimeframe === tf ? "linear-gradient(135deg,#7C3AED,#4F46E5)" : "rgba(255,255,255,0.06)",
+                background: activeTimeframe === tf ? "linear-gradient(135deg,#F5B942,#2563EB)" : "rgba(255,255,255,0.06)",
                 color: activeTimeframe === tf ? "#fff" : "#6B7280",
                 boxShadow: activeTimeframe === tf ? "0 2px 8px rgba(124,58,237,0.4)" : "none",
               }}
@@ -594,7 +594,7 @@ export default function Trade() {
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <div style={{ width: 18, height: 18, borderRadius: "50%", background: "rgba(124,58,237,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <span style={{ fontSize: 9, fontWeight: 800, color: "#A78BFA" }}>1</span>
+                      <span style={{ fontSize: 9, fontWeight: 800, color: "#FFD86B" }}>1</span>
                     </div>
                     <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>Stake Amount</span>
                   </div>
@@ -614,7 +614,7 @@ export default function Trade() {
                 <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
                   {[10, 25, 50, 100].map(amt => (
                     <button key={amt} onClick={() => setStake(String(amt))}
-                      style={{ flex: 1, padding: "5px 0", borderRadius: 8, background: parseFloat(stake) === amt ? "rgba(124,58,237,0.3)" : "rgba(255,255,255,0.05)", border: `1px solid ${parseFloat(stake) === amt ? "rgba(124,58,237,0.5)" : "rgba(255,255,255,0.08)"}`, fontSize: 11, fontWeight: 700, color: parseFloat(stake) === amt ? "#A78BFA" : "#9CA3AF", cursor: "pointer" }}>
+                      style={{ flex: 1, padding: "5px 0", borderRadius: 8, background: parseFloat(stake) === amt ? "rgba(245,185,66,0.3)" : "rgba(255,255,255,0.05)", border: `1px solid ${parseFloat(stake) === amt ? "rgba(245,185,66,0.5)" : "rgba(255,255,255,0.08)"}`, fontSize: 11, fontWeight: 700, color: parseFloat(stake) === amt ? "#FFD86B" : "#9CA3AF", cursor: "pointer" }}>
                       ${amt}
                     </button>
                   ))}
@@ -625,7 +625,7 @@ export default function Trade() {
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
                   <div style={{ width: 18, height: 18, borderRadius: "50%", background: "rgba(124,58,237,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <span style={{ fontSize: 9, fontWeight: 800, color: "#A78BFA" }}>2</span>
+                    <span style={{ fontSize: 9, fontWeight: 800, color: "#FFD86B" }}>2</span>
                   </div>
                   <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>Select AI Bot</span>
                 </div>
@@ -638,10 +638,10 @@ export default function Trade() {
                       return (
                         <button key={bot.id} onClick={() => setSelectedBotId(bot.id)}
                           style={{ flexShrink: 0, width: 120, padding: "10px 10px", borderRadius: 14, background: active ? "rgba(124,58,237,0.2)" : "rgba(255,255,255,0.04)", border: `1px solid ${active ? "rgba(124,58,237,0.5)" : "rgba(255,255,255,0.08)"}`, cursor: "pointer", textAlign: "center" }}>
-                          <div style={{ width: 32, height: 32, borderRadius: 10, background: `linear-gradient(135deg, ${["#7C3AED,#4F46E5","#3B82F6,#06B6D4","#F59E0B,#EF4444","#10B981,#22C55E","#EC4899,#F43F5E"][idx%5]})`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 6px" }}>
+                          <div style={{ width: 32, height: 32, borderRadius: 10, background: `linear-gradient(135deg, ${["#F5B942,#2563EB","#3B82F6,#06B6D4","#F59E0B,#EF4444","#10B981,#22C55E","#EC4899,#F43F5E"][idx%5]})`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 6px" }}>
                             <BotIcon style={{ width: 16, height: 16, color: "#fff" }} />
                           </div>
-                          <p style={{ fontSize: 10, fontWeight: 700, color: active ? "#A78BFA" : "#E5E7EB", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{bot.name}</p>
+                          <p style={{ fontSize: 10, fontWeight: 700, color: active ? "#FFD86B" : "#E5E7EB", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{bot.name}</p>
                           <p style={{ fontSize: 9, color: "#6B7280" }}>{bot.winRate ?? 85}% win</p>
                         </button>
                       );
@@ -656,7 +656,7 @@ export default function Trade() {
                 disabled={executeMutation.isPending || !selectedBotId || stakeNum < 1 || stakeNum > availableBalance}
                 style={{
                   width: "100%", height: 56, borderRadius: 16, border: "none", cursor: "pointer",
-                  background: executeMutation.isPending || !selectedBotId || stakeNum < 1 ? "rgba(124,58,237,0.3)" : "linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)",
+                  background: executeMutation.isPending || !selectedBotId || stakeNum < 1 ? "rgba(245,185,66,0.3)" : "linear-gradient(135deg, #F5B942 0%, #2563EB 100%)",
                   fontSize: 15, fontWeight: 800, color: "#fff",
                   boxShadow: "0 4px 20px rgba(124,58,237,0.4)",
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
@@ -735,7 +735,7 @@ export default function Trade() {
                 </div>
                 <div style={{ flex: 1, background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: "10px 12px", border: "1px solid rgba(255,255,255,0.07)", textAlign: "center" }}>
                   <p style={{ fontSize: 9, color: "#6B7280", marginBottom: 3 }}>AI CONF.</p>
-                  <p style={{ fontSize: 15, fontWeight: 800, color: "#A78BFA" }}>{executedSignal?.confidence ?? "—"}%</p>
+                  <p style={{ fontSize: 15, fontWeight: 800, color: "#FFD86B" }}>{executedSignal?.confidence ?? "—"}%</p>
                 </div>
               </div>
 
@@ -782,7 +782,7 @@ export default function Trade() {
                 </div>
 
                 <button onClick={handleReset}
-                  style={{ width: "100%", height: 52, borderRadius: 16, background: "linear-gradient(135deg, #7C3AED, #4F46E5)", border: "none", fontSize: 14, fontWeight: 800, color: "#fff", cursor: "pointer", boxShadow: "0 4px 16px rgba(124,58,237,0.4)", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  style={{ width: "100%", height: 52, borderRadius: 16, background: "linear-gradient(135deg, #F5B942, #2563EB)", border: "none", fontSize: 14, fontWeight: 800, color: "#fff", cursor: "pointer", boxShadow: "0 4px 16px rgba(245,185,66,0.25)", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                   <Zap style={{ width: 16, height: 16, fill: "#fff" }} />
                   New Trade
                 </button>

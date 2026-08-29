@@ -327,7 +327,7 @@ function TerminalCard({ pairs }: { pairs: PriceData[] }) {
       {/* Pair sub-header */}
       <div style={{ padding: "8px 20px", borderBottom: "1px solid #F8F8FC", display: "flex", alignItems: "center", gap: 8 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: "#111827", fontFamily: "'JetBrains Mono', monospace" }}>BTC/USDT</span>
-        <span style={{ fontSize: 10, background: "#F3F0FF", color: PURPLE, fontWeight: 600, borderRadius: 6, padding: "2px 8px" }}>5m</span>
+        <span style={{ fontSize: 10, background: "#FFF8E1", color: PURPLE, fontWeight: 600, borderRadius: 6, padding: "2px 8px" }}>5m</span>
         <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 600, color: GREEN, background: "#ECFDF5", borderRadius: 20, padding: "2px 8px", display: "flex", alignItems: "center", gap: 4 }}>
           <span style={{ width: 5, height: 5, borderRadius: "50%", background: GREEN, display: "inline-block" }} />
           BTC/USD · {btcPair ? fmt(btcPair) : "67,821.50"}
@@ -347,7 +347,7 @@ function TerminalCard({ pairs }: { pairs: PriceData[] }) {
         {/* Leverage */}
         <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
           {["5x", "10x", "20x"].map(lv => (
-            <button key={lv} style={{ flex: 1, padding: "6px 0", borderRadius: 8, border: lv === "10x" ? `1px solid ${PURPLE}` : "1px solid #E5E7EB", background: lv === "10x" ? "#F3F0FF" : "none", color: lv === "10x" ? PURPLE : "#9CA3AF", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{lv}</button>
+            <button key={lv} style={{ flex: 1, padding: "6px 0", borderRadius: 8, border: lv === "10x" ? `1px solid ${PURPLE}` : "1px solid #E5E7EB", background: lv === "10x" ? "#FFF8E1" : "none", color: lv === "10x" ? PURPLE : "#9CA3AF", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{lv}</button>
           ))}
         </div>
         {/* TP / SL */}

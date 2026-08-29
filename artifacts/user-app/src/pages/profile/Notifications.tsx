@@ -46,7 +46,7 @@ function getNotifMeta(type: string) {
     case "trade":
     case "trade_profit":
     case "trade_loss":
-      return { Icon: TrendingUp, color: "text-purple-400", bg: "bg-purple-500/10" };
+      return { Icon: TrendingUp, color: "text-amber-300", bg: "bg-amber-500/10" };
     case "bot":
       return { Icon: Bot, color: "text-primary", bg: "bg-primary/10" };
     case "support":
@@ -54,7 +54,7 @@ function getNotifMeta(type: string) {
     case "kyc":
       return { Icon: ShieldCheck, color: "text-yellow-400", bg: "bg-yellow-500/10" };
     case "announcement":
-      return { Icon: Megaphone, color: "text-indigo-400", bg: "bg-indigo-500/10" };
+      return { Icon: Megaphone, color: "text-blue-300", bg: "bg-blue-500/10" };
     default:
       return { Icon: Bell, color: "text-muted-foreground", bg: "bg-muted/30" };
   }
