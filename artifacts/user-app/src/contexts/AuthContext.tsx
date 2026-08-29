@@ -1,15 +1,15 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 import { useGetMe, setAuthTokenGetter } from "@workspace/api-client-react";
 import type { User } from "@workspace/api-client-react";
 
-// Set synchronously at module load — before any component or TanStack Query
-// fires a request — so the first fetch always carries the bearer token.
-setAuthTokenGetter(() => localStorage.getItem("vixus_token"));
+// Web sessions are carried by an HttpOnly cookie. Never expose the session
+// token to JavaScript or configure the shared client to add a bearer header.
+setAuthTokenGetter(null);
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  setAuth: (token: string, user: User) => void;
+  setAuth: (user: User) => void;
   logout: () => void;
   isLoading: boolean;
 }
@@ -17,23 +17,16 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(() => {
-    return localStorage.getItem("vixus_token");
-  });
+  // This is only an in-memory authentication marker, not the session token.
+  // The initial /auth/me request validates the HttpOnly cookie.
+  const [token, setToken] = useState<string | null>("cookie-session");
   const [user, setUser] = useState<User | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const sessionWasValidated = useRef(false);
 
-  // Set the token getter for api-client-react
   useEffect(() => {
-    setAuthTokenGetter(() => localStorage.getItem("vixus_token"));
+    setAuthTokenGetter(null);
   }, []);
-
-  // If there's no token, we don't need to wait for any API call
-  useEffect(() => {
-    if (!token) {
-      setIsInitializing(false);
-    }
-  }, [token]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: meData, isError } = useGetMe({ query: { enabled: !!token, retry: false } as any });
@@ -42,26 +35,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!token) return;
 
     if (meData) {
+      sessionWasValidated.current = true;
       setUser(meData);
       setIsInitializing(false);
-    } else if (isError) {
+    } else if (isError && (sessionWasValidated.current || !user)) {
       setUser(null);
-      localStorage.removeItem("vixus_token");
       setToken(null);
       setIsInitializing(false);
     }
-  }, [meData, isError, token]);
+  }, [meData, isError, token, user]);
 
-  const setAuth = (newToken: string, newUser: User) => {
-    localStorage.setItem("vixus_token", newToken);
-    setAuthTokenGetter(() => localStorage.getItem("vixus_token"));
-    setToken(newToken);
+  const setAuth = (newUser: User) => {
+    setAuthTokenGetter(null);
+    setToken("cookie-session");
     setUser(newUser);
     setIsInitializing(false);
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("vixus_token");
     setToken(null);
     setUser(null);
   };

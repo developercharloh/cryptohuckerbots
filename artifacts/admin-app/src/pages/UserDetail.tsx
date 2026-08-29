@@ -107,7 +107,7 @@ export default function UserDetail() {
     setPromoteLoading(true);
     try {
       const base = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
-      const res = await fetch(`${base}/api/admin/users/${userId}/promote`, { method: "POST" });
+      const res = await fetch(`${base}/api/admin/users/${userId}/promote`, { method: "POST", credentials: "include" });
       if (!res.ok) throw new Error((await res.json()).error ?? "Request failed");
       toast({ title: isAdmin ? "Admin access revoked" : "User promoted to admin" });
       queryClient.invalidateQueries({ queryKey: getAdminGetUserQueryKey(userId) });

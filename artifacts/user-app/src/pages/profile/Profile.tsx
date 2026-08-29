@@ -14,7 +14,7 @@ import { format } from "date-fns";
 
 export default function Profile() {
   const [, setLocation] = useLocation();
-  const { user, setAuth } = useAuth();
+  const { user, logout } = useAuth();
   const { data: profile, isLoading } = useGetProfile();
   const [copied, setCopied] = useState(false);
   const logoutMutation = useLogout();
@@ -30,8 +30,8 @@ export default function Profile() {
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
-      onSuccess: () => { setAuth("", null as any); queryClient.clear(); setLocation("/login"); },
-      onError:   () => { setAuth("", null as any); queryClient.clear(); setLocation("/login"); },
+      onSuccess: () => { logout(); queryClient.clear(); setLocation("/login"); },
+      onError:   () => { logout(); queryClient.clear(); setLocation("/login"); },
     });
   };
 

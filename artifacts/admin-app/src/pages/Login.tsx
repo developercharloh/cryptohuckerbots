@@ -30,6 +30,7 @@ export default function Login({ onLogin }: LoginProps) {
       const res = await fetch(`${base}/api/admin/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ email: email.trim().toLowerCase(), username, password }),
       });
       const data = await res.json();
@@ -39,8 +40,6 @@ export default function Login({ onLogin }: LoginProps) {
         return;
       }
 
-      // Success — store the token then grant access
-      localStorage.setItem("vixus_admin_token", data.token);
       setTimeout(() => {
         onLogin();
       }, 900);

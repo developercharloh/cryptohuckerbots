@@ -4,6 +4,11 @@ import pinoHttp from "pino-http";
 import path from "node:path";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import {
+  ADMIN_SESSION_COOKIE,
+  getCookie,
+  USER_SESSION_COOKIE,
+} from "./lib/session";
 
 const app: Express = express();
 
@@ -76,6 +81,20 @@ app.use(express.json({
   },
 }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
+
+// Promote the HttpOnly session cookie to the internal auth representation used
+// by the route modules. The token never reaches browser JavaScript; the
+// Authorization header is only synthesized inside the API process.
+app.use((req, _res, next) => {
+  if (!req.headers.authorization) {
+    const cookieName = req.path.startsWith("/api/admin")
+      ? ADMIN_SESSION_COOKIE
+      : USER_SESSION_COOKIE;
+    const token = getCookie(req, cookieName);
+    if (token) req.headers.authorization = `Bearer ${token}`;
+  }
+  next();
+});
 
 app.use("/api", router);
 

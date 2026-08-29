@@ -16,6 +16,7 @@ import {
   depositSessionsTable,
   broadcastsTable,
   adminLoginNotificationsTable,
+  sessionsTable,
   type PaymentMethod,
 } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -32,6 +33,12 @@ import {
   AdminUpdateSettingsBody,
   AdminBroadcastBody,
 } from "@workspace/api-zod";
+import {
+  ADMIN_SESSION_COOKIE,
+  clearAdminSessionCookie,
+  getRequestToken,
+  setAdminSessionCookie,
+} from "../lib/session";
 
 const router = Router();
 
@@ -39,49 +46,95 @@ function hashPassword(password: string): string {
   return crypto.createHash("sha256").update(password + "vixus_salt_2024").digest("hex");
 }
 
-const ADMIN_SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const JWT_SECRET = process.env.ADMIN_JWT_SECRET ?? process.env.ADMIN_ACCOUNT_PASSWORD ?? "vixus_admin_secret_2024";
 
 function createAdminToken(userId: number): string {
-  const payload = Buffer.from(JSON.stringify({ userId, expiresAt: Date.now() + ADMIN_SESSION_TTL_MS })).toString("base64url");
+  const payload = Buffer.from(JSON.stringify({
+    userId,
+    expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+    nonce: crypto.randomBytes(16).toString("hex"),
+  })).toString("base64url");
   const sig = crypto.createHmac("sha256", JWT_SECRET).update(payload).digest("base64url");
   return `${payload}.${sig}`;
 }
 
-function validateAdminToken(token: string | undefined): boolean {
-  if (!token) return false;
+function parseAdminToken(token: string | undefined): { userId: number; expiresAt: number } | null {
+  if (!token) return null;
   const parts = token.split(".");
-  if (parts.length !== 2) return false;
+  if (parts.length !== 2) return null;
   const [payload, sig] = parts;
   const expectedSig = crypto.createHmac("sha256", JWT_SECRET).update(payload).digest("base64url");
-  if (sig !== expectedSig) return false;
+  if (sig !== expectedSig) return null;
   try {
-    const { expiresAt } = JSON.parse(Buffer.from(payload, "base64url").toString());
-    return Date.now() < expiresAt;
+    const parsed = JSON.parse(Buffer.from(payload, "base64url").toString()) as {
+      userId?: unknown;
+      expiresAt?: unknown;
+    };
+    if (
+      typeof parsed.userId !== "number" ||
+      !Number.isInteger(parsed.userId) ||
+      typeof parsed.expiresAt !== "number"
+    ) return null;
+    if (Date.now() >= parsed.expiresAt) return null;
+    return { userId: parsed.userId, expiresAt: parsed.expiresAt };
   } catch {
-    return false;
+    return null;
   }
 }
 
-function requireAdmin(req: Request, res: Response, next: NextFunction) {
+async function requireAdmin(req: Request, res: Response, next: NextFunction) {
   // Allow the login endpoint through without a token.
   // Note: router.use("/admin", requireAdmin) strips the "/admin" prefix,
   // so req.path here is "/login", not "/admin/login".
   if (req.path === "/login" && req.method === "POST") return next();
 
-  // Accept token from Authorization header or ?token= query param (EventSource)
-  const authHeader = req.headers.authorization ?? "";
-  const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : undefined;
-  const queryToken = typeof req.query.token === "string" ? req.query.token : undefined;
-  const token = bearerToken ?? queryToken;
+  const token = getRequestToken(req, ADMIN_SESSION_COOKIE);
+  const payload = parseAdminToken(token);
+  if (!payload) {
+    clearAdminSessionCookie(res);
+    return res.status(401).json({ error: "Admin authentication required." });
+  }
 
-  if (!validateAdminToken(token)) {
+  const [session] = await db
+    .select()
+    .from(sessionsTable)
+    .where(eq(sessionsTable.token, token!))
+    .limit(1);
+  if (!session || session.userId !== payload.userId) {
+    clearAdminSessionCookie(res);
+    return res.status(401).json({ error: "Admin authentication required." });
+  }
+
+  const [admin] = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(and(eq(usersTable.id, payload.userId), eq(usersTable.isAdmin, true), eq(usersTable.status, "active")))
+    .limit(1);
+  if (!admin) {
+    await db.delete(sessionsTable).where(eq(sessionsTable.id, session.id));
+    clearAdminSessionCookie(res);
     return res.status(401).json({ error: "Admin authentication required." });
   }
   return next();
 }
 
 router.use("/admin", requireAdmin);
+
+router.get("/admin/session", async (req, res) => {
+  const token = getRequestToken(req, ADMIN_SESSION_COOKIE);
+  const payload = parseAdminToken(token);
+  if (!payload) return res.status(401).json({ error: "Admin authentication required." });
+  const [user] = await db.select({ fullName: usersTable.fullName }).from(usersTable)
+    .where(eq(usersTable.id, payload.userId)).limit(1);
+  return res.json({ authenticated: true, name: user?.fullName ?? "Admin" });
+});
+
+router.post("/admin/logout", async (req, res) => {
+  const token = getRequestToken(req, ADMIN_SESSION_COOKIE);
+  if (token) await db.delete(sessionsTable).where(eq(sessionsTable.token, token));
+  clearAdminSessionCookie(res);
+  return res.json({ message: "Logged out successfully" });
+});
 
 // ─── SSE: Login Alarm ────────────────────────────────────────────────────────
 router.get("/admin/login-events", (req, res) => {
@@ -1045,7 +1098,15 @@ router.post("/admin/login", async (req, res) => {
     return res.status(403).json({ error: "You have not been granted admin access. Contact the platform owner." });
 
   const token = createAdminToken(user.id);
-  return res.json({ ok: true, token, name: user.fullName });
+  await db.insert(sessionsTable).values({
+    userId: user.id,
+    token,
+    device: "Admin Browser",
+    ip: (req.ip || "0.0.0.0").replace("::ffff:", ""),
+    location: "Unknown",
+  });
+  setAdminSessionCookie(res, token);
+  return res.json({ ok: true, name: user.fullName });
 });
 
 // ---------------- Promote / Demote Admin ----------------

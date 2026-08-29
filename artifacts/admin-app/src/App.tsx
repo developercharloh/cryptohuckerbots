@@ -22,8 +22,8 @@ import NotFound from "@/pages/not-found";
 
 setBaseUrl((import.meta.env.VITE_API_URL as string | undefined) ?? null);
 
-// Set token getter at module load so React Query has auth on the very first request.
-setAuthTokenGetter(() => localStorage.getItem("vixus_admin_token"));
+// Admin authentication is carried by an HttpOnly cookie.
+setAuthTokenGetter(null);
 
 // Global logout callback — set by App once it mounts.
 let _forceLogout: (() => void) | null = null;
@@ -32,7 +32,6 @@ const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error) => {
       if (error instanceof ApiError && error.status === 401) {
-        localStorage.removeItem("vixus_admin_token");
         setAuthTokenGetter(null);
         queryClient.clear();
         _forceLogout?.();
@@ -52,9 +51,9 @@ const queryClient = new QueryClient({
   },
 });
 
-function Router({ onLogout, adminToken }: { onLogout: () => void; adminToken: string | null }) {
+function Router({ onLogout, adminSession }: { onLogout: () => void; adminSession: boolean }) {
   useLoginAlarm();
-  usePushSubscription(adminToken);
+  usePushSubscription(adminSession);
   return (
     <Layout onLogout={onLogout}>
       <Switch>
@@ -73,12 +72,32 @@ function Router({ onLogout, adminToken }: { onLogout: () => void; adminToken: st
 }
 
 function App() {
-  const [authed, setAuthed] = useState(() => !!localStorage.getItem("vixus_admin_token"));
-  const [adminToken, setAdminToken] = useState<string | null>(() => localStorage.getItem("vixus_admin_token"));
+  const [authed, setAuthed] = useState(false);
+  const [adminSession, setAdminSession] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    _forceLogout = () => { setAuthed(false); setAdminToken(null); };
+    _forceLogout = () => { setAuthed(false); setAdminSession(false); };
     return () => { _forceLogout = null; };
+  }, []);
+
+  useEffect(() => {
+    const base = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
+    let active = true;
+    fetch(`${base}/api/admin/session`, { credentials: "include" })
+      .then((response) => {
+        if (!active) return;
+        setAuthed(response.ok);
+        setAdminSession(response.ok);
+        setAuthChecked(true);
+      })
+      .catch(() => {
+        if (!active) return;
+        setAuthed(false);
+        setAdminSession(false);
+        setAuthChecked(true);
+      });
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -91,17 +110,27 @@ function App() {
   }, []);
 
   const handleLogin = () => {
-    setAuthTokenGetter(() => localStorage.getItem("vixus_admin_token"));
-    setAdminToken(localStorage.getItem("vixus_admin_token"));
+    setAuthTokenGetter(null);
+    setAdminSession(true);
     setAuthed(true);
+    setAuthChecked(true);
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("vixus_admin_token");
+    const base = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
+    void fetch(`${base}/api/admin/logout`, {
+      method: "POST",
+      credentials: "include",
+    });
     setAuthTokenGetter(() => null);
-    setAdminToken(null);
+    queryClient.clear();
+    setAdminSession(false);
     setAuthed(false);
   };
+
+  if (!authChecked) {
+    return <div className="min-h-screen bg-[#08061a]" />;
+  }
 
   if (!authed) {
     return (
@@ -116,7 +145,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router onLogout={handleLogout} adminToken={adminToken} />
+          <Router onLogout={handleLogout} adminSession={adminSession} />
         </WouterRouter>
         <Toaster />
       </TooltipProvider>

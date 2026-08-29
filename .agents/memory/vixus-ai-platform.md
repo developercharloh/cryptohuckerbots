@@ -8,7 +8,7 @@ description: FX trading bot admin panel — architecture, credentials, seeding, 
 - Rebranded from Quantum-FX-Bot; all "quantum/qfx/QFX" strings replaced with "vixus/VIXUS/VAI"
 - Password salt: `vixus_salt_2024` (SHA-256, not bcrypt)
 - Account UID prefix: `VAI`
-- Admin token localStorage key: `vixus_admin_token`
+- Browser sessions use server-set HttpOnly cookies; bearer session tokens are not stored in browser storage.
 - Theme localStorage key: `vixus_theme`
 - Admin login endpoint: `POST /api/admin/login` — checks the configured panel password (not the DB password hash)
 - Admin credentials: email `admin@vixus.ai`, username `admin.vixus-ai`, password defaults to `Admin@VIXUS2027!` and can be overridden with `ADMIN_PANEL_PASSWORD`

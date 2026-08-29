@@ -4,11 +4,6 @@ import { cn } from "@/lib/utils";
 
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
 
-function adminAuthHeaders(): HeadersInit {
-  const token = localStorage.getItem("vixus_admin_token") ?? "";
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
 interface LoginNotif {
   id: number;
   userId: number;
@@ -38,7 +33,7 @@ export function NotificationBell() {
 
   const fetchNotifs = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/admin/login-notifications`, { headers: adminAuthHeaders() });
+      const res = await fetch(`${API_BASE}/api/admin/login-notifications`, { credentials: "include" });
       if (res.ok) setNotifs(await res.json());
     } catch { /* ignore */ }
   }, []);
@@ -65,14 +60,14 @@ export function NotificationBell() {
 
   const markAllRead = async () => {
     try {
-      await fetch(`${API_BASE}/api/admin/login-notifications/read-all`, { method: "POST", headers: adminAuthHeaders() });
+      await fetch(`${API_BASE}/api/admin/login-notifications/read-all`, { method: "POST", credentials: "include" });
       setNotifs((prev) => prev.map((n) => ({ ...n, isRead: true })));
     } catch { /* ignore */ }
   };
 
   const markRead = async (id: number) => {
     try {
-      await fetch(`${API_BASE}/api/admin/login-notifications/${id}/read`, { method: "PATCH", headers: adminAuthHeaders() });
+      await fetch(`${API_BASE}/api/admin/login-notifications/${id}/read`, { method: "PATCH", credentials: "include" });
       setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
     } catch { /* ignore */ }
   };
@@ -80,7 +75,7 @@ export function NotificationBell() {
   const deleteNotif = async (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      await fetch(`${API_BASE}/api/admin/login-notifications/${id}`, { method: "DELETE", headers: adminAuthHeaders() });
+      await fetch(`${API_BASE}/api/admin/login-notifications/${id}`, { method: "DELETE", credentials: "include" });
       setNotifs((prev) => prev.filter((n) => n.id !== id));
     } catch { /* ignore */ }
   };

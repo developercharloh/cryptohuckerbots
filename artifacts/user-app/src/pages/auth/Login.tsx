@@ -49,7 +49,8 @@ export default function Login() {
           setTwoFACode("");
           setStep("2fa");
         } else {
-          setAuth(res.token, res.user);
+          if (!res.user) throw new Error("Login did not return a user session");
+          setAuth(res.user);
           setLocation("/dashboard");
         }
       },
@@ -70,11 +71,12 @@ export default function Login() {
       const r = await fetch(`${apiBase}/api/auth/2fa/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ tempToken, code: twoFACode }),
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || "Invalid code");
-      setAuth(data.token, data.user);
+      setAuth(data.user);
       setLocation("/dashboard");
     } catch (err: any) {
       toast({ title: "Invalid code", description: err.message, variant: "destructive" });

@@ -26,10 +26,9 @@ const isBuy = (d: string) => d.toUpperCase() === "BUY";
 /* ── Close-position helper ──────────────────────────── */
 async function closePosition(id: number): Promise<boolean> {
   try {
-    const token = localStorage.getItem("vixus_token") ?? "";
     const res = await fetch(`${API_BASE}/api/trade/positions/${id}/close`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
+      credentials: "include",
     });
     return res.ok;
   } catch {

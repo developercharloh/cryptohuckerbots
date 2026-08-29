@@ -38,16 +38,13 @@ const passwordSchema = z.object({
   path: ["confirmPassword"],
 });
 
-function getToken() {
-  return localStorage.getItem("vixus_token") ?? "";
-}
-
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
 
 async function api2FA(path: string, body?: object) {
   const r = await fetch(`${API_BASE}/api/profile/2fa/${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: body ? JSON.stringify(body) : undefined,
   });
   const json = await r.json();

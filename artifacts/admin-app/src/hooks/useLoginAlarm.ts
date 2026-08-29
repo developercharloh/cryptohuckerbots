@@ -259,6 +259,8 @@ export function useLoginAlarm() {
   const { toast }  = useToast();
   const toastRef   = useRef(toast);
   const esRef      = useRef<EventSource | null>(null);
+  const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
   const enabledRef = useRef(isAlarmEnabled());
 
   useEffect(() => { toastRef.current = toast; }, [toast]);
@@ -301,9 +303,8 @@ export function useLoginAlarm() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function connect() {
-    if (esRef.current) return;
-    const token = localStorage.getItem("vixus_admin_token") ?? "";
-    const es = new EventSource(`${API_BASE}/api/admin/login-events?token=${encodeURIComponent(token)}`);
+    if (esRef.current || !mountedRef.current) return;
+    const es = new EventSource(`${API_BASE}/api/admin/login-events`, { withCredentials: true });
 
     es.onmessage = (e) => {
       try {
@@ -327,11 +328,21 @@ export function useLoginAlarm() {
       } catch { /* malformed */ }
     };
 
-    es.onerror = () => { es.close(); esRef.current = null; setTimeout(connect, 6000); };
+    es.onerror = () => {
+      es.close();
+      esRef.current = null;
+      if (mountedRef.current) {
+        reconnectRef.current = setTimeout(() => {
+          reconnectRef.current = null;
+          connect();
+        }, 6000);
+      }
+    };
     esRef.current = es;
   }
 
   useEffect(() => {
+    mountedRef.current = true;
     connect();
     const onAlarmChange = (e: Event) => {
       const on = (e as CustomEvent<boolean>).detail;
@@ -340,7 +351,9 @@ export function useLoginAlarm() {
     };
     window.addEventListener("vixusAlarmChange", onAlarmChange);
     return () => {
+      mountedRef.current = false;
       window.removeEventListener("vixusAlarmChange", onAlarmChange);
+      if (reconnectRef.current) clearTimeout(reconnectRef.current);
       esRef.current?.close(); esRef.current = null;
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

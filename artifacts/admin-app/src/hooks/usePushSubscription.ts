@@ -19,7 +19,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
   return arr;
 }
 
-async function registerAndSubscribe(adminToken: string): Promise<void> {
+async function registerAndSubscribe(): Promise<void> {
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
 
   // Unregister any stale service workers that don't match the correct scope.
@@ -53,8 +53,8 @@ async function registerAndSubscribe(adminToken: string): Promise<void> {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${adminToken}`,
     },
+    credentials: "include",
     body: JSON.stringify({
       endpoint: subJson.endpoint,
       keys: subJson.keys,
@@ -62,16 +62,16 @@ async function registerAndSubscribe(adminToken: string): Promise<void> {
   });
 }
 
-export function usePushSubscription(adminToken: string | null) {
+export function usePushSubscription(adminSession: boolean) {
   const attempted = useRef(false);
 
   useEffect(() => {
-    if (!adminToken || attempted.current) return;
+    if (!adminSession || attempted.current) return;
     attempted.current = true;
 
-    registerAndSubscribe(adminToken).catch(() => {
+    registerAndSubscribe().catch(() => {
       // Non-critical — alarm still works when browser is open
       attempted.current = false;
     });
-  }, [adminToken]);
+  }, [adminSession]);
 }

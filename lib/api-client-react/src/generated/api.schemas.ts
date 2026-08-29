@@ -97,8 +97,9 @@ export interface User {
 }
 
 export interface AuthResponse {
-  token: string;
-  user: User;
+  user?: User;
+  requires2FA?: boolean;
+  tempToken?: string;
 }
 
 export interface DashboardSummary {

@@ -6,6 +6,12 @@ import { verifySync } from "otplib";
 import { notifyUserLogin } from "../lib/loginAlarm";
 import { sendPushToAllAdmins } from "../lib/webPush";
 import {
+  clearUserSessionCookie,
+  getRequestToken,
+  isUserSessionExpired,
+  setUserSessionCookie,
+} from "../lib/session";
+import {
   RegisterBody,
   LoginBody,
   ForgotPasswordBody,
@@ -87,9 +93,9 @@ router.post("/auth/register", async (req, res) => {
     ip: (req.ip || "0.0.0.0").replace("::ffff:", ""),
     location: "Unknown",
   });
+  setUserSessionCookie(res, token);
 
   return res.status(201).json({
-    token,
     user: {
       id: user.id,
       fullName: user.fullName,
@@ -133,6 +139,7 @@ router.post("/auth/login", async (req, res) => {
     ip: (req.ip || "0.0.0.0").replace("::ffff:", ""),
     location: "Unknown",
   });
+  setUserSessionCookie(res, token);
 
   // Notify admin (fire-and-forget — must never throw or crash the server)
   void (async () => {
@@ -164,7 +171,6 @@ router.post("/auth/login", async (req, res) => {
   })();
 
   return res.json({
-    token,
     user: {
       id: user.id,
       fullName: user.fullName,
@@ -204,9 +210,9 @@ router.post("/auth/2fa/verify", async (req, res) => {
     ip: (req.ip || "0.0.0.0").replace("::ffff:", ""),
     location: "Unknown",
   });
+  setUserSessionCookie(res, token);
 
   return res.json({
-    token,
     user: {
       id: user.id,
       fullName: user.fullName,
@@ -219,10 +225,11 @@ router.post("/auth/2fa/verify", async (req, res) => {
 });
 
 router.post("/auth/logout", async (req, res) => {
-  const token = req.headers.authorization?.replace("Bearer ", "");
+  const token = getRequestToken(req);
   if (token) {
     await db.delete(sessionsTable).where(eq(sessionsTable.token, token));
   }
+  clearUserSessionCookie(res);
   return res.json({ message: "Logged out successfully" });
 });
 
@@ -245,13 +252,19 @@ router.post("/auth/reset-password", async (req, res) => {
 });
 
 router.get("/auth/me", async (req, res) => {
-  const token = req.headers.authorization?.replace("Bearer ", "");
+  const token = getRequestToken(req);
   if (!token) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
   const sessions = await db.select().from(sessionsTable).where(eq(sessionsTable.token, token)).limit(1);
   if (sessions.length === 0) {
+    clearUserSessionCookie(res);
+    return res.status(401).json({ error: "Invalid or expired session" });
+  }
+  if (isUserSessionExpired(sessions[0].createdAt)) {
+    await db.delete(sessionsTable).where(eq(sessionsTable.id, sessions[0].id));
+    clearUserSessionCookie(res);
     return res.status(401).json({ error: "Invalid or expired session" });
   }
 

@@ -1629,11 +1629,12 @@ components:
     AuthResponse:
       type: object
       properties:
-        token:
-          type: string
         user:
           $ref: "#/components/schemas/User"
-      required: [token, user]
+        requires2FA:
+          type: boolean
+        tempToken:
+          type: string
 
     User:
       type: object

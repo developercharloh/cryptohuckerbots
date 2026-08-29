@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, usersTable, sessionsTable, userBotsTable, botsTable, transactionsTable, earningsTable, notificationsTable, positionsTable } from "@workspace/db";
 import { eq, and, desc, asc } from "drizzle-orm";
 import { ExecuteTradeBody } from "@workspace/api-zod";
+import { isUserSessionExpired } from "../lib/session";
 
 const router = Router();
 
@@ -9,6 +10,10 @@ async function getUserFromToken(token: string | undefined) {
   if (!token) return null;
   const sessions = await db.select().from(sessionsTable).where(eq(sessionsTable.token, token)).limit(1);
   if (sessions.length === 0) return null;
+  if (isUserSessionExpired(sessions[0].createdAt)) {
+    await db.delete(sessionsTable).where(eq(sessionsTable.id, sessions[0].id));
+    return null;
+  }
   const users = await db.select().from(usersTable).where(eq(usersTable.id, sessions[0].userId)).limit(1);
   return users[0] ?? null;
 }
