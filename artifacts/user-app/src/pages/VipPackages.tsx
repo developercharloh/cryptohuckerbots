@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, Check, Crown, LockKeyhole, Sparkles, WalletCards } from "lucide-react";
+import { ArrowLeft, ArrowRight, BadgeCheck, Check, Crown, LayoutDashboard, LockKeyhole, Sparkles, WalletCards } from "lucide-react";
 import { useLocation } from "wouter";
 import {
   useGetDashboardSummary,
@@ -9,6 +9,12 @@ import {
 import { Layout } from "@/components/Layout";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const formatUSD = (value: number) =>
   `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -37,6 +43,13 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
   const { data: summary } = useGetDashboardSummary({ query: { refetchInterval: 10000 } as any });
   const purchaseMutation = usePurchaseVipPackage();
   const [selectedLevel, setSelectedLevel] = useState<number | null>(null);
+  const [purchaseSuccess, setPurchaseSuccess] = useState<{
+    level: number;
+    price: number;
+    dailySignals: number;
+    lockedInvestmentCapital: number;
+    mainWalletBalance: number;
+  } | null>(null);
 
   const selected = useMemo(
     () => (selectedLevel === null ? null : VIP_LEVELS.find((pkg) => pkg.level === selectedLevel) ?? null),
@@ -58,8 +71,14 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
           queryClient.invalidateQueries({ queryKey: ["/api/trade/signals"] });
           queryClient.invalidateQueries({ queryKey: ["/api/dashboard/summary"] });
           queryClient.invalidateQueries({ queryKey: ["/api/cashier/transactions"] });
-          toast({ title: "VIP package activated", description: result.message });
           setSelectedLevel(result.package.level);
+           setPurchaseSuccess({
+             level: result.package.level,
+             price: result.package.price,
+             dailySignals: result.package.dailySignals,
+             lockedInvestmentCapital: result.lockedInvestmentCapital,
+             mainWalletBalance: result.mainWalletBalance,
+           });
         },
         onError: (error: any) => {
           toast({
@@ -200,6 +219,71 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
           )}
         </div>
       </div>
+      <Dialog
+        open={purchaseSuccess !== null}
+        onOpenChange={(open) => {
+          if (!open) setPurchaseSuccess(null);
+        }}
+      >
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md overflow-hidden rounded-3xl border border-amber-300/25 bg-[#101426] p-0 text-white shadow-[0_20px_80px_rgba(0,0,0,0.65)]">
+          {purchaseSuccess && (
+            <div className="relative overflow-hidden">
+              <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-amber-300/15 blur-3xl" />
+              <div className="pointer-events-none absolute -bottom-24 -left-12 h-44 w-44 rounded-full bg-blue-500/15 blur-3xl" />
+              <div className="relative px-6 pb-6 pt-8">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-200/30 bg-gradient-to-br from-amber-300 to-yellow-500 text-[#1A1204] shadow-lg shadow-amber-400/25">
+                  <BadgeCheck className="h-9 w-9" strokeWidth={2.2} />
+                </div>
+                <DialogTitle className="mt-5 text-center text-2xl font-black tracking-tight">
+                  VIP {purchaseSuccess.level} is now active
+                </DialogTitle>
+                <DialogDescription className="mx-auto mt-2 max-w-xs text-center text-sm leading-5 text-slate-300">
+                  Your access has been activated successfully. You can now use up to {purchaseSuccess.dailySignals} AI Signals each day.
+                </DialogDescription>
+
+                <div className="mt-6 grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl border border-amber-200/15 bg-amber-200/[0.07] p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-amber-200/70">Activated tier</p>
+                    <p className="mt-1 text-lg font-black text-amber-100">VIP {purchaseSuccess.level}</p>
+                    <p className="mt-0.5 text-xs text-slate-400">{formatUSD(purchaseSuccess.price)} locked</p>
+                  </div>
+                  <div className="rounded-2xl border border-blue-200/15 bg-blue-200/[0.07] p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-blue-200/70">Main wallet</p>
+                    <p className="mt-1 text-lg font-black text-blue-100">{formatUSD(purchaseSuccess.mainWalletBalance)}</p>
+                    <p className="mt-0.5 text-xs text-slate-400">Available to use</p>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-xs text-slate-300">
+                  <LockKeyhole className="h-4 w-4 shrink-0 text-amber-300" />
+                  <span>Total locked investment capital: <strong className="text-white">{formatUSD(purchaseSuccess.lockedInvestmentCapital)}</strong></span>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setPurchaseSuccess(null);
+                    setLocation("/dashboard");
+                  }}
+                  className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-400 to-blue-600 px-4 py-3.5 text-sm font-black text-[#171108] shadow-lg shadow-amber-500/20 transition-transform hover:scale-[1.01] active:scale-[0.99]"
+                >
+                  <LayoutDashboard className="h-4 w-4" />
+                  Go to Dashboard
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => {
+                    setPurchaseSuccess(null);
+                    setLocation("/trade");
+                  }}
+                  className="mt-2 flex w-full items-center justify-center rounded-2xl px-4 py-3 text-xs font-bold text-slate-300 transition-colors hover:bg-white/[0.05] hover:text-white"
+                >
+                  View AI Signals
+                </button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
