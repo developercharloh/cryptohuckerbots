@@ -10,6 +10,7 @@ export type AuthTokenGetter = () => Promise<string | null> | string | null;
 
 const NO_BODY_STATUS = new Set([204, 205, 304]);
 const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
+const DEFAULT_REQUEST_TIMEOUT_MS = 20_000;
 
 // ---------------------------------------------------------------------------
 // Module-level configuration
@@ -362,12 +363,31 @@ export async function customFetch<T = unknown>(
 
   // Browser sessions are stored in HttpOnly cookies. Always include them for
   // API calls, including requests to a separately hosted API origin.
-  const response = await fetch(input, {
-    ...init,
-    method,
-    headers,
-    credentials: init.credentials ?? "include",
-  });
+  //
+  // A request without a caller-provided signal should never leave a page
+  // stuck in a loading state forever, especially when a serverless API is
+  // waking up on a mobile connection. Callers that need a longer operation
+  // can provide their own signal and timeout.
+  const timeoutController =
+    !init.signal && typeof AbortController !== "undefined"
+      ? new AbortController()
+      : null;
+  const timeoutId = timeoutController
+    ? setTimeout(() => timeoutController.abort(), DEFAULT_REQUEST_TIMEOUT_MS)
+    : null;
+
+  let response: Response;
+  try {
+    response = await fetch(input, {
+      ...init,
+      method,
+      headers,
+      credentials: init.credentials ?? "include",
+      signal: init.signal ?? timeoutController?.signal,
+    });
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);

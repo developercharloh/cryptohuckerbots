@@ -1,4 +1,4 @@
-import { useEffect, Component, ReactNode } from "react";
+import { useEffect, lazy, Suspense, Component, ReactNode } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
@@ -28,47 +28,65 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AuthGuard } from "@/components/AuthGuard";
 
-// Pages
-import Landing from "@/pages/Landing";
-import Splash from "@/pages/Splash";
-import Onboarding from "@/pages/Onboarding";
-import About from "@/pages/legal/About";
-import Terms from "@/pages/legal/Terms";
-import Privacy from "@/pages/legal/Privacy";
-import Risk from "@/pages/legal/Risk";
-import Contact from "@/pages/legal/Contact";
-import Login from "@/pages/auth/Login";
-import Register from "@/pages/auth/Register";
-import ForgotPassword from "@/pages/auth/ForgotPassword";
-import ResetPassword from "@/pages/auth/ResetPassword";
-import Dashboard from "@/pages/Dashboard";
-import Bots from "@/pages/bots/Bots";
-import BotDetail from "@/pages/bots/BotDetail";
-import BotAnalytics from "@/pages/bots/BotAnalytics";
-import StartBot from "@/pages/bots/StartBot";
-import Cashier from "@/pages/cashier/Cashier";
-import Deposit from "@/pages/cashier/Deposit";
-import DepositStatus from "@/pages/cashier/DepositStatus";
-import Withdraw from "@/pages/cashier/Withdraw";
-import Transactions from "@/pages/cashier/Transactions";
-import PaymentMethods from "@/pages/cashier/PaymentMethods";
-import Markets from "@/pages/Markets";
-import News from "@/pages/News";
-import TradePairPage from "@/pages/TradePairPage";
-import Trade from "@/pages/Trade";
-import VipPackages from "@/pages/VipPackages";
-import Orders from "@/pages/Orders";
-import Profile from "@/pages/profile/Profile";
-import PersonalInfo from "@/pages/profile/PersonalInfo";
-import Security from "@/pages/profile/Security";
-import KYC from "@/pages/profile/KYC";
-import Notifications from "@/pages/profile/Notifications";
-import Support from "@/pages/support/Support";
-import SupportTicket from "@/pages/support/SupportTicket";
-import LiveChat from "@/pages/support/LiveChat";
-import NotFound from "@/pages/not-found";
+// Keep the entry chunk small. Pages load only when their route is visited so
+// login does not download charts, cashier forms, support, and bot analytics.
+const Landing = lazy(() => import("@/pages/Landing"));
+const Splash = lazy(() => import("@/pages/Splash"));
+const Onboarding = lazy(() => import("@/pages/Onboarding"));
+const About = lazy(() => import("@/pages/legal/About"));
+const Terms = lazy(() => import("@/pages/legal/Terms"));
+const Privacy = lazy(() => import("@/pages/legal/Privacy"));
+const Risk = lazy(() => import("@/pages/legal/Risk"));
+const Contact = lazy(() => import("@/pages/legal/Contact"));
+const Login = lazy(() => import("@/pages/auth/Login"));
+const Register = lazy(() => import("@/pages/auth/Register"));
+const ForgotPassword = lazy(() => import("@/pages/auth/ForgotPassword"));
+const ResetPassword = lazy(() => import("@/pages/auth/ResetPassword"));
+const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const Bots = lazy(() => import("@/pages/bots/Bots"));
+const BotDetail = lazy(() => import("@/pages/bots/BotDetail"));
+const BotAnalytics = lazy(() => import("@/pages/bots/BotAnalytics"));
+const StartBot = lazy(() => import("@/pages/bots/StartBot"));
+const Cashier = lazy(() => import("@/pages/cashier/Cashier"));
+const Deposit = lazy(() => import("@/pages/cashier/Deposit"));
+const DepositStatus = lazy(() => import("@/pages/cashier/DepositStatus"));
+const Withdraw = lazy(() => import("@/pages/cashier/Withdraw"));
+const Transactions = lazy(() => import("@/pages/cashier/Transactions"));
+const PaymentMethods = lazy(() => import("@/pages/cashier/PaymentMethods"));
+const Markets = lazy(() => import("@/pages/Markets"));
+const News = lazy(() => import("@/pages/News"));
+const TradePairPage = lazy(() => import("@/pages/TradePairPage"));
+const Trade = lazy(() => import("@/pages/Trade"));
+const VipPackages = lazy(() => import("@/pages/VipPackages"));
+const Orders = lazy(() => import("@/pages/Orders"));
+const Profile = lazy(() => import("@/pages/profile/Profile"));
+const PersonalInfo = lazy(() => import("@/pages/profile/PersonalInfo"));
+const Security = lazy(() => import("@/pages/profile/Security"));
+const KYC = lazy(() => import("@/pages/profile/KYC"));
+const Notifications = lazy(() => import("@/pages/profile/Notifications"));
+const Support = lazy(() => import("@/pages/support/Support"));
+const SupportTicket = lazy(() => import("@/pages/support/SupportTicket"));
+const LiveChat = lazy(() => import("@/pages/support/LiveChat"));
+const NotFound = lazy(() => import("@/pages/not-found"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 15_000,
+      retry: 1,
+      retryDelay: 500,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
+function RouteLoading() {
+  return (
+    <div className="flex min-h-[60vh] items-center justify-center bg-background text-muted-foreground">
+      <div className="h-7 w-7 animate-spin rounded-full border-2 border-primary/25 border-t-primary" aria-label="Loading page" />
+    </div>
+  );
+}
 
 function Router() {
   return (
@@ -181,15 +199,17 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <AuthProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <AuthProvider>
             <ErrorBoundary>
-              <div className="user-app-shell w-full max-w-[1440px] mx-auto min-h-screen bg-background relative overflow-x-hidden shadow-2xl">
-                <Router />
-              </div>
+              <Suspense fallback={<RouteLoading />}>
+                <div className="user-app-shell w-full max-w-[1440px] mx-auto min-h-screen bg-background relative overflow-x-hidden shadow-2xl">
+                  <Router />
+                </div>
+              </Suspense>
             </ErrorBoundary>
+            </AuthProvider>
           </WouterRouter>
-        </AuthProvider>
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>

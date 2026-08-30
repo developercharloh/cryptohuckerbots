@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, ReactNod
 import { useGetMe, setAuthTokenGetter, ApiError } from "@workspace/api-client-react";
 import type { User } from "@workspace/api-client-react";
 import { API_BASE } from "@/lib/api-base";
+import { useLocation } from "wouter";
 
 // Web sessions are carried by an HttpOnly cookie. Never expose the session
 // token to JavaScript or configure the shared client to add a bearer header.
@@ -17,7 +18,27 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+function needsSessionValidation(pathname: string) {
+  return ![
+    "/",
+    "/splash",
+    "/onboarding",
+    "/about",
+    "/legal/terms",
+    "/legal/privacy",
+    "/legal/risk",
+    "/contact",
+    "/login",
+    "/register",
+    "/forgot-password",
+    "/reset-password",
+    "/news",
+  ].includes(pathname);
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const [location] = useLocation();
+  const shouldValidateSession = needsSessionValidation(location);
   // This is only an in-memory authentication marker, not the session token.
   // The initial /auth/me request validates the HttpOnly cookie.
   const [token, setToken] = useState<string | null>("cookie-session");
@@ -32,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: meData, error: meError, isError } = useGetMe({
     query: {
-      enabled: !!token,
+      enabled: Boolean(token && shouldValidateSession),
       retry: (failureCount: number, error: unknown) => {
         // A missing/expired session is definitive. Network, server, and
         // transient proxy failures must not log a real user out.
@@ -43,7 +64,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
-    if (!token) return;
+    if (!token || !shouldValidateSession) {
+      setIsInitializing(false);
+      return;
+    }
 
     if (meData) {
       sessionWasValidated.current = true;
@@ -55,8 +79,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
         setToken(null);
       }
+    } else {
+      setIsInitializing(true);
     }
-  }, [meData, meError, isError, token, user]);
+  }, [meData, meError, isError, token, user, shouldValidateSession]);
 
   const setAuth = (newUser: User) => {
     setAuthTokenGetter(null);

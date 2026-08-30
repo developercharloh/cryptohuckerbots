@@ -194,6 +194,7 @@ export default function Login() {
                     <Input
                       placeholder="••••••••"
                       type={showPassword ? "text" : "password"}
+                      autoComplete="current-password"
                        style={{ paddingLeft: 40, paddingRight: 44, height: 50, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(245,185,66,0.2)", borderRadius: 12, color: "#F1F5F9", fontSize: 14 }}
                       {...field}
                     />
