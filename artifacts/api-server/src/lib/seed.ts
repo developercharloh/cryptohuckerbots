@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { db, botsTable, usersTable, faqTable, notificationSettingsTable, kycTable, sessionsTable, userBotsTable, positionsTable, transactionsTable, earningsTable, notificationsTable, depositSessionsTable, supportTicketsTable, userProfilesTable } from "@workspace/db";
+import { db, botsTable, usersTable, faqTable, notificationSettingsTable, kycTable, sessionsTable, userBotsTable, positionsTable, transactionsTable, earningsTable, notificationsTable, depositSessionsTable, supportTicketsTable, userProfilesTable, vipPackagePurchasesTable, vipInvestmentCapitalTable } from "@workspace/db";
 import { eq, sql, notInArray, inArray, or, like } from "drizzle-orm";
 import { logger } from "./logger";
 
@@ -132,11 +132,17 @@ const BOT_CATALOG: SeedBot[] = [
 ];
 
 // Delete users whose emails use obviously fake domains (test/migration artifacts).
-// Runs once on startup; idempotent — safe to leave in place.
+// This is intentionally opt-in. Startup code must never infer that a real
+// account is disposable from its email address.
 const FAKE_EMAIL_PATTERNS = ["%@ex.com", "%@example.com"];
 const DEMO_EMAILS_TO_PURGE = ["demo@vixus.ai"];
 
 export async function purgeTestUsers(): Promise<void> {
+  if (process.env.PURGE_TEST_USERS !== "true") {
+    logger.info("purgeTestUsers: skipped (set PURGE_TEST_USERS=true for an explicit cleanup)");
+    return;
+  }
+
   const fakeUsers = await db
     .select({ id: usersTable.id, email: usersTable.email })
     .from(usersTable)
@@ -161,6 +167,8 @@ export async function purgeTestUsers(): Promise<void> {
   await db.delete(notificationsTable).where(inArray(notificationsTable.userId, ids));
   await db.delete(notificationSettingsTable).where(inArray(notificationSettingsTable.userId, ids));
   await db.delete(userBotsTable).where(inArray(userBotsTable.userId, ids));
+  await db.delete(vipPackagePurchasesTable).where(inArray(vipPackagePurchasesTable.userId, ids));
+  await db.delete(vipInvestmentCapitalTable).where(inArray(vipInvestmentCapitalTable.userId, ids));
   await db.delete(transactionsTable).where(inArray(transactionsTable.userId, ids));
   await db.delete(sessionsTable).where(inArray(sessionsTable.userId, ids));
   await db.delete(kycTable).where(inArray(kycTable.userId, ids));
