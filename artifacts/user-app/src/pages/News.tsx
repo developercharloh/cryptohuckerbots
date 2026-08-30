@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, Newspaper, RefreshCw, Search, TrendingUp } from "lucide-react";
 import { Layout } from "@/components/Layout";
-import { API_BASE } from "@/lib/api-base";
+import { API_BASE, fetchWithTimeout } from "@/lib/api-base";
 
 type NewsCategory = "markets" | "forex" | "stocks" | "commodities" | "crypto";
 type NewsArticle = {
@@ -40,7 +40,7 @@ export default function News() {
   const { data, isLoading, isError, refetch, isFetching } = useQuery<NewsResponse>({
     queryKey: ["/api/news"],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE}/api/news`, { credentials: "include" });
+      const response = await fetchWithTimeout(`${API_BASE}/api/news`, { credentials: "include" });
       if (!response.ok) throw new Error("Unable to load live market news");
       return response.json() as Promise<NewsResponse>;
     },

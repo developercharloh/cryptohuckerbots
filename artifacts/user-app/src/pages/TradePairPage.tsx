@@ -3,6 +3,7 @@ import { useParams, useLocation } from "wouter";
 import { createChart, CandlestickSeries, UTCTimestamp, ISeriesApi } from "lightweight-charts";
 import { Layout } from "@/components/Layout";
 import { useGetTradeAccess } from "@workspace/api-client-react";
+import { fetchWithTimeout } from "@/lib/api-base";
 import { ArrowLeft, TrendingUp, TrendingDown, Activity, ChevronDown, ArrowRight, Zap, ShieldCheck } from "lucide-react";
 
 const PURPLE = "#F5B942";
@@ -86,7 +87,7 @@ function generateCandles(symbol: string, basePrice: number, count = 100): Candle
 async function fetchBinanceCandles(binanceSymbol: string, interval: string): Promise<Candle[]> {
   const limit = interval === "1d" ? 90 : 100;
   const url = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${interval}&limit=${limit}`;
-  const res = await fetch(url);
+  const res = await fetchWithTimeout(url);
   const data = await res.json() as [number, string, string, string, string, ...unknown[]][];
   return data.map(k => ({
     time: Math.floor(k[0] / 1000),

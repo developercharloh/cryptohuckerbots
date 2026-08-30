@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useLocation } from "wouter";
-import { API_BASE } from "@/lib/api-base";
+import { API_BASE, fetchWithTimeout } from "@/lib/api-base";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -168,8 +168,8 @@ function useLivePrices() {
   useEffect(() => {
     const fetch_ = async () => {
       let rates: Record<string, number> | null = null;
-      try { const r = await fetch("https://open.er-api.com/v6/latest/USD"); const d = await r.json(); if (d.result === "success") rates = d.rates; } catch {}
-      if (!rates) { try { const r = await fetch("https://api.frankfurter.app/latest?from=USD&to=EUR,GBP,JPY"); const d = await r.json(); rates = d.rates; } catch {} }
+      try { const r = await fetchWithTimeout("https://open.er-api.com/v6/latest/USD"); const d = await r.json(); if (d.result === "success") rates = d.rates; } catch {}
+      if (!rates) { try { const r = await fetchWithTimeout("https://api.frankfurter.app/latest?from=USD&to=EUR,GBP,JPY"); const d = await r.json(); rates = d.rates; } catch {} }
       if (!rates) return;
       setPairs(prev => prev.map(p => {
         let n: number | null = null;
@@ -450,7 +450,7 @@ export default function Landing() {
   const { data: landingNews, isLoading: landingNewsLoading, isError: landingNewsError, refetch: refetchLandingNews, isFetching: landingNewsFetching } = useQuery<LandingNewsResponse>({
     queryKey: ["/api/news", "landing"],
     queryFn: async () => {
-      const response = await fetch(`${LANDING_API_BASE}/api/news`);
+      const response = await fetchWithTimeout(`${LANDING_API_BASE}/api/news`);
       if (!response.ok) throw new Error("Live market news unavailable");
       return response.json() as Promise<LandingNewsResponse>;
     },
@@ -479,7 +479,12 @@ export default function Landing() {
       {/* ── GOOGLE FONTS ──────────────────────────────────────── */}
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-      <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter+Tight:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+      <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter+Tight:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet"
+        media="print"
+        onLoad={(event) => { event.currentTarget.media = "all"; }}
+      />
 
       {/* ── NAVBAR ─────────────────────────────────────────────── */}
       <header style={{
@@ -631,6 +636,7 @@ export default function Landing() {
           {/* img2 — laptop with trading charts — 2 cols wide */}
           <div style={{ gridColumn: "span 2", borderRadius: 16, overflow: "hidden", height: 288, position: "relative" }} className="photo-large">
             <img src={`${ASSET_BASE}images/img2.png`} alt="Laptop trading dashboard with candlestick charts"
+              loading="lazy" decoding="async"
               style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.7s" }}
               onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.05)")}
               onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")} />
@@ -645,6 +651,7 @@ export default function Landing() {
           {/* img3 — hand holding phone with mobile trading app — 1 col */}
           <div style={{ borderRadius: 16, overflow: "hidden", height: 288, position: "relative" }}>
             <img src={`${ASSET_BASE}images/img3.png`} alt="Mobile trading app with candlestick charts"
+              loading="lazy" decoding="async"
               style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.7s" }}
               onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.05)")}
               onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")} />
@@ -662,6 +669,7 @@ export default function Landing() {
           {/* img4 — woman smiling at desk with trading laptop — 1 col */}
           <div style={{ borderRadius: 16, overflow: "hidden", height: 288, position: "relative" }}>
             <img src={`${ASSET_BASE}images/img4.png`} alt="Trader using Vixus AI platform"
+              loading="lazy" decoding="async"
               style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.7s" }}
               onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.05)")}
               onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")} />
@@ -676,6 +684,7 @@ export default function Landing() {
           {/* img5 — institutional trading floor with multiple monitors — 2 cols wide */}
           <div style={{ gridColumn: "span 2", borderRadius: 16, overflow: "hidden", height: 288, position: "relative" }} className="photo-large">
             <img src={`${ASSET_BASE}images/img5.png`} alt="Institutional trading floor"
+              loading="lazy" decoding="async"
               style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.7s" }}
               onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.05)")}
               onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")} />
@@ -863,6 +872,7 @@ export default function Landing() {
           {/* Left: security card — img1 as photo background */}
           <div style={{ borderRadius: 24, overflow: "hidden", height: 320, position: "relative", padding: 28, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
             <img src={`${ASSET_BASE}images/img1.png`} alt="Institutional trading infrastructure"
+              loading="lazy" decoding="async"
               style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
             <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, rgba(245,185,66,0.92) 0%, rgba(17,17,17,0.9) 52%, rgba(59,130,246,0.82) 100%)" }} />
             <div style={{ position: "absolute", top: 0, right: 0, width: 200, height: 200, background: "rgba(255,255,255,0.05)", borderRadius: "50%", transform: "translate(30%, -30%)", pointerEvents: "none" }} />

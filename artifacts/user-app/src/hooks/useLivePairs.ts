@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { fetchWithTimeout } from "@/lib/api-base";
 
 export type LivePair = {
   symbol: string;
@@ -117,13 +118,13 @@ export function useLivePairs() {
     const fetch_ = async () => {
       let rates: Record<string, number> | null = null;
       try {
-        const r = await fetch("https://open.er-api.com/v6/latest/USD");
+        const r = await fetchWithTimeout("https://open.er-api.com/v6/latest/USD");
         const d = await r.json();
         if (d.result === "success") rates = d.rates;
       } catch {}
       if (!rates) {
         try {
-          const r = await fetch("https://api.frankfurter.app/latest?from=USD&to=EUR,GBP,JPY,CHF,AUD,NZD,CAD");
+          const r = await fetchWithTimeout("https://api.frankfurter.app/latest?from=USD&to=EUR,GBP,JPY,CHF,AUD,NZD,CAD");
           const d = await r.json();
           rates = d.rates;
         } catch {}
