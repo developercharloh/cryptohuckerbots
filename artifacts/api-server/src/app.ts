@@ -53,6 +53,7 @@ const DEFAULT_ALLOWED_ORIGINS = [
   "https://www.vixus.trade",
   "https://vixus-user-app.vercel.app",
   "https://vixus-ai-admin.vercel.app",
+  "https://cryptohuckerbots-admin-app-gamma.vercel.app",
 ];
 const configuredOrigins = (process.env.ALLOWED_ORIGINS ?? "")
   .split(",")
