@@ -1,4 +1,4 @@
-const CACHE_NAME = "vixus-ai-shell-v2";
+const CACHE_NAME = "vixus-ai-shell-v3";
 
 self.addEventListener("install", () => {
   self.skipWaiting();

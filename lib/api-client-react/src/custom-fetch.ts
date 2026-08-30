@@ -10,7 +10,7 @@ export type AuthTokenGetter = () => Promise<string | null> | string | null;
 
 const NO_BODY_STATUS = new Set([204, 205, 304]);
 const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
-const DEFAULT_REQUEST_TIMEOUT_MS = 20_000;
+const DEFAULT_REQUEST_TIMEOUT_MS = 60_000;
 
 // ---------------------------------------------------------------------------
 // Module-level configuration
@@ -385,6 +385,18 @@ export async function customFetch<T = unknown>(
       credentials: init.credentials ?? "include",
       signal: init.signal ?? timeoutController?.signal,
     });
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "name" in error &&
+      (error as { name?: unknown }).name === "AbortError"
+    ) {
+      throw new Error(
+        "The connection timed out before the server responded. Please check your connection and try again.",
+      );
+    }
+    throw error;
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
   }

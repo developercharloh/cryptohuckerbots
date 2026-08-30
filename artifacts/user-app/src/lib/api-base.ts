@@ -5,6 +5,15 @@ export const API_BASE =
 
 const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
 
+function isAbortError(error: unknown): boolean {
+  return Boolean(
+    error &&
+      typeof error === "object" &&
+      "name" in error &&
+      (error as { name?: unknown }).name === "AbortError",
+  );
+}
+
 export async function fetchWithTimeout(
   input: RequestInfo | URL,
   init: RequestInit = {},
@@ -19,6 +28,11 @@ export async function fetchWithTimeout(
 
   try {
     return await fetch(input, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (isAbortError(error)) {
+      throw new Error("The connection timed out before the server responded. Please try again.");
+    }
+    throw error;
   } finally {
     clearTimeout(timeoutId);
   }
