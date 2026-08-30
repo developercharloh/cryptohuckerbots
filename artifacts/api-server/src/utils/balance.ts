@@ -11,14 +11,6 @@ const DEBIT_TYPES = [
   "vip_package_purchase",
 ] as const;
 
-const PENDING_HOLD_TYPES = [
-  "withdrawal",
-  "reserved_stake",
-  "trade_fee",
-  "bot_purchase",
-  "vip_package_purchase",
-] as const;
-
 type WalletTransaction = {
   type: string;
   amount: string | number;
@@ -56,10 +48,6 @@ export async function getWalletSnapshot(userId: number): Promise<WalletSnapshot>
           then ${transactionsTable.amount}
         when ${transactionsTable.status} = 'completed'
           and ${transactionsTable.type} in ('withdrawal', 'trade_loss', 'reserved_stake', 'trade_fee', 'bot_purchase', 'vip_package_purchase')
-          then -${transactionsTable.amount}
-        -- Pending withdrawals lock funds before an admin review.
-        when ${transactionsTable.status} = 'pending'
-          and ${transactionsTable.type} in ('withdrawal', 'reserved_stake', 'trade_fee', 'bot_purchase', 'vip_package_purchase')
           then -${transactionsTable.amount}
         else 0 end), 0)`,
       pendingOutflow: sql<string>`coalesce(sum(case

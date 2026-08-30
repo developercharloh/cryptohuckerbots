@@ -22,6 +22,7 @@ import {
 } from "@workspace/db";
 import { eq, and, desc, sql, inArray, ilike, or, gte } from "drizzle-orm";
 import crypto from "crypto";
+import { getWalletSnapshot } from "../utils/balance.js";
 import {
   AdminSetUserStatusBody,
   AdminAdjustBalanceBody,
@@ -353,7 +354,6 @@ router.get("/admin/users", async (req, res) => {
     db.select({
       userId: userBotsTable.userId,
       totalBots: sql<number>`count(*)::int`,
-      totalProfit: sql<string>`coalesce(sum(${userBotsTable.profitTotal}), 0)`,
     }).from(userBotsTable).where(inArray(userBotsTable.userId, userIds)).groupBy(userBotsTable.userId),
     db.select({
       userId: transactionsTable.userId,
@@ -362,7 +362,10 @@ router.get("/admin/users", async (req, res) => {
           and ${transactionsTable.type} in ('deposit', 'trade_profit', 'trade_loss_return')
           then ${transactionsTable.amount}
         when ${transactionsTable.status} = 'completed'
-          and ${transactionsTable.type} in ('withdrawal', 'trade_loss', 'bot_purchase', 'vip_package_purchase')
+          and ${transactionsTable.type} in ('withdrawal', 'trade_loss', 'reserved_stake', 'trade_fee', 'bot_purchase', 'vip_package_purchase')
+          then -${transactionsTable.amount}
+        when ${transactionsTable.status} = 'pending'
+          and ${transactionsTable.type} in ('withdrawal', 'reserved_stake', 'trade_fee', 'bot_purchase', 'vip_package_purchase')
           then -${transactionsTable.amount}
         else 0 end), 0)`,
     }).from(transactionsTable).where(inArray(transactionsTable.userId, userIds)).groupBy(transactionsTable.userId),
@@ -376,7 +379,6 @@ router.get("/admin/users", async (req, res) => {
   const result = users.map((u) => {
     const botRow = botMap.get(u.id);
     const balance = txnMap.get(u.id) ?? 0;
-    const totalProfit = Number(botRow?.totalProfit ?? 0);
     return {
       id: u.id,
       accountUid: u.accountUid,
@@ -384,7 +386,7 @@ router.get("/admin/users", async (req, res) => {
       email: u.email,
       status: u.status,
       kycStatus: u.kycStatus,
-      balance: Math.max(0, Math.round((balance + totalProfit) * 100) / 100),
+      balance: Math.max(0, Math.round(balance * 100) / 100),
       totalBots: Number(botRow?.totalBots ?? 0),
       avatarUrl: u.avatarUrl,
       country: profileMap.get(u.id)?.country ?? null,
@@ -413,18 +415,13 @@ router.get("/admin/users/:id", async (req, res) => {
     .from(transactionsTable)
     .where(eq(transactionsTable.userId, id))
     .orderBy(desc(transactionsTable.createdAt));
-  let balance = 0;
-  let totalDeposits = 0;
   let totalWithdrawals = 0;
   for (const t of txns) {
     if (t.status !== "completed") continue;
     const amt = parseFloat(t.amount);
-    balance += txnDelta(t.type, amt);
-    if (t.type === "deposit") totalDeposits += amt;
     if (t.type === "withdrawal") totalWithdrawals += amt;
   }
-  const profitTotal = userBots.reduce((s, b) => s + parseFloat(b.ub.profitTotal), 0);
-  balance += profitTotal;
+  const wallet = await getWalletSnapshot(id);
 
   return res.json({
     id: user.id,
@@ -434,12 +431,12 @@ router.get("/admin/users/:id", async (req, res) => {
     status: user.status,
     kycStatus: user.kycStatus,
     isAdmin: user.isAdmin,
-    balance: Math.max(0, Math.round(balance * 100) / 100),
+    balance: wallet.availableBalance,
     totalBots: userBots.length,
     avatarUrl: user.avatarUrl,
     phone: profile?.phone ?? null,
     country: profile?.country ?? null,
-    totalDeposits: Math.round(totalDeposits * 100) / 100,
+    totalDeposits: wallet.totalDeposited,
     totalWithdrawals: Math.round(totalWithdrawals * 100) / 100,
     createdAt: user.createdAt.toISOString(),
     bots: userBots.map((b) => ({
