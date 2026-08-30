@@ -27,7 +27,13 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { data: access } = useGetTradeAccess({ query: { refetchInterval: 15000 } as any });
+  const {
+    data: access,
+    isLoading: accessLoading,
+    isError: accessError,
+    error: accessQueryError,
+    refetch: refetchAccess,
+  } = useGetTradeAccess({ query: { refetchInterval: 15000 } as any });
   const { data: summary } = useGetDashboardSummary({ query: { refetchInterval: 10000 } as any });
   const purchaseMutation = usePurchaseVipPackage();
   const [selectedLevel, setSelectedLevel] = useState<number | null>(null);
@@ -39,6 +45,7 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
   const activeLevel = access?.vipLevel ?? 0;
   const availableBalance = summary?.availableBalance ?? 0;
   const canPurchase = Boolean(access && selected) && selected!.level > activeLevel && availableBalance >= selected!.price;
+  const accessUnauthorized = (accessQueryError as { status?: number } | undefined)?.status === 401;
 
   const handlePurchase = () => {
     if (!access || !selected || selected.level <= activeLevel) return;
@@ -65,6 +72,18 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
     );
   };
 
+  const handleActivationAction = () => {
+    if (accessError) {
+      if (accessUnauthorized) {
+        setLocation("/login");
+      } else {
+        refetchAccess();
+      }
+      return;
+    }
+    handlePurchase();
+  };
+
   return (
     <Layout showNav>
       <div className="min-h-screen bg-[#07091A] pb-28 text-white">
@@ -84,9 +103,9 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
                 <p className="mb-1 flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-amber-300">
                   <Crown className="h-4 w-4" /> VIP Signal Access
                 </p>
-                <h1 className="text-2xl font-black tracking-tight">Buy a VIP Package</h1>
+                <h1 className="text-2xl font-black tracking-tight">Activate VIP Access</h1>
                 <p className="mt-2 max-w-xl text-xs leading-5 text-gray-400">
-                  Select one package and pay once from your available wallet balance. Your highest purchased tier stays active permanently and unlocks its daily signal allowance.
+                  Select one package and activate it once from your main wallet. Your highest activated tier stays active permanently and unlocks its daily signal allowance.
                 </p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-2 text-right">
@@ -153,14 +172,18 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
                   </p>
                 </div>
                 <button
-                  onClick={handlePurchase}
-                  disabled={!canPurchase || purchaseMutation.isPending}
+                   onClick={handleActivationAction}
+                   disabled={purchaseMutation.isPending || accessLoading || (!canPurchase && !accessError)}
                   className="rounded-xl bg-gradient-to-r from-amber-400 to-blue-600 px-4 py-3 text-xs font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-40"
                 >
                 {purchaseMutation.isPending
-                  ? "Buying..."
-                  : !access
-                    ? "Loading..."
+                   ? "Activating..."
+                   : accessLoading
+                     ? "Loading access..."
+                     : accessError
+                       ? accessUnauthorized ? "Sign in again" : "Retry access"
+                     : !access
+                       ? "Sign in required"
                     : selected.level === activeLevel
                       ? "Already active"
                       : selected.level < activeLevel
