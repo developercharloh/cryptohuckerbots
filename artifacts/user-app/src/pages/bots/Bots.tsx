@@ -3,6 +3,7 @@ import {
   useListBots,
   useListMarketplaceBots,
   usePurchaseBot,
+  useGetTradeAccess,
   Bot,
   MarketplaceBot,
 } from "@workspace/api-client-react";
@@ -21,6 +22,16 @@ const BOT_GRADIENTS = [
   "from-green-500 to-emerald-600",
   "from-pink-500 to-rose-600",
 ];
+
+const VIP_LEVELS = [
+  { level: 1, dailySignals: 3 },
+  { level: 2, dailySignals: 4 },
+  { level: 3, dailySignals: 5 },
+  { level: 4, dailySignals: 6 },
+  { level: 5, dailySignals: 7 },
+  { level: 6, dailySignals: 8 },
+  { level: 7, dailySignals: 9 },
+] as const;
 
 function RiskBadge({ level }: { level: string }) {
   if (level === "Low")
@@ -47,6 +58,7 @@ export default function Bots() {
   const [activeTab, setActiveTab] = useState<"my-bots" | "marketplace">("my-bots");
   const { data: myBots = [], isLoading: loadingMyBots } = useListBots();
   const { data: marketplaceBots = [], isLoading: loadingMarketplace } = useListMarketplaceBots();
+  const { data: vipAccess } = useGetTradeAccess({ query: { refetchInterval: 15000 } as any });
   const purchaseMutation = usePurchaseBot();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -97,6 +109,60 @@ export default function Bots() {
               {tab === "my-bots" ? "My Signals" : "Marketplace"}
             </button>
           ))}
+        </div>
+
+        <div
+          className="mx-4 mb-4 rounded-2xl p-4 border border-amber-400/20"
+          style={{ background: "linear-gradient(135deg, rgba(245,185,66,0.12), rgba(37,99,235,0.08))" }}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.12em] font-extrabold text-amber-300">VIP Signal Access</p>
+              <p className="text-lg font-black text-white mt-1">
+                {vipAccess ? (vipAccess.vipLevel > 0 ? `VIP ${vipAccess.vipLevel}` : "Signals locked") : "Checking access…"}
+              </p>
+            </div>
+            <div className="text-right">
+              {vipAccess && (
+                <>
+                  <p className="text-sm font-extrabold text-white">{vipAccess.remainingToday} of {vipAccess.dailyLimit} left</p>
+                  <p className="text-[10px] text-slate-400 mt-1">today</p>
+                </>
+              )}
+            </div>
+          </div>
+
+          {vipAccess?.vipLevel === 0 && (
+            <p className="text-[11px] leading-relaxed text-amber-200 mt-3">
+              AI Signals are blocked until you purchase VIP 1 or higher with your available wallet balance.
+            </p>
+          )}
+
+          <div className="flex flex-wrap gap-1.5 mt-3">
+            {VIP_LEVELS.map((tier) => (
+              <button
+                key={tier.level}
+                onClick={() => setLocation("/vip-packages")}
+                className="flex-1 min-w-[52px] rounded-lg py-1.5 px-1 border text-center"
+                style={{
+                  borderColor: vipAccess?.vipLevel === tier.level ? "rgba(245,185,66,0.7)" : "rgba(255,255,255,0.1)",
+                  background: vipAccess?.vipLevel === tier.level ? "rgba(245,185,66,0.16)" : "rgba(255,255,255,0.035)",
+                  color: vipAccess?.vipLevel === tier.level ? "#FFD86B" : "#CBD5E1",
+                }}
+              >
+                <span className="block text-[10px] font-black">VIP {tier.level}</span>
+                <span className="block text-[9px] text-slate-400 mt-0.5">{tier.dailySignals}/day</span>
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={() => setLocation("/vip-packages")}
+            className="w-full mt-3 rounded-xl py-2.5 text-xs font-extrabold text-white"
+            style={{ background: "linear-gradient(135deg, #F5B942 0%, #2563EB 100%)" }}
+          >
+            {vipAccess?.vipLevel === 0 ? "Buy VIP Package" : "View VIP Packages"}
+          </button>
         </div>
 
         <div className="user-bots-grid px-4 space-y-3">
