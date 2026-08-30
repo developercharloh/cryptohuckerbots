@@ -47,7 +47,7 @@ export default function Profile() {
   const kycColors  = getKycColor(profile?.kycStatus ?? "unverified");
 
   const QUICK_TILES = [
-    { label: "AI Signals",  icon: Bot,      href: "/bots",                iconBg: "linear-gradient(135deg,#F5B942,#D99B18)", color: "#111827" },
+    { label: "VIP Levels",  icon: Bot,      href: "/bots",                iconBg: "linear-gradient(135deg,#F5B942,#D99B18)", color: "#111827" },
     { label: "History",     icon: History,  href: "/cashier/transactions",iconBg: "linear-gradient(135deg,#3B82F6,#06B6D4)", color: "#fff" },
     { label: "Live Chat",   icon: MessageSquare, href: "/support/chat",   iconBg: "linear-gradient(135deg,#10B981,#22C55E)", color: "#fff" },
     { label: "News",        icon: Bell,     href: "/news",                iconBg: "linear-gradient(135deg,#2563EB,#38BDF8)", color: "#fff" },

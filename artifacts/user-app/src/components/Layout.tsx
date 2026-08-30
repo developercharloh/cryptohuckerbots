@@ -10,7 +10,7 @@ const DESKTOP_NAV = [
   { href: "/news", label: "News" },
   { href: "/trade", label: "Trade" },
   { href: "/orders", label: "Orders" },
-  { href: "/bots", label: "AI Signals" },
+  { href: "/bots", label: "VIP Levels" },
   { href: "/cashier", label: "Wallet" },
 ];
 

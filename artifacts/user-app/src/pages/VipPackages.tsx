@@ -155,11 +155,11 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="mb-1 flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-amber-300">
-                  <Crown className="h-4 w-4" /> VIP Signal Access
+                  <Crown className="h-4 w-4" /> VIP Levels
                 </p>
-                <h1 className="text-2xl font-black tracking-tight">Activate VIP Access</h1>
-                <p className="mt-2 max-w-xl text-xs leading-5 text-gray-400">
-                  Select one package and activate it once from your main wallet. Your highest activated tier stays active permanently and unlocks its daily signal allowance.
+                <h1 className="text-2xl font-black tracking-tight">Choose Your VIP Level</h1>
+                  <p className="mt-2 max-w-xl text-xs leading-5 text-gray-400">
+                   Select a VIP level and activate it once from your Main Wallet. Your highest activated tier stays active permanently and unlocks its daily signal allowance.
                 </p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-2 text-right">
