@@ -14,3 +14,9 @@ For file-only static deployments to a monorepo-linked Vercel project, the projec
 **Why:** Vercel may ignore a `rootDirectory: null` value supplied only in the deployment payload and leave the direct upload queued or fail it with `NOW_SANDBOX_WORKER_ROOTDIR_NOT_EXIST`.
 
 **How to apply:** Preserve the original project settings, patch the project to static/no-build settings for the create request, submit the prebuilt files (inline data for smaller files and previously uploaded hashes for large assets), and restore the saved settings in a `finally` path.
+
+When supplying legacy `routes` for an SPA file deployment, put `{ "handle": "filesystem" }` before the catch-all route so hashed JS, CSS, and images are served as files; otherwise the catch-all can return `index.html` for asset requests.
+
+**Why:** A catch-all route alone can make deep links return 200 while silently replacing the JavaScript response with HTML, leaving the app unusable.
+
+**How to apply:** Use filesystem handling first, then `{ "src": "/(.*)", "dest": "/index.html" }` for the SPA fallback, and verify both a deep link and the referenced hashed asset after promotion.
