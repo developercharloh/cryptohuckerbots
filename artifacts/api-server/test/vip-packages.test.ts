@@ -201,6 +201,11 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
   assert.equal(upgrade.body.lockedInvestmentCapital, 1000);
   assert.equal(upgrade.body.mainWalletBalance, 49000);
 
+  const upgradedAccess = await request<{ vipLevel: number; dailyLimit: number; remainingToday: number }>("/api/trade/access");
+  assert.equal(upgradedAccess.body.vipLevel, 2);
+  assert.equal(upgradedAccess.body.dailyLimit, 4);
+  assert.equal(upgradedAccess.body.remainingToday, 4);
+
   const concurrent = await Promise.all([
     request("/api/trade/vip-packages/5/purchase", { method: "POST" }),
     request("/api/trade/vip-packages/5/purchase", { method: "POST" }),
