@@ -71,7 +71,7 @@ export default function Dashboard() {
   const needsLedgerReconciliation = Boolean(
     summary && (summary.mainWalletBalance === 0 || summary.totalProfit > 0),
   );
-  const { data: ledgerTransactions = [] } = useListTransactions({
+  const { data: ledgerTransactions = [] } = useListTransactions(undefined, {
     query: { enabled: needsLedgerReconciliation, staleTime: 30000 } as any,
   });
   const { data: recentActivity = [] } = useGetRecentActivity();
