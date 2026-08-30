@@ -1723,7 +1723,13 @@ components:
           nullable: true
         signalAmount:
           type: number
-      required: [vipLevel, minimumDeposit, totalDeposited, hasPackage, packagePrice, vaultCapital, lockedInvestmentCapital, canExecute, dailyLimit, usedToday, remainingToday, timezone, nextLevel, nextLevelDeposit, nextLevelAmountDue, nextSignalAt, signalAmount]
+        cooldownUntil:
+          type: string
+          format: date-time
+          nullable: true
+        cooldownActive:
+          type: boolean
+      required: [vipLevel, minimumDeposit, totalDeposited, hasPackage, packagePrice, vaultCapital, lockedInvestmentCapital, canExecute, dailyLimit, usedToday, remainingToday, timezone, nextLevel, nextLevelDeposit, nextLevelAmountDue, nextSignalAt, signalAmount, cooldownUntil, cooldownActive]
 
     VipPackage:
       type: object

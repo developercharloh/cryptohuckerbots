@@ -8,6 +8,7 @@ import { calculateVaultCapital, calculateWalletBalance, getAvailableBalance, get
 const router = Router();
 const SIGNAL_EXECUTION_AMOUNT = 2.5;
 const SIGNAL_REWARD_AMOUNT = 2.5;
+const SIGNAL_COOLDOWN_MS = 24 * 60 * 60_000;
 const MANUAL_SIGNAL_PREFIX = "manual-signal";
 const DEFAULT_SIGNAL_TIMES = ["07:00", "09:00", "11:00", "13:00", "15:00", "17:00", "19:00", "21:00", "23:00"];
 const LEGACY_DEFAULT_SIGNAL_TIMES = ["19:00", "21:00", "23:00"];
@@ -99,6 +100,7 @@ type VipAccess = {
   timezone: string;
   dayStart: Date;
   nextDayStart: Date;
+  cooldownUntil: Date | null;
 };
 
 function getVipAmountDue(activeLevel: number, targetPrice: number): number {
@@ -124,12 +126,37 @@ async function getVipAccess(userId: number, config: ReturnType<typeof getSignalS
   const todayKey = localDateKey(new Date(), config.timezone);
   const dayStart = zonedTimeToUtc(todayKey, "00:00", config.timezone);
   const nextDayStart = zonedTimeToUtc(addLocalDays(todayKey, 1), "00:00", config.timezone);
-  const claims = await db.select({ id: signalClaimsTable.id }).from(signalClaimsTable).where(and(
-    eq(signalClaimsTable.userId, userId),
-    gte(signalClaimsTable.createdAt, dayStart),
-    lt(signalClaimsTable.createdAt, nextDayStart),
-  ));
+  const [claims, [latestClaim]] = await Promise.all([
+    db.select({ id: signalClaimsTable.id }).from(signalClaimsTable).where(and(
+      eq(signalClaimsTable.userId, userId),
+      gte(signalClaimsTable.createdAt, dayStart),
+      lt(signalClaimsTable.createdAt, nextDayStart),
+    )),
+    db.select({ createdAt: signalClaimsTable.createdAt })
+      .from(signalClaimsTable)
+      .where(eq(signalClaimsTable.userId, userId))
+      .orderBy(desc(signalClaimsTable.createdAt))
+      .limit(1),
+  ]);
   const dailyLimit = tier?.dailySignals ?? 0;
+  let cooldownUntil: Date | null = null;
+  if (tier && latestClaim) {
+    const latestClaimDayKey = localDateKey(latestClaim.createdAt, config.timezone);
+    const latestClaimDayStart = zonedTimeToUtc(latestClaimDayKey, "00:00", config.timezone);
+    const latestClaimNextDayStart = zonedTimeToUtc(addLocalDays(latestClaimDayKey, 1), "00:00", config.timezone);
+    const latestDayClaims = await db.select({ id: signalClaimsTable.id })
+      .from(signalClaimsTable)
+      .where(and(
+        eq(signalClaimsTable.userId, userId),
+        gte(signalClaimsTable.createdAt, latestClaimDayStart),
+        lt(signalClaimsTable.createdAt, latestClaimNextDayStart),
+      ));
+    const candidateCooldownUntil = new Date(latestClaim.createdAt.getTime() + SIGNAL_COOLDOWN_MS);
+    if (latestDayClaims.length >= dailyLimit && candidateCooldownUntil.getTime() > Date.now()) {
+      cooldownUntil = candidateCooldownUntil;
+    }
+  }
+  const cooldownActive = cooldownUntil !== null;
   const nextTier = VIP_TIERS.find((candidate) => candidate.level === (tier?.level ?? 0) + 1);
   return {
     level: tier?.level ?? 0,
@@ -140,7 +167,7 @@ async function getVipAccess(userId: number, config: ReturnType<typeof getSignalS
     vaultCapital: capital.vaultCapital,
     dailyLimit,
     usedToday: claims.length,
-    remainingToday: Math.max(0, dailyLimit - claims.length),
+    remainingToday: cooldownActive ? 0 : Math.max(0, dailyLimit - claims.length),
     signalAmount: SIGNAL_EXECUTION_AMOUNT,
     nextLevel: nextTier?.level ?? null,
     nextLevelDeposit: nextTier?.price ?? null,
@@ -148,6 +175,7 @@ async function getVipAccess(userId: number, config: ReturnType<typeof getSignalS
     timezone: config.timezone,
     dayStart,
     nextDayStart,
+    cooldownUntil,
   };
 }
 
@@ -156,6 +184,7 @@ function getVipEligibleOpportunities(
   access: VipAccess,
 ) {
   if (access.level === 0) return [];
+  if (access.cooldownUntil) return [];
   if (access.remainingToday <= 0) return [];
   return opportunities.filter((opportunity) => opportunity.status === "available");
 }
@@ -543,7 +572,7 @@ router.get("/trade/access", async (req, res) => {
     packagePrice: access.packagePrice,
     vaultCapital: access.vaultCapital,
     lockedInvestmentCapital: access.vaultCapital,
-    canExecute: access.level > 0,
+    canExecute: access.level > 0 && !access.cooldownUntil,
     dailyLimit: access.dailyLimit,
     usedToday: access.usedToday,
     remainingToday: access.remainingToday,
@@ -552,7 +581,9 @@ router.get("/trade/access", async (req, res) => {
     nextLevelDeposit: access.nextLevelDeposit,
     nextLevelAmountDue: access.nextLevelAmountDue,
     timezone: access.timezone,
-    nextSignalAt: null,
+    nextSignalAt: access.cooldownUntil?.toISOString() ?? null,
+    cooldownUntil: access.cooldownUntil?.toISOString() ?? null,
+    cooldownActive: access.cooldownUntil !== null,
   });
 });
 
@@ -706,6 +737,13 @@ router.post("/trade/execute", async (req, res) => {
       error: "Purchase a VIP package to access AI Signals.",
       minimumDeposit: VIP_TIERS[0].price,
       totalDeposited: access.totalDeposited,
+    });
+  }
+  if (access.cooldownUntil) {
+    return res.status(429).json({
+      code: "SIGNAL_COOLDOWN",
+      error: "Your daily signal allowance is complete. Please wait until the 24-hour cooldown ends.",
+      cooldownUntil: access.cooldownUntil.toISOString(),
     });
   }
   if (!config.enabled) return res.status(409).json({ code: "SIGNALS_DISABLED", error: "AI Signals are temporarily disabled by the administrator." });

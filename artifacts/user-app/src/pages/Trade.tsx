@@ -9,9 +9,9 @@ import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  TrendingUp, TrendingDown, Zap, Activity, Clock, Check,
+  TrendingUp, TrendingDown, Zap, Activity, Check,
   ArrowUpRight, ArrowDownRight, ChevronDown, CheckCircle2,
-  XCircle, BarChart2, Bell, ChevronLeft, ShieldCheck, WalletCards,
+  XCircle, BarChart2, Bell, ChevronLeft, ShieldCheck, WalletCards, Sparkles,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -43,9 +43,6 @@ const BOT_COLORS = [
   "from-green-500 to-emerald-600",
   "from-pink-500 to-rose-600",
 ];
-
-const RADIUS = 52;
-const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 // Pair display info
 const PAIR_INFO: Record<string, { base: string; price: string; change: number; icon: string }> = {
@@ -79,7 +76,6 @@ function generateChartData(pair: string, count = 60) {
   return data;
 }
 
-const TIMEFRAMES = ["1m", "5m", "15m", "1H", "4H", "1D"];
 const VIP_LEVELS = [
   { level: 1, dailySignals: 3 },
   { level: 2, dailySignals: 4 },
@@ -162,8 +158,6 @@ export default function Trade() {
   const [runtime]                         = useState(5);
   const [activePositionId, setActivePositionId] = useState<number | null>(null);
   const [executedSignal, setExecutedSignal]     = useState<SignalInfo | null>(null);
-  const [secondsLeft, setSecondsLeft]   = useState(0);
-  const [totalSecs, setTotalSecs]       = useState(0);
   const [msgIdx, setMsgIdx]             = useState(0);
   const [result, setResult]             = useState<TradePosition | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -171,7 +165,6 @@ export default function Trade() {
   // Chart state
   const [selectedPair, setSelectedPair] = useState("EUR/USD");
   const [requestedDirection] = useState(() => new URLSearchParams(window.location.search).get("direction")?.toUpperCase() ?? "");
-  const [activeTimeframe, setActiveTimeframe] = useState("5m");
   const [pairDropOpen, setPairDropOpen] = useState(false);
 
   const timerRef     = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -215,32 +208,25 @@ export default function Trade() {
     };
 
      if (pos.status === "open") {
-      const remaining = Math.max(0, Math.floor((saved.endTimeMs - Date.now()) / 1000));
       setActivePositionId(pos.id);
       setExecutedSignal(partialSignal);
-      setTotalSecs(saved.runtime * 60);
-      setSecondsLeft(remaining);
       prevStatusRef.current = "open";
       finishedRef.current = false;
       setStep("running");
 
       const startTimer = (posId: number) => {
         timerRef.current = setInterval(() => {
-          setSecondsLeft(s => {
-            if (s <= 1) {
-              clearInterval(timerRef.current!);
-              closeMutation.mutate({ id: posId }, {
-                onSuccess: (closed) => finishTrade(closed),
-                onError: () => queryClient.invalidateQueries({ queryKey: ["/api/trade/positions"] }),
-              });
-              return 0;
-            }
-            return s - 1;
-          });
+           if (Date.now() < saved.endTimeMs) return;
+           clearInterval(timerRef.current!);
+           timerRef.current = null;
+           closeMutation.mutate({ id: posId }, {
+             onSuccess: (closed) => finishTrade(closed),
+             onError: () => queryClient.invalidateQueries({ queryKey: ["/api/trade/positions"] }),
+           });
         }, 1000);
       };
 
-      if (remaining > 0) startTimer(pos.id);
+       if (Date.now() < saved.endTimeMs) startTimer(pos.id);
       else closeMutation.mutate({ id: pos.id }, {
         onSuccess: (closed) => finishTrade(closed),
         onError: () => queryClient.invalidateQueries({ queryKey: ["/api/trade/positions"] }),
@@ -307,6 +293,15 @@ export default function Trade() {
       setLocation("/vip-packages");
       return;
     }
+    if (cooldownActive || vipAccess?.remainingToday === 0) {
+      toast({
+        title: cooldownActive ? "24-hour cooldown active" : "Daily signal allowance reached",
+        description: cooldownActive
+          ? `No new signals can execute for ${formatCooldown(cooldownSeconds)}.`
+          : "Your signal allowance will be available again after the current signal window.",
+      });
+      return;
+    }
     if (!signal || !signal.opportunityId) {
       queryClient.invalidateQueries({ queryKey: ["/api/trade/signals"] });
       return;
@@ -337,27 +332,21 @@ export default function Trade() {
           setExecutedSignal(signal);
           prevStatusRef.current = "open";
           finishedRef.current = false;
-          setTotalSecs(secs);
-          setSecondsLeft(secs);
           setMsgIdx(0);
            setConsent(false);
            setConsentPrompt(false);
           setStep("running");
           queryClient.invalidateQueries({ queryKey: ["/api/trade/positions"] });
           queryClient.invalidateQueries({ queryKey: ["/api/dashboard/summary"] });
-          timerRef.current = setInterval(() => {
-            setSecondsLeft(s => {
-              if (s <= 1) {
-                clearInterval(timerRef.current!);
-                closeMutation.mutate({ id: pos.id }, {
-                  onSuccess: (closed) => finishTrade(closed),
-                  onError: () => queryClient.invalidateQueries({ queryKey: ["/api/trade/positions"] }),
-                });
-                return 0;
-              }
-              return s - 1;
-            });
-          }, 1000);
+           timerRef.current = setInterval(() => {
+             if (Date.now() < endTimeMs) return;
+             clearInterval(timerRef.current!);
+             timerRef.current = null;
+             closeMutation.mutate({ id: pos.id }, {
+               onSuccess: (closed) => finishTrade(closed),
+               onError: () => queryClient.invalidateQueries({ queryKey: ["/api/trade/positions"] }),
+             });
+           }, 1000);
         },
          onError: (err: any) => toast({
            title: "Signal could not be executed",
@@ -369,6 +358,7 @@ export default function Trade() {
   };
 
   const handleReset = () => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     localStorage.removeItem(STORAGE_KEY);
     setStep("configure"); setActivePositionId(null); setResult(null);
     setShowConfetti(false); setConsent(false); prevStatusRef.current = null; finishedRef.current = false;
@@ -393,10 +383,34 @@ export default function Trade() {
     setJournalClearedBefore(now);
   };
 
-  const timerProgress = totalSecs > 0 ? secondsLeft / totalSecs : 0;
-  const dashOffset    = CIRCUMFERENCE * (1 - timerProgress);
-  const mm = Math.floor(secondsLeft / 60).toString().padStart(2, "0");
-  const ss = (secondsLeft % 60).toString().padStart(2, "0");
+  const [cooldownNowMs, setCooldownNowMs] = useState(() => Date.now());
+  const cooldownUntilMs = vipAccess?.cooldownUntil
+    ? new Date(vipAccess.cooldownUntil).getTime()
+    : 0;
+  const cooldownSeconds = cooldownUntilMs > cooldownNowMs
+    ? Math.ceil((cooldownUntilMs - cooldownNowMs) / 1000)
+    : 0;
+  const cooldownActive = cooldownSeconds > 0;
+
+  useEffect(() => {
+    if (!vipAccess?.cooldownUntil) return;
+    setCooldownNowMs(Date.now());
+    const id = setInterval(() => setCooldownNowMs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [vipAccess?.cooldownUntil]);
+
+  useEffect(() => {
+    if (!vipAccess?.cooldownUntil || cooldownActive) return;
+    void queryClient.invalidateQueries({ queryKey: ["/api/trade/access"] });
+    void queryClient.invalidateQueries({ queryKey: ["/api/trade/signals"] });
+  }, [cooldownActive, vipAccess?.cooldownUntil, queryClient]);
+
+  const formatCooldown = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainingSeconds = seconds % 60;
+    return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`;
+  };
 
   const history = (positions || [])
     .filter(p => p.status !== "open")
@@ -414,8 +428,10 @@ export default function Trade() {
     ? "Executing signal…"
     : vipAccess?.vipLevel === 0
       ? "Unlock AI Signals"
+      : cooldownActive
+        ? "24-hour cooldown active"
       : vipAccess?.remainingToday === 0
-        ? "Daily limit reached"
+        ? "Daily allowance complete"
         : !bestSignal
           ? "Refresh AI Signals"
         : signalAmount > vaultCapital
@@ -566,24 +582,6 @@ export default function Trade() {
           </ResponsiveContainer>
         </div>
 
-        {/* ── Timeframe selector ── */}
-        <div className="user-trade-timeframes" style={{ display: "flex", gap: 4, padding: "6px 16px 12px", overflowX: "auto" }}>
-          {TIMEFRAMES.map(tf => (
-            <button
-              key={tf}
-              onClick={() => setActiveTimeframe(tf)}
-              style={{
-                padding: "4px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, border: "none", cursor: "pointer",
-                background: activeTimeframe === tf ? "linear-gradient(135deg,#F5B942,#2563EB)" : "rgba(255,255,255,0.06)",
-                color: activeTimeframe === tf ? "#fff" : "#6B7280",
-                boxShadow: activeTimeframe === tf ? "0 2px 8px rgba(124,58,237,0.4)" : "none",
-              }}
-            >
-              {tf}
-            </button>
-          ))}
-        </div>
-
         {/* ── Divider ── */}
         <div style={{ height: 1, background: "rgba(255,255,255,0.06)", margin: "0 16px" }} />
 
@@ -669,8 +667,42 @@ export default function Trade() {
                       ))}
                     </div>
                     <p style={{ fontSize: 9, color: "#8D94A8", marginTop: 7 }}>
-                      Daily allowance only — no waiting time between signals.
+                      Use your daily allowance, then wait for the server-controlled 24-hour cooldown.
                     </p>
+                  </div>
+                </div>
+              )}
+
+              {cooldownActive && vipAccess?.cooldownUntil && (
+                <div style={{
+                  borderRadius: 16,
+                  padding: 16,
+                  border: "1px solid rgba(245,185,66,0.35)",
+                  background: "linear-gradient(135deg, rgba(245,185,66,0.12), rgba(37,99,235,0.1))",
+                  boxShadow: "0 10px 28px rgba(0,0,0,0.16)",
+                }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                    <div style={{
+                      width: 38, height: 38, borderRadius: 12, flexShrink: 0,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      background: "rgba(245,185,66,0.16)", color: "#FFD86B",
+                    }}>
+                      <Activity style={{ width: 19, height: 19 }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: 13, fontWeight: 850, color: "#fff" }}>
+                        VIP {vipAccess.vipLevel} daily allowance complete
+                      </p>
+                      <p style={{ fontSize: 11, color: "#CBD5E1", lineHeight: 1.5, marginTop: 4 }}>
+                        Your next signal window opens after the server-controlled 24-hour cooldown.
+                      </p>
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <p style={{ fontSize: 9, color: "#FFD86B", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 800 }}>Available in</p>
+                      <p style={{ fontSize: 18, color: "#fff", fontWeight: 900, fontFamily: "monospace", marginTop: 3 }}>
+                        {formatCooldown(cooldownSeconds)}
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}
@@ -737,16 +769,16 @@ export default function Trade() {
                   <div style={{
                     display: "flex", alignItems: "center", gap: 5,
                     borderRadius: 999, padding: "5px 8px",
-                    background: bestSignal ? "rgba(34,197,94,0.1)" : vipAccess?.remainingToday === 0 ? "rgba(255,255,255,0.06)" : "rgba(245,185,66,0.1)",
-                    border: `1px solid ${bestSignal ? "rgba(34,197,94,0.24)" : vipAccess?.remainingToday === 0 ? "rgba(255,255,255,0.1)" : "rgba(245,185,66,0.24)"}`,
+                    background: bestSignal ? "rgba(34,197,94,0.1)" : cooldownActive || vipAccess?.remainingToday === 0 ? "rgba(255,255,255,0.06)" : "rgba(245,185,66,0.1)",
+                    border: `1px solid ${bestSignal ? "rgba(34,197,94,0.24)" : cooldownActive || vipAccess?.remainingToday === 0 ? "rgba(255,255,255,0.1)" : "rgba(245,185,66,0.24)"}`,
                   }}>
                     <span style={{
                       width: 5, height: 5, borderRadius: "50%",
-                      background: bestSignal ? "#4ade80" : vipAccess?.remainingToday === 0 ? "#9CA3AF" : "#F5B942",
+                      background: bestSignal ? "#4ade80" : cooldownActive || vipAccess?.remainingToday === 0 ? "#9CA3AF" : "#F5B942",
                       boxShadow: bestSignal ? "0 0 8px #4ade80" : "none",
                     }} />
                     <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: "0.08em", color: bestSignal ? "#86EFAC" : "#9CA3AF" }}>
-                      {bestSignal ? "READY" : vipAccess?.remainingToday === 0 ? "LIMIT REACHED" : "AVAILABLE"}
+                      {bestSignal ? "READY" : cooldownActive ? "COOLDOWN" : vipAccess?.remainingToday === 0 ? "ALLOWANCE COMPLETE" : "AVAILABLE"}
                     </span>
                   </div>
                 </div>
@@ -800,18 +832,18 @@ export default function Trade() {
               <button
                 onClick={handleExecute}
                 type="button"
-                disabled={executeMutation.isPending}
+                 disabled={executeMutation.isPending || cooldownActive || vipAccess?.remainingToday === 0}
                 style={{
                   width: "100%", height: 56, borderRadius: 16, border: "none", cursor: "pointer",
-                  background: executeMutation.isPending ? "rgba(245,185,66,0.3)" : "linear-gradient(135deg, #F5B942 0%, #2563EB 100%)",
+                   background: executeMutation.isPending || cooldownActive || vipAccess?.remainingToday === 0 ? "rgba(245,185,66,0.3)" : "linear-gradient(135deg, #F5B942 0%, #2563EB 100%)",
                   fontSize: 15, fontWeight: 800, color: "#fff",
-                  boxShadow: executeMutation.isPending ? "none" : "0 7px 24px rgba(124,58,237,0.38)",
+                   boxShadow: executeMutation.isPending || cooldownActive || vipAccess?.remainingToday === 0 ? "none" : "0 7px 24px rgba(124,58,237,0.38)",
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                  opacity: executeMutation.isPending ? 0.72 : 1,
+                   opacity: executeMutation.isPending || cooldownActive || vipAccess?.remainingToday === 0 ? 0.72 : 1,
                   transition: "transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease",
                 }}
               >
-                <Zap style={{ width: 18, height: 18, fill: "#fff", color: "#fff" }} />
+                 <Zap style={{ width: 18, height: 18, fill: "#fff", color: "#fff" }} />
                 {executeButtonLabel}
               </button>
 
@@ -831,21 +863,19 @@ export default function Trade() {
           {/* ── RUNNING ── */}
           {step === "running" && pos && (
             <div className="flex flex-col items-center gap-5 pt-2">
-              {/* Timer ring */}
-              <div style={{ position: "relative", width: 140, height: 140 }}>
-                <svg width={140} height={140} style={{ transform: "rotate(-90deg)" }}>
-                  <circle cx={70} cy={70} r={RADIUS} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={8} />
-                  <circle cx={70} cy={70} r={RADIUS} fill="none"
-                    stroke={posUp ? "#22c55e" : "#ef4444"}
-                    strokeWidth={8} strokeLinecap="round"
-                    strokeDasharray={CIRCUMFERENCE}
-                    strokeDashoffset={dashOffset}
-                    style={{ transition: "stroke-dashoffset 1s linear" }}
-                  />
-                </svg>
-                <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                  <p style={{ fontSize: 26, fontWeight: 800, color: "#fff", fontFamily: "monospace", lineHeight: 1 }}>{mm}:{ss}</p>
-                  <p style={{ fontSize: 10, color: "#6B7280" }}>remaining</p>
+              {/* Position status — settlement remains server-controlled without exposing a client countdown. */}
+              <div style={{
+                width: "100%", borderRadius: 18, padding: "15px 16px",
+                display: "flex", alignItems: "center", gap: 12,
+                background: "linear-gradient(135deg, rgba(245,185,66,0.12), rgba(37,99,235,0.1))",
+                border: "1px solid rgba(245,185,66,0.28)",
+              }}>
+                <div style={{ width: 42, height: 42, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(245,185,66,0.16)" }}>
+                  <Activity style={{ width: 21, height: 21, color: "#FFD86B" }} />
+                </div>
+                <div>
+                  <p style={{ fontSize: 14, fontWeight: 850, color: "#fff" }}>Signal is active</p>
+                  <p style={{ fontSize: 11, color: "#CBD5E1", marginTop: 3 }}>The server is monitoring and settling this position securely.</p>
                 </div>
               </div>
 
@@ -908,6 +938,25 @@ export default function Trade() {
                   <p style={{ fontSize: 13, color: "#6B7280", marginTop: 4 }}>{roi > 0 ? "+" : ""}{roi.toFixed(1)}% outcome on ${result.stake.toFixed(2)} signal</p>
                    <p style={{ fontSize: 11, color: "#FFD86B", marginTop: 8 }}>Signal reward: +$2.50 to Main Wallet · reflected in Portfolio Wallet</p>
                 </div>
+
+                 <div style={{
+                   width: "100%", display: "flex", alignItems: "flex-start", gap: 10,
+                   borderRadius: 16, padding: "13px 14px",
+                   background: win ? "rgba(34,197,94,0.1)" : "rgba(245,185,66,0.08)",
+                   border: `1px solid ${win ? "rgba(34,197,94,0.24)" : "rgba(245,185,66,0.24)"}`,
+                 }}>
+                   <Sparkles style={{ width: 18, height: 18, color: win ? "#4ade80" : "#FFD86B", flexShrink: 0, marginTop: 1 }} />
+                   <div>
+                     <p style={{ fontSize: 13, fontWeight: 850, color: "#fff" }}>
+                       {win ? "Congratulations — signal complete!" : "Signal complete — outcome recorded"}
+                     </p>
+                     <p style={{ fontSize: 11, lineHeight: 1.5, color: "#CBD5E1", marginTop: 4 }}>
+                       {win
+                         ? "Your position settled successfully. The disclosed $2.50 Signal Reward was added to Main Wallet."
+                         : "Your position has settled. The disclosed $2.50 Signal Reward was added to Main Wallet, separate from this trade outcome."}
+                     </p>
+                   </div>
+                 </div>
 
                 {/* Stats */}
                 <div style={{ width: "100%", background: "rgba(255,255,255,0.04)", borderRadius: 18, padding: "14px 16px", border: "1px solid rgba(255,255,255,0.07)" }}>

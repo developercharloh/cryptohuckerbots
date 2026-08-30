@@ -508,7 +508,9 @@ export const GetTradeAccessResponse = zod.object({
   "nextLevelAmountDue": zod.number().nullable(),
   "timezone": zod.string(),
   "nextSignalAt": zod.coerce.date().nullable(),
-  "signalAmount": zod.number()
+  "signalAmount": zod.number(),
+  "cooldownUntil": zod.coerce.date().nullable(),
+  "cooldownActive": zod.boolean()
 })
 
 

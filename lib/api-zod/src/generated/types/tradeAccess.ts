@@ -24,4 +24,6 @@ export interface TradeAccess {
   timezone: string;
   nextSignalAt: Date | null;
   signalAmount: number;
+  cooldownUntil: Date | null;
+  cooldownActive: boolean;
 }

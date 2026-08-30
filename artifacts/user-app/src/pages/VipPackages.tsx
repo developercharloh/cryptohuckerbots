@@ -187,11 +187,20 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
             )}
           </div>
 
-           <div className="grid gap-3 sm:grid-cols-2">
+            {selectedLevel !== null && (
+              <button
+                onClick={() => setSelectedLevel(null)}
+                className="mb-3 flex items-center gap-2 text-xs font-semibold text-gray-400 transition hover:text-white"
+              >
+                <ArrowLeft className="h-4 w-4" /> Back to all VIP levels
+              </button>
+            )}
+
+            <div className="grid gap-3 sm:grid-cols-2">
              {(selectedLevel === null ? packageOptions : packageOptions.filter((pkg) => pkg.level === selectedLevel)).map((pkg) => {
               const selectedCard = selectedLevel === pkg.level;
               const active = pkg.level === activeLevel;
-              const locked = pkg.level < activeLevel;
+               const includedTier = pkg.level < activeLevel;
               return (
                 <button
                   key={pkg.level}
@@ -210,15 +219,15 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
                     </div>
                     {active ? (
                       <span className="rounded-full bg-green-400/15 px-2 py-1 text-[9px] font-bold uppercase text-green-300">Active</span>
-                    ) : locked ? (
-                      <LockKeyhole className="h-4 w-4 text-gray-600" />
+                     ) : includedTier ? (
+                       <BadgeCheck className="h-4 w-4 text-blue-300" />
                     ) : (
                       <Sparkles className="h-4 w-4 text-blue-300" />
                     )}
                   </div>
                   <p className="mt-3 text-xs text-gray-400">{pkg.dailySignals} AI Signals per day</p>
-                   <p className="mt-1 text-[10px] text-gray-600">
-                     {active ? "Currently active" : locked ? "Already below your active tier" : selectedCard ? "Selected for activation" : "Tap to select"}
+                    <p className="mt-1 text-[10px] text-gray-600">
+                     {active ? "Currently active" : includedTier ? `Included with VIP ${activeLevel}` : selectedCard ? "Selected for activation" : "Tap to select"}
                   </p>
                 </button>
               );

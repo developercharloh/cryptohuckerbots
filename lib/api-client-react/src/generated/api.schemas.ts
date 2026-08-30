@@ -82,6 +82,8 @@ export interface TradeAccess {
   timezone: string;
   nextSignalAt: string | null;
   signalAmount: number;
+  cooldownUntil: string | null;
+  cooldownActive: boolean;
 }
 
 export interface VipPackage {

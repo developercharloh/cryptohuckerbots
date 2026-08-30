@@ -8,7 +8,7 @@ process.env.ADMIN_JWT_SECRET = "vip-package-test-jwt-secret";
 
 const { default: app } = await import("../src/app.ts");
 const database = await import("@workspace/db");
-const { db, pool, sql, eq, transactionsTable, vipPackagePurchasesTable, vipInvestmentCapitalTable, signalClaimsTable, positionsTable, usersTable, sessionsTable } = {
+const { db, pool, sql, eq, asc, transactionsTable, vipPackagePurchasesTable, vipInvestmentCapitalTable, signalClaimsTable, signalOpportunitiesTable, positionsTable, usersTable, sessionsTable } = {
   ...database,
   ...(await import("drizzle-orm")),
 };
@@ -172,6 +172,40 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
   assert.match(insufficientUpgrade.body.error, /Amount required: \$500\.00/);
   assert.match(insufficientUpgrade.body.error, /Available balance: \$0\.00/);
 
+  const noBalanceSignals = await request<Array<{ opportunityId: number }>>("/api/trade/signals", { cookieJar: noBalanceJar });
+  assert.equal(noBalanceSignals.response.status, 200);
+  await db.insert(signalClaimsTable).values(noBalanceSignals.body.slice(0, 3).map((signal) => ({
+    userId: noBalanceUserId,
+    opportunityId: signal.opportunityId,
+    consentAt: new Date(),
+  })));
+  const exhaustedVipOne = await request<{ vipLevel: number; remainingToday: number; cooldownActive: boolean; cooldownUntil: string | null }>("/api/trade/access", { cookieJar: noBalanceJar });
+  assert.equal(exhaustedVipOne.body.vipLevel, 1);
+  assert.equal(exhaustedVipOne.body.remainingToday, 0);
+  assert.equal(exhaustedVipOne.body.cooldownActive, true);
+  assert.ok(exhaustedVipOne.body.cooldownUntil);
+
+  await db.insert(transactionsTable).values({
+    userId: noBalanceUserId,
+    type: "deposit",
+    amount: "500.00",
+    status: "completed",
+    paymentMethod: "test",
+    description: "VIP cooldown upgrade regression funding",
+  });
+  const upgradedNoBalance = await request<{ package: { level: number } }>("/api/trade/vip-packages/2/purchase", {
+    method: "POST",
+    cookieJar: noBalanceJar,
+  });
+  assert.equal(upgradedNoBalance.response.status, 201);
+  assert.equal(upgradedNoBalance.body.package.level, 2);
+  const upgradedNoBalanceAccess = await request<{ vipLevel: number; dailyLimit: number; usedToday: number; remainingToday: number; cooldownActive: boolean }>("/api/trade/access", { cookieJar: noBalanceJar });
+  assert.equal(upgradedNoBalanceAccess.body.vipLevel, 2);
+  assert.equal(upgradedNoBalanceAccess.body.dailyLimit, 4);
+  assert.equal(upgradedNoBalanceAccess.body.usedToday, 3);
+  assert.equal(upgradedNoBalanceAccess.body.remainingToday, 1);
+  assert.equal(upgradedNoBalanceAccess.body.cooldownActive, false);
+
   const first = await request<{ package: { level: number }; amountPaid: number; lockedInvestmentCapital: number; mainWalletBalance: number }>("/api/trade/vip-packages/1/purchase", { method: "POST" });
   assert.equal(first.response.status, 201);
   assert.equal(first.body.package.level, 1);
@@ -278,6 +312,44 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
     signalRewards.filter((row) => row.type === "signal_reward").map((row) => row.amount),
     ["2.50"],
   );
+
+  const opportunities = await db.select({ id: signalOpportunitiesTable.id })
+    .from(signalOpportunitiesTable)
+    .orderBy(asc(signalOpportunitiesTable.id));
+  const additionalClaims = opportunities
+    .filter((opportunity) => opportunity.id !== signal.opportunityId)
+    .slice(0, 6);
+  await db.insert(signalClaimsTable).values(additionalClaims.map((opportunity) => ({
+    userId,
+    opportunityId: opportunity.id,
+    consentAt: new Date(),
+  })));
+  const exhaustedAccess = await request<{ vipLevel: number; remainingToday: number; canExecute: boolean; cooldownActive: boolean; cooldownUntil: string | null }>("/api/trade/access");
+  assert.equal(exhaustedAccess.body.vipLevel, 5);
+  assert.equal(exhaustedAccess.body.remainingToday, 0);
+  assert.equal(exhaustedAccess.body.canExecute, false);
+  assert.equal(exhaustedAccess.body.cooldownActive, true);
+  assert.ok(exhaustedAccess.body.cooldownUntil);
+  assert.ok(new Date(exhaustedAccess.body.cooldownUntil!).getTime() > Date.now());
+
+  const refreshedExhaustedAccess = await request<{ cooldownUntil: string | null }>("/api/trade/access");
+  assert.equal(refreshedExhaustedAccess.body.cooldownUntil, exhaustedAccess.body.cooldownUntil);
+  const blockedDuringCooldown = await request<{ code: string; cooldownUntil: string }>("/api/trade/execute", {
+    method: "POST",
+    body: { signalId: signal.id, opportunityId: signal.opportunityId, consent: true },
+  });
+  assert.equal(blockedDuringCooldown.response.status, 429);
+  assert.equal(blockedDuringCooldown.body.code, "SIGNAL_COOLDOWN");
+  assert.equal(blockedDuringCooldown.body.cooldownUntil, exhaustedAccess.body.cooldownUntil);
+  const noSignalsDuringCooldown = await request<Array<unknown>>("/api/trade/signals");
+  assert.deepEqual(noSignalsDuringCooldown.body, []);
+
+  const expiredAt = new Date(Date.now() - 24 * 60 * 60_000 - 1000);
+  await db.update(signalClaimsTable).set({ createdAt: expiredAt, consentAt: expiredAt }).where(eq(signalClaimsTable.userId, userId));
+  const afterCooldown = await request<{ remainingToday: number; cooldownActive: boolean; cooldownUntil: string | null }>("/api/trade/access");
+  assert.equal(afterCooldown.body.remainingToday, 7);
+  assert.equal(afterCooldown.body.cooldownActive, false);
+  assert.equal(afterCooldown.body.cooldownUntil, null);
 
   const retryClose = await request(`/api/trade/positions/${opened.body.id}/close`, { method: "POST" });
   assert.equal(retryClose.response.status, 200);
