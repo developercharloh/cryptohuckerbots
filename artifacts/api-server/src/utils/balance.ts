@@ -10,6 +10,13 @@ const DEBIT_TYPES = [
   "bot_purchase",
   "vip_package_purchase",
 ] as const;
+const PENDING_HOLD_TYPES = [
+  "withdrawal",
+  "reserved_stake",
+  "trade_fee",
+  "bot_purchase",
+  "vip_package_purchase",
+] as const;
 
 type WalletTransaction = {
   type: string;
@@ -38,6 +45,37 @@ export type WalletSnapshot = {
   availableBalance: number;
   totalDeposited: number;
 };
+
+export function calculateWalletSnapshot(txns: WalletTransaction[]): WalletSnapshot {
+  let ledgerBalance = 0;
+  let pendingOutflow = 0;
+  let totalDeposited = 0;
+
+  for (const txn of txns) {
+    const amount = Number(txn.amount);
+    if (!Number.isFinite(amount)) continue;
+
+    if (txn.status === "pending") {
+      if ((PENDING_HOLD_TYPES as readonly string[]).includes(txn.type)) {
+        pendingOutflow += amount;
+      }
+      continue;
+    }
+
+    if (txn.status && txn.status !== "completed") continue;
+    ledgerBalance += transactionDelta(txn.type, amount);
+    if (txn.type === "deposit") totalDeposited += amount;
+  }
+
+  ledgerBalance = Math.max(0, Math.round(ledgerBalance * 100) / 100);
+  pendingOutflow = Math.max(0, Math.round(pendingOutflow * 100) / 100);
+  return {
+    ledgerBalance,
+    pendingOutflow,
+    availableBalance: Math.round(Math.max(0, ledgerBalance - pendingOutflow) * 100) / 100,
+    totalDeposited: Math.round(totalDeposited * 100) / 100,
+  };
+}
 
 export async function getWalletSnapshot(userId: number): Promise<WalletSnapshot> {
   const [row] = await db

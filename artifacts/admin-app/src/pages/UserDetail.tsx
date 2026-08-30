@@ -5,7 +5,8 @@ import {
   useAdminSetUserStatus,
   useAdminResetUserPassword,
   useAdminAdjustBalance,
-  getAdminGetUserQueryKey
+  getAdminGetUserQueryKey,
+  getAdminListUsersQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";

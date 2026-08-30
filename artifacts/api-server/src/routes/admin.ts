@@ -22,7 +22,7 @@ import {
 } from "@workspace/db";
 import { eq, and, desc, sql, inArray, ilike, or, gte } from "drizzle-orm";
 import crypto from "crypto";
-import { getWalletSnapshot } from "../utils/balance.js";
+import { calculateWalletSnapshot, getWalletSnapshot } from "../utils/balance.js";
 import {
   AdminSetUserStatusBody,
   AdminAdjustBalanceBody,
@@ -344,20 +344,32 @@ router.get("/admin/users", async (req, res) => {
 
   if (userIds.length === 0) return res.json([]);
 
-  const [botRows, profiles] = await Promise.all([
+  const [botRows, txnRows, profiles] = await Promise.all([
     db.select({
       userId: userBotsTable.userId,
       totalBots: sql<number>`count(*)::int`,
     }).from(userBotsTable).where(inArray(userBotsTable.userId, userIds)).groupBy(userBotsTable.userId),
+    db.select({
+      userId: transactionsTable.userId,
+      type: transactionsTable.type,
+      amount: transactionsTable.amount,
+      status: transactionsTable.status,
+    }).from(transactionsTable).where(inArray(transactionsTable.userId, userIds)),
     db.select().from(userProfilesTable).where(inArray(userProfilesTable.userId, userIds)),
   ]);
 
   const profileMap = new Map(profiles.map((p) => [p.userId, p]));
   const botMap = new Map(botRows.map((row) => [row.userId, row]));
+  const txnMap = new Map<number, typeof txnRows>();
+  for (const row of txnRows) {
+    const rows = txnMap.get(row.userId) ?? [];
+    rows.push(row);
+    txnMap.set(row.userId, rows);
+  }
 
   const result = await Promise.all(users.map(async (u) => {
     const botRow = botMap.get(u.id);
-    const balance = (await getWalletSnapshot(u.id)).availableBalance;
+    const balance = calculateWalletSnapshot(txnMap.get(u.id) ?? []).availableBalance;
     return {
       id: u.id,
       accountUid: u.accountUid,
