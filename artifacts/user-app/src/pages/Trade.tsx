@@ -307,7 +307,10 @@ export default function Trade() {
       setLocation("/vip-packages");
       return;
     }
-    if (!signal || !signal.opportunityId) { toast({ title: "AI Signal not loaded", description: "Refresh the page and try again.", variant: "destructive" }); return; }
+    if (!signal || !signal.opportunityId) {
+      queryClient.invalidateQueries({ queryKey: ["/api/trade/signals"] });
+      return;
+    }
     if (!consent) {
       setConsentPrompt(true);
       toast({
@@ -708,19 +711,6 @@ export default function Trade() {
                   </p>
                 </div>
               )}
-              {!bestSignal && vipAccess && vipAccess.vipLevel > 0 && (
-                <div style={{ borderRadius: 16, padding: 16, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)" }}>
-                  <p style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>
-                    {vipAccess.remainingToday === 0 ? "Daily signal limit reached" : "AI Signal not loaded"}
-                  </p>
-                  <p style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.5, marginTop: 6 }}>
-                    {vipAccess.remainingToday === 0
-                      ? "Your VIP allowance has been used for today."
-                      : "Refresh the page to load the next available AI Signal."}
-                  </p>
-                </div>
-              )}
-
               {/* Fixed signal execution */}
               <div style={{
                 borderRadius: 20,
@@ -742,7 +732,6 @@ export default function Trade() {
                     <div>
                       <p style={{ fontSize: 14, fontWeight: 850, color: "#fff" }}>Ready to execute</p>
                       <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 3 }}>Simple, server-controlled signal entry</p>
-                      <p style={{ fontSize: 10, color: "#FFD86B", marginTop: 5 }}>Eligible completed signals receive a $2.50 Main Wallet reward. Reward and trading P&amp;L are recorded separately.</p>
                     </div>
                   </div>
                   <div style={{
