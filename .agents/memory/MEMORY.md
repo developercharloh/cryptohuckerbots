@@ -6,3 +6,4 @@
 - [VIXUS AI KYC history](vixus-ai-blob-upload-fix.md) — repeated custom self-hosted KYC upload debugging, then a full revert back to Didit-hosted KYC per user decision; don't rebuild the custom flow without confirming first.
 - [VIXUS AI cross-origin security](vixus-ai-csrf.md) — credentialed browser mutations must use exact configured frontend origins; broad Vercel preview matching is not trusted.
 - [VIXUS AI Vercel deployment](vixus-ai-vercel-deployment.md) — when Vercel kills the monorepo build for memory, deploy prebuilt web output and the bundled API handler through the Vercel API.
+- [VIXUS AI client cache](vixus-ai-client-cache.md) — active mobile SPA tabs keep their old hashed bundle; verify the live asset and ask users to close/reopen or hard refresh.
