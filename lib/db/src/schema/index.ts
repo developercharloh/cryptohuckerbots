@@ -165,6 +165,24 @@ export const vipPackagePurchasesTable = pgTable("vip_package_purchases", {
 
 export type VipPackagePurchase = typeof vipPackagePurchasesTable.$inferSelect;
 
+// The currently locked capital backing a VIP activation. Replaced rows remain
+// as an immutable history of upgrades while only the latest "locked" row is
+// treated as active capital.
+export const vipInvestmentCapitalTable = pgTable("vip_investment_capital", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  vipLevel: integer("vip_level").notNull(),
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("locked"),
+  activatedAt: timestamp("activated_at").notNull().defaultNow(),
+  replacedAt: timestamp("replaced_at"),
+}, (table) => [
+  index("vip_investment_capital_user_status_idx").on(table.userId, table.status),
+  index("vip_investment_capital_user_activated_at_idx").on(table.userId, table.activatedAt),
+]);
+
+export type VipInvestmentCapital = typeof vipInvestmentCapitalTable.$inferSelect;
+
 // Transactions
 export const transactionsTable = pgTable("transactions", {
   id: serial("id").primaryKey(),

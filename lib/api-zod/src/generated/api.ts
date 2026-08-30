@@ -491,6 +491,7 @@ export const GetTradeAccessResponse = zod.object({
   "totalDeposited": zod.number(),
   "hasPackage": zod.boolean(),
   "packagePrice": zod.number().nullable(),
+  "lockedInvestmentCapital": zod.number(),
   "canExecute": zod.boolean(),
   "dailyLimit": zod.number(),
   "usedToday": zod.number(),
@@ -529,7 +530,9 @@ export const PurchaseVipPackageResponse = zod.object({
   "price": zod.number(),
   "dailySignals": zod.number(),
   "purchasedAt": zod.coerce.date()
-})
+}),
+  "lockedInvestmentCapital": zod.number(),
+  "mainWalletBalance": zod.number()
 })
 
 

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, usersTable, sessionsTable, userBotsTable, botsTable, transactionsTable, vipPackagePurchasesTable, earningsTable, notificationsTable, positionsTable, settingsTable, signalOpportunitiesTable, signalClaimsTable } from "@workspace/db";
+import { db, usersTable, sessionsTable, userBotsTable, botsTable, transactionsTable, vipPackagePurchasesTable, vipInvestmentCapitalTable, earningsTable, notificationsTable, positionsTable, settingsTable, signalOpportunitiesTable, signalClaimsTable } from "@workspace/db";
 import { eq, and, desc, asc, gte, lt, inArray, sql } from "drizzle-orm";
 import { ExecuteTradeBody } from "@workspace/api-zod";
 import { getRequestToken, isUserSessionExpired } from "../lib/session";
@@ -86,6 +86,7 @@ type VipAccess = {
   totalDeposited: number;
   hasPackage: boolean;
   packagePrice: number | null;
+  lockedInvestmentCapital: number;
   dailyLimit: number;
   usedToday: number;
   remainingToday: number;
@@ -110,6 +111,10 @@ async function getVipAccess(userId: number, config: ReturnType<typeof getSignalS
     eq(vipPackagePurchasesTable.userId, userId),
     eq(vipPackagePurchasesTable.status, "completed"),
   )).orderBy(desc(vipPackagePurchasesTable.vipLevel)).limit(1);
+  const [capital] = await db.select().from(vipInvestmentCapitalTable).where(and(
+    eq(vipInvestmentCapitalTable.userId, userId),
+    eq(vipInvestmentCapitalTable.status, "locked"),
+  )).orderBy(desc(vipInvestmentCapitalTable.activatedAt)).limit(1);
   const tier = VIP_TIERS.find((candidate) => candidate.level === purchase?.vipLevel) ?? null;
   const todayKey = localDateKey(new Date(), config.timezone);
   const dayStart = zonedTimeToUtc(todayKey, "00:00", config.timezone);
@@ -127,6 +132,7 @@ async function getVipAccess(userId: number, config: ReturnType<typeof getSignalS
     totalDeposited: Math.round(totalDeposited * 100) / 100,
     hasPackage: Boolean(purchase),
     packagePrice: purchase ? Number(purchase.amount) : null,
+    lockedInvestmentCapital: capital ? Number(capital.amount) : 0,
     dailyLimit,
     usedToday: claims.length,
     remainingToday: Math.max(0, dailyLimit - claims.length),
@@ -522,6 +528,7 @@ router.get("/trade/access", async (req, res) => {
     totalDeposited: access.totalDeposited,
     hasPackage: access.hasPackage,
     packagePrice: access.packagePrice,
+    lockedInvestmentCapital: access.lockedInvestmentCapital,
     canExecute: access.level > 0,
     dailyLimit: access.dailyLimit,
     usedToday: access.usedToday,
@@ -594,6 +601,14 @@ router.post("/trade/vip-packages/:level/purchase", async (req, res) => {
         );
       }
 
+      const now = new Date();
+      await tx.update(vipInvestmentCapitalTable)
+        .set({ status: "replaced", replacedAt: now })
+        .where(and(
+          eq(vipInvestmentCapitalTable.userId, user.id),
+          eq(vipInvestmentCapitalTable.status, "locked"),
+        ));
+
       const [created] = await tx.insert(vipPackagePurchasesTable).values({
         userId: user.id,
         vipLevel: tier.level,
@@ -608,17 +623,26 @@ router.post("/trade/vip-packages/:level/purchase", async (req, res) => {
         paymentMethod: "balance",
         description: `VIP ${tier.level} Package Purchase`,
       });
+      await tx.insert(vipInvestmentCapitalTable).values({
+        userId: user.id,
+        vipLevel: tier.level,
+        amount: tier.price.toFixed(2),
+        status: "locked",
+        activatedAt: now,
+      });
       return created;
     });
 
     return res.status(201).json({
-      message: `VIP ${tier.level} package purchased successfully.`,
+      message: `VIP ${tier.level} activated. ${tier.price.toFixed(2)} is now locked as investment capital.`,
       package: {
         level: tier.level,
         price: tier.price,
         dailySignals: tier.dailySignals,
         purchasedAt: purchase.createdAt.toISOString(),
       },
+      lockedInvestmentCapital: tier.price,
+      mainWalletBalance: await computeAvailableBalance(user.id),
     });
   } catch (error) {
     if (error instanceof VipPurchaseError) {

@@ -10,4 +10,6 @@ import type { VipPackagePurchaseResponsePackage } from './vipPackagePurchaseResp
 export interface VipPackagePurchaseResponse {
   message: string;
   package: VipPackagePurchaseResponsePackage;
+  lockedInvestmentCapital: number;
+  mainWalletBalance: number;
 }

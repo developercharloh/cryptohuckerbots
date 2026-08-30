@@ -14,5 +14,7 @@ export interface TradeResult {
   amount: number;
   stake: number;
   availableBalance: number;
+  mainWalletBalance?: number;
+  lockedInvestmentCapital?: number;
   message: string;
 }

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, usersTable, sessionsTable, userBotsTable, botsTable, transactionsTable, earningsTable } from "@workspace/db";
+import { db, usersTable, sessionsTable, userBotsTable, botsTable, transactionsTable, earningsTable, vipInvestmentCapitalTable } from "@workspace/db";
 import { eq, desc, and, gte, sql } from "drizzle-orm";
 import { format, subDays, subMonths, subYears, startOfDay, startOfWeek, startOfMonth, startOfYear, eachDayOfInterval, eachMonthOfInterval, eachHourOfInterval } from "date-fns";
 import { isUserSessionExpired } from "../lib/session";
@@ -29,7 +29,7 @@ router.get("/dashboard/summary", async (req, res) => {
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
-  const [userBots, [finance]] = await Promise.all([
+  const [userBots, [finance], [capital]] = await Promise.all([
     db.select().from(userBotsTable).where(eq(userBotsTable.userId, user.id)),
     db.select({
       balance: sql<string>`coalesce(sum(case
@@ -50,6 +50,12 @@ router.get("/dashboard/summary", async (req, res) => {
           then ${transactionsTable.amount}
         else 0 end), 0)`,
     }).from(transactionsTable).where(eq(transactionsTable.userId, user.id)),
+    db.select({
+      lockedInvestmentCapital: sql<string>`coalesce(sum(${vipInvestmentCapitalTable.amount}), 0)`,
+    }).from(vipInvestmentCapitalTable).where(and(
+      eq(vipInvestmentCapitalTable.userId, user.id),
+      eq(vipInvestmentCapitalTable.status, "locked"),
+    )),
   ]);
 
   const activeBots = userBots.filter(b => b.status === "running");
@@ -57,6 +63,7 @@ router.get("/dashboard/summary", async (req, res) => {
   const pendingOut = Number(finance?.pendingOut ?? 0);
 
   const availableBalance = Math.max(0, balance - pendingOut);
+  const lockedInvestmentCapital = Number(capital?.lockedInvestmentCapital ?? 0);
   const todayProfit = activeBots.reduce((sum, b) => sum + parseFloat(b.profitToday), 0);
   const totalEarnings = userBots.reduce((sum, b) => sum + parseFloat(b.profitTotal), 0);
   const totalTrades = userBots.reduce((sum, b) => sum + (b.totalTrades ?? 0), 0);
@@ -67,8 +74,10 @@ router.get("/dashboard/summary", async (req, res) => {
   const roi = totalDeposited > 0 ? (totalEarnings / totalDeposited) * 100 : 0;
 
   return res.json({
-    totalBalance: Math.max(0, balance + totalEarnings),
+    totalBalance: Math.max(0, availableBalance + lockedInvestmentCapital),
     availableBalance,
+    mainWalletBalance: availableBalance,
+    lockedInvestmentCapital,
     todayProfit,
     todayProfitPercent: todayProfit > 0 ? 5.3 : 0,
     totalEarnings,

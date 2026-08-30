@@ -30,18 +30,18 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
   const { data: access } = useGetTradeAccess({ query: { refetchInterval: 15000 } as any });
   const { data: summary } = useGetDashboardSummary({ query: { refetchInterval: 10000 } as any });
   const purchaseMutation = usePurchaseVipPackage();
-  const [selectedLevel, setSelectedLevel] = useState(1);
+  const [selectedLevel, setSelectedLevel] = useState<number | null>(null);
 
   const selected = useMemo(
-    () => VIP_LEVELS.find((pkg) => pkg.level === selectedLevel) ?? VIP_LEVELS[0],
+    () => (selectedLevel === null ? null : VIP_LEVELS.find((pkg) => pkg.level === selectedLevel) ?? null),
     [selectedLevel],
   );
   const activeLevel = access?.vipLevel ?? 0;
   const availableBalance = summary?.availableBalance ?? 0;
-  const canPurchase = Boolean(access) && selected.level > activeLevel && availableBalance >= selected.price;
+  const canPurchase = Boolean(access && selected) && selected!.level > activeLevel && availableBalance >= selected!.price;
 
   const handlePurchase = () => {
-    if (!access || selected.level <= activeLevel) return;
+    if (!access || !selected || selected.level <= activeLevel) return;
     purchaseMutation.mutate(
       { level: selected.level },
       {
@@ -90,8 +90,10 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
                 </p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-2 text-right">
-                <p className="text-[9px] uppercase tracking-wider text-gray-500">Available balance</p>
-                <p className="mt-1 text-lg font-black text-amber-200">{formatUSD(availableBalance)}</p>
+                 <p className="text-[9px] uppercase tracking-wider text-gray-500">Main wallet</p>
+                 <p className="mt-1 text-lg font-black text-amber-200">{formatUSD(availableBalance)}</p>
+                 <p className="mt-2 text-[9px] uppercase tracking-wider text-gray-500">Locked capital</p>
+                 <p className="mt-1 text-sm font-black text-blue-200">{formatUSD(access?.lockedInvestmentCapital ?? 0)}</p>
               </div>
             </div>
             {access?.vipLevel ? (
@@ -105,8 +107,8 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
             )}
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            {VIP_LEVELS.map((pkg) => {
+           <div className="grid gap-3 sm:grid-cols-2">
+             {(selectedLevel === null ? VIP_LEVELS : VIP_LEVELS.filter((pkg) => pkg.level === selectedLevel)).map((pkg) => {
               const selectedCard = selectedLevel === pkg.level;
               const active = pkg.level === activeLevel;
               const locked = pkg.level < activeLevel;
@@ -132,8 +134,8 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
                     )}
                   </div>
                   <p className="mt-3 text-xs text-gray-400">{pkg.dailySignals} AI Signals per day</p>
-                  <p className="mt-1 text-[10px] text-gray-600">
-                    {active ? "Currently active" : locked ? "Already below your active tier" : "Permanent access"}
+                   <p className="mt-1 text-[10px] text-gray-600">
+                     {active ? "Currently active" : locked ? "Already below your active tier" : selectedCard ? "Selected for activation" : "Tap to select"}
                   </p>
                 </button>
               );
@@ -141,13 +143,13 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
           </div>
 
           {selected && (
-            <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+             <div className="mt-5 rounded-2xl border border-amber-300/20 bg-gradient-to-br from-amber-300/10 to-blue-500/10 p-4">
               <div className="flex items-center gap-3">
                 <WalletCards className="h-5 w-5 text-amber-300" />
                 <div className="flex-1">
-                  <p className="text-sm font-bold">VIP {selected.level} package</p>
+                   <p className="text-sm font-bold">Activate VIP {selected.level}</p>
                   <p className="mt-1 text-xs text-gray-400">
-                     One-time wallet charge of {formatUSD(selected.price)} · {selected.dailySignals} AI Signals per day
+                      {formatUSD(selected.price)} will move from your main wallet into locked investment capital · {selected.dailySignals} AI Signals per day
                   </p>
                 </div>
                 <button
@@ -165,11 +167,11 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
                         ? "Below active tier"
                         : availableBalance < selected.price
                           ? "Insufficient balance"
-                          : "Buy package"}
+                          : "Activate VIP package"}
                 </button>
               </div>
               <p className="mt-3 text-[10px] leading-4 text-gray-500">
-                The package purchase is recorded in your wallet history and unlocks AI Signals.
+                 Your main-wallet balance decreases by this amount. The capital stays locked while signal profits and permitted returns accumulate in your main wallet.
               </p>
             </div>
           )}

@@ -70,6 +70,7 @@ export interface TradeAccess {
   totalDeposited: number;
   hasPackage: boolean;
   packagePrice: number | null;
+  lockedInvestmentCapital: number;
   canExecute: boolean;
   dailyLimit: number;
   usedToday: number;
@@ -100,6 +101,8 @@ export type VipPackagePurchaseResponsePackage = {
 export interface VipPackagePurchaseResponse {
   message: string;
   package: VipPackagePurchaseResponsePackage;
+  lockedInvestmentCapital: number;
+  mainWalletBalance: number;
 }
 
 export interface ExecuteTradeInput {
@@ -125,6 +128,8 @@ export interface TradeResult {
   amount: number;
   stake: number;
   availableBalance: number;
+  mainWalletBalance?: number;
+  lockedInvestmentCapital?: number;
   message: string;
 }
 

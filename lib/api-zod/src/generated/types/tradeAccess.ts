@@ -12,6 +12,7 @@ export interface TradeAccess {
   totalDeposited: number;
   hasPackage: boolean;
   packagePrice: number | null;
+  lockedInvestmentCapital: number;
   canExecute: boolean;
   dailyLimit: number;
   usedToday: number;

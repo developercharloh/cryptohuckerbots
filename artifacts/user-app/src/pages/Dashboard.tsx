@@ -109,7 +109,7 @@ export default function Dashboard() {
 
             {/* Balance label + eye */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, position: "relative" }}>
-              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 600 }}>Portfolio Value</span>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 600 }}>Total Portfolio</span>
               <button
                 onClick={() => setBalanceVisible(v => !v)}
                 style={{ background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 8, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
@@ -127,12 +127,25 @@ export default function Dashboard() {
                 <Skeleton className="h-10 w-40 bg-white/10" />
               ) : balanceVisible ? (
                 <p style={{ fontSize: 36, fontWeight: 900, color: "#fff", letterSpacing: "-0.04em", fontFamily: "monospace", lineHeight: 1 }}>
-                  {formatUSD(summary?.availableBalance)}
+                   {formatUSD(summary?.totalBalance)}
                 </p>
               ) : (
                 <p style={{ fontSize: 36, fontWeight: 900, color: "#fff", letterSpacing: "0.18em", lineHeight: 1 }}>••••••</p>
               )}
             </div>
+
+            {!loadingSummary && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 18, position: "relative" }}>
+                <div style={{ borderRadius: 12, padding: "9px 10px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                  <p style={{ fontSize: 9, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Main wallet</p>
+                  <p style={{ fontSize: 14, fontWeight: 800, color: "#fff", marginTop: 3 }}>{balanceVisible ? formatUSD(summary?.mainWalletBalance ?? summary?.availableBalance) : "••••••"}</p>
+                </div>
+                <div style={{ borderRadius: 12, padding: "9px 10px", background: "rgba(37,99,235,0.12)", border: "1px solid rgba(96,165,250,0.18)" }}>
+                  <p style={{ fontSize: 9, color: "rgba(191,219,254,0.65)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Locked capital</p>
+                  <p style={{ fontSize: 14, fontWeight: 800, color: "#bfdbfe", marginTop: 3 }}>{balanceVisible ? formatUSD(summary?.lockedInvestmentCapital) : "••••••"}</p>
+                </div>
+              </div>
+            )}
 
             {/* P&L badge */}
             {!loadingSummary && (

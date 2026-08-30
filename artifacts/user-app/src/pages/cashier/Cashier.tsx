@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { Layout } from "@/components/Layout";
 import { useGetDashboardSummary } from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowDownCircle, ArrowUpCircle, History, ChevronRight, Eye, EyeOff } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, History, ChevronRight, Eye, EyeOff, LockKeyhole } from "lucide-react";
 import { useState } from "react";
 import { formatUSD } from "@/lib/format";
 import { SiTether, SiBitcoin, SiEthereum } from "react-icons/si";
@@ -95,7 +95,7 @@ export default function Cashier() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12, position: "relative" }}>
               <div>
                 <p style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  Total Balance
+                  Main Wallet Balance
                 </p>
                 {isLoading ? (
                   <Skeleton className="h-9 w-36 bg-white/10" />
@@ -155,6 +155,26 @@ export default function Cashier() {
                 </Link>
               ))}
             </div>
+          </div>
+        </div>
+
+        <div className="px-4 mt-3">
+          <div
+            className="flex items-center justify-between rounded-2xl border border-blue-400/20 p-4"
+            style={{ background: "linear-gradient(135deg, rgba(37,99,235,0.16), rgba(13,10,32,0.9))" }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-400/15">
+                <LockKeyhole className="h-5 w-5 text-blue-300" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">Locked Investment Capital</p>
+                <p className="text-[11px] text-muted-foreground">VIP activation capital · not available to withdraw</p>
+              </div>
+            </div>
+            <p className="text-sm font-bold text-blue-200">
+              {isLoading ? "—" : balanceVisible ? formatUSD(summary?.lockedInvestmentCapital ?? 0) : "••••••"}
+            </p>
           </div>
         </div>
 
