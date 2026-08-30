@@ -196,6 +196,12 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
     amount: "50.00",
     source: "trade",
   });
+  // Legacy earnings rows must not inflate the dashboard's real trade profit.
+  await db.insert(earningsTable).values({
+    userId: targetUserId,
+    amount: "17453.00",
+    source: "legacy-import",
+  });
   await db.insert(vipInvestmentCapitalTable).values({
     userId: targetUserId,
     vipLevel: 1,

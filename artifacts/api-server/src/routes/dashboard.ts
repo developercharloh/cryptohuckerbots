@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, usersTable, sessionsTable, userBotsTable, botsTable, transactionsTable, earningsTable } from "@workspace/db";
+import { db, usersTable, sessionsTable, userBotsTable, botsTable, transactionsTable } from "@workspace/db";
 import { eq, desc, and, gte, sql } from "drizzle-orm";
 import { format, subDays, subMonths, subYears, startOfDay, startOfWeek, startOfMonth, startOfYear, eachDayOfInterval, eachMonthOfInterval, eachHourOfInterval } from "date-fns";
 import { getRequestToken, isUserSessionExpired } from "../lib/session";
@@ -31,7 +31,7 @@ router.get("/dashboard/summary", async (req, res) => {
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
-  const [userBots, wallet, vault, [earnings]] = await Promise.all([
+  const [userBots, wallet, vault, [profit]] = await Promise.all([
     db.select().from(userBotsTable).where(eq(userBotsTable.userId, user.id)),
     getWalletSnapshot(user.id),
     getVaultCapitalSnapshot(user.id).catch((err) => {
@@ -42,19 +42,25 @@ router.get("/dashboard/summary", async (req, res) => {
       return { initialCapital: 0, vaultCapital: 0 };
     }),
     db.select({
-      totalProfit: sql<string>`coalesce(sum(${earningsTable.amount}), 0)`,
-      todayProfit: sql<string>`coalesce(sum(case
-        when ${earningsTable.date} >= ${startOfDay(new Date())}
-          then ${earningsTable.amount}
+      totalProfit: sql<string>`coalesce(sum(case
+        when ${transactionsTable.status} = 'completed'
+          and ${transactionsTable.type} = 'trade_profit'
+          then ${transactionsTable.amount}
         else 0 end), 0)`,
-    }).from(earningsTable).where(eq(earningsTable.userId, user.id)),
+      todayProfit: sql<string>`coalesce(sum(case
+        when ${transactionsTable.status} = 'completed'
+          and ${transactionsTable.type} = 'trade_profit'
+          and ${transactionsTable.createdAt} >= ${startOfDay(new Date())}
+          then ${transactionsTable.amount}
+        else 0 end), 0)`,
+    }).from(transactionsTable).where(eq(transactionsTable.userId, user.id)),
   ]);
 
   const activeBots = userBots.filter(b => b.status === "running");
   const availableBalance = wallet.availableBalance;
   const vaultCapital = vault.vaultCapital;
-  const todayProfit = Number(earnings?.todayProfit ?? 0);
-  const totalEarnings = Number(earnings?.totalProfit ?? 0);
+  const todayProfit = Number(profit?.todayProfit ?? 0);
+  const totalEarnings = Number(profit?.totalProfit ?? 0);
   const totalTrades = userBots.reduce((sum, b) => sum + (b.totalTrades ?? 0), 0);
   const winRate = userBots.length > 0 ? 72 + (user.id % 20) : 0; // deterministic per user
 
