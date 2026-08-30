@@ -1694,6 +1694,8 @@ components:
         packagePrice:
           type: number
           nullable: true
+        vaultCapital:
+          type: number
         lockedInvestmentCapital:
           type: number
         canExecute:
@@ -1721,7 +1723,7 @@ components:
           nullable: true
         signalAmount:
           type: number
-      required: [vipLevel, minimumDeposit, totalDeposited, hasPackage, packagePrice, lockedInvestmentCapital, canExecute, dailyLimit, usedToday, remainingToday, timezone, nextLevel, nextLevelDeposit, nextLevelAmountDue, nextSignalAt, signalAmount]
+      required: [vipLevel, minimumDeposit, totalDeposited, hasPackage, packagePrice, vaultCapital, lockedInvestmentCapital, canExecute, dailyLimit, usedToday, remainingToday, timezone, nextLevel, nextLevelDeposit, nextLevelAmountDue, nextSignalAt, signalAmount]
 
     VipPackage:
       type: object
@@ -1762,11 +1764,15 @@ components:
           required: [level, price, dailySignals, purchasedAt]
         lockedInvestmentCapital:
           type: number
+        vaultCapital:
+          type: number
+        portfolioBalance:
+          type: number
         amountPaid:
           type: number
         mainWalletBalance:
           type: number
-      required: [message, package, amountPaid, lockedInvestmentCapital, mainWalletBalance]
+      required: [message, package, amountPaid, vaultCapital, portfolioBalance, lockedInvestmentCapital, mainWalletBalance]
 
     ExecuteTradeInput:
       type: object
@@ -1921,9 +1927,13 @@ components:
       properties:
         totalBalance:
           type: number
+        portfolioBalance:
+          type: number
         availableBalance:
           type: number
         mainWalletBalance:
+          type: number
+        vaultCapital:
           type: number
         lockedInvestmentCapital:
           type: number
@@ -1947,7 +1957,7 @@ components:
           type: number
         totalTrades:
           type: integer
-      required: [totalBalance, availableBalance, mainWalletBalance, lockedInvestmentCapital, todayProfit, todayProfitPercent, totalEarnings, totalProfit, earningsChangePercent, activeBots, totalBots, winRate, roi, totalTrades]
+      required: [totalBalance, portfolioBalance, availableBalance, mainWalletBalance, vaultCapital, lockedInvestmentCapital, todayProfit, todayProfitPercent, totalEarnings, totalProfit, earningsChangePercent, activeBots, totalBots, winRate, roi, totalTrades]
 
     ChartPoint:
       type: object

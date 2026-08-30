@@ -236,13 +236,13 @@ export default function Dashboard() {
                     <div className="text-sm font-medium truncate">{txn.userName}</div>
                     <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
                       <Clock className="w-3 h-3" />
-                      <span className="capitalize">{txn.type === 'trade_loss' ? 'Contract Opened' : txn.type === 'trade_profit' || txn.type === 'trade_loss_return' ? 'Contract Closed' : txn.type === 'vip_package_purchase' ? 'VIP Package Purchase' : txn.type.replace('_', ' ')}</span>
+                      <span className="capitalize">{txn.type === 'trade_loss' ? 'Contract Opened' : txn.type === 'trade_profit' || txn.type === 'trade_loss_return' ? 'Contract Closed' : txn.type === 'vault_trade_stake' ? 'Vault Capital Reserved' : txn.type === 'vault_trade_return' ? 'Vault Capital Returned' : txn.type === 'vault_trade_fee' ? 'Vault Capital Trading Fee' : txn.type === 'vip_package_purchase' ? 'VIP Package Purchase' : txn.type.replace('_', ' ')}</span>
                       <span>·</span>
                       <span>{txn.status}</span>
                     </div>
                   </div>
-                  <div className={`text-sm font-semibold ml-3 ${txn.type === 'deposit' || txn.type === 'trade_profit' ? 'text-emerald-400' : txn.type === 'withdrawal' || txn.type === 'trade_loss' || txn.type === 'trade_loss_return' || txn.type === 'vip_package_purchase' ? 'text-red-400' : 'text-foreground'}`}>
-                    {txn.type === 'deposit' || txn.type === 'trade_profit' ? '+' : txn.type === 'withdrawal' || txn.type === 'trade_loss' || txn.type === 'trade_loss_return' || txn.type === 'vip_package_purchase' ? '−' : ''}${txn.amount.toFixed(2)}
+                  <div className={`text-sm font-semibold ml-3 ${txn.type === 'deposit' || txn.type === 'trade_profit' || txn.type === 'vault_trade_return' ? 'text-emerald-400' : txn.type === 'withdrawal' || txn.type === 'trade_loss' || txn.type === 'trade_loss_return' || txn.type === 'vip_package_purchase' || txn.type === 'vault_trade_stake' || txn.type === 'vault_trade_fee' ? 'text-red-400' : 'text-foreground'}`}>
+                    {txn.type === 'deposit' || txn.type === 'trade_profit' || txn.type === 'vault_trade_return' ? '+' : txn.type === 'withdrawal' || txn.type === 'trade_loss' || txn.type === 'trade_loss_return' || txn.type === 'vip_package_purchase' || txn.type === 'vault_trade_stake' || txn.type === 'vault_trade_fee' ? '−' : ''}${txn.amount.toFixed(2)}
                   </div>
                 </div>
               ))

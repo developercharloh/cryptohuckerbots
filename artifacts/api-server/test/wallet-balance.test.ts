@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { calculateWalletBalance, transactionDelta } from "../src/utils/balance.ts";
+import { calculateVaultCapital, calculateWalletBalance, transactionDelta, vaultTransactionDelta } from "../src/utils/balance.ts";
 
 test("wallet credits completed deposits and returns, including admin credits", () => {
   assert.equal(transactionDelta("deposit", 250), 250);
@@ -18,4 +18,22 @@ test("wallet credits completed deposits and returns, including admin credits", (
   ]);
 
   assert.equal(balance, 725.25);
+});
+
+test("Vault Capital is separate from Main Wallet ledger movements", () => {
+  assert.equal(vaultTransactionDelta("vault_trade_stake", 2.5), -2.5);
+  assert.equal(vaultTransactionDelta("vault_trade_return", 2.5), 2.5);
+  assert.equal(vaultTransactionDelta("vault_trade_fee", 0.25), -0.25);
+  assert.equal(vaultTransactionDelta("trade_profit", 75), 0);
+
+  const vaultCapital = calculateVaultCapital(500, [
+    { type: "vault_trade_stake", amount: "2.50", status: "completed" },
+    { type: "vault_trade_return", amount: "2.50", status: "completed" },
+    { type: "vault_trade_fee", amount: "0.25", status: "completed" },
+    { type: "trade_profit", amount: "75.00", status: "completed" },
+    { type: "vault_trade_stake", amount: "40.00", status: "pending" },
+    { type: "deposit", amount: "1000.00", status: "completed" },
+  ]);
+
+  assert.equal(vaultCapital, 499.75);
 });

@@ -70,6 +70,7 @@ export interface TradeAccess {
   totalDeposited: number;
   hasPackage: boolean;
   packagePrice: number | null;
+  vaultCapital: number;
   lockedInvestmentCapital: number;
   canExecute: boolean;
   dailyLimit: number;
@@ -104,6 +105,8 @@ export interface VipPackagePurchaseResponse {
   message: string;
   package: VipPackagePurchaseResponsePackage;
   lockedInvestmentCapital: number;
+  vaultCapital: number;
+  portfolioBalance: number;
   amountPaid: number;
   mainWalletBalance: number;
 }
@@ -192,8 +195,10 @@ export interface AuthResponse {
 
 export interface DashboardSummary {
   totalBalance: number;
+  portfolioBalance: number;
   availableBalance: number;
   mainWalletBalance: number;
+  vaultCapital: number;
   lockedInvestmentCapital: number;
   todayProfit: number;
   todayProfitPercent: number;

@@ -8,7 +8,7 @@ process.env.ADMIN_JWT_SECRET = "vip-package-test-jwt-secret";
 
 const { default: app } = await import("../src/app.ts");
 const database = await import("@workspace/db");
-const { db, pool, sql, eq, transactionsTable, vipPackagePurchasesTable, vipInvestmentCapitalTable, usersTable, sessionsTable } = {
+const { db, pool, sql, eq, transactionsTable, vipPackagePurchasesTable, vipInvestmentCapitalTable, signalClaimsTable, positionsTable, usersTable, sessionsTable } = {
   ...database,
   ...(await import("drizzle-orm")),
 };
@@ -102,6 +102,8 @@ after(async () => {
   if (userId) {
     await db.delete(vipInvestmentCapitalTable).where(eq(vipInvestmentCapitalTable.userId, userId));
     await db.delete(vipPackagePurchasesTable).where(eq(vipPackagePurchasesTable.userId, userId));
+    await db.delete(signalClaimsTable).where(eq(signalClaimsTable.userId, userId));
+    await db.delete(positionsTable).where(eq(positionsTable.userId, userId));
     await db.delete(transactionsTable).where(eq(transactionsTable.userId, userId));
     await db.delete(sessionsTable).where(eq(sessionsTable.userId, userId));
     await db.delete(usersTable).where(eq(usersTable.id, userId));
@@ -109,6 +111,8 @@ after(async () => {
   if (noBalanceUserId) {
     await db.delete(vipInvestmentCapitalTable).where(eq(vipInvestmentCapitalTable.userId, noBalanceUserId));
     await db.delete(vipPackagePurchasesTable).where(eq(vipPackagePurchasesTable.userId, noBalanceUserId));
+    await db.delete(signalClaimsTable).where(eq(signalClaimsTable.userId, noBalanceUserId));
+    await db.delete(positionsTable).where(eq(positionsTable.userId, noBalanceUserId));
     await db.delete(transactionsTable).where(eq(transactionsTable.userId, noBalanceUserId));
     await db.delete(sessionsTable).where(eq(sessionsTable.userId, noBalanceUserId));
     await db.delete(usersTable).where(eq(usersTable.id, noBalanceUserId));
@@ -232,4 +236,32 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
       .sort(),
     ["500.00", "500.00", "7000.00"],
   );
+
+  const beforeTrade = await request<{ mainWalletBalance: number; vaultCapital: number; portfolioBalance: number }>("/api/dashboard/summary");
+  assert.equal(beforeTrade.body.mainWalletBalance, 42000);
+  assert.equal(beforeTrade.body.vaultCapital, 8000);
+  assert.equal(beforeTrade.body.portfolioBalance, 50000);
+
+  const availableSignals = await request<Array<{ id: string; opportunityId: number }>>("/api/trade/signals");
+  assert.equal(availableSignals.response.status, 200);
+  const signal = availableSignals.body[0];
+  assert.ok(signal, "VIP user should receive an available signal");
+
+  const opened = await request<{ id: number }>("/api/trade/execute", {
+    method: "POST",
+    body: { signalId: signal.id, opportunityId: signal.opportunityId, consent: true },
+  });
+  assert.equal(opened.response.status, 200);
+
+  const afterOpen = await request<{ mainWalletBalance: number; vaultCapital: number; portfolioBalance: number }>("/api/dashboard/summary");
+  assert.equal(afterOpen.body.mainWalletBalance, 42000);
+  assert.equal(afterOpen.body.vaultCapital, 7997.5);
+  assert.equal(afterOpen.body.portfolioBalance, 49997.5);
+
+  const closed = await request(`/api/trade/positions/${opened.body.id}/close`, { method: "POST" });
+  assert.equal(closed.response.status, 200);
+  const afterClose = await request<{ mainWalletBalance: number; vaultCapital: number; portfolioBalance: number }>("/api/dashboard/summary");
+  assert.equal(afterClose.body.mainWalletBalance, 42000);
+  assert.equal(afterClose.body.vaultCapital, 8000);
+  assert.equal(afterClose.body.portfolioBalance, 50000);
 });

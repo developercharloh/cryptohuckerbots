@@ -8,8 +8,10 @@
 
 export interface DashboardSummary {
   totalBalance: number;
+  portfolioBalance: number;
   availableBalance: number;
   mainWalletBalance: number;
+  vaultCapital: number;
   lockedInvestmentCapital: number;
   todayProfit: number;
   todayProfitPercent: number;

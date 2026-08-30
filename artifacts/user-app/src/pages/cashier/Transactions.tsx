@@ -83,7 +83,10 @@ export default function Transactions() {
                     <div className="font-semibold text-sm mb-0.5 capitalize">{
                       tx.type === "trade_loss" ? "Contract Opened" :
                       tx.type === "trade_profit" || tx.type === "trade_loss_return" ? "Contract Closed" :
-                       tx.type === "vip_package_purchase" ? "VIP Capital Locked" :
+                       tx.type === "vip_package_purchase" ? "Vault Capital Transfer" :
+                       tx.type === "vault_trade_stake" ? "Vault Capital Reserved" :
+                       tx.type === "vault_trade_return" ? "Vault Capital Returned" :
+                       tx.type === "vault_trade_fee" ? "Vault Capital Trading Fee" :
                       tx.type.replace("_", " ")
                     }</div>
                     <div className="text-xs text-muted-foreground">

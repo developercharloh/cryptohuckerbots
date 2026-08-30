@@ -3,7 +3,7 @@ import { db, usersTable, sessionsTable, userBotsTable, botsTable, transactionsTa
 import { eq, and, desc, asc, gte, lt, inArray, sql } from "drizzle-orm";
 import { ExecuteTradeBody } from "@workspace/api-zod";
 import { getRequestToken, isUserSessionExpired } from "../lib/session";
-import { calculateWalletBalance, getAvailableBalance } from "../utils/balance.js";
+import { calculateVaultCapital, calculateWalletBalance, getAvailableBalance, getVaultCapitalSnapshot } from "../utils/balance.js";
 
 const router = Router();
 const SIGNAL_EXECUTION_AMOUNT = 2.5;
@@ -87,7 +87,7 @@ type VipAccess = {
   totalDeposited: number;
   hasPackage: boolean;
   packagePrice: number | null;
-  lockedInvestmentCapital: number;
+  vaultCapital: number;
   dailyLimit: number;
   usedToday: number;
   remainingToday: number;
@@ -118,10 +118,7 @@ async function getVipAccess(userId: number, config: ReturnType<typeof getSignalS
     eq(vipPackagePurchasesTable.userId, userId),
     eq(vipPackagePurchasesTable.status, "completed"),
   )).orderBy(desc(vipPackagePurchasesTable.vipLevel)).limit(1);
-  const [capital] = await db.select().from(vipInvestmentCapitalTable).where(and(
-    eq(vipInvestmentCapitalTable.userId, userId),
-    eq(vipInvestmentCapitalTable.status, "locked"),
-  )).orderBy(desc(vipInvestmentCapitalTable.activatedAt)).limit(1);
+  const capital = await getVaultCapitalSnapshot(userId);
   const tier = VIP_TIERS.find((candidate) => candidate.level === purchase?.vipLevel) ?? null;
   const todayKey = localDateKey(new Date(), config.timezone);
   const dayStart = zonedTimeToUtc(todayKey, "00:00", config.timezone);
@@ -139,7 +136,7 @@ async function getVipAccess(userId: number, config: ReturnType<typeof getSignalS
     totalDeposited: Math.round(totalDeposited * 100) / 100,
     hasPackage: Boolean(purchase),
     packagePrice: tier?.price ?? null,
-    lockedInvestmentCapital: capital ? Number(capital.amount) : 0,
+    vaultCapital: capital.vaultCapital,
     dailyLimit,
     usedToday: claims.length,
     remainingToday: Math.max(0, dailyLimit - claims.length),
@@ -340,28 +337,39 @@ async function closePosition(
       return cur[0] ?? p;
     }
 
-    // Stake was already deducted on open as trade_loss.
-    // Credit back: stake + realized (if positive net, i.e. profit or partial return).
-    // If realized is deeply negative (loss), returnAmount may be 0 — stake is fully forfeited.
-    const returnAmount = parseFloat(p.stake) + opts.realized;
-    if (returnAmount > 0) {
+    // Stake was reserved from Vault Capital on open. Return the principal
+    // portion to the vault; profit is credited separately to Main Wallet.
+    // A loss consumes the corresponding portion of Vault Capital.
+    const stake = parseFloat(p.stake);
+    const vaultReturn = Math.max(0, stake + Math.min(opts.realized, 0));
+    if (vaultReturn > 0) {
       await tx.insert(transactionsTable).values({
         userId: p.userId,
-        type: opts.realized < 0 ? "trade_loss_return" : "trade_profit",
-        amount: returnAmount.toFixed(2),
+        type: "vault_trade_return",
+        amount: vaultReturn.toFixed(2),
         status: "completed",
         paymentMethod: "balance",
-        description: `${opts.title}: ${p.pair} ${p.direction} (${p.botName})`,
+        description: `${opts.title}: Vault Capital principal return for ${p.pair} ${p.direction} (${p.botName})`,
+      });
+    }
+    if (opts.realized > 0) {
+      await tx.insert(transactionsTable).values({
+        userId: p.userId,
+        type: "trade_profit",
+        amount: opts.realized.toFixed(2),
+        status: "completed",
+        paymentMethod: "balance",
+        description: `${opts.title}: Main Wallet profit from ${p.pair} ${p.direction} (${p.botName})`,
       });
     }
     if (fee > 0) {
       await tx.insert(transactionsTable).values({
         userId: p.userId,
-        type: "trade_fee",
+        type: "vault_trade_fee",
         amount: fee.toFixed(2),
         status: "completed",
         paymentMethod: "balance",
-        description: `AI Signal execution fee: ${p.pair} (${p.botName})`,
+        description: `AI Signal Vault Capital fee: ${p.pair} (${p.botName})`,
       });
     }
     await tx.insert(earningsTable).values({ userId: p.userId, amount: netRealized.toFixed(2), source: "trade" });
@@ -517,7 +525,8 @@ router.get("/trade/access", async (req, res) => {
     totalDeposited: access.totalDeposited,
     hasPackage: access.hasPackage,
     packagePrice: access.packagePrice,
-    lockedInvestmentCapital: access.lockedInvestmentCapital,
+    vaultCapital: access.vaultCapital,
+    lockedInvestmentCapital: access.vaultCapital,
     canExecute: access.level > 0,
     dailyLimit: access.dailyLimit,
     usedToday: access.usedToday,
@@ -632,6 +641,10 @@ router.post("/trade/vip-packages/:level/purchase", async (req, res) => {
       };
     });
 
+    const [finalVaultCapital, finalMainWalletBalance] = await Promise.all([
+      getVaultCapitalSnapshot(user.id),
+      getAvailableBalance(user.id),
+    ]);
     return res.status(201).json({
       message: purchaseResult.isUpgrade
         ? `VIP ${tier.level} activated with a $${purchaseResult.amountDue.toFixed(2)} upgrade payment.`
@@ -643,8 +656,10 @@ router.post("/trade/vip-packages/:level/purchase", async (req, res) => {
         purchasedAt: purchaseResult.purchase.createdAt.toISOString(),
       },
       amountPaid: purchaseResult.amountDue,
-      lockedInvestmentCapital: tier.price,
-      mainWalletBalance: await getAvailableBalance(user.id),
+       vaultCapital: finalVaultCapital.vaultCapital,
+       portfolioBalance: finalMainWalletBalance + finalVaultCapital.vaultCapital,
+       lockedInvestmentCapital: finalVaultCapital.vaultCapital,
+       mainWalletBalance: finalMainWalletBalance,
     });
   } catch (error) {
     if (error instanceof VipPurchaseError) {
@@ -699,10 +714,10 @@ router.post("/trade/execute", async (req, res) => {
   const targetProfit = SIGNAL_EXECUTION_AMOUNT;
   const stopLoss = SIGNAL_EXECUTION_AMOUNT;
 
-  const available = await getAvailableBalance(user.id);
-  if (stake > available) return res.status(400).json({ error: "Insufficient balance for this stake" });
-  if (stake > available * (config.maxStakePercent / 100)) {
-    return res.status(400).json({ error: `Stake exceeds the ${config.maxStakePercent}% maximum of available balance.` });
+  const vaultSnapshot = await getVaultCapitalSnapshot(user.id);
+  if (stake > vaultSnapshot.vaultCapital) return res.status(400).json({ error: "Insufficient Vault Capital for this stake" });
+  if (stake > vaultSnapshot.vaultCapital * (config.maxStakePercent / 100)) {
+     return res.status(400).json({ error: `Stake exceeds the ${config.maxStakePercent}% maximum of Vault Capital.` });
   }
 
   const dayClaims = await db.select().from(signalClaimsTable).where(and(
@@ -717,6 +732,32 @@ router.post("/trade/execute", async (req, res) => {
       // Serialize claims per user so concurrent tabs cannot bypass the daily
       // quota check between the read above and the insert.
       await tx.execute(sql`select pg_advisory_xact_lock(${user.id})`);
+      const [purchaseBaseline] = await tx.select({
+        amount: sql<string>`coalesce(sum(${vipPackagePurchasesTable.amount}), 0)`,
+      }).from(vipPackagePurchasesTable).where(and(
+        eq(vipPackagePurchasesTable.userId, user.id),
+        eq(vipPackagePurchasesTable.status, "completed"),
+      ));
+      const [legacyCapital] = await tx.select({
+        amount: sql<string>`coalesce(sum(${vipInvestmentCapitalTable.amount}), 0)`,
+      }).from(vipInvestmentCapitalTable).where(and(
+        eq(vipInvestmentCapitalTable.userId, user.id),
+        eq(vipInvestmentCapitalTable.status, "locked"),
+      ));
+      const vaultTransactions = await tx.select({
+        type: transactionsTable.type,
+        amount: transactionsTable.amount,
+        status: transactionsTable.status,
+      }).from(transactionsTable).where(eq(transactionsTable.userId, user.id));
+      const purchasedCapital = Number(purchaseBaseline?.amount ?? 0);
+      const initialCapital = purchasedCapital > 0 ? purchasedCapital : Number(legacyCapital?.amount ?? 0);
+      const currentVaultCapital = calculateVaultCapital(initialCapital, vaultTransactions);
+      if (stake > currentVaultCapital) {
+        throw new SignalRuleError("INSUFFICIENT_VAULT_CAPITAL", "Insufficient Vault Capital for this stake.", 400);
+      }
+      if (stake > currentVaultCapital * (config.maxStakePercent / 100)) {
+        throw new SignalRuleError("STAKE_LIMIT", `Stake exceeds the ${config.maxStakePercent}% maximum of Vault Capital.`, 400);
+      }
       const freshClaims = await tx.select().from(signalClaimsTable).where(and(
         eq(signalClaimsTable.userId, user.id),
         gte(signalClaimsTable.createdAt, access.dayStart),
@@ -748,7 +789,7 @@ router.post("/trade/execute", async (req, res) => {
       await tx.update(signalClaimsTable).set({ positionId: inserted.id }).where(eq(signalClaimsTable.id, claim.id));
       await tx.insert(transactionsTable).values({
         userId: user.id,
-        type: "reserved_stake",
+        type: "vault_trade_stake",
         amount: stake.toFixed(2),
         status: "completed",
         paymentMethod: "balance",

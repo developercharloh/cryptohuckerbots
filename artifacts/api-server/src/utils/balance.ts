@@ -1,5 +1,5 @@
-import { db, transactionsTable } from "@workspace/db";
-import { eq, sql } from "drizzle-orm";
+import { db, transactionsTable, vipInvestmentCapitalTable, vipPackagePurchasesTable } from "@workspace/db";
+import { and, eq, sql } from "drizzle-orm";
 
 const CREDIT_TYPES = ["deposit", "trade_profit", "trade_loss_return"] as const;
 const DEBIT_TYPES = [
@@ -17,6 +17,8 @@ const PENDING_HOLD_TYPES = [
   "bot_purchase",
   "vip_package_purchase",
 ] as const;
+const VAULT_CREDIT_TYPES = ["vault_trade_return"] as const;
+const VAULT_DEBIT_TYPES = ["vault_trade_stake", "vault_trade_fee"] as const;
 
 type WalletTransaction = {
   type: string;
@@ -28,6 +30,23 @@ export function transactionDelta(type: string, amount: number): number {
   if ((CREDIT_TYPES as readonly string[]).includes(type)) return amount;
   if ((DEBIT_TYPES as readonly string[]).includes(type)) return -amount;
   return 0;
+}
+
+export function vaultTransactionDelta(type: string, amount: number): number {
+  if ((VAULT_CREDIT_TYPES as readonly string[]).includes(type)) return amount;
+  if ((VAULT_DEBIT_TYPES as readonly string[]).includes(type)) return -amount;
+  return 0;
+}
+
+export function calculateVaultCapital(initialCapital: number, txns: WalletTransaction[]): number {
+  let capital = Number.isFinite(initialCapital) ? initialCapital : 0;
+  for (const txn of txns) {
+    if (txn.status && txn.status !== "completed") continue;
+    const amount = Number(txn.amount);
+    if (!Number.isFinite(amount)) continue;
+    capital += vaultTransactionDelta(txn.type, amount);
+  }
+  return Math.round(Math.max(0, capital) * 100) / 100;
 }
 
 export function calculateWalletBalance(txns: WalletTransaction[]): number {
@@ -44,6 +63,11 @@ export type WalletSnapshot = {
   pendingOutflow: number;
   availableBalance: number;
   totalDeposited: number;
+};
+
+export type VaultCapitalSnapshot = {
+  initialCapital: number;
+  vaultCapital: number;
 };
 
 export function calculateWalletSnapshot(txns: WalletTransaction[]): WalletSnapshot {
@@ -115,4 +139,34 @@ export async function getWalletSnapshot(userId: number): Promise<WalletSnapshot>
 export async function getAvailableBalance(userId: number): Promise<number> {
   const wallet = await getWalletSnapshot(userId);
   return wallet.availableBalance;
+}
+
+export async function getVaultCapitalSnapshot(userId: number): Promise<VaultCapitalSnapshot> {
+  const [[purchaseBaseline], [legacyCapital], vaultTransactions] = await Promise.all([
+    db.select({
+      amount: sql<string>`coalesce(sum(${vipPackagePurchasesTable.amount}), 0)`,
+    }).from(vipPackagePurchasesTable).where(and(
+      eq(vipPackagePurchasesTable.userId, userId),
+      eq(vipPackagePurchasesTable.status, "completed"),
+    )),
+    db.select({
+      amount: sql<string>`coalesce(sum(${vipInvestmentCapitalTable.amount}), 0)`,
+    }).from(vipInvestmentCapitalTable).where(and(
+      eq(vipInvestmentCapitalTable.userId, userId),
+      eq(vipInvestmentCapitalTable.status, "locked"),
+    )),
+    db.select({
+      type: transactionsTable.type,
+      amount: transactionsTable.amount,
+      status: transactionsTable.status,
+    }).from(transactionsTable).where(eq(transactionsTable.userId, userId)),
+  ]);
+
+  const purchasedCapital = Number(purchaseBaseline?.amount ?? 0);
+  const legacyLockedCapital = Number(legacyCapital?.amount ?? 0);
+  const initialCapital = purchasedCapital > 0 ? purchasedCapital : legacyLockedCapital;
+  return {
+    initialCapital: Math.round(Math.max(0, initialCapital) * 100) / 100,
+    vaultCapital: calculateVaultCapital(initialCapital, vaultTransactions),
+  };
 }

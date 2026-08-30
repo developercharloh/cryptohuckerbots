@@ -217,7 +217,7 @@ export default function StartBot() {
   // Profit progress for the ring (0 → 1)
   const profitProgress = profitTarget > 0 ? Math.min(1, pnl / profitTarget) : 0;
   const dashOffset = CIRCUMFERENCE * (1 - profitProgress);
-  const updatedBalance = (summary?.availableBalance ?? 0) + profitTarget;
+  const updatedBalance = (summary?.mainWalletBalance ?? summary?.availableBalance ?? 0) + profitTarget;
 
   // ─── CONFIGURE ────────────────────────────────────────────────────────────
   if (step === "configure") {
@@ -243,7 +243,7 @@ export default function StartBot() {
               <div className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center">1</div>
               <h2 className="text-sm font-bold">Stake Amount</h2>
               <span className="ml-auto text-[10px] text-muted-foreground">
-                Available: <span className="font-bold text-foreground">${(summary?.availableBalance ?? 0).toFixed(2)}</span>
+                 Vault Capital: <span className="font-bold text-foreground">${(summary?.vaultCapital ?? summary?.lockedInvestmentCapital ?? 0).toFixed(2)}</span>
               </span>
             </div>
             <div className="relative">
@@ -253,12 +253,12 @@ export default function StartBot() {
                 placeholder="Enter amount..."
                 value={stakeAmount}
                 onChange={e => setStakeAmount(e.target.value)}
-                className={`bg-card border-none h-14 rounded-xl text-lg font-bold pl-8 pr-4 ${stakeNum > 0 && stakeNum > (summary?.availableBalance ?? 0) ? "ring-2 ring-destructive/60" : ""}`}
+                 className={`bg-card border-none h-14 rounded-xl text-lg font-bold pl-8 pr-4 ${stakeNum > 0 && stakeNum > (summary?.vaultCapital ?? summary?.lockedInvestmentCapital ?? 0) ? "ring-2 ring-destructive/60" : ""}`}
               />
             </div>
-            {stakeNum > 0 && stakeNum > (summary?.availableBalance ?? 0) && (
+            {stakeNum > 0 && stakeNum > (summary?.vaultCapital ?? summary?.lockedInvestmentCapital ?? 0) && (
               <p className="text-[11px] text-destructive font-semibold mt-2 flex items-center gap-1">
-                ⚠ Amount exceeds your available balance of ${(summary?.availableBalance ?? 0).toFixed(2)}
+                ⚠ Amount exceeds your Vault Capital of ${(summary?.vaultCapital ?? summary?.lockedInvestmentCapital ?? 0).toFixed(2)}
               </p>
             )}
             <div className="flex gap-2 mt-2.5">
@@ -553,7 +553,7 @@ export default function StartBot() {
           ))}
         </div>
 
-        {/* Updated balance */}
+        {/* Updated Main Wallet balance */}
         <div className="w-full bg-card rounded-2xl p-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <BarChart2 className="w-4 h-4 text-muted-foreground" />

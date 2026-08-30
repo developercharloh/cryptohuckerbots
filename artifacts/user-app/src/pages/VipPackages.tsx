@@ -55,7 +55,8 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
     price: number;
     amountPaid: number;
     dailySignals: number;
-    lockedInvestmentCapital: number;
+     vaultCapital: number;
+     portfolioBalance: number;
     mainWalletBalance: number;
   } | null>(null);
 
@@ -89,11 +90,11 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
     : summaryError
       ? "Unavailable"
       : formatUSD(summary?.mainWalletBalance ?? summary?.availableBalance ?? 0);
-  const lockedCapitalDisplay = accessLoading
+   const vaultCapitalDisplay = accessLoading
     ? "Loading…"
     : accessError
       ? "Unavailable"
-      : formatUSD(access?.lockedInvestmentCapital ?? 0);
+       : formatUSD(access?.vaultCapital ?? access?.lockedInvestmentCapital ?? 0);
 
   const handlePurchase = () => {
     if (!access || !selected || selected.level <= activeLevel) return;
@@ -112,7 +113,8 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
              price: result.package.price,
               amountPaid: result.amountPaid,
              dailySignals: result.package.dailySignals,
-             lockedInvestmentCapital: result.lockedInvestmentCapital,
+             vaultCapital: result.vaultCapital ?? result.lockedInvestmentCapital,
+             portfolioBalance: result.portfolioBalance ?? (result.mainWalletBalance + (result.vaultCapital ?? result.lockedInvestmentCapital)),
              mainWalletBalance: result.mainWalletBalance,
            });
         },
@@ -167,8 +169,8 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
               <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-2 text-right">
                  <p className="text-[9px] uppercase tracking-wider text-gray-500">Main wallet</p>
                   <p className={`mt-1 text-lg font-black ${summaryError ? "text-red-200" : "text-amber-200"}`}>{walletDisplay}</p>
-                 <p className="mt-2 text-[9px] uppercase tracking-wider text-gray-500">Locked capital</p>
-                  <p className={`mt-1 text-sm font-black ${accessError ? "text-red-200" : "text-blue-200"}`}>{lockedCapitalDisplay}</p>
+                  <p className="mt-2 text-[9px] uppercase tracking-wider text-gray-500">Vault capital</p>
+                   <p className={`mt-1 text-sm font-black ${accessError ? "text-red-200" : "text-blue-200"}`}>{vaultCapitalDisplay}</p>
               </div>
             </div>
             {access?.vipLevel ? (
@@ -228,8 +230,8 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
                    <p className="text-sm font-bold">Activate VIP {selected.level}</p>
                   <p className="mt-1 text-xs text-gray-400">
                        {activeLevel > 0
-                         ? `${formatUSD(selected.amountDue)} due today to upgrade to VIP ${selected.level} · ${formatUSD(selected.price)} total locked capital`
-                         : `${formatUSD(selected.amountDue)} will move from your main wallet into locked investment capital`}
+                         ? `${formatUSD(selected.amountDue)} due today to upgrade to VIP ${selected.level} · ${formatUSD(selected.price)} total Vault Capital`
+                         : `${formatUSD(selected.amountDue)} will move from your Main Wallet into Vault Capital`}
                        {" "}· {selected.dailySignals} AI Signals per day
                   </p>
                 </div>
@@ -259,11 +261,11 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
               </div>
               {!canPurchase && selected.level > activeLevel && availableBalance < selected.amountDue && (
                 <p role="alert" className="mt-3 rounded-xl border border-red-300/20 bg-red-400/10 px-3 py-2 text-[11px] leading-5 text-red-200">
-                  Insufficient balance to purchase VIP {selected.level}. You need {formatUSD(selected.amountDue)}, but your available balance is {formatUSD(availableBalance)}. Top up your wallet or use accumulated profits; you are short by {formatUSD(shortfall)}.
+                  Insufficient Main Wallet balance to purchase VIP {selected.level}. You need {formatUSD(selected.amountDue)}, but your Main Wallet is {formatUSD(availableBalance)}. Top up your wallet or use accumulated profits; you are short by {formatUSD(shortfall)}.
                 </p>
               )}
-              <p className="mt-3 text-[10px] leading-4 text-gray-500">
-                  Your main-wallet balance decreases by the amount due today. The target tier’s full capital stays locked while signal profits and permitted returns accumulate in your main wallet.
+               <p className="mt-3 text-[10px] leading-4 text-gray-500">
+                   Your Main Wallet decreases by the amount due today. The target tier’s capital becomes Vault Capital, while signal profits and permitted returns accumulate in your Main Wallet.
               </p>
             </div>
           )}
@@ -295,7 +297,7 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
                   <div className="rounded-2xl border border-amber-200/15 bg-amber-200/[0.07] p-3">
                     <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-amber-200/70">Activated tier</p>
                     <p className="mt-1 text-lg font-black text-amber-100">VIP {purchaseSuccess.level}</p>
-                     <p className="mt-0.5 text-xs text-slate-400">{formatUSD(purchaseSuccess.amountPaid)} paid today · {formatUSD(purchaseSuccess.price)} locked</p>
+                      <p className="mt-0.5 text-xs text-slate-400">{formatUSD(purchaseSuccess.amountPaid)} paid today · {formatUSD(purchaseSuccess.price)} in Vault Capital</p>
                   </div>
                   <div className="rounded-2xl border border-blue-200/15 bg-blue-200/[0.07] p-3">
                     <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-blue-200/70">Main wallet</p>
@@ -306,7 +308,7 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
 
                 <div className="mt-3 flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-xs text-slate-300">
                   <LockKeyhole className="h-4 w-4 shrink-0 text-amber-300" />
-                  <span>Total locked investment capital: <strong className="text-white">{formatUSD(purchaseSuccess.lockedInvestmentCapital)}</strong></span>
+                   <span>Total Vault Capital: <strong className="text-white">{formatUSD(purchaseSuccess.vaultCapital)}</strong></span>
                 </div>
 
                 <button

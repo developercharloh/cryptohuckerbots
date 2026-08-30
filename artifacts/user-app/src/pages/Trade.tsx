@@ -295,7 +295,7 @@ export default function Trade() {
     queryClient.invalidateQueries({ queryKey: ["/api/bots"] });
   };
 
-  const availableBalance = summary?.availableBalance ?? 0;
+  const vaultCapital = summary?.vaultCapital ?? summary?.lockedInvestmentCapital ?? 0;
 
   const handleExecute = () => {
     const signal = bestSignal;
@@ -318,8 +318,8 @@ export default function Trade() {
       return;
     }
     const signalAmount = vipAccess?.signalAmount ?? 2.5;
-    if (signalAmount > availableBalance) {
-      toast({ title: "Insufficient balance", description: `Your available balance is $${availableBalance.toFixed(2)}. Add funds and try again.`, variant: "destructive" });
+    if (signalAmount > vaultCapital) {
+      toast({ title: "Insufficient Vault Capital", description: `Your Vault Capital is $${vaultCapital.toFixed(2)}. Activate or upgrade VIP and try again.`, variant: "destructive" });
       return;
     }
     const secs = runtime * 60;
@@ -415,7 +415,7 @@ export default function Trade() {
         ? "Daily limit reached"
         : !bestSignal
           ? "Refresh AI Signals"
-        : signalAmount > availableBalance
+        : signalAmount > vaultCapital
           ? "Add balance to continue"
           : !consent
             ? "Confirm & execute signal"
@@ -768,12 +768,12 @@ export default function Trade() {
                   border: "1px solid rgba(255,255,255,0.06)",
                 }}>
                   <div>
-                    <p style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", color: "#7C849D", fontWeight: 800 }}>Wallet available</p>
-                    <p style={{ fontSize: 23, color: "#fff", fontWeight: 900, marginTop: 3 }}>${availableBalance.toFixed(2)}</p>
+                    <p style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", color: "#7C849D", fontWeight: 800 }}>Vault Capital available</p>
+                    <p style={{ fontSize: 23, color: "#fff", fontWeight: 900, marginTop: 3 }}>${vaultCapital.toFixed(2)}</p>
                   </div>
                   <p style={{ fontSize: 11, color: "#9CA3AF", textAlign: "right", display: "flex", alignItems: "center", gap: 5 }}>
                       <WalletCards style={{ width: 14, height: 14, color: "#9CA3AF" }} />
-                    Available to use
+                      Trading capital available
                   </p>
                 </div>
 

@@ -108,8 +108,10 @@ export const GetMeResponse = zod.object({
 
 export const GetDashboardSummaryResponse = zod.object({
   "totalBalance": zod.number(),
+  "portfolioBalance": zod.number(),
   "availableBalance": zod.number(),
   "mainWalletBalance": zod.number(),
+  "vaultCapital": zod.number(),
   "lockedInvestmentCapital": zod.number(),
   "todayProfit": zod.number(),
   "todayProfitPercent": zod.number(),
@@ -493,6 +495,7 @@ export const GetTradeAccessResponse = zod.object({
   "totalDeposited": zod.number(),
   "hasPackage": zod.boolean(),
   "packagePrice": zod.number().nullable(),
+  "vaultCapital": zod.number(),
   "lockedInvestmentCapital": zod.number(),
   "canExecute": zod.boolean(),
   "dailyLimit": zod.number(),
@@ -536,6 +539,8 @@ export const PurchaseVipPackageResponse = zod.object({
   "purchasedAt": zod.coerce.date()
 }),
   "lockedInvestmentCapital": zod.number(),
+  "vaultCapital": zod.number(),
+  "portfolioBalance": zod.number(),
   "amountPaid": zod.number(),
   "mainWalletBalance": zod.number()
 })

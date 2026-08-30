@@ -101,7 +101,7 @@ export default function Cashier() {
                   <Skeleton className="h-9 w-36 bg-white/10" />
                 ) : balanceVisible ? (
                   <p style={{ fontSize: 32, fontWeight: 800, color: "#fff", letterSpacing: "-0.03em", lineHeight: 1 }}>
-                    {formatUSD(summary?.availableBalance)}
+                     {formatUSD(summary?.mainWalletBalance ?? summary?.availableBalance)}
                   </p>
                 ) : (
                   <p style={{ fontSize: 32, fontWeight: 800, color: "#fff", letterSpacing: "0.15em", lineHeight: 1 }}>••••••</p>
@@ -168,12 +168,12 @@ export default function Cashier() {
                 <LockKeyhole className="h-5 w-5 text-blue-300" />
               </div>
               <div>
-                <p className="text-sm font-semibold">Locked Investment Capital</p>
-                <p className="text-[11px] text-muted-foreground">VIP activation capital · not available to withdraw</p>
+                 <p className="text-sm font-semibold">Vault Capital</p>
+                 <p className="text-[11px] text-muted-foreground">VIP trading capital · not available to withdraw</p>
               </div>
             </div>
             <p className="text-sm font-bold text-blue-200">
-              {isLoading ? "—" : balanceVisible ? formatUSD(summary?.lockedInvestmentCapital ?? 0) : "••••••"}
+               {isLoading ? "—" : balanceVisible ? formatUSD(summary?.vaultCapital ?? summary?.lockedInvestmentCapital ?? 0) : "••••••"}
             </p>
           </div>
         </div>
@@ -186,7 +186,7 @@ export default function Cashier() {
               const Icon = acc.Icon;
               const displayBalance = acc.isMain
                 ? balanceVisible
-                  ? formatUSD(summary?.availableBalance ?? 0)
+                   ? formatUSD(summary?.mainWalletBalance ?? summary?.availableBalance ?? 0)
                   : "••••••"
                 : balanceVisible
                 ? "$0.00"

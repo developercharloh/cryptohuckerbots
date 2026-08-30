@@ -393,7 +393,7 @@ export default function UserDetail() {
                             <TableRow key={txn.id}>
                               <TableCell className="text-xs whitespace-nowrap">{format(new Date(txn.createdAt), "PP p")}</TableCell>
                               <TableCell className="capitalize">
-                                <div>{txn.type === 'trade_loss' ? 'Contract Opened' : txn.type === 'trade_profit' || txn.type === 'trade_loss_return' ? 'Contract Closed' : txn.type.replace('_', ' ')}</div>
+                                <div>{txn.type === 'trade_loss' ? 'Contract Opened' : txn.type === 'trade_profit' || txn.type === 'trade_loss_return' ? 'Contract Closed' : txn.type === 'vault_trade_stake' ? 'Vault Capital Reserved' : txn.type === 'vault_trade_return' ? 'Vault Capital Returned' : txn.type === 'vault_trade_fee' ? 'Vault Capital Trading Fee' : txn.type.replace('_', ' ')}</div>
                                 {txn.type === 'withdrawal' && txn.walletAddress && (
                                   <div className="mt-1 p-1.5 rounded-md bg-secondary/60 space-y-1">
                                     {txn.network && (
@@ -423,8 +423,8 @@ export default function UserDetail() {
                                   {txn.status}
                                 </Badge>
                               </TableCell>
-                              <TableCell className={`text-right font-medium ${txn.type === 'deposit' || txn.type === 'trade_profit' ? 'text-emerald-500' : txn.type === 'withdrawal' || txn.type === 'trade_loss' || txn.type === 'trade_loss_return' || txn.type === 'vip_package_purchase' ? 'text-red-500' : ''}`}>
-                                {txn.type === 'deposit' || txn.type === 'trade_profit' ? '+' : txn.type === 'withdrawal' || txn.type === 'trade_loss' || txn.type === 'trade_loss_return' || txn.type === 'vip_package_purchase' ? '−' : ''}
+                              <TableCell className={`text-right font-medium ${txn.type === 'deposit' || txn.type === 'trade_profit' || txn.type === 'vault_trade_return' ? 'text-emerald-500' : txn.type === 'withdrawal' || txn.type === 'trade_loss' || txn.type === 'trade_loss_return' || txn.type === 'vip_package_purchase' || txn.type === 'vault_trade_stake' || txn.type === 'vault_trade_fee' ? 'text-red-500' : ''}`}>
+                                {txn.type === 'deposit' || txn.type === 'trade_profit' || txn.type === 'vault_trade_return' ? '+' : txn.type === 'withdrawal' || txn.type === 'trade_loss' || txn.type === 'trade_loss_return' || txn.type === 'vip_package_purchase' || txn.type === 'vault_trade_stake' || txn.type === 'vault_trade_fee' ? '−' : ''}
                                 ${txn.amount.toFixed(2)}
                               </TableCell>
                             </TableRow>
