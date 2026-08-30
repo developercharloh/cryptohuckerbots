@@ -15,7 +15,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: string |
         <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground p-6 gap-4">
           <p className="text-destructive font-semibold text-center">Something went wrong</p>
           <p className="text-xs text-muted-foreground text-center break-all">{this.state.error}</p>
-          <button className="mt-2 px-4 py-2 rounded-lg bg-primary text-white text-sm" onClick={() => this.setState({ error: null })}>Try again</button>
+           <button className="mt-2 px-4 py-2 rounded-lg bg-primary text-white text-sm" onClick={() => window.location.reload()}>Reload app</button>
         </div>
       );
     }
