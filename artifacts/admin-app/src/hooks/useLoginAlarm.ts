@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE } from "@/lib/api-base";
 
 export const ALARM_KEY = "vixus_login_alarm";
 
@@ -7,8 +8,6 @@ export function isAlarmEnabled(): boolean {
   const v = localStorage.getItem(ALARM_KEY);
   return v === null || v === "1";
 }
-
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
 
 // ─── Frequencies (Hz) ────────────────────────────────────────────────────────
 // All four voice ranges covered

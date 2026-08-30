@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE } from "@/lib/api-base";
 import {
   Table,
   TableBody,
@@ -106,8 +107,7 @@ export default function UserDetail() {
     if (!confirm(`${action} ${user.fullName}?`)) return;
     setPromoteLoading(true);
     try {
-      const base = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
-      const res = await fetch(`${base}/api/admin/users/${userId}/promote`, { method: "POST", credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/admin/users/${userId}/promote`, { method: "POST", credentials: "include" });
       if (!res.ok) throw new Error((await res.json()).error ?? "Request failed");
       toast({ title: isAdmin ? "Admin access revoked" : "User promoted to admin" });
       queryClient.invalidateQueries({ queryKey: getAdminGetUserQueryKey(userId) });

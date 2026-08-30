@@ -9,6 +9,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Layout from "@/components/Layout";
 import { useLoginAlarm } from "@/hooks/useLoginAlarm";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
+import { API_BASE } from "@/lib/api-base";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import Users from "@/pages/Users";
@@ -20,7 +21,7 @@ import Settings from "@/pages/Settings";
 import Broadcast from "@/pages/Broadcast";
 import NotFound from "@/pages/not-found";
 
-setBaseUrl((import.meta.env.VITE_API_URL as string | undefined) ?? null);
+setBaseUrl(API_BASE || null);
 
 // Admin authentication is carried by an HttpOnly cookie.
 setAuthTokenGetter(null);
@@ -83,10 +84,9 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const base = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
     const requestVersion = ++authCheckVersion.current;
     let active = true;
-    fetch(`${base}/api/admin/session`, { credentials: "include" })
+    fetch(`${API_BASE}/api/admin/session`, { credentials: "include" })
       .then((response) => {
         if (!active || requestVersion !== authCheckVersion.current) return;
         setAuthed(response.ok);
@@ -122,8 +122,7 @@ function App() {
 
   const handleLogout = () => {
     authCheckVersion.current += 1;
-    const base = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
-    void fetch(`${base}/api/admin/logout`, {
+    void fetch(`${API_BASE}/api/admin/logout`, {
       method: "POST",
       credentials: "include",
     });

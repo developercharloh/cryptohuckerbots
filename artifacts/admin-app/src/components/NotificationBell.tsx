@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Bell, X, CheckCheck, Globe, Mail, Hash, User, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
+import { API_BASE } from "@/lib/api-base";
 
 interface LoginNotif {
   id: number;

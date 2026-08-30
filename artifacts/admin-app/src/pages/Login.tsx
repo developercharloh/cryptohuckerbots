@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Bot, Eye, EyeOff, Lock, User, ShieldCheck, AlertCircle, Mail } from "lucide-react";
+import { API_BASE } from "@/lib/api-base";
 
 interface LoginProps {
   onLogin: () => void;
@@ -26,8 +27,7 @@ export default function Login({ onLogin }: LoginProps) {
     setLoading(true);
 
     try {
-      const base = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
-      const res = await fetch(`${base}/api/admin/login`, {
+      const res = await fetch(`${API_BASE}/api/admin/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
