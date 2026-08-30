@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
+import { VixusLogo } from "@/components/VixusLogo";
 import { Link } from "wouter";
 import { formatUSD } from "@/lib/format";
 import { useLivePairs, fmtPrice } from "@/hooks/useLivePairs";
@@ -65,9 +66,7 @@ export default function Dashboard() {
         {/* ── Header ─────────────────────────────────────────────── */}
         <div className="user-dashboard-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 16px 12px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 10, background: "linear-gradient(135deg, #F5B942, #D99B18)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Zap style={{ width: 16, height: 16, color: "#fff", fill: "#fff" }} />
-            </div>
+             <VixusLogo className="h-8 w-8 rounded-[10px] border border-amber-300/30 object-cover shadow-[0_0_18px_rgba(37,99,235,0.25)]" />
             <span style={{ fontSize: 16, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em" }}>VIXUS AI</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

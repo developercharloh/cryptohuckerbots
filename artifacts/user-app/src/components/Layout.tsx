@@ -1,7 +1,8 @@
 import { useState, ReactNode } from "react";
 import { BottomNav } from "./BottomNav";
-import { Sun, Moon, Bot } from "lucide-react";
+import { Sun, Moon } from "lucide-react";
 import { Link, useLocation } from "wouter";
+import { VixusLogo } from "./VixusLogo";
 
 const DESKTOP_NAV = [
   { href: "/dashboard", label: "Overview" },
@@ -57,9 +58,7 @@ export function Layout({ children, showNav = false }: LayoutProps) {
         <nav className="desktop-user-nav hidden lg:flex fixed top-0 left-0 right-0 z-50 h-16 items-center border-b border-border/60 bg-background/90 px-8 backdrop-blur-xl">
           <div className="mx-auto flex w-full max-w-[1440px] items-center gap-10 pr-20">
             <Link href="/dashboard" className="flex shrink-0 items-center gap-2 text-foreground no-underline">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/25">
-                <Bot className="h-5 w-5 text-primary-foreground" />
-              </span>
+              <VixusLogo className="h-9 w-9 rounded-xl border border-amber-300/30 object-cover shadow-lg shadow-blue-950/40" />
               <span className="text-sm font-extrabold tracking-tight">VIXUS <span className="text-primary">AI</span></span>
             </Link>
             <div className="flex min-w-0 flex-1 items-center gap-1">

@@ -1,0 +1,25 @@
+{
+  "name": "VIXUS AI",
+  "short_name": "VIXUS AI",
+  "description": "AI-powered trading signals, market intelligence, and portfolio tools.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#070A13",
+  "theme_color": "#0B1220",
+  "icons": [
+    {
+      "src": "icons/vixus-ai-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/vixus-ai-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

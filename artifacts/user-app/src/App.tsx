@@ -27,6 +27,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AuthGuard } from "@/components/AuthGuard";
+import { InstallAppPrompt } from "@/components/InstallAppPrompt";
 
 // Keep the entry chunk small. Pages load only when their route is visited so
 // login does not download charts, cashier forms, support, and bot analytics.
@@ -208,6 +209,7 @@ function App() {
                 </div>
               </Suspense>
             </ErrorBoundary>
+            <InstallAppPrompt />
             </AuthProvider>
           </WouterRouter>
         <Toaster />
