@@ -109,6 +109,8 @@ export const GetMeResponse = zod.object({
 export const GetDashboardSummaryResponse = zod.object({
   "totalBalance": zod.number(),
   "portfolioBalance": zod.number(),
+  "ledgerBalance": zod.number(),
+  "pendingOutflow": zod.number(),
   "availableBalance": zod.number(),
   "mainWalletBalance": zod.number(),
   "vaultCapital": zod.number(),

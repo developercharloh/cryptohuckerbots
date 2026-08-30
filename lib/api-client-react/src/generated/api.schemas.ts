@@ -196,6 +196,8 @@ export interface AuthResponse {
 export interface DashboardSummary {
   totalBalance: number;
   portfolioBalance: number;
+  ledgerBalance: number;
+  pendingOutflow: number;
   availableBalance: number;
   mainWalletBalance: number;
   vaultCapital: number;
