@@ -906,7 +906,7 @@ export default function Trade() {
                     {win ? "+" : "−"}${Math.abs(result.pnl).toFixed(2)}
                   </p>
                   <p style={{ fontSize: 13, color: "#6B7280", marginTop: 4 }}>{roi > 0 ? "+" : ""}{roi.toFixed(1)}% outcome on ${result.stake.toFixed(2)} signal</p>
-                  <p style={{ fontSize: 11, color: "#FFD86B", marginTop: 8 }}>Signal reward: +$2.50 credited to Main Wallet</p>
+                   <p style={{ fontSize: 11, color: "#FFD86B", marginTop: 8 }}>Signal reward: +$2.50 to Main Wallet · reflected in Portfolio Wallet</p>
                 </div>
 
                 {/* Stats */}

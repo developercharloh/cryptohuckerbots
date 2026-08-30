@@ -375,7 +375,7 @@ async function closePosition(
         amount: SIGNAL_REWARD_AMOUNT.toFixed(2),
         status: "completed",
         paymentMethod: "balance",
-        description: `AI Signal reward: Main Wallet credit for ${p.pair} ${p.direction} (${p.botName})`,
+        description: `AI Signal reward: Main Wallet credit reflected in Portfolio Wallet for ${p.pair} ${p.direction} (${p.botName})`,
       });
     }
     if (fee > 0) {
@@ -393,7 +393,7 @@ async function closePosition(
       userId: p.userId,
       type: "trade",
       title: opts.title,
-      message: `${opts.message} Net realized P&L after a ${fee.toFixed(2)} fee: ${netRealized >= 0 ? "+" : "-"}$${Math.abs(netRealized).toFixed(2)}.${signalClaim ? ` A $${SIGNAL_REWARD_AMOUNT.toFixed(2)} signal reward was credited to your Main Wallet.` : ""}`,
+      message: `${opts.message} Net realized P&L after a ${fee.toFixed(2)} fee: ${netRealized >= 0 ? "+" : "-"}$${Math.abs(netRealized).toFixed(2)}.${signalClaim ? ` A $${SIGNAL_REWARD_AMOUNT.toFixed(2)} signal reward was credited to your Main Wallet and reflected in your Portfolio Wallet.` : ""}`,
     });
 
     return updated[0];
