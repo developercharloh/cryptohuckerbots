@@ -443,7 +443,7 @@ function DashboardCard({ pairs }: { pairs: PriceData[] }) {
 ═══════════════════════════════════════════════════════════════ */
 export default function Landing() {
   const [, setLocation] = useLocation();
-  const { token, isLoading } = useAuth();
+  const { user, isLoading } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const pairs = useLivePrices();
@@ -458,7 +458,10 @@ export default function Landing() {
     refetchInterval: 10 * 60 * 1000,
   });
 
-  useEffect(() => { if (!isLoading && token) setLocation("/dashboard"); }, [token, isLoading, setLocation]);
+  // The in-memory token marker is present before the HttpOnly cookie has been
+  // validated. Only redirect an already-known user, otherwise a public visit
+  // to the landing page would bounce through the protected dashboard.
+  useEffect(() => { if (!isLoading && user) setLocation("/dashboard"); }, [user, isLoading, setLocation]);
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 8);
     window.addEventListener("scroll", fn, { passive: true });

@@ -5,7 +5,7 @@ import { VixusLogo } from "@/components/VixusLogo";
 
 export default function Splash() {
   const [, setLocation] = useLocation();
-  const { token, isLoading } = useAuth();
+  const { user, isLoading } = useAuth();
   const [showButton, setShowButton] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
@@ -16,14 +16,14 @@ export default function Splash() {
 
   useEffect(() => {
     if (isLoading) return;
-    if (token) {
+    if (user) {
       const t = setTimeout(() => setLocation("/dashboard"), 1800);
       return () => clearTimeout(t);
     } else {
       const t = setTimeout(() => setShowButton(true), 2000);
       return () => clearTimeout(t);
     }
-  }, [setLocation, token, isLoading]);
+  }, [setLocation, user, isLoading]);
 
   const handleGetStarted = () => {
     const seen = localStorage.getItem("vixus_onboarding_seen");
