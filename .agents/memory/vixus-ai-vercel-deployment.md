@@ -21,6 +21,12 @@ Vercel's direct deployment API can reject otherwise valid prebuilt uploads after
 
 **How to apply:** Verify each project independently by deployment commit and live protected-route behavior; if the API project is still on an older commit, do not claim the backend fix is live and wait for quota reset or a working Git/deploy hook.
 
+The Vercel Git-based deployment endpoint can still accept a fresh production deployment for the static user app after the linked GitHub hook has not reacted to a push, while the separate API project can remain blocked by its exhausted deployment quota.
+
+**Why:** The two Vercel projects have independent deployment limits and triggers, so a manual Git-source deployment can promote one without changing the other's state.
+
+**How to apply:** After pushing a verified user-app commit, check the project-specific latest deployment and production aliases before treating the push as live; retry the API project separately only when its quota resets.
+
 For file-only static deployments to a monorepo-linked Vercel project, the project-level `rootDirectory` can override deployment payload settings and force a build against a missing source tree. Temporarily clear `rootDirectory`, `buildCommand`, `installCommand`, and `outputDirectory` while creating the prebuilt deployment, then restore the original settings after Vercel accepts it.
 
 **Why:** Vercel may ignore a `rootDirectory: null` value supplied only in the deployment payload and leave the direct upload queued or fail it with `NOW_SANDBOX_WORKER_ROOTDIR_NOT_EXIST`.
