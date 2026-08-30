@@ -128,8 +128,6 @@ export interface TradeResult {
   amount: number;
   stake: number;
   availableBalance: number;
-  mainWalletBalance?: number;
-  lockedInvestmentCapital?: number;
   message: string;
 }
 
@@ -192,6 +190,8 @@ export interface AuthResponse {
 export interface DashboardSummary {
   totalBalance: number;
   availableBalance: number;
+  mainWalletBalance: number;
+  lockedInvestmentCapital: number;
   todayProfit: number;
   todayProfitPercent: number;
   totalEarnings: number;
