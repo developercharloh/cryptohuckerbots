@@ -29,6 +29,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { API_BASE } from "@/lib/api-base";
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required"),
@@ -38,8 +39,6 @@ const passwordSchema = z.object({
   message: "Passwords don't match",
   path: ["confirmPassword"],
 });
-
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
 
 async function api2FA(path: string, body?: object) {
   const r = await fetch(`${API_BASE}/api/profile/2fa/${path}`, {

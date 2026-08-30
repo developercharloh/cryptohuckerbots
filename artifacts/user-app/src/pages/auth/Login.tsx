@@ -10,6 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormMessage } from "@/component
 import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, Loader2, ShieldCheck, ChevronLeft, Lock, Mail } from "lucide-react";
 import { VixusLogo } from "@/components/VixusLogo";
+import { API_BASE } from "@/lib/api-base";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -67,8 +68,7 @@ export default function Login() {
     }
     setVerifying(true);
     try {
-      const apiBase = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
-      const r = await fetch(`${apiBase}/api/auth/2fa/verify`, {
+      const r = await fetch(`${API_BASE}/api/auth/2fa/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

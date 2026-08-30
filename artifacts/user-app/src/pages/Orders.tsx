@@ -4,12 +4,11 @@ import { useListTradePositions } from "@workspace/api-client-react";
 import { Layout } from "@/components/Layout";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { API_BASE } from "@/lib/api-base";
 import {
   ChevronLeft, CheckCircle2, Clock, Zap,
   ArrowUpRight, ArrowDownRight, Activity, Trash2, XCircle, Target,
 } from "lucide-react";
-
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
 
 const CLEAR_KEY = "vixus_cleared_positions_before";
 

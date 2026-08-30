@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 import { useGetMe, setAuthTokenGetter, ApiError } from "@workspace/api-client-react";
 import type { User } from "@workspace/api-client-react";
+import { API_BASE } from "@/lib/api-base";
 
 // Web sessions are carried by an HttpOnly cookie. Never expose the session
 // token to JavaScript or configure the shared client to add a bearer header.
@@ -65,8 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const handleLogout = () => {
-    const apiBase = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
-    void fetch(`${apiBase}/api/auth/logout`, {
+    void fetch(`${API_BASE}/api/auth/logout`, {
       method: "POST",
       credentials: "include",
     }).catch(() => {

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useLocation } from "wouter";
+import { API_BASE } from "@/lib/api-base";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -99,7 +100,7 @@ type LandingNewsResponse = {
   updatedAt: string;
 };
 
-const LANDING_API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
+const LANDING_API_BASE = API_BASE;
 const ASSET_BASE = import.meta.env.BASE_URL;
 
 function formatNewsTime(value: string) {

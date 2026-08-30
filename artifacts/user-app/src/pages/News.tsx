@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, Newspaper, RefreshCw, Search, TrendingUp } from "lucide-react";
 import { Layout } from "@/components/Layout";
+import { API_BASE } from "@/lib/api-base";
 
 type NewsCategory = "markets" | "forex" | "stocks" | "commodities" | "crypto";
 type NewsArticle = {
@@ -15,7 +16,6 @@ type NewsArticle = {
 };
 type NewsResponse = { articles: NewsArticle[]; updatedAt: string };
 
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
 const FILTERS: { id: "all" | NewsCategory; label: string }[] = [
   { id: "all", label: "All news" },
   { id: "forex", label: "Forex" },
