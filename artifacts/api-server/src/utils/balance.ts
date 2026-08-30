@@ -1,7 +1,7 @@
 import { db, transactionsTable, vipInvestmentCapitalTable, vipPackagePurchasesTable } from "@workspace/db";
 import { and, eq, sql } from "drizzle-orm";
 
-const CREDIT_TYPES = ["deposit", "trade_profit", "trade_loss_return"] as const;
+const CREDIT_TYPES = ["deposit", "trade_profit", "trade_loss_return", "signal_reward"] as const;
 const DEBIT_TYPES = [
   "withdrawal",
   "trade_loss",
@@ -106,7 +106,7 @@ export async function getWalletSnapshot(userId: number): Promise<WalletSnapshot>
     .select({
       balance: sql<string>`coalesce(sum(case
         when ${transactionsTable.status} = 'completed'
-          and ${transactionsTable.type} in ('deposit', 'trade_profit', 'trade_loss_return')
+          and ${transactionsTable.type} in ('deposit', 'trade_profit', 'trade_loss_return', 'signal_reward')
           then ${transactionsTable.amount}
         when ${transactionsTable.status} = 'completed'
           and ${transactionsTable.type} in ('withdrawal', 'trade_loss', 'reserved_stake', 'trade_fee', 'bot_purchase', 'vip_package_purchase')

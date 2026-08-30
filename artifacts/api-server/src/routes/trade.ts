@@ -7,6 +7,7 @@ import { calculateVaultCapital, calculateWalletBalance, getAvailableBalance, get
 
 const router = Router();
 const SIGNAL_EXECUTION_AMOUNT = 2.5;
+const SIGNAL_REWARD_AMOUNT = 2.5;
 const MANUAL_SIGNAL_PREFIX = "manual-signal";
 const DEFAULT_SIGNAL_TIMES = ["07:00", "09:00", "11:00", "13:00", "15:00", "17:00", "19:00", "21:00", "23:00"];
 const LEGACY_DEFAULT_SIGNAL_TIMES = ["19:00", "21:00", "23:00"];
@@ -337,6 +338,11 @@ async function closePosition(
       return cur[0] ?? p;
     }
 
+    const [signalClaim] = await tx.select({ id: signalClaimsTable.id })
+      .from(signalClaimsTable)
+      .where(eq(signalClaimsTable.positionId, p.id))
+      .limit(1);
+
     // Stake was reserved from Vault Capital on open. Return the principal
     // portion to the vault; profit is credited separately to Main Wallet.
     // A loss consumes the corresponding portion of Vault Capital.
@@ -362,6 +368,16 @@ async function closePosition(
         description: `${opts.title}: Main Wallet profit from ${p.pair} ${p.direction} (${p.botName})`,
       });
     }
+    if (signalClaim) {
+      await tx.insert(transactionsTable).values({
+        userId: p.userId,
+        type: "signal_reward",
+        amount: SIGNAL_REWARD_AMOUNT.toFixed(2),
+        status: "completed",
+        paymentMethod: "balance",
+        description: `AI Signal reward: Main Wallet credit for ${p.pair} ${p.direction} (${p.botName})`,
+      });
+    }
     if (fee > 0) {
       await tx.insert(transactionsTable).values({
         userId: p.userId,
@@ -377,7 +393,7 @@ async function closePosition(
       userId: p.userId,
       type: "trade",
       title: opts.title,
-       message: `${opts.message} Net realized P&L after a ${fee.toFixed(2)} fee: ${netRealized >= 0 ? "+" : "-"}$${Math.abs(netRealized).toFixed(2)}.`,
+      message: `${opts.message} Net realized P&L after a ${fee.toFixed(2)} fee: ${netRealized >= 0 ? "+" : "-"}$${Math.abs(netRealized).toFixed(2)}.${signalClaim ? ` A $${SIGNAL_REWARD_AMOUNT.toFixed(2)} signal reward was credited to your Main Wallet.` : ""}`,
     });
 
     return updated[0];

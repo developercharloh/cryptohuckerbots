@@ -23,6 +23,16 @@ export default function Risk() {
       </section>
 
       <section>
+        <h2>Signal rewards</h2>
+        <p>
+          Eligible completed signals receive a fixed $2.50 Signal Reward
+          credited to the Main Wallet. This is a disclosed program credit and is
+          recorded separately from trading P&amp;L; it is not a statement of
+          market performance or a guarantee of trading returns.
+        </p>
+      </section>
+
+      <section>
         <h2>Past performance</h2>
         <p>
           Past performance is not indicative of future results. Market conditions

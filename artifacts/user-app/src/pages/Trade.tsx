@@ -742,6 +742,7 @@ export default function Trade() {
                     <div>
                       <p style={{ fontSize: 14, fontWeight: 850, color: "#fff" }}>Ready to execute</p>
                       <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 3 }}>Simple, server-controlled signal entry</p>
+                      <p style={{ fontSize: 10, color: "#FFD86B", marginTop: 5 }}>Eligible completed signals receive a $2.50 Main Wallet reward. Reward and trading P&amp;L are recorded separately.</p>
                     </div>
                   </div>
                   <div style={{
@@ -916,6 +917,7 @@ export default function Trade() {
                     {win ? "+" : "−"}${Math.abs(result.pnl).toFixed(2)}
                   </p>
                   <p style={{ fontSize: 13, color: "#6B7280", marginTop: 4 }}>{roi > 0 ? "+" : ""}{roi.toFixed(1)}% outcome on ${result.stake.toFixed(2)} signal</p>
+                  <p style={{ fontSize: 11, color: "#FFD86B", marginTop: 8 }}>Signal reward: +$2.50 credited to Main Wallet</p>
                 </div>
 
                 {/* Stats */}

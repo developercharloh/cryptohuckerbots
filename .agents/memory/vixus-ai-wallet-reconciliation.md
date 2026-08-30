@@ -5,6 +5,8 @@ description: The durable accounting boundary between spendable wallet funds, tra
 
 All spendable wallet balances must be derived from the canonical transaction ledger rules. Admin credits, completed deposits, and realized trade profits credit Main Wallet; withdrawals, bot purchases, and VIP package purchases debit Main Wallet. Vault Capital has its own ledger movements: signal stake reservations and fees debit it, while principal returns credit it. Pending outflows reduce availability without being counted as completed ledger debits.
 
+Signal rewards are separate ledger credits to Main Wallet, not trade P&L or Vault Capital movements, so they remain auditable without inflating trading-earnings metrics.
+
 Vault Capital is not part of the spendable Main Wallet and must be reported separately. Portfolio Wallet may combine Main Wallet and Vault Capital, but trading validation must use only Vault Capital and withdrawal validation must use only Main Wallet.
 
 Deposit sessions are workflow records, not wallet credits. A deposit becomes spendable only after approval creates or completes its corresponding completed deposit transaction. Completion screens must read `mainWalletBalance` or `availableBalance`, not a non-existent generic `balance` field.

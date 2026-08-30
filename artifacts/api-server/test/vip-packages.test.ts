@@ -261,7 +261,22 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
   const closed = await request(`/api/trade/positions/${opened.body.id}/close`, { method: "POST" });
   assert.equal(closed.response.status, 200);
   const afterClose = await request<{ mainWalletBalance: number; vaultCapital: number; portfolioBalance: number }>("/api/dashboard/summary");
-  assert.equal(afterClose.body.mainWalletBalance, 42000);
+  assert.equal(afterClose.body.mainWalletBalance, 42002.5);
   assert.equal(afterClose.body.vaultCapital, 8000);
-  assert.equal(afterClose.body.portfolioBalance, 50000);
+  assert.equal(afterClose.body.portfolioBalance, 50002.5);
+
+  const signalRewards = await db.select({
+    type: transactionsTable.type,
+    amount: transactionsTable.amount,
+  }).from(transactionsTable).where(eq(transactionsTable.userId, userId));
+  assert.deepEqual(
+    signalRewards.filter((row) => row.type === "signal_reward").map((row) => row.amount),
+    ["2.50"],
+  );
+
+  const retryClose = await request(`/api/trade/positions/${opened.body.id}/close`, { method: "POST" });
+  assert.equal(retryClose.response.status, 200);
+  const afterRetry = await request<{ mainWalletBalance: number; portfolioBalance: number }>("/api/dashboard/summary");
+  assert.equal(afterRetry.body.mainWalletBalance, 42002.5);
+  assert.equal(afterRetry.body.portfolioBalance, 50002.5);
 });

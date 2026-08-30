@@ -83,6 +83,7 @@ export default function Transactions() {
                     <div className="font-semibold text-sm mb-0.5 capitalize">{
                       tx.type === "trade_loss" ? "Contract Opened" :
                       tx.type === "trade_profit" || tx.type === "trade_loss_return" ? "Contract Closed" :
+                      tx.type === "signal_reward" ? "Signal Reward" :
                        tx.type === "vip_package_purchase" ? "Vault Capital Transfer" :
                        tx.type === "vault_trade_stake" ? "Vault Capital Reserved" :
                        tx.type === "vault_trade_return" ? "Vault Capital Returned" :
@@ -96,10 +97,10 @@ export default function Transactions() {
                 </div>
                 <div className="text-right">
                   <div className={`font-bold text-sm mb-0.5 ${
-                    tx.type === "deposit" || tx.type === "trade_profit"    ? "text-green-500" :
+                    tx.type === "deposit" || tx.type === "trade_profit" || tx.type === "signal_reward" ? "text-green-500" :
                     tx.type === "withdrawal" || tx.type === "trade_loss" || tx.type === "trade_loss_return" || tx.type === "vip_package_purchase" ? "text-red-500"   : "text-foreground"
                   }`}>
-                    {tx.type === "deposit" || tx.type === "trade_profit" ? "+" : tx.type === "withdrawal" || tx.type === "trade_loss" || tx.type === "trade_loss_return" || tx.type === "vip_package_purchase" ? "−" : ""}{formatUSD(tx.amount)}
+                    {tx.type === "deposit" || tx.type === "trade_profit" || tx.type === "signal_reward" ? "+" : tx.type === "withdrawal" || tx.type === "trade_loss" || tx.type === "trade_loss_return" || tx.type === "vip_package_purchase" ? "−" : ""}{formatUSD(tx.amount)}
                   </div>
                   <div className={`text-[10px] px-2 py-0.5 rounded-full inline-block ${
                     tx.status === "Completed" ? "bg-green-500/10 text-green-500" :

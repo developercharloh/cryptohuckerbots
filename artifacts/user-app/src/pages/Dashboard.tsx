@@ -40,7 +40,7 @@ const ASSETS = [
   { name: "EUR/USD", symbol: "Forex",         icon: "€", color: "#3B82F6", pct: 8  },
 ];
 
-const MAIN_WALLET_CREDITS = new Set(["deposit", "trade_profit", "trade_loss_return"]);
+const MAIN_WALLET_CREDITS = new Set(["deposit", "trade_profit", "trade_loss_return", "signal_reward"]);
 const MAIN_WALLET_DEBITS = new Set([
   "withdrawal",
   "trade_loss",
@@ -395,6 +395,7 @@ export default function Dashboard() {
                       <p style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>
                         {tx.type === "trade_loss" ? "Contract Opened" :
                          tx.type === "trade_profit" || tx.type === "trade_loss_return" ? "Contract Closed" :
+                         tx.type === "signal_reward" ? "Signal Reward" :
                           tx.type === "vault_trade_stake" ? "Vault Capital Reserved" :
                           tx.type === "vault_trade_return" ? "Vault Capital Returned" :
                           tx.type === "vault_trade_fee" ? "Vault Capital Trading Fee" :
