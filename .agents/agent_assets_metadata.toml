@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "lT6uUoSF65krGqzuCfqR8"
+uri = "file://attached_assets/generated_images/vixus-ai-logo-concept-01.jpg"
+type = "image"
+title = "VIXUS AI Logo Concept 01"
+description = "Standalone JPG logo concept for approval. This has not been uploaded or connected to the website."
+logical_id = "8fa04413-8ee6-45cf-b194-5c92eedb5da9"
+content_hash = "sha256:2180d6b6a5ad02a3d72af32a5eba83b264774072bf0e7be508160749da531170"
+size = 68523
+mtime_ms = 1788092602826
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:1997a695-0b65-471a-a76b-eb09e4da2719/8fa04413-8ee6-45cf-b194-5c92eedb5da9/faeb92ba-fded-4658-888a-3dbb437890f4"
+storage_version_token = "1788092608907757"
+content_type = "image/jpeg"
