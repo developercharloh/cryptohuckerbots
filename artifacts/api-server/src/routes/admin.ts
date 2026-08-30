@@ -201,12 +201,6 @@ router.delete("/admin/login-notifications/:id", async (req, res) => {
 
 const KYC_PENDING = ["pending", "submitted", "under_review"];
 
-function txnDelta(type: string, amount: number): number {
-  if (type === "deposit" || type === "trade_profit" || type === "trade_loss_return") return amount;
-  if (type === "withdrawal" || type === "trade_loss" || type === "reserved_stake" || type === "trade_fee") return -amount;
-  return 0;
-}
-
 // ---------------- Overview ----------------
 router.get("/admin/overview", async (_req, res) => {
   const startOfToday = new Date();
@@ -472,19 +466,14 @@ async function getAdminUser(id: number) {
   if (!user) return null;
   const [profile] = await db.select().from(userProfilesTable).where(eq(userProfilesTable.userId, id)).limit(1);
   const userBots = await db.select().from(userBotsTable).where(eq(userBotsTable.userId, id));
-  const txns = await db.select().from(transactionsTable).where(eq(transactionsTable.userId, id));
-  let balance = 0;
-  for (const t of txns) {
-    if (t.status === "completed") balance += txnDelta(t.type, parseFloat(t.amount));
-  }
-  balance += userBots.reduce((s, b) => s + parseFloat(b.profitTotal), 0);
+  const wallet = await getWalletSnapshot(id);
   return {
     id: user.id,
     fullName: user.fullName,
     email: user.email,
     status: user.status,
     kycStatus: user.kycStatus,
-    balance: Math.max(0, Math.round(balance * 100) / 100),
+    balance: wallet.availableBalance,
     totalBots: userBots.length,
     avatarUrl: user.avatarUrl,
     country: profile?.country ?? null,

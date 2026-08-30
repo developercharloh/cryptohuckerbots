@@ -3,6 +3,7 @@ import { db, usersTable, sessionsTable, userBotsTable, botsTable, transactionsTa
 import { eq, and, desc, asc, gte, lt, inArray, sql } from "drizzle-orm";
 import { ExecuteTradeBody } from "@workspace/api-zod";
 import { getRequestToken, isUserSessionExpired } from "../lib/session";
+import { calculateWalletBalance, getAvailableBalance } from "../utils/balance.js";
 
 const router = Router();
 const SIGNAL_EXECUTION_AMOUNT = 2.5;
@@ -233,25 +234,6 @@ function shuffleSignals(seed: number) {
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
-}
-
-function calculateAvailableBalance(txns: Array<{ type: string; amount: string }>) {
-  let balance = 0;
-  for (const t of txns) {
-    const amt = parseFloat(t.amount);
-    if (t.type === "deposit") balance += amt;
-    if (t.type === "withdrawal") balance -= amt;
-    if (t.type === "trade_profit" || t.type === "trade_loss_return") balance += amt;
-    if (t.type === "trade_loss" || t.type === "reserved_stake" || t.type === "trade_fee" || t.type === "bot_purchase" || t.type === "vip_package_purchase") balance -= amt;
-  }
-  return Math.max(0, balance);
-}
-
-async function computeAvailableBalance(userId: number): Promise<number> {
-  const txns = await db.select({ type: transactionsTable.type, amount: transactionsTable.amount }).from(transactionsTable).where(
-    and(eq(transactionsTable.userId, userId), eq(transactionsTable.status, "completed"))
-  );
-  return calculateAvailableBalance(txns);
 }
 
 // This remains a deterministic simulation because live broker execution is out
@@ -603,7 +585,7 @@ router.post("/trade/vip-packages/:level/purchase", async (req, res) => {
         eq(transactionsTable.userId, user.id),
         eq(transactionsTable.status, "completed"),
       ));
-      const available = calculateAvailableBalance(ledger);
+      const available = calculateWalletBalance(ledger);
       if (available < amountDue) {
         const shortfall = amountDue - available;
         throw new VipPurchaseError(
@@ -662,7 +644,7 @@ router.post("/trade/vip-packages/:level/purchase", async (req, res) => {
       },
       amountPaid: purchaseResult.amountDue,
       lockedInvestmentCapital: tier.price,
-      mainWalletBalance: await computeAvailableBalance(user.id),
+      mainWalletBalance: await getAvailableBalance(user.id),
     });
   } catch (error) {
     if (error instanceof VipPurchaseError) {
@@ -717,7 +699,7 @@ router.post("/trade/execute", async (req, res) => {
   const targetProfit = SIGNAL_EXECUTION_AMOUNT;
   const stopLoss = SIGNAL_EXECUTION_AMOUNT;
 
-  const available = await computeAvailableBalance(user.id);
+  const available = await getAvailableBalance(user.id);
   if (stake > available) return res.status(400).json({ error: "Insufficient balance for this stake" });
   if (stake > available * (config.maxStakePercent / 100)) {
     return res.status(400).json({ error: `Stake exceeds the ${config.maxStakePercent}% maximum of available balance.` });
