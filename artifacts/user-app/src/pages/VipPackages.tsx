@@ -85,16 +85,12 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
   const shortfall = Math.max(0, amountDue - availableBalance);
   const canPurchase = Boolean(access && selected) && selected!.level > activeLevel && availableBalance >= amountDue;
   const accessUnauthorized = (accessQueryError as { status?: number } | undefined)?.status === 401;
-  const walletDisplay = summaryLoading
-    ? "Loading…"
-    : summaryError
-      ? "Unavailable"
-      : formatUSD(summary?.mainWalletBalance ?? summary?.availableBalance ?? 0);
+   const walletDisplay = summaryLoading
+     ? "Loading…"
+     : formatUSD(summary?.mainWalletBalance ?? summary?.availableBalance ?? 0);
    const vaultCapitalDisplay = accessLoading
-    ? "Loading…"
-    : accessError
-      ? "Unavailable"
-       : formatUSD(access?.vaultCapital ?? access?.lockedInvestmentCapital ?? 0);
+     ? "Loading…"
+     : formatUSD(access?.vaultCapital ?? access?.lockedInvestmentCapital ?? 0);
 
   const handlePurchase = () => {
     if (!access || !selected || selected.level <= activeLevel) return;
@@ -168,9 +164,9 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-2 text-right">
                  <p className="text-[9px] uppercase tracking-wider text-gray-500">Main wallet</p>
-                  <p className={`mt-1 text-lg font-black ${summaryError ? "text-red-200" : "text-amber-200"}`}>{walletDisplay}</p>
+                   <p className="mt-1 text-lg font-black text-amber-200">{walletDisplay}</p>
                   <p className="mt-2 text-[9px] uppercase tracking-wider text-gray-500">Vault capital</p>
-                   <p className={`mt-1 text-sm font-black ${accessError ? "text-red-200" : "text-blue-200"}`}>{vaultCapitalDisplay}</p>
+                    <p className="mt-1 text-sm font-black text-blue-200">{vaultCapitalDisplay}</p>
               </div>
             </div>
             {access?.vipLevel ? (
