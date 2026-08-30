@@ -7,4 +7,4 @@ Cookie-authenticated browser mutations must validate an exact configured fronten
 
 **Why:** The production frontends and API are separate origins and session cookies use cross-site-compatible settings. Treating every `*.vercel.app` preview as trusted would let unrelated deployments send credentialed requests or read CORS responses.
 
-**How to apply:** Keep production frontend origins in `ALLOWED_ORIGINS`, add temporary preview origins explicitly, and preserve trusted-origin protection for auth mutations and authenticated realtime streams. Keep signed server-to-server webhooks separate from browser CSRF checks.
+**How to apply:** Keep every live frontend alias in `ALLOWED_ORIGINS` (including legacy Vercel admin aliases), add temporary preview origins explicitly, and preserve trusted-origin protection for auth mutations and authenticated realtime streams. Keep signed server-to-server webhooks separate from browser CSRF checks.
