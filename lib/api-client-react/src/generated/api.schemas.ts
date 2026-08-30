@@ -77,6 +77,7 @@ export interface TradeAccess {
   remainingToday: number;
   nextLevel: number | null;
   nextLevelDeposit: number | null;
+  nextLevelAmountDue: number | null;
   timezone: string;
   nextSignalAt: string | null;
   signalAmount: number;
@@ -89,6 +90,7 @@ export interface VipPackage {
   isActive: boolean;
   isUpgrade: boolean;
   isAvailable: boolean;
+  amountDue: number;
 }
 
 export type VipPackagePurchaseResponsePackage = {
@@ -102,6 +104,7 @@ export interface VipPackagePurchaseResponse {
   message: string;
   package: VipPackagePurchaseResponsePackage;
   lockedInvestmentCapital: number;
+  amountPaid: number;
   mainWalletBalance: number;
 }
 

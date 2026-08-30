@@ -4,6 +4,7 @@ import { useLocation } from "wouter";
 import {
   useGetDashboardSummary,
   useGetTradeAccess,
+  useListVipPackages,
   usePurchaseVipPackage,
 } from "@workspace/api-client-react";
 import { Layout } from "@/components/Layout";
@@ -46,23 +47,42 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
     isError: summaryError,
     refetch: refetchSummary,
   } = useGetDashboardSummary({ query: { refetchInterval: 10000 } as any });
+  const { data: serverPackages } = useListVipPackages({ query: { refetchInterval: 15000 } as any });
   const purchaseMutation = usePurchaseVipPackage();
   const [selectedLevel, setSelectedLevel] = useState<number | null>(null);
   const [purchaseSuccess, setPurchaseSuccess] = useState<{
     level: number;
     price: number;
+    amountPaid: number;
     dailySignals: number;
     lockedInvestmentCapital: number;
     mainWalletBalance: number;
   } | null>(null);
 
-  const selected = useMemo(
-    () => (selectedLevel === null ? null : VIP_LEVELS.find((pkg) => pkg.level === selectedLevel) ?? null),
-    [selectedLevel],
-  );
   const activeLevel = access?.vipLevel ?? 0;
+  const packageOptions = useMemo(
+    () =>
+      serverPackages?.length
+        ? serverPackages
+        : VIP_LEVELS.map((pkg) => ({
+            ...pkg,
+            isActive: pkg.level === activeLevel,
+            isUpgrade: pkg.level > activeLevel,
+            isAvailable: pkg.level > activeLevel,
+            amountDue: pkg.level > activeLevel
+              ? pkg.price - (VIP_LEVELS.find((candidate) => candidate.level === activeLevel)?.price ?? 0)
+              : 0,
+          })),
+    [activeLevel, serverPackages],
+  );
+  const selected = useMemo(
+    () => (selectedLevel === null ? null : packageOptions.find((pkg) => pkg.level === selectedLevel) ?? null),
+    [packageOptions, selectedLevel],
+  );
   const availableBalance = summary?.availableBalance ?? 0;
-  const canPurchase = Boolean(access && selected) && selected!.level > activeLevel && availableBalance >= selected!.price;
+  const amountDue = selected?.amountDue ?? 0;
+  const shortfall = Math.max(0, amountDue - availableBalance);
+  const canPurchase = Boolean(access && selected) && selected!.level > activeLevel && availableBalance >= amountDue;
   const accessUnauthorized = (accessQueryError as { status?: number } | undefined)?.status === 401;
   const walletDisplay = summaryLoading
     ? "Loading…"
@@ -90,6 +110,7 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
            setPurchaseSuccess({
              level: result.package.level,
              price: result.package.price,
+              amountPaid: result.amountPaid,
              dailySignals: result.package.dailySignals,
              lockedInvestmentCapital: result.lockedInvestmentCapital,
              mainWalletBalance: result.mainWalletBalance,
@@ -162,7 +183,7 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
           </div>
 
            <div className="grid gap-3 sm:grid-cols-2">
-             {(selectedLevel === null ? VIP_LEVELS : VIP_LEVELS.filter((pkg) => pkg.level === selectedLevel)).map((pkg) => {
+             {(selectedLevel === null ? packageOptions : packageOptions.filter((pkg) => pkg.level === selectedLevel)).map((pkg) => {
               const selectedCard = selectedLevel === pkg.level;
               const active = pkg.level === activeLevel;
               const locked = pkg.level < activeLevel;
@@ -178,6 +199,9 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
                     <div>
                       <p className="text-sm font-black text-amber-200">VIP {pkg.level}</p>
                       <p className="mt-1 text-2xl font-black text-white">{formatUSD(pkg.price)}</p>
+                      {pkg.level > activeLevel && (
+                        <p className="mt-1 text-[10px] font-bold text-blue-200">Due today: {formatUSD(pkg.amountDue)}</p>
+                      )}
                     </div>
                     {active ? (
                       <span className="rounded-full bg-green-400/15 px-2 py-1 text-[9px] font-bold uppercase text-green-300">Active</span>
@@ -203,7 +227,10 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
                 <div className="flex-1">
                    <p className="text-sm font-bold">Activate VIP {selected.level}</p>
                   <p className="mt-1 text-xs text-gray-400">
-                      {formatUSD(selected.price)} will move from your main wallet into locked investment capital · {selected.dailySignals} AI Signals per day
+                       {activeLevel > 0
+                         ? `${formatUSD(selected.amountDue)} due today to upgrade to VIP ${selected.level} · ${formatUSD(selected.price)} total locked capital`
+                         : `${formatUSD(selected.amountDue)} will move from your main wallet into locked investment capital`}
+                       {" "}· {selected.dailySignals} AI Signals per day
                   </p>
                 </div>
                 <button
@@ -225,13 +252,18 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
                       ? "Already active"
                       : selected.level < activeLevel
                         ? "Below active tier"
-                        : availableBalance < selected.price
-                          ? "Insufficient balance"
+                        : availableBalance < selected.amountDue
+                          ? `Insufficient balance — need ${formatUSD(shortfall)} more`
                           : "Activate VIP package"}
                 </button>
               </div>
+              {!canPurchase && selected.level > activeLevel && availableBalance < selected.amountDue && (
+                <p role="alert" className="mt-3 rounded-xl border border-red-300/20 bg-red-400/10 px-3 py-2 text-[11px] leading-5 text-red-200">
+                  Insufficient balance to purchase VIP {selected.level}. You need {formatUSD(selected.amountDue)}, but your available balance is {formatUSD(availableBalance)}. Top up your wallet or use accumulated profits; you are short by {formatUSD(shortfall)}.
+                </p>
+              )}
               <p className="mt-3 text-[10px] leading-4 text-gray-500">
-                 Your main-wallet balance decreases by this amount. The capital stays locked while signal profits and permitted returns accumulate in your main wallet.
+                  Your main-wallet balance decreases by the amount due today. The target tier’s full capital stays locked while signal profits and permitted returns accumulate in your main wallet.
               </p>
             </div>
           )}
@@ -263,7 +295,7 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
                   <div className="rounded-2xl border border-amber-200/15 bg-amber-200/[0.07] p-3">
                     <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-amber-200/70">Activated tier</p>
                     <p className="mt-1 text-lg font-black text-amber-100">VIP {purchaseSuccess.level}</p>
-                    <p className="mt-0.5 text-xs text-slate-400">{formatUSD(purchaseSuccess.price)} locked</p>
+                     <p className="mt-0.5 text-xs text-slate-400">{formatUSD(purchaseSuccess.amountPaid)} paid today · {formatUSD(purchaseSuccess.price)} locked</p>
                   </div>
                   <div className="rounded-2xl border border-blue-200/15 bg-blue-200/[0.07] p-3">
                     <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-blue-200/70">Main wallet</p>

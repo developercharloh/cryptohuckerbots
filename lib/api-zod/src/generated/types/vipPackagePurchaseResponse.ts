@@ -11,5 +11,6 @@ export interface VipPackagePurchaseResponse {
   message: string;
   package: VipPackagePurchaseResponsePackage;
   lockedInvestmentCapital: number;
+  amountPaid: number;
   mainWalletBalance: number;
 }

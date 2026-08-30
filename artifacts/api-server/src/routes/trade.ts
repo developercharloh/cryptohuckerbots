@@ -93,10 +93,16 @@ type VipAccess = {
   signalAmount: number;
   nextLevel: number | null;
   nextLevelDeposit: number | null;
+  nextLevelAmountDue: number | null;
   timezone: string;
   dayStart: Date;
   nextDayStart: Date;
 };
+
+function getVipAmountDue(activeLevel: number, targetPrice: number): number {
+  const activeTier = VIP_TIERS.find((candidate) => candidate.level === activeLevel);
+  return Math.max(0, targetPrice - (activeTier?.price ?? 0));
+}
 
 async function getVipAccess(userId: number, config: ReturnType<typeof getSignalSettings>): Promise<VipAccess> {
   const [depositTotal] = await db.select({
@@ -131,7 +137,7 @@ async function getVipAccess(userId: number, config: ReturnType<typeof getSignalS
     minimumDeposit: tier?.price ?? 0,
     totalDeposited: Math.round(totalDeposited * 100) / 100,
     hasPackage: Boolean(purchase),
-    packagePrice: purchase ? Number(purchase.amount) : null,
+    packagePrice: tier?.price ?? null,
     lockedInvestmentCapital: capital ? Number(capital.amount) : 0,
     dailyLimit,
     usedToday: claims.length,
@@ -139,6 +145,7 @@ async function getVipAccess(userId: number, config: ReturnType<typeof getSignalS
     signalAmount: SIGNAL_EXECUTION_AMOUNT,
     nextLevel: nextTier?.level ?? null,
     nextLevelDeposit: nextTier?.price ?? null,
+    nextLevelAmountDue: nextTier ? getVipAmountDue(tier?.level ?? 0, nextTier.price) : null,
     timezone: config.timezone,
     dayStart,
     nextDayStart,
@@ -536,6 +543,7 @@ router.get("/trade/access", async (req, res) => {
     signalAmount: access.signalAmount,
     nextLevel: access.nextLevel,
     nextLevelDeposit: access.nextLevelDeposit,
+    nextLevelAmountDue: access.nextLevelAmountDue,
     timezone: access.timezone,
     nextSignalAt: null,
   });
@@ -554,6 +562,7 @@ router.get("/trade/vip-packages", async (req, res) => {
     isActive: tier.level === access.level,
     isUpgrade: tier.level > access.level,
     isAvailable: tier.level > access.level,
+    amountDue: tier.level > access.level ? getVipAmountDue(access.level, tier.price) : 0,
   })));
 });
 
@@ -569,7 +578,7 @@ router.post("/trade/vip-packages/:level/purchase", async (req, res) => {
   }
 
   try {
-    const purchase = await db.transaction(async (tx) => {
+    const purchaseResult = await db.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(${user.id})`);
 
       const [active] = await tx.select().from(vipPackagePurchasesTable).where(and(
@@ -586,6 +595,7 @@ router.post("/trade/vip-packages/:level/purchase", async (req, res) => {
         );
       }
 
+      const amountDue = getVipAmountDue(active?.vipLevel ?? 0, tier.price);
       const ledger = await tx.select({
         type: transactionsTable.type,
         amount: transactionsTable.amount,
@@ -594,10 +604,11 @@ router.post("/trade/vip-packages/:level/purchase", async (req, res) => {
         eq(transactionsTable.status, "completed"),
       ));
       const available = calculateAvailableBalance(ledger);
-      if (available < tier.price) {
+      if (available < amountDue) {
+        const shortfall = amountDue - available;
         throw new VipPurchaseError(
           "INSUFFICIENT_BALANCE",
-          `You need $${tier.price.toFixed(2)} to purchase VIP ${tier.level}. Available balance: $${available.toFixed(2)}.`,
+          `Insufficient balance to purchase VIP ${tier.level}. Amount required: $${amountDue.toFixed(2)}. Available balance: $${available.toFixed(2)}. Short by $${shortfall.toFixed(2)}.`,
         );
       }
 
@@ -612,16 +623,18 @@ router.post("/trade/vip-packages/:level/purchase", async (req, res) => {
       const [created] = await tx.insert(vipPackagePurchasesTable).values({
         userId: user.id,
         vipLevel: tier.level,
-        amount: tier.price.toFixed(2),
+        amount: amountDue.toFixed(2),
         status: "completed",
       }).returning();
       await tx.insert(transactionsTable).values({
         userId: user.id,
         type: "vip_package_purchase",
-        amount: tier.price.toFixed(2),
+        amount: amountDue.toFixed(2),
         status: "completed",
         paymentMethod: "balance",
-        description: `VIP ${tier.level} Package Purchase`,
+        description: active
+          ? `VIP ${tier.level} Upgrade ($${amountDue.toFixed(2)} difference)`
+          : `VIP ${tier.level} Package Purchase`,
       });
       await tx.insert(vipInvestmentCapitalTable).values({
         userId: user.id,
@@ -630,17 +643,24 @@ router.post("/trade/vip-packages/:level/purchase", async (req, res) => {
         status: "locked",
         activatedAt: now,
       });
-      return created;
+      return {
+        purchase: created,
+        amountDue,
+        isUpgrade: Boolean(active),
+      };
     });
 
     return res.status(201).json({
-      message: `VIP ${tier.level} activated. ${tier.price.toFixed(2)} is now locked as investment capital.`,
+      message: purchaseResult.isUpgrade
+        ? `VIP ${tier.level} activated with a $${purchaseResult.amountDue.toFixed(2)} upgrade payment.`
+        : `VIP ${tier.level} activated with a $${purchaseResult.amountDue.toFixed(2)} package payment.`,
       package: {
         level: tier.level,
         price: tier.price,
         dailySignals: tier.dailySignals,
-        purchasedAt: purchase.createdAt.toISOString(),
+        purchasedAt: purchaseResult.purchase.createdAt.toISOString(),
       },
+      amountPaid: purchaseResult.amountDue,
       lockedInvestmentCapital: tier.price,
       mainWalletBalance: await computeAvailableBalance(user.id),
     });

@@ -1710,6 +1710,9 @@ components:
         nextLevelDeposit:
           type: number
           nullable: true
+        nextLevelAmountDue:
+          type: number
+          nullable: true
         timezone:
           type: string
         nextSignalAt:
@@ -1718,7 +1721,7 @@ components:
           nullable: true
         signalAmount:
           type: number
-      required: [vipLevel, minimumDeposit, totalDeposited, hasPackage, packagePrice, lockedInvestmentCapital, canExecute, dailyLimit, usedToday, remainingToday, timezone, nextLevel, nextLevelDeposit, nextSignalAt, signalAmount]
+      required: [vipLevel, minimumDeposit, totalDeposited, hasPackage, packagePrice, lockedInvestmentCapital, canExecute, dailyLimit, usedToday, remainingToday, timezone, nextLevel, nextLevelDeposit, nextLevelAmountDue, nextSignalAt, signalAmount]
 
     VipPackage:
       type: object
@@ -1735,7 +1738,9 @@ components:
           type: boolean
         isAvailable:
           type: boolean
-      required: [level, price, dailySignals, isActive, isUpgrade, isAvailable]
+        amountDue:
+          type: number
+      required: [level, price, dailySignals, isActive, isUpgrade, isAvailable, amountDue]
 
     VipPackagePurchaseResponse:
       type: object
@@ -1757,9 +1762,11 @@ components:
           required: [level, price, dailySignals, purchasedAt]
         lockedInvestmentCapital:
           type: number
+        amountPaid:
+          type: number
         mainWalletBalance:
           type: number
-      required: [message, package, lockedInvestmentCapital, mainWalletBalance]
+      required: [message, package, amountPaid, lockedInvestmentCapital, mainWalletBalance]
 
     ExecuteTradeInput:
       type: object

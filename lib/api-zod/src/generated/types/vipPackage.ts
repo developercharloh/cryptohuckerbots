@@ -13,4 +13,5 @@ export interface VipPackage {
   isActive: boolean;
   isUpgrade: boolean;
   isAvailable: boolean;
+  amountDue: number;
 }

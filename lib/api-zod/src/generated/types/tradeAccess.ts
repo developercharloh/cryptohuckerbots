@@ -19,6 +19,7 @@ export interface TradeAccess {
   remainingToday: number;
   nextLevel: number | null;
   nextLevelDeposit: number | null;
+  nextLevelAmountDue: number | null;
   timezone: string;
   nextSignalAt: Date | null;
   signalAmount: number;

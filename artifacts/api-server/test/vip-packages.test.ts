@@ -107,6 +107,9 @@ after(async () => {
     await db.delete(usersTable).where(eq(usersTable.id, userId));
   }
   if (noBalanceUserId) {
+    await db.delete(vipInvestmentCapitalTable).where(eq(vipInvestmentCapitalTable.userId, noBalanceUserId));
+    await db.delete(vipPackagePurchasesTable).where(eq(vipPackagePurchasesTable.userId, noBalanceUserId));
+    await db.delete(transactionsTable).where(eq(transactionsTable.userId, noBalanceUserId));
     await db.delete(sessionsTable).where(eq(sessionsTable.userId, noBalanceUserId));
     await db.delete(usersTable).where(eq(usersTable.id, noBalanceUserId));
   }
@@ -141,9 +144,34 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
   assert.equal(insufficient.response.status, 400);
   assert.equal(insufficient.body.code, "INSUFFICIENT_BALANCE");
 
-  const first = await request<{ package: { level: number }; lockedInvestmentCapital: number; mainWalletBalance: number }>("/api/trade/vip-packages/1/purchase", { method: "POST" });
+  await db.insert(transactionsTable).values({
+    userId: noBalanceUserId,
+    type: "deposit",
+    amount: "500.00",
+    status: "completed",
+    paymentMethod: "test",
+    description: "VIP upgrade shortfall regression funding",
+  });
+  const noBalanceFirst = await request<{ amountPaid: number; mainWalletBalance: number }>("/api/trade/vip-packages/1/purchase", {
+    method: "POST",
+    cookieJar: noBalanceJar,
+  });
+  assert.equal(noBalanceFirst.response.status, 201);
+  assert.equal(noBalanceFirst.body.amountPaid, 500);
+  assert.equal(noBalanceFirst.body.mainWalletBalance, 0);
+  const insufficientUpgrade = await request<{ code: string; error: string }>("/api/trade/vip-packages/2/purchase", {
+    method: "POST",
+    cookieJar: noBalanceJar,
+  });
+  assert.equal(insufficientUpgrade.response.status, 400);
+  assert.equal(insufficientUpgrade.body.code, "INSUFFICIENT_BALANCE");
+  assert.match(insufficientUpgrade.body.error, /Amount required: \$500\.00/);
+  assert.match(insufficientUpgrade.body.error, /Available balance: \$0\.00/);
+
+  const first = await request<{ package: { level: number }; amountPaid: number; lockedInvestmentCapital: number; mainWalletBalance: number }>("/api/trade/vip-packages/1/purchase", { method: "POST" });
   assert.equal(first.response.status, 201);
   assert.equal(first.body.package.level, 1);
+  assert.equal(first.body.amountPaid, 500);
   assert.equal(first.body.lockedInvestmentCapital, 500);
   assert.equal(first.body.mainWalletBalance, 49500);
 
@@ -153,21 +181,30 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
   assert.equal(active.body.canExecute, true);
   assert.equal(active.body.lockedInvestmentCapital, 500);
 
+  const packages = await request<Array<{ level: number; amountDue: number }>>("/api/trade/vip-packages");
+  assert.equal(packages.response.status, 200);
+  assert.equal(packages.body.find((pkg) => pkg.level === 2)?.amountDue, 500);
+  assert.equal(packages.body.find((pkg) => pkg.level === 3)?.amountDue, 1500);
+
   const duplicate = await request<{ code: string }>("/api/trade/vip-packages/1/purchase", { method: "POST" });
   assert.equal(duplicate.response.status, 409);
   assert.equal(duplicate.body.code, "VIP_PACKAGE_NOT_UPGRADABLE");
 
-  const upgrade = await request<{ package: { level: number }; lockedInvestmentCapital: number; mainWalletBalance: number }>("/api/trade/vip-packages/2/purchase", { method: "POST" });
+  const upgrade = await request<{ package: { level: number }; amountPaid: number; lockedInvestmentCapital: number; mainWalletBalance: number }>("/api/trade/vip-packages/2/purchase", { method: "POST" });
   assert.equal(upgrade.response.status, 201);
   assert.equal(upgrade.body.package.level, 2);
+  assert.equal(upgrade.body.amountPaid, 500);
   assert.equal(upgrade.body.lockedInvestmentCapital, 1000);
-  assert.equal(upgrade.body.mainWalletBalance, 48500);
+  assert.equal(upgrade.body.mainWalletBalance, 49000);
 
   const concurrent = await Promise.all([
     request("/api/trade/vip-packages/5/purchase", { method: "POST" }),
     request("/api/trade/vip-packages/5/purchase", { method: "POST" }),
   ]);
   assert.deepEqual(concurrent.map((result) => result.response.status).sort(), [201, 409]);
+  const successfulConcurrentUpgrade = concurrent.find((result) => result.response.status === 201);
+  assert.equal(successfulConcurrentUpgrade?.body.amountPaid, 7000);
+  assert.equal(successfulConcurrentUpgrade?.body.mainWalletBalance, 42000);
 
   const lowerTier = await request<{ code: string }>("/api/trade/vip-packages/3/purchase", { method: "POST" });
   assert.equal(lowerTier.response.status, 409);
@@ -184,4 +221,15 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
   assert.equal(capitalRows.filter((row) => row.status === "locked").length, 1);
   assert.equal(capitalRows.find((row) => row.status === "locked")?.level, 5);
   assert.equal(capitalRows.find((row) => row.status === "locked")?.amount, "8000.00");
+  const vipTransactions = await db.select({
+    type: transactionsTable.type,
+    amount: transactionsTable.amount,
+  }).from(transactionsTable).where(eq(transactionsTable.userId, userId));
+  assert.deepEqual(
+    vipTransactions
+      .filter((row) => row.type === "vip_package_purchase")
+      .map((row) => row.amount)
+      .sort(),
+    ["500.00", "500.00", "7000.00"],
+  );
 });

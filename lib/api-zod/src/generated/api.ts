@@ -500,6 +500,7 @@ export const GetTradeAccessResponse = zod.object({
   "remainingToday": zod.number(),
   "nextLevel": zod.number().nullable(),
   "nextLevelDeposit": zod.number().nullable(),
+  "nextLevelAmountDue": zod.number().nullable(),
   "timezone": zod.string(),
   "nextSignalAt": zod.coerce.date().nullable(),
   "signalAmount": zod.number()
@@ -512,7 +513,8 @@ export const ListVipPackagesResponseItem = zod.object({
   "dailySignals": zod.number(),
   "isActive": zod.boolean(),
   "isUpgrade": zod.boolean(),
-  "isAvailable": zod.boolean()
+  "isAvailable": zod.boolean(),
+  "amountDue": zod.number()
 })
 export const ListVipPackagesResponse = zod.array(ListVipPackagesResponseItem)
 
@@ -534,6 +536,7 @@ export const PurchaseVipPackageResponse = zod.object({
   "purchasedAt": zod.coerce.date()
 }),
   "lockedInvestmentCapital": zod.number(),
+  "amountPaid": zod.number(),
   "mainWalletBalance": zod.number()
 })
 

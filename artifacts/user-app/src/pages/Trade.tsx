@@ -624,7 +624,7 @@ export default function Trade() {
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 10 }}>
                       <p style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.5 }}>
                         {vipAccess.nextLevel
-                          ? `Upgrade to VIP ${vipAccess.nextLevel} with a ${vipAccess.nextLevelDeposit?.toLocaleString()} package.`
+                          ? `Upgrade to VIP ${vipAccess.nextLevel} with ${vipAccess.nextLevelAmountDue?.toLocaleString()} due today (${vipAccess.nextLevelDeposit?.toLocaleString()} total capital).`
                           : "You are at the highest available VIP level."}
                         {" "}Timezone: {vipAccess.timezone}.
                       </p>
