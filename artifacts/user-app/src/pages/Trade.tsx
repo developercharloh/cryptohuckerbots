@@ -80,6 +80,15 @@ function generateChartData(pair: string, count = 60) {
 }
 
 const TIMEFRAMES = ["1m", "5m", "15m", "1H", "4H", "1D"];
+const VIP_LEVELS = [
+  { level: 1, dailySignals: 3 },
+  { level: 2, dailySignals: 4 },
+  { level: 3, dailySignals: 5 },
+  { level: 4, dailySignals: 6 },
+  { level: 5, dailySignals: 7 },
+  { level: 6, dailySignals: 8 },
+  { level: 7, dailySignals: 9 },
+] as const;
 
 function AIWave() {
   return (
@@ -626,6 +635,40 @@ export default function Trade() {
                       )}
                     </div>
                   )}
+                  <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
+                      <p style={{ fontSize: 9, color: "#FFD86B", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 800 }}>
+                        VIP Levels
+                      </p>
+                      <button
+                        onClick={() => setLocation("/vip-packages")}
+                        style={{ border: "none", background: "transparent", color: "#93C5FD", fontSize: 10, fontWeight: 800, cursor: "pointer", padding: 0 }}
+                      >
+                        View details
+                      </button>
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                      {VIP_LEVELS.map((tier) => (
+                        <button
+                          key={tier.level}
+                          onClick={() => setLocation("/vip-packages")}
+                          style={{
+                            flex: "1 0 54px", borderRadius: 8, padding: "6px 4px",
+                            border: `1px solid ${vipAccess.vipLevel === tier.level ? "rgba(245,185,66,0.65)" : "rgba(255,255,255,0.1)"}`,
+                            background: vipAccess.vipLevel === tier.level ? "rgba(245,185,66,0.14)" : "rgba(255,255,255,0.035)",
+                            color: vipAccess.vipLevel === tier.level ? "#FFD86B" : "#CBD5E1",
+                            cursor: "pointer", textAlign: "center",
+                          }}
+                        >
+                          <span style={{ display: "block", fontSize: 10, fontWeight: 900 }}>VIP {tier.level}</span>
+                          <span style={{ display: "block", fontSize: 8, marginTop: 2, color: "#94A3B8" }}>{tier.dailySignals}/day</span>
+                        </button>
+                      ))}
+                    </div>
+                    <p style={{ fontSize: 9, color: "#8D94A8", marginTop: 7 }}>
+                      Daily allowance only — no waiting time between signals.
+                    </p>
+                  </div>
                 </div>
               )}
 
