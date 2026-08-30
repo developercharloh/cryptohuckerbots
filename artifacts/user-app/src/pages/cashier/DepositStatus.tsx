@@ -195,7 +195,7 @@ export default function DepositStatus() {
 
   // ── SCREEN 6: Success ──────────────────────────────────────────────────────
   if (status === "completed") {
-    const newBalance = (dashboard as any)?.balance ?? null;
+    const newBalance = dashboard?.mainWalletBalance ?? dashboard?.availableBalance ?? null;
     return (
       <Layout>
         <div className="p-5 pb-10 flex flex-col items-center text-center gap-5 pt-8">
@@ -220,11 +220,11 @@ export default function DepositStatus() {
               { label: "You sent",   value: `${sendAmount} ${assetSymbol}` },
               ...(cryptoAmount != null ? [{ label: "Credited", value: `$${amount.toFixed(2)} USDT` }] : []),
               { label: "Network",     value: network },
-              ...(newBalance != null ? [{ label: "New Balance", value: `$${Number(newBalance).toFixed(2)}` }] : []),
+              ...(newBalance != null ? [{ label: "New Main Wallet Balance", value: `$${Number(newBalance).toFixed(2)}` }] : []),
             ].map(({ label, value }) => (
               <div key={label} className="flex items-center justify-between px-5 py-4">
                 <span className="text-sm text-muted-foreground">{label}</span>
-                <span className={`text-sm font-bold ${label === "New Balance" ? "text-emerald-400" : ""}`}>{value}</span>
+                 <span className={`text-sm font-bold ${label === "New Main Wallet Balance" ? "text-emerald-400" : ""}`}>{value}</span>
               </div>
             ))}
           </div>
