@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Layout } from "@/components/Layout";
 import {
   useGetDashboardSummary,
   useGetRecentActivity,
   useListBots,
   useListNotifications,
+  useListTransactions,
 } from "@workspace/api-client-react";
 import {
   Bell, Eye, EyeOff, ArrowDownLeft, ArrowUpRight, ArrowLeftRight,
@@ -39,6 +40,16 @@ const ASSETS = [
   { name: "EUR/USD", symbol: "Forex",         icon: "€", color: "#3B82F6", pct: 8  },
 ];
 
+const MAIN_WALLET_CREDITS = new Set(["deposit", "trade_profit", "trade_loss_return"]);
+const MAIN_WALLET_DEBITS = new Set([
+  "withdrawal",
+  "trade_loss",
+  "reserved_stake",
+  "trade_fee",
+  "bot_purchase",
+  "vip_package_purchase",
+]);
+
 export default function Dashboard() {
   const [balanceVisible, setBalanceVisible] = useState(true);
   const { user } = useAuth();
@@ -53,11 +64,47 @@ export default function Dashboard() {
   const { data: summary, isLoading: loadingSummary } = useGetDashboardSummary({
     query: { refetchInterval: 30000, refetchOnWindowFocus: true } as any,
   });
+  // If the summary is stale or contains legacy profit data, reconcile the
+  // visible Main Wallet and profit from the user's transaction ledger. This
+  // keeps the UI honest while preserving the server summary as the primary
+  // source once it is healthy.
+  const needsLedgerReconciliation = Boolean(
+    summary && (summary.mainWalletBalance === 0 || summary.totalProfit > 0),
+  );
+  const { data: ledgerTransactions = [] } = useListTransactions({
+    query: { enabled: needsLedgerReconciliation, staleTime: 30000 } as any,
+  });
   const { data: recentActivity = [] } = useGetRecentActivity();
   const { data: bots = [] } = useListBots();
   const activeBots = bots.filter(b => b.status === "active");
 
   const initials = user?.fullName?.charAt(0)?.toUpperCase() ?? "U";
+  const ledgerReconciliation = useMemo(() => {
+    if (!needsLedgerReconciliation) return null;
+
+    let mainWallet = 0;
+    let totalProfit = 0;
+    for (const transaction of ledgerTransactions) {
+      if (transaction.status !== "completed") continue;
+      const amount = Number(transaction.amount);
+      if (!Number.isFinite(amount)) continue;
+      if (MAIN_WALLET_CREDITS.has(transaction.type)) mainWallet += amount;
+      if (MAIN_WALLET_DEBITS.has(transaction.type)) mainWallet -= amount;
+      if (transaction.type === "trade_profit") totalProfit += amount;
+    }
+
+    return {
+      mainWallet: Math.round(Math.max(0, mainWallet) * 100) / 100,
+      totalProfit: Math.round(totalProfit * 100) / 100,
+    };
+  }, [ledgerTransactions, needsLedgerReconciliation]);
+
+  const mainWalletBalance = ledgerReconciliation?.mainWallet ?? summary?.mainWalletBalance;
+  const totalProfit = ledgerReconciliation?.totalProfit ?? summary?.totalProfit;
+  const vaultCapital = summary?.vaultCapital ?? summary?.lockedInvestmentCapital;
+  const portfolioBalance = mainWalletBalance !== undefined && vaultCapital !== undefined
+    ? Math.max(0, mainWalletBalance + vaultCapital)
+    : summary?.totalBalance;
 
   return (
     <Layout showNav>
@@ -126,7 +173,7 @@ export default function Dashboard() {
                 <Skeleton className="h-10 w-40 bg-white/10" />
               ) : balanceVisible ? (
                 <p style={{ fontSize: 36, fontWeight: 900, color: "#fff", letterSpacing: "-0.04em", fontFamily: "monospace", lineHeight: 1 }}>
-                   {formatUSD(summary?.totalBalance)}
+                   {formatUSD(portfolioBalance)}
                 </p>
               ) : (
                 <p style={{ fontSize: 36, fontWeight: 900, color: "#fff", letterSpacing: "0.18em", lineHeight: 1 }}>••••••</p>
@@ -137,11 +184,11 @@ export default function Dashboard() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 18, position: "relative" }}>
                 <div style={{ borderRadius: 12, padding: "9px 10px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
                   <p style={{ fontSize: 9, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Main wallet</p>
-                  <p style={{ fontSize: 14, fontWeight: 800, color: "#fff", marginTop: 3 }}>{balanceVisible ? formatUSD(summary?.mainWalletBalance ?? summary?.availableBalance) : "••••••"}</p>
+                  <p style={{ fontSize: 14, fontWeight: 800, color: "#fff", marginTop: 3 }}>{balanceVisible ? formatUSD(mainWalletBalance ?? summary?.availableBalance) : "••••••"}</p>
                 </div>
                 <div style={{ borderRadius: 12, padding: "9px 10px", background: "rgba(37,99,235,0.12)", border: "1px solid rgba(96,165,250,0.18)" }}>
                   <p style={{ fontSize: 9, color: "rgba(191,219,254,0.65)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Vault Capital</p>
-                  <p style={{ fontSize: 14, fontWeight: 800, color: "#bfdbfe", marginTop: 3 }}>{balanceVisible ? formatUSD(summary?.vaultCapital ?? summary?.lockedInvestmentCapital) : "••••••"}</p>
+                  <p style={{ fontSize: 14, fontWeight: 800, color: "#bfdbfe", marginTop: 3 }}>{balanceVisible ? formatUSD(vaultCapital) : "••••••"}</p>
                 </div>
               </div>
             )}
@@ -154,7 +201,7 @@ export default function Dashboard() {
                   <span style={{ fontSize: 12, fontWeight: 700, color: "#4ade80" }}>+{summary?.earningsChangePercent ?? 0}%</span>
                 </div>
                 <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
-                  Total Profit: {formatUSD(summary?.totalProfit)}
+                  Total Profit: {formatUSD(totalProfit)}
                 </span>
               </div>
             )}
@@ -185,7 +232,7 @@ export default function Dashboard() {
           <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 16, padding: "14px 14px", border: "1px solid rgba(255,255,255,0.07)" }}>
             <p style={{ fontSize: 10, color: "#6B7280", marginBottom: 6, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Total Profit</p>
             {loadingSummary ? <Skeleton className="h-5 w-20" /> : (
-              <p style={{ fontSize: 18, fontWeight: 800, color: "#FFD86B" }}>{formatUSD(summary?.totalProfit)}</p>
+              <p style={{ fontSize: 18, fontWeight: 800, color: "#FFD86B" }}>{formatUSD(totalProfit)}</p>
             )}
             <p style={{ fontSize: 10, color: "#22c55e", marginTop: 4 }}>↑ Win Rate {summary?.winRate ?? 0}%</p>
           </div>
