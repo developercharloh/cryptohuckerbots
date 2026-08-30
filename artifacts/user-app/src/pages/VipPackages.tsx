@@ -40,7 +40,12 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
     error: accessQueryError,
     refetch: refetchAccess,
   } = useGetTradeAccess({ query: { refetchInterval: 15000 } as any });
-  const { data: summary } = useGetDashboardSummary({ query: { refetchInterval: 10000 } as any });
+  const {
+    data: summary,
+    isLoading: summaryLoading,
+    isError: summaryError,
+    refetch: refetchSummary,
+  } = useGetDashboardSummary({ query: { refetchInterval: 10000 } as any });
   const purchaseMutation = usePurchaseVipPackage();
   const [selectedLevel, setSelectedLevel] = useState<number | null>(null);
   const [purchaseSuccess, setPurchaseSuccess] = useState<{
@@ -59,6 +64,16 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
   const availableBalance = summary?.availableBalance ?? 0;
   const canPurchase = Boolean(access && selected) && selected!.level > activeLevel && availableBalance >= selected!.price;
   const accessUnauthorized = (accessQueryError as { status?: number } | undefined)?.status === 401;
+  const walletDisplay = summaryLoading
+    ? "Loading…"
+    : summaryError
+      ? "Unavailable"
+      : formatUSD(summary?.mainWalletBalance ?? summary?.availableBalance ?? 0);
+  const lockedCapitalDisplay = accessLoading
+    ? "Loading…"
+    : accessError
+      ? "Unavailable"
+      : formatUSD(access?.lockedInvestmentCapital ?? 0);
 
   const handlePurchase = () => {
     if (!access || !selected || selected.level <= activeLevel) return;
@@ -92,11 +107,12 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
   };
 
   const handleActivationAction = () => {
-    if (accessError) {
+    if (accessError || summaryError) {
       if (accessUnauthorized) {
         setLocation("/login");
       } else {
-        refetchAccess();
+        if (accessError) void refetchAccess();
+        if (summaryError) void refetchSummary();
       }
       return;
     }
@@ -129,9 +145,9 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-2 text-right">
                  <p className="text-[9px] uppercase tracking-wider text-gray-500">Main wallet</p>
-                 <p className="mt-1 text-lg font-black text-amber-200">{formatUSD(availableBalance)}</p>
+                  <p className={`mt-1 text-lg font-black ${summaryError ? "text-red-200" : "text-amber-200"}`}>{walletDisplay}</p>
                  <p className="mt-2 text-[9px] uppercase tracking-wider text-gray-500">Locked capital</p>
-                 <p className="mt-1 text-sm font-black text-blue-200">{formatUSD(access?.lockedInvestmentCapital ?? 0)}</p>
+                  <p className={`mt-1 text-sm font-black ${accessError ? "text-red-200" : "text-blue-200"}`}>{lockedCapitalDisplay}</p>
               </div>
             </div>
             {access?.vipLevel ? (
@@ -192,15 +208,17 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
                 </div>
                 <button
                    onClick={handleActivationAction}
-                   disabled={purchaseMutation.isPending || accessLoading || (!canPurchase && !accessError)}
+                    disabled={purchaseMutation.isPending || accessLoading || summaryLoading || (!canPurchase && !accessError && !summaryError)}
                   className="rounded-xl bg-gradient-to-r from-amber-400 to-blue-600 px-4 py-3 text-xs font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-40"
                 >
                 {purchaseMutation.isPending
                    ? "Activating..."
-                   : accessLoading
-                     ? "Loading access..."
+                      : accessLoading || summaryLoading
+                          ? "Loading balance..."
                      : accessError
-                       ? accessUnauthorized ? "Sign in again" : "Retry access"
+                        ? accessUnauthorized ? "Sign in again" : "Retry access"
+                      : summaryError
+                        ? "Retry wallet"
                      : !access
                        ? "Sign in required"
                     : selected.level === activeLevel
