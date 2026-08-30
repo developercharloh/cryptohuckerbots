@@ -12,6 +12,7 @@ import {
   TrendingUp, TrendingDown, Zap, Activity, Check,
   ArrowUpRight, ArrowDownRight, ChevronDown, CheckCircle2,
   XCircle, BarChart2, Bell, ChevronLeft, ShieldCheck, WalletCards, Sparkles,
+  Loader2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -161,6 +162,7 @@ export default function Trade() {
   const [msgIdx, setMsgIdx]             = useState(0);
   const [result, setResult]             = useState<TradePosition | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [refreshingSignals, setRefreshingSignals] = useState(false);
 
   // Chart state
   const [selectedPair, setSelectedPair] = useState("EUR/USD");
@@ -283,6 +285,35 @@ export default function Trade() {
 
   const vaultCapital = summary?.vaultCapital ?? summary?.lockedInvestmentCapital ?? 0;
 
+  const handleRefreshSignals = useCallback(async () => {
+    if (refreshingSignals) return;
+    setRefreshingSignals(true);
+    try {
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ["/api/trade/access"], type: "active" }),
+        queryClient.refetchQueries({ queryKey: ["/api/trade/signals"], type: "active" }),
+      ]);
+      const refreshedSignals = queryClient.getQueryData<SignalInfo[]>(["/api/trade/signals"]) ?? [];
+      const hasAvailableSignal = refreshedSignals.some(
+        (signal) => signal.status !== "executed" && Boolean(signal.opportunityId),
+      );
+      toast({
+        title: hasAvailableSignal ? "AI signal ready" : "Signals refreshed",
+        description: hasAvailableSignal
+          ? "Review the newly available signal above before executing."
+          : "There is no new signal for the selected pair right now. Try another pair or refresh again.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Could not refresh AI Signals",
+        description: error?.message ?? "Please check your connection and try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setRefreshingSignals(false);
+    }
+  }, [queryClient, refreshingSignals, toast]);
+
   const handleExecute = () => {
     const signal = bestSignal;
     if (vipAccess?.vipLevel === 0) {
@@ -303,7 +334,7 @@ export default function Trade() {
       return;
     }
     if (!signal || !signal.opportunityId) {
-      queryClient.invalidateQueries({ queryKey: ["/api/trade/signals"] });
+      void handleRefreshSignals();
       return;
     }
     if (!consent) {
@@ -424,7 +455,13 @@ export default function Trade() {
      return matchingPair[0] ?? null;
   }, [signals, requestedDirection, selectedPair]);
   const signalAmount = vipAccess?.signalAmount ?? 2.5;
-  const executeButtonLabel = executeMutation.isPending
+  const refreshAction = !bestSignal &&
+    vipAccess?.vipLevel !== 0 &&
+    !cooldownActive &&
+    vipAccess?.remainingToday !== 0;
+  const executeButtonLabel = refreshingSignals
+    ? "Refreshing AI Signals…"
+    : executeMutation.isPending
     ? "Executing signal…"
     : vipAccess?.vipLevel === 0
       ? "Unlock AI Signals"
@@ -830,20 +867,22 @@ export default function Trade() {
 
               {/* Execute button */}
               <button
-                onClick={handleExecute}
+                onClick={refreshAction ? handleRefreshSignals : handleExecute}
                 type="button"
-                 disabled={executeMutation.isPending || cooldownActive || vipAccess?.remainingToday === 0}
+                disabled={executeMutation.isPending || refreshingSignals || cooldownActive || vipAccess?.remainingToday === 0}
                 style={{
                   width: "100%", height: 56, borderRadius: 16, border: "none", cursor: "pointer",
-                   background: executeMutation.isPending || cooldownActive || vipAccess?.remainingToday === 0 ? "rgba(245,185,66,0.3)" : "linear-gradient(135deg, #F5B942 0%, #2563EB 100%)",
+                  background: executeMutation.isPending || refreshingSignals || cooldownActive || vipAccess?.remainingToday === 0 ? "rgba(245,185,66,0.3)" : "linear-gradient(135deg, #F5B942 0%, #2563EB 100%)",
                   fontSize: 15, fontWeight: 800, color: "#fff",
-                   boxShadow: executeMutation.isPending || cooldownActive || vipAccess?.remainingToday === 0 ? "none" : "0 7px 24px rgba(124,58,237,0.38)",
+                  boxShadow: executeMutation.isPending || refreshingSignals || cooldownActive || vipAccess?.remainingToday === 0 ? "none" : "0 7px 24px rgba(124,58,237,0.38)",
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                   opacity: executeMutation.isPending || cooldownActive || vipAccess?.remainingToday === 0 ? 0.72 : 1,
+                  opacity: executeMutation.isPending || refreshingSignals || cooldownActive || vipAccess?.remainingToday === 0 ? 0.72 : 1,
                   transition: "transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease",
                 }}
               >
-                 <Zap style={{ width: 18, height: 18, fill: "#fff", color: "#fff" }} />
+                {refreshingSignals
+                  ? <Loader2 className="animate-spin" style={{ width: 18, height: 18 }} />
+                  : <Zap style={{ width: 18, height: 18, fill: "#fff", color: "#fff" }} />}
                 {executeButtonLabel}
               </button>
 
