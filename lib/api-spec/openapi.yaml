@@ -1929,6 +1929,10 @@ components:
           type: number
         portfolioBalance:
           type: number
+        ledgerBalance:
+          type: number
+        pendingOutflow:
+          type: number
         availableBalance:
           type: number
         mainWalletBalance:
@@ -1957,7 +1961,7 @@ components:
           type: number
         totalTrades:
           type: integer
-      required: [totalBalance, portfolioBalance, availableBalance, mainWalletBalance, vaultCapital, lockedInvestmentCapital, todayProfit, todayProfitPercent, totalEarnings, totalProfit, earningsChangePercent, activeBots, totalBots, winRate, roi, totalTrades]
+      required: [totalBalance, portfolioBalance, ledgerBalance, pendingOutflow, availableBalance, mainWalletBalance, vaultCapital, lockedInvestmentCapital, todayProfit, todayProfitPercent, totalEarnings, totalProfit, earningsChangePercent, activeBots, totalBots, winRate, roi, totalTrades]
 
     ChartPoint:
       type: object

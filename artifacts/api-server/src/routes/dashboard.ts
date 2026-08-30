@@ -72,6 +72,8 @@ router.get("/dashboard/summary", async (req, res) => {
   return res.json({
     totalBalance: Math.max(0, availableBalance + vaultCapital),
     portfolioBalance: Math.max(0, availableBalance + vaultCapital),
+    ledgerBalance: wallet.ledgerBalance,
+    pendingOutflow: wallet.pendingOutflow,
     availableBalance,
     mainWalletBalance: availableBalance,
     vaultCapital,
