@@ -344,35 +344,20 @@ router.get("/admin/users", async (req, res) => {
 
   if (userIds.length === 0) return res.json([]);
 
-  const [botRows, txnRows, profiles] = await Promise.all([
+  const [botRows, profiles] = await Promise.all([
     db.select({
       userId: userBotsTable.userId,
       totalBots: sql<number>`count(*)::int`,
     }).from(userBotsTable).where(inArray(userBotsTable.userId, userIds)).groupBy(userBotsTable.userId),
-    db.select({
-      userId: transactionsTable.userId,
-      balance: sql<string>`coalesce(sum(case
-        when ${transactionsTable.status} = 'completed'
-          and ${transactionsTable.type} in ('deposit', 'trade_profit', 'trade_loss_return')
-          then ${transactionsTable.amount}
-        when ${transactionsTable.status} = 'completed'
-          and ${transactionsTable.type} in ('withdrawal', 'trade_loss', 'reserved_stake', 'trade_fee', 'bot_purchase', 'vip_package_purchase')
-          then -${transactionsTable.amount}
-        when ${transactionsTable.status} = 'pending'
-          and ${transactionsTable.type} in ('withdrawal', 'reserved_stake', 'trade_fee', 'bot_purchase', 'vip_package_purchase')
-          then -${transactionsTable.amount}
-        else 0 end), 0)`,
-    }).from(transactionsTable).where(inArray(transactionsTable.userId, userIds)).groupBy(transactionsTable.userId),
     db.select().from(userProfilesTable).where(inArray(userProfilesTable.userId, userIds)),
   ]);
 
   const profileMap = new Map(profiles.map((p) => [p.userId, p]));
   const botMap = new Map(botRows.map((row) => [row.userId, row]));
-  const txnMap = new Map(txnRows.map((row) => [row.userId, Number(row.balance)]));
 
-  const result = users.map((u) => {
+  const result = await Promise.all(users.map(async (u) => {
     const botRow = botMap.get(u.id);
-    const balance = txnMap.get(u.id) ?? 0;
+    const balance = (await getWalletSnapshot(u.id)).availableBalance;
     return {
       id: u.id,
       accountUid: u.accountUid,
@@ -386,7 +371,7 @@ router.get("/admin/users", async (req, res) => {
       country: profileMap.get(u.id)?.country ?? null,
       createdAt: u.createdAt.toISOString(),
     };
-  });
+  }));
 
   return res.json(result);
 });

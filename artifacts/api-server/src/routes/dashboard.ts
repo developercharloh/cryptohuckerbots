@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db, usersTable, sessionsTable, userBotsTable, botsTable, transactionsTable, earningsTable, vipInvestmentCapitalTable } from "@workspace/db";
 import { eq, desc, and, gte, sql } from "drizzle-orm";
 import { format, subDays, subMonths, subYears, startOfDay, startOfWeek, startOfMonth, startOfYear, eachDayOfInterval, eachMonthOfInterval, eachHourOfInterval } from "date-fns";
-import { isUserSessionExpired } from "../lib/session";
+import { getRequestToken, isUserSessionExpired } from "../lib/session";
 import { getWalletSnapshot } from "../utils/balance.js";
 
 const router = Router();
@@ -26,7 +26,7 @@ function seededRand(seed: number): number {
 }
 
 router.get("/dashboard/summary", async (req, res) => {
-  const token = req.headers.authorization?.replace("Bearer ", "");
+  const token = getRequestToken(req);
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 

@@ -133,6 +133,7 @@ export default function UserDetail() {
           setBalanceAmount("");
           setBalanceNote("");
           queryClient.invalidateQueries({ queryKey: getAdminGetUserQueryKey(userId) });
+           queryClient.invalidateQueries({ queryKey: getAdminListUsersQueryKey() });
         },
         onError: (err) => {
           toast({ title: "Failed to adjust balance", description: err.message, variant: "destructive" });
