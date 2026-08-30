@@ -50,7 +50,7 @@ export default function Dashboard() {
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   const { data: summary, isLoading: loadingSummary } = useGetDashboardSummary({
-    query: { refetchInterval: 30000 } as any,
+    query: { refetchInterval: 5000, refetchOnWindowFocus: true } as any,
   });
   const { data: recentActivity = [] } = useGetRecentActivity();
   const { data: bots = [] } = useListBots();

@@ -3,6 +3,7 @@ import { db, usersTable, sessionsTable, userBotsTable, botsTable, transactionsTa
 import { eq, desc, and, gte, sql } from "drizzle-orm";
 import { format, subDays, subMonths, subYears, startOfDay, startOfWeek, startOfMonth, startOfYear, eachDayOfInterval, eachMonthOfInterval, eachHourOfInterval } from "date-fns";
 import { isUserSessionExpired } from "../lib/session";
+import { getWalletSnapshot } from "../utils/balance.js";
 
 const router = Router();
 
@@ -29,50 +30,37 @@ router.get("/dashboard/summary", async (req, res) => {
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
-  const [userBots, [finance], [capital]] = await Promise.all([
+  const [userBots, wallet, [capital], [earnings]] = await Promise.all([
     db.select().from(userBotsTable).where(eq(userBotsTable.userId, user.id)),
-    db.select({
-      balance: sql<string>`coalesce(sum(case
-        when ${transactionsTable.status} = 'completed'
-          and ${transactionsTable.type} in ('deposit', 'trade_profit', 'trade_loss_return')
-          then ${transactionsTable.amount}
-        when ${transactionsTable.status} = 'completed'
-          and ${transactionsTable.type} in ('withdrawal', 'trade_loss', 'reserved_stake', 'trade_fee', 'bot_purchase', 'vip_package_purchase')
-          then -${transactionsTable.amount}
-        else 0 end), 0)`,
-      pendingOut: sql<string>`coalesce(sum(case
-        when ${transactionsTable.status} = 'pending'
-          and ${transactionsTable.type} in ('withdrawal', 'reserved_stake', 'trade_fee', 'bot_purchase', 'vip_package_purchase')
-          then ${transactionsTable.amount}
-        else 0 end), 0)`,
-      totalDeposited: sql<string>`coalesce(sum(case
-        when ${transactionsTable.type} = 'deposit' and ${transactionsTable.status} = 'completed'
-          then ${transactionsTable.amount}
-        else 0 end), 0)`,
-    }).from(transactionsTable).where(eq(transactionsTable.userId, user.id)),
+    getWalletSnapshot(user.id),
     db.select({
       lockedInvestmentCapital: sql<string>`coalesce(sum(${vipInvestmentCapitalTable.amount}), 0)`,
     }).from(vipInvestmentCapitalTable).where(and(
       eq(vipInvestmentCapitalTable.userId, user.id),
       eq(vipInvestmentCapitalTable.status, "locked"),
     )),
+    db.select({
+      totalProfit: sql<string>`coalesce(sum(${earningsTable.amount}), 0)`,
+      todayProfit: sql<string>`coalesce(sum(case
+        when ${earningsTable.date} >= ${startOfDay(new Date())}
+          then ${earningsTable.amount}
+        else 0 end), 0)`,
+    }).from(earningsTable).where(eq(earningsTable.userId, user.id)),
   ]);
 
   const activeBots = userBots.filter(b => b.status === "running");
-  const balance = Number(finance?.balance ?? 0);
-  const pendingOut = Number(finance?.pendingOut ?? 0);
-
-  const availableBalance = Math.max(0, balance - pendingOut);
+  const availableBalance = wallet.availableBalance;
   const lockedInvestmentCapital = Number(capital?.lockedInvestmentCapital ?? 0);
-  const todayProfit = activeBots.reduce((sum, b) => sum + parseFloat(b.profitToday), 0);
-  const totalEarnings = userBots.reduce((sum, b) => sum + parseFloat(b.profitTotal), 0);
+  const todayProfit = Number(earnings?.todayProfit ?? 0);
+  const totalEarnings = Number(earnings?.totalProfit ?? 0);
   const totalTrades = userBots.reduce((sum, b) => sum + (b.totalTrades ?? 0), 0);
   const winRate = userBots.length > 0 ? 72 + (user.id % 20) : 0; // deterministic per user
 
   // Compute ROI as totalEarnings / totalDeposited * 100
-  const totalDeposited = Number(finance?.totalDeposited ?? 0);
+  const totalDeposited = wallet.totalDeposited;
   const roi = totalDeposited > 0 ? (totalEarnings / totalDeposited) * 100 : 0;
 
+  res.setHeader("Cache-Control", "private, no-store, max-age=0");
   return res.json({
     totalBalance: Math.max(0, availableBalance + lockedInvestmentCapital),
     availableBalance,
