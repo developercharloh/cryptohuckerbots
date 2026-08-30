@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db, usersTable, sessionsTable, transactionsTable, depositSessionsTable, notificationsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
-import { isUserSessionExpired } from "../lib/session";
+import { getRequestToken, isUserSessionExpired } from "../lib/session";
 import { CreateWithdrawalBody } from "@workspace/api-zod";
 import { sendPushToAllAdmins } from "../lib/webPush";
 import { notifyAdminTransaction } from "../lib/loginAlarm";
@@ -160,7 +160,7 @@ function mapSession(s: typeof depositSessionsTable.$inferSelect) {
 // ── Deposit session endpoints ────────────────────────────────────────────────
 
 router.post("/cashier/deposit/session", async (req, res) => {
-  const token = req.headers.authorization?.replace("Bearer ", "");
+  const token = getRequestToken(req);
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
@@ -223,7 +223,7 @@ router.post("/cashier/deposit/session", async (req, res) => {
 });
 
 router.get("/cashier/deposit/session/:id", async (req, res) => {
-  const token = req.headers.authorization?.replace("Bearer ", "");
+  const token = getRequestToken(req);
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
@@ -239,7 +239,7 @@ router.get("/cashier/deposit/session/:id", async (req, res) => {
 });
 
 router.post("/cashier/deposit/session/:id/txid", async (req, res) => {
-  const token = req.headers.authorization?.replace("Bearer ", "");
+  const token = getRequestToken(req);
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
@@ -269,7 +269,7 @@ router.post("/cashier/deposit/session/:id/txid", async (req, res) => {
 // ── Legacy deposit endpoint (kept for backward compat) ──────────────────────
 
 router.post("/cashier/deposit", async (req, res) => {
-  const token = req.headers.authorization?.replace("Bearer ", "");
+  const token = getRequestToken(req);
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
@@ -316,7 +316,7 @@ router.post("/cashier/deposit", async (req, res) => {
 // ── Withdrawal ───────────────────────────────────────────────────────────────
 
 router.post("/cashier/withdraw", async (req, res) => {
-  const token = req.headers.authorization?.replace("Bearer ", "");
+  const token = getRequestToken(req);
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
@@ -385,7 +385,7 @@ router.post("/cashier/withdraw", async (req, res) => {
 // ── Transactions & payment methods ───────────────────────────────────────────
 
 router.get("/cashier/transactions", async (req, res) => {
-  const token = req.headers.authorization?.replace("Bearer ", "");
+  const token = getRequestToken(req);
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
