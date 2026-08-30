@@ -9,3 +9,4 @@
 - [VIXUS AI client cache](vixus-ai-client-cache.md) — active mobile SPA tabs keep their old hashed bundle; verify the live asset and ask users to close/reopen or hard refresh.
 - [VIXUS AI API origin](vixus-ai-api-origin.md) — browser requests must share the configured API-base helper; production fallback is the live api.vixus.trade origin.
 - [VIXUS AI wallet reconciliation](vixus-ai-wallet-reconciliation.md) — derive spendable wallet values from canonical transaction ledger rules; report locked VIP capital separately.
+- [Vercel serverless initialization](vixus-vercel-serverless-init.md) — background database migrations and seeds can be frozen after a fast health response; await readiness or initialize explicitly.
