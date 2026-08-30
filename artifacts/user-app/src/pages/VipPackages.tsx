@@ -1,11 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { ArrowLeft, Check, Crown, LockKeyhole, Sparkles, WalletCards } from "lucide-react";
 import { useLocation } from "wouter";
 import {
-  VipPackage,
   useGetDashboardSummary,
   useGetTradeAccess,
-  useListVipPackages,
   usePurchaseVipPackage,
 } from "@workspace/api-client-react";
 import { Layout } from "@/components/Layout";
@@ -15,31 +13,35 @@ import { useQueryClient } from "@tanstack/react-query";
 const formatUSD = (value: number) =>
   `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+const VIP_LEVELS = [
+  { level: 1, price: 500, dailySignals: 3 },
+  { level: 2, price: 1000, dailySignals: 4 },
+  { level: 3, price: 2000, dailySignals: 5 },
+  { level: 4, price: 4000, dailySignals: 6 },
+  { level: 5, price: 8000, dailySignals: 7 },
+  { level: 6, price: 16000, dailySignals: 8 },
+  { level: 7, price: 32000, dailySignals: 9 },
+] as const;
+
 export default function VipPackages({ showBack = true }: { showBack?: boolean }) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { data: packages = [], isLoading } = useListVipPackages();
   const { data: access } = useGetTradeAccess({ query: { refetchInterval: 15000 } as any });
   const { data: summary } = useGetDashboardSummary({ query: { refetchInterval: 10000 } as any });
   const purchaseMutation = usePurchaseVipPackage();
   const [selectedLevel, setSelectedLevel] = useState(1);
 
-  useEffect(() => {
-    const firstAvailable = packages.find((pkg) => pkg.isAvailable);
-    const active = packages.find((pkg) => pkg.isActive);
-    if (firstAvailable || active) setSelectedLevel((firstAvailable ?? active)!.level);
-  }, [packages]);
-
   const selected = useMemo(
-    () => packages.find((pkg) => pkg.level === selectedLevel) ?? null,
-    [packages, selectedLevel],
+    () => VIP_LEVELS.find((pkg) => pkg.level === selectedLevel) ?? VIP_LEVELS[0],
+    [selectedLevel],
   );
+  const activeLevel = access?.vipLevel ?? 0;
   const availableBalance = summary?.availableBalance ?? 0;
-  const canPurchase = Boolean(selected?.isAvailable) && availableBalance >= (selected?.price ?? Infinity);
+  const canPurchase = Boolean(access) && selected.level > activeLevel && availableBalance >= selected.price;
 
   const handlePurchase = () => {
-    if (!selected || !selected.isAvailable) return;
+    if (!access || selected.level <= activeLevel) return;
     purchaseMutation.mutate(
       { level: selected.level },
       {
@@ -104,44 +106,38 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            {isLoading ? (
-              Array.from({ length: 4 }).map((_, index) => (
-                <div key={index} className="h-36 animate-pulse rounded-2xl border border-white/10 bg-white/5" />
-              ))
-            ) : (
-              packages.map((pkg: VipPackage) => {
-                const selectedCard = selectedLevel === pkg.level;
-                const active = pkg.isActive;
-                const locked = !pkg.isAvailable && !active;
-                return (
-                  <button
-                    key={pkg.level}
-                    onClick={() => setSelectedLevel(pkg.level)}
-                    className={`rounded-2xl border p-4 text-left transition ${
-                      selectedCard ? "border-amber-300 bg-amber-300/10 shadow-lg shadow-amber-500/10" : "border-white/10 bg-white/[0.04] hover:border-amber-300/40"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-black text-amber-200">VIP {pkg.level}</p>
-                        <p className="mt-1 text-2xl font-black text-white">{formatUSD(pkg.price)}</p>
-                      </div>
-                      {active ? (
-                        <span className="rounded-full bg-green-400/15 px-2 py-1 text-[9px] font-bold uppercase text-green-300">Active</span>
-                      ) : locked ? (
-                        <LockKeyhole className="h-4 w-4 text-gray-600" />
-                      ) : (
-                        <Sparkles className="h-4 w-4 text-blue-300" />
-                      )}
+            {VIP_LEVELS.map((pkg) => {
+              const selectedCard = selectedLevel === pkg.level;
+              const active = pkg.level === activeLevel;
+              const locked = pkg.level < activeLevel;
+              return (
+                <button
+                  key={pkg.level}
+                  onClick={() => setSelectedLevel(pkg.level)}
+                  className={`rounded-2xl border p-4 text-left transition ${
+                    selectedCard ? "border-amber-300 bg-amber-300/10 shadow-lg shadow-amber-500/10" : "border-white/10 bg-white/[0.04] hover:border-amber-300/40"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-black text-amber-200">VIP {pkg.level}</p>
+                      <p className="mt-1 text-2xl font-black text-white">{formatUSD(pkg.price)}</p>
                     </div>
-                    <p className="mt-3 text-xs text-gray-400">{pkg.dailySignals} AI Signal{pkg.dailySignals === 1 ? "" : "s"} per day</p>
-                    <p className="mt-1 text-[10px] text-gray-600">
-                      {active ? "Currently active" : locked ? "Already below your active tier" : "Permanent access"}
-                    </p>
-                  </button>
-                );
-              })
-            )}
+                    {active ? (
+                      <span className="rounded-full bg-green-400/15 px-2 py-1 text-[9px] font-bold uppercase text-green-300">Active</span>
+                    ) : locked ? (
+                      <LockKeyhole className="h-4 w-4 text-gray-600" />
+                    ) : (
+                      <Sparkles className="h-4 w-4 text-blue-300" />
+                    )}
+                  </div>
+                  <p className="mt-3 text-xs text-gray-400">{pkg.dailySignals} AI Signals per day</p>
+                  <p className="mt-1 text-[10px] text-gray-600">
+                    {active ? "Currently active" : locked ? "Already below your active tier" : "Permanent access"}
+                  </p>
+                </button>
+              );
+            })}
           </div>
 
           {selected && (
@@ -159,7 +155,17 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
                   disabled={!canPurchase || purchaseMutation.isPending}
                   className="rounded-xl bg-gradient-to-r from-amber-400 to-blue-600 px-4 py-3 text-xs font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  {purchaseMutation.isPending ? "Buying..." : selected.isActive ? "Already active" : availableBalance < selected.price ? "Insufficient balance" : "Buy package"}
+                {purchaseMutation.isPending
+                  ? "Buying..."
+                  : !access
+                    ? "Loading..."
+                    : selected.level === activeLevel
+                      ? "Already active"
+                      : selected.level < activeLevel
+                        ? "Below active tier"
+                        : availableBalance < selected.price
+                          ? "Insufficient balance"
+                          : "Buy package"}
                 </button>
               </div>
               <p className="mt-3 text-[10px] leading-4 text-gray-500">
