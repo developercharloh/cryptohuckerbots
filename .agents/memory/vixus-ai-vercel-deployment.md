@@ -15,6 +15,12 @@ Pushing the current `main` branch to the linked GitHub repository can also trigg
 
 **How to apply:** Treat a successful GitHub push as a deployment trigger, then confirm the public frontend returns `200`, the new bundle contains the latest user-visible fix, and unauthenticated protected routes return `401` rather than assuming the build completed.
 
+Vercel's direct deployment API can reject otherwise valid prebuilt uploads after its free daily deployment quota is exhausted, while a linked frontend project may still deploy from GitHub. A successful frontend deployment does not prove the separately linked API project promoted the same commit.
+
+**Why:** The monorepo's user app and API are separate Vercel projects, and their deployment triggers can diverge.
+
+**How to apply:** Verify each project independently by deployment commit and live protected-route behavior; if the API project is still on an older commit, do not claim the backend fix is live and wait for quota reset or a working Git/deploy hook.
+
 For file-only static deployments to a monorepo-linked Vercel project, the project-level `rootDirectory` can override deployment payload settings and force a build against a missing source tree. Temporarily clear `rootDirectory`, `buildCommand`, `installCommand`, and `outputDirectory` while creating the prebuilt deployment, then restore the original settings after Vercel accepts it.
 
 **Why:** Vercel may ignore a `rootDirectory: null` value supplied only in the deployment payload and leave the direct upload queued or fail it with `NOW_SANDBOX_WORKER_ROOTDIR_NOT_EXIST`.
