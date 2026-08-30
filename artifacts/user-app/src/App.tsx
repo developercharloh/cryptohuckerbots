@@ -1,6 +1,31 @@
 import { useEffect, lazy, Suspense, Component, ReactNode } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 
+const CHUNK_RECOVERY_KEY = "vixus_chunk_recovery_attempted";
+
+async function recoverFromStaleClient(force = false): Promise<void> {
+  if (typeof window === "undefined") return;
+  if (!force && sessionStorage.getItem(CHUNK_RECOVERY_KEY)) return;
+
+  sessionStorage.setItem(CHUNK_RECOVERY_KEY, "1");
+  try {
+    if ("serviceWorker" in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map((registration) => registration.unregister()));
+    }
+    if ("caches" in window) {
+      const cacheNames = await caches.keys();
+      await Promise.all(
+        cacheNames
+          .filter((name) => name.startsWith("vixus-ai-shell-"))
+          .map((name) => caches.delete(name)),
+      );
+    }
+  } finally {
+    window.location.reload();
+  }
+}
+
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
   constructor(props: { children: ReactNode }) {
     super(props);
@@ -9,13 +34,23 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: string |
   static getDerivedStateFromError(err: Error) {
     return { error: err?.message ?? "Unknown error" };
   }
+  componentDidCatch(err: Error) {
+    if (/dynamically imported module|importing a module script failed|failed to fetch/i.test(err.message)) {
+      void recoverFromStaleClient();
+    }
+  }
   render() {
     if (this.state.error) {
       return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground p-6 gap-4">
           <p className="text-destructive font-semibold text-center">Something went wrong</p>
           <p className="text-xs text-muted-foreground text-center break-all">{this.state.error}</p>
-           <button className="mt-2 px-4 py-2 rounded-lg bg-primary text-white text-sm" onClick={() => window.location.reload()}>Reload app</button>
+           <button
+             className="mt-2 px-4 py-2 rounded-lg bg-primary text-white text-sm"
+             onClick={() => void recoverFromStaleClient(true)}
+           >
+             Reload app
+           </button>
         </div>
       );
     }

@@ -4,6 +4,7 @@ import { eq, desc, and, gte, sql } from "drizzle-orm";
 import { format, subDays, subMonths, subYears, startOfDay, startOfWeek, startOfMonth, startOfYear, eachDayOfInterval, eachMonthOfInterval, eachHourOfInterval } from "date-fns";
 import { getRequestToken, isUserSessionExpired } from "../lib/session";
 import { getVaultCapitalSnapshot, getWalletSnapshot } from "../utils/balance.js";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -33,7 +34,13 @@ router.get("/dashboard/summary", async (req, res) => {
   const [userBots, wallet, vault, [earnings]] = await Promise.all([
     db.select().from(userBotsTable).where(eq(userBotsTable.userId, user.id)),
     getWalletSnapshot(user.id),
-    getVaultCapitalSnapshot(user.id),
+    getVaultCapitalSnapshot(user.id).catch((err) => {
+      // A vault read must not hide a user's spendable Main Wallet. Keep the
+      // failure visible in server logs while returning the independent wallet
+      // ledger so deposits and admin credits remain usable.
+      logger.error({ err, userId: user.id }, "Vault snapshot failed for dashboard");
+      return { initialCapital: 0, vaultCapital: 0 };
+    }),
     db.select({
       totalProfit: sql<string>`coalesce(sum(${earningsTable.amount}), 0)`,
       todayProfit: sql<string>`coalesce(sum(case
