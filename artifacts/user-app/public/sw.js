@@ -1,4 +1,4 @@
-const CACHE_NAME = "vixus-ai-shell-v1";
+const CACHE_NAME = "vixus-ai-shell-v2";
 
 self.addEventListener("install", () => {
   self.skipWaiting();
@@ -38,16 +38,25 @@ self.addEventListener("fetch", (event) => {
 
   if (url.pathname.includes("/assets/") || url.pathname.endsWith("/manifest.webmanifest")) {
     event.respondWith(
-      caches.match(request).then((cached) => {
-        if (cached) return cached;
-        return fetch(request).then((response) => {
+      fetch(request)
+        .then((response) => {
+          // A missing hashed asset must never be cached as the SPA HTML shell.
+          // Otherwise one stale chunk can keep breaking every later reload.
+          const contentType = response.headers.get("content-type") ?? "";
+          if (contentType.includes("text/html")) {
+            return new Response(null, { status: 404, statusText: "Asset not found" });
+          }
           if (response.ok) {
             const copy = response.clone();
             void caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
           }
           return response;
-        });
-      }),
+        })
+        .catch(() =>
+          caches.match(request).then(
+            (cached) => cached ?? new Response(null, { status: 503, statusText: "Offline" }),
+          ),
+        ),
     );
   }
 });
