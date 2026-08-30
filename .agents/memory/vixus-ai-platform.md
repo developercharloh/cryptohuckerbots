@@ -24,6 +24,6 @@ description: FX trading bot admin panel — architecture, credentials, seeding, 
 
 - 5 bots seeded into marketplace
 - 8 FAQ entries seeded
-- Demo email purged: `demo@vixus.ai`
+- Test/demo account cleanup is explicit opt-in via `PURGE_TEST_USERS=true`; normal startup never infers that an account is disposable from its email.
 
 **Why:** Recorded to avoid re-discovering rebrand details and credential conventions in future sessions.
