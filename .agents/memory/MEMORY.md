@@ -8,3 +8,4 @@
 - [VIXUS AI Vercel deployment](vixus-ai-vercel-deployment.md) — when Vercel kills the monorepo build for memory, deploy prebuilt web output and the bundled API handler through the Vercel API.
 - [VIXUS AI client cache](vixus-ai-client-cache.md) — active mobile SPA tabs keep their old hashed bundle; verify the live asset and ask users to close/reopen or hard refresh.
 - [VIXUS AI API origin](vixus-ai-api-origin.md) — browser requests must share the configured API-base helper; production fallback is the live api.vixus.trade origin.
+- [VIXUS AI wallet reconciliation](vixus-ai-wallet-reconciliation.md) — derive spendable wallet values from canonical transaction ledger rules; report locked VIP capital separately.
