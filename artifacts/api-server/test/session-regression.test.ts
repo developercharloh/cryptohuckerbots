@@ -29,7 +29,6 @@ const {
   ADMIN_SESSION_COOKIE,
   ADMIN_SESSION_TTL_MS,
   USER_SESSION_COOKIE,
-  USER_SESSION_TTL_MS,
 } = await import("../src/lib/session.ts");
 
 const TEST_ORIGIN = "https://vixus.trade";
@@ -276,7 +275,7 @@ test("handles credentialed preflight for configured frontend origins", async () 
   assert.match(response.headers.get("access-control-allow-headers") ?? "", /content-type/i);
 });
 
-test("keeps user sessions in HttpOnly cookies across reloads, logout, and expiry", async (t) => {
+test("keeps user sessions in persistent HttpOnly cookies across reloads until logout", async (t) => {
   if (skipWithoutDatabase(t)) return;
   const loginJar = new CookieJar();
   const login = await request<{ user: { id: number; email: string } }>("/api/auth/login", {
@@ -298,6 +297,7 @@ test("keeps user sessions in HttpOnly cookies across reloads, logout, and expiry
   assert.equal(reloaded.response.status, 200);
   assert.equal(reloaded.body.email, userEmail);
   assertCredentialedCors(reloaded.response);
+  assert.match(reloaded.response.headers.get("set-cookie") ?? "", /Max-Age=/i);
 
   const logout = await request("/api/auth/logout", {
     method: "POST",
@@ -309,30 +309,29 @@ test("keeps user sessions in HttpOnly cookies across reloads, logout, and expiry
   const afterLogout = await request("/api/auth/me", { jar: loginJar });
   assert.equal(afterLogout.response.status, 401);
 
-  const expiredJar = new CookieJar();
+  const persistentJar = new CookieJar();
   const secondLogin = await request("/api/auth/login", {
     method: "POST",
-    jar: expiredJar,
+    jar: persistentJar,
     body: { email: userEmail, password: userPassword },
   });
   assert.equal(secondLogin.response.status, 200);
-  const expiredToken = expiredJar.value(USER_SESSION_COOKIE);
-  assert.ok(expiredToken);
+  const persistentToken = persistentJar.value(USER_SESSION_COOKIE);
+  assert.ok(persistentToken);
 
   const [session] = await db.select().from(sessionsTable)
-    .where(eq(sessionsTable.token, expiredToken));
+    .where(eq(sessionsTable.token, persistentToken));
   assert.ok(session);
   await db.update(sessionsTable)
-    .set({ createdAt: new Date(Date.now() - USER_SESSION_TTL_MS - 1) })
+    .set({ createdAt: new Date("2000-01-01T00:00:00.000Z") })
     .where(eq(sessionsTable.id, session.id));
 
-  const expired = await request("/api/auth/me", { jar: expiredJar });
-  assert.equal(expired.response.status, 401);
-  assert.deepEqual(expired.body, { error: "Invalid or expired session" });
-  assert.equal(expiredJar.value(USER_SESSION_COOKIE), undefined);
-  const deletedExpiredSession = await db.select().from(sessionsTable)
+  const persistent = await request("/api/auth/me", { jar: persistentJar });
+  assert.equal(persistent.response.status, 200);
+  assert.equal(persistentJar.value(USER_SESSION_COOKIE), persistentToken);
+  const retainedSession = await db.select().from(sessionsTable)
     .where(eq(sessionsTable.id, session.id));
-  assert.equal(deletedExpiredSession.length, 0);
+  assert.equal(retainedSession.length, 1);
 });
 
 test("covers admin login, invalid credentials, logout, invalidation, and expiry", async (t) => {

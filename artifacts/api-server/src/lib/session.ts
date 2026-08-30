@@ -5,7 +5,11 @@ import { db, sessionsTable } from "@workspace/db";
 export const USER_SESSION_COOKIE = "vixus_session";
 export const ADMIN_SESSION_COOKIE = "vixus_admin_session";
 
-export const USER_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+// User sessions are intentionally persistent. The cookie is long-lived and is
+// renewed whenever the API confirms the session, while the database session
+// remains valid until the user explicitly logs out or the account/session is
+// revoked by a security-sensitive action.
+export const USER_SESSION_MAX_AGE_MS = 10 * 365 * 24 * 60 * 60 * 1000;
 export const ADMIN_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 
 const secureCookies =
@@ -55,11 +59,11 @@ export function getRequestToken(req: Request, cookieName = USER_SESSION_COOKIE):
 }
 
 export function setUserSessionCookie(res: Response, token: string): void {
-  res.cookie(USER_SESSION_COOKIE, token, cookieOptions(USER_SESSION_TTL_MS));
+  res.cookie(USER_SESSION_COOKIE, token, cookieOptions(USER_SESSION_MAX_AGE_MS));
 }
 
 export function clearUserSessionCookie(res: Response): void {
-  res.clearCookie(USER_SESSION_COOKIE, cookieOptions(USER_SESSION_TTL_MS));
+  res.clearCookie(USER_SESSION_COOKIE, cookieOptions(USER_SESSION_MAX_AGE_MS));
 }
 
 export function setAdminSessionCookie(res: Response, token: string): void {
@@ -85,6 +89,11 @@ export async function revokeUserSessions(userId: number, exceptToken?: string): 
   await db.delete(sessionsTable).where(and(...conditions));
 }
 
-export function isUserSessionExpired(createdAt: Date): boolean {
-  return createdAt.getTime() + USER_SESSION_TTL_MS <= Date.now();
+/**
+ * Kept as a compatibility helper for route modules that share the session
+ * lookup pattern. User sessions no longer expire based on age; they end when
+ * explicitly logged out or revoked.
+ */
+export function isUserSessionExpired(_createdAt: Date): boolean {
+  return false;
 }

@@ -8,7 +8,6 @@ import { sendPushToAllAdmins } from "../lib/webPush";
 import {
   clearUserSessionCookie,
   getRequestToken,
-  isUserSessionExpired,
   revokeUserSessions,
   setUserSessionCookie,
 } from "../lib/session";
@@ -281,17 +280,16 @@ router.get("/auth/me", async (req, res) => {
     clearUserSessionCookie(res);
     return res.status(401).json({ error: "Invalid or expired session" });
   }
-  if (isUserSessionExpired(sessions[0].createdAt)) {
-    await db.delete(sessionsTable).where(eq(sessionsTable.id, sessions[0].id));
-    clearUserSessionCookie(res);
-    return res.status(401).json({ error: "Invalid or expired session" });
-  }
-
   const users = await db.select().from(usersTable).where(eq(usersTable.id, sessions[0].userId)).limit(1);
   if (users.length === 0) {
     return res.status(401).json({ error: "User not found" });
   }
   const user = users[0];
+
+  // Renew the persistent cookie on every successful session check so active
+  // users do not get logged out simply because the browser's cookie age ran
+  // down. Explicit logout still clears the cookie and deletes the session.
+  setUserSessionCookie(res, token);
 
   return res.json({
     id: user.id,
