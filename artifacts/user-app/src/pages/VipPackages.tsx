@@ -15,7 +15,7 @@ import { useQueryClient } from "@tanstack/react-query";
 const formatUSD = (value: number) =>
   `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-export default function VipPackages() {
+export default function VipPackages({ showBack = true }: { showBack?: boolean }) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -67,12 +67,14 @@ export default function VipPackages() {
     <Layout showNav>
       <div className="min-h-screen bg-[#07091A] pb-28 text-white">
         <div className="mx-auto max-w-3xl px-4 py-5">
-          <button
-            onClick={() => setLocation("/trade")}
-            className="mb-5 flex items-center gap-2 text-xs font-semibold text-gray-400 hover:text-white"
-          >
-            <ArrowLeft className="h-4 w-4" /> Back to AI Signals
-          </button>
+          {showBack && (
+            <button
+              onClick={() => setLocation("/trade")}
+              className="mb-5 flex items-center gap-2 text-xs font-semibold text-gray-400 hover:text-white"
+            >
+              <ArrowLeft className="h-4 w-4" /> Back to AI Signals
+            </button>
+          )}
 
           <div className="mb-5 rounded-3xl border border-amber-400/20 bg-gradient-to-br from-[#3A2B0D] via-[#17130A] to-[#0B1220] p-5 shadow-[0_8px_35px_rgba(245,185,66,0.15)]">
             <div className="flex items-start justify-between gap-4">
