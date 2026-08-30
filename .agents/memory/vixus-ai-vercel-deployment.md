@@ -9,6 +9,12 @@ Vercel's linked monorepo build can be killed for memory even when the local user
 
 **How to apply:** Build locally, inject the production API URL into the admin web build, deploy the static bundles and API handler to the existing Vercel project IDs, then verify the production aliases and `/api/healthz`. Keep the repository source separately synchronized when GitHub credentials are available.
 
+Pushing the current `main` branch to the linked GitHub repository can also trigger a normal Vercel deployment, even when Replit native publishing is unavailable. Verify the live hashed frontend asset and protected API responses after the push.
+
+**Why:** The GitHub-to-Vercel connection remained active independently of Replit's publishing status and successfully promoted the latest source commit.
+
+**How to apply:** Treat a successful GitHub push as a deployment trigger, then confirm the public frontend returns `200`, the new bundle contains the latest user-visible fix, and unauthenticated protected routes return `401` rather than assuming the build completed.
+
 For file-only static deployments to a monorepo-linked Vercel project, the project-level `rootDirectory` can override deployment payload settings and force a build against a missing source tree. Temporarily clear `rootDirectory`, `buildCommand`, `installCommand`, and `outputDirectory` while creating the prebuilt deployment, then restore the original settings after Vercel accepts it.
 
 **Why:** Vercel may ignore a `rootDirectory: null` value supplied only in the deployment payload and leave the direct upload queued or fail it with `NOW_SANDBOX_WORKER_ROOTDIR_NOT_EXIST`.
