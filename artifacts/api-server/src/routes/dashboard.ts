@@ -65,6 +65,7 @@ router.get("/dashboard/summary", async (req, res) => {
 
   const activeBots = userBots.filter(b => b.status === "running");
   const availableBalance = wallet.availableBalance;
+  const mainWalletBalance = wallet.ledgerBalance;
   const vaultCapital = vault.vaultCapital;
   const todayProfit = Number(profit?.todayProfit ?? 0);
   const totalEarnings = Number(profit?.totalProfit ?? 0);
@@ -77,12 +78,12 @@ router.get("/dashboard/summary", async (req, res) => {
 
   res.setHeader("Cache-Control", "private, no-store, max-age=0");
   return res.json({
-    totalBalance: Math.max(0, availableBalance + vaultCapital),
-    portfolioBalance: Math.max(0, availableBalance + vaultCapital),
+    totalBalance: Math.max(0, mainWalletBalance + vaultCapital),
+    portfolioBalance: Math.max(0, mainWalletBalance + vaultCapital),
     ledgerBalance: wallet.ledgerBalance,
     pendingOutflow: wallet.pendingOutflow,
     availableBalance,
-    mainWalletBalance: availableBalance,
+    mainWalletBalance,
     vaultCapital,
     lockedInvestmentCapital: vaultCapital,
     todayProfit,
