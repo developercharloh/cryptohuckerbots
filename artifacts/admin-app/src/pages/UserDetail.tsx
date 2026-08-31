@@ -5,16 +5,20 @@ import {
   useAdminSetUserStatus,
   useAdminResetUserPassword,
   useAdminAdjustBalance,
+  useAdminSendChatMessage,
+  getAdminGetChatQueryKey,
+  getAdminListChatsQueryKey,
   getAdminGetUserQueryKey,
   getAdminListUsersQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { ArrowLeft, Ban, CheckCircle, KeyRound, Plus, Minus, CreditCard, Copy, Check, ShieldCheck, ShieldOff } from "lucide-react";
+import { ArrowLeft, Ban, CheckCircle, KeyRound, Plus, Minus, CreditCard, Copy, Check, ShieldCheck, ShieldOff, MessageSquare, Loader2, Send } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -61,10 +65,13 @@ export default function UserDetail() {
   const statusMutation = useAdminSetUserStatus();
   const passwordMutation = useAdminResetUserPassword();
   const balanceMutation = useAdminAdjustBalance();
+  const messageMutation = useAdminSendChatMessage();
 
   const [balanceAmount, setBalanceAmount] = useState("");
   const [balanceNote, setBalanceNote] = useState("");
   const [isBalanceOpen, setIsBalanceOpen] = useState(false);
+  const [messageText, setMessageText] = useState("");
+  const [isMessageOpen, setIsMessageOpen] = useState(false);
   const [tempPassword, setTempPassword] = useState("");
   const [promoteLoading, setPromoteLoading] = useState(false);
 
@@ -140,6 +147,27 @@ export default function UserDetail() {
           toast({ title: "Failed to adjust balance", description: err.message, variant: "destructive" });
         }
       }
+    );
+  };
+
+  const handleSendMessage = () => {
+    const trimmedMessage = messageText.trim();
+    if (!trimmedMessage || messageMutation.isPending) return;
+
+    messageMutation.mutate(
+      { userId, data: { message: trimmedMessage } },
+      {
+        onSuccess: () => {
+          toast({ title: "Private message sent", description: "The user was notified privately." });
+          setMessageText("");
+          setIsMessageOpen(false);
+          queryClient.invalidateQueries({ queryKey: getAdminGetChatQueryKey(userId) });
+          queryClient.invalidateQueries({ queryKey: getAdminListChatsQueryKey() });
+        },
+        onError: (err) => {
+          toast({ title: "Failed to send message", description: err.message, variant: "destructive" });
+        },
+      },
     );
   };
 
@@ -241,6 +269,13 @@ export default function UserDetail() {
                     data-testid="btn-reset-password"
                   >
                     <KeyRound className="w-4 h-4 mr-2" /> Reset Password
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsMessageOpen(true)}
+                    data-testid="btn-message-user"
+                  >
+                    <MessageSquare className="w-4 h-4 mr-2" /> Message User
                   </Button>
                   <Button
                     variant={(user as any).isAdmin ? "outline" : "default"}
@@ -355,6 +390,49 @@ export default function UserDetail() {
                           <Plus className="w-4 h-4 mr-1" /> Credit
                         </Button>
                       </div>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog open={isMessageOpen} onOpenChange={setIsMessageOpen}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Message {user.fullName}</DialogTitle>
+                      <DialogDescription>
+                        Send a private message. Only this user and the admin support team can see it.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-2 py-4">
+                      <label className="text-sm font-medium">Private message</label>
+                      <Textarea
+                        value={messageText}
+                        onChange={(event) => setMessageText(event.target.value)}
+                        placeholder="Write a message to this user..."
+                        rows={5}
+                        maxLength={2000}
+                        className="resize-none"
+                        data-testid="input-private-message"
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Delivered to the user's notification center</span>
+                        <span>{messageText.length}/2000</span>
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="ghost" onClick={() => setIsMessageOpen(false)} disabled={messageMutation.isPending}>
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleSendMessage}
+                        disabled={!messageText.trim() || messageMutation.isPending}
+                        data-testid="btn-send-private-message"
+                      >
+                        {messageMutation.isPending ? (
+                          <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Sending...</>
+                        ) : (
+                          <><Send className="w-4 h-4 mr-2" /> Send Private Message</>
+                        )}
+                      </Button>
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>

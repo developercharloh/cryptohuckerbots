@@ -56,7 +56,7 @@ export default function LiveChat() {
           </button>
           <div>
             <h1 className="text-base font-bold tracking-tight">Contact Support</h1>
-            <p className="text-[11px] text-muted-foreground">We typically reply within minutes</p>
+            <p className="text-[11px] text-muted-foreground">Private conversation with VIXUS Support</p>
           </div>
         </div>
 

@@ -1227,15 +1227,38 @@ router.post("/admin/chat/:userId", async (req, res) => {
   if (isNaN(userId)) return res.status(400).json({ error: "Invalid user id" });
 
   const { message } = req.body as { message?: string };
-  if (!message || typeof message !== "string" || !message.trim()) {
+  const trimmedMessage = typeof message === "string" ? message.trim() : "";
+  if (!trimmedMessage) {
     return res.status(400).json({ error: "message is required" });
   }
+  if (trimmedMessage.length > 2000) {
+    return res.status(400).json({ error: "message must be 2000 characters or fewer" });
+  }
 
-  const [msg] = await db.insert(chatMessagesTable).values({
-    userId,
-    sender: "admin",
-    message: message.trim(),
-  }).returning();
+  const [targetUser] = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId))
+    .limit(1);
+  if (!targetUser) return res.status(404).json({ error: "User not found" });
+
+  const msg = await db.transaction(async (tx) => {
+    const [createdMessage] = await tx.insert(chatMessagesTable).values({
+      userId,
+      sender: "admin",
+      message: trimmedMessage,
+    }).returning();
+
+    await tx.insert(notificationsTable).values({
+      userId,
+      type: "admin_message",
+      title: "Message from VIXUS Support",
+      message: trimmedMessage,
+      isRead: false,
+    });
+
+    return createdMessage;
+  });
 
   return res.status(201).json({
     id: msg.id,

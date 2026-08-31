@@ -32,7 +32,7 @@ export default function Support() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-sm">Contact Support</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">Chat with us live</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Private chat with VIXUS Support</p>
                 </div>
               </div>
               <ChevronRight className="w-5 h-5 text-muted-foreground opacity-50" />
@@ -47,7 +47,7 @@ export default function Support() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-sm">Submit a Ticket</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">We'll respond to you soon</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Private ticket visible only to you and Support</p>
                 </div>
               </div>
               <ChevronRight className="w-5 h-5 text-muted-foreground opacity-50" />

@@ -50,6 +50,7 @@ function getNotifMeta(type: string) {
     case "bot":
       return { Icon: Bot, color: "text-primary", bg: "bg-primary/10" };
     case "support":
+    case "admin_message":
       return { Icon: MessageSquare, color: "text-blue-400", bg: "bg-blue-500/10" };
     case "kyc":
       return { Icon: ShieldCheck, color: "text-yellow-400", bg: "bg-yellow-500/10" };
@@ -64,6 +65,7 @@ function getNotifMeta(type: string) {
 function InboxTab() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   const { data: notifications = [], isLoading } = useListNotifications({
     query: { refetchInterval: 10000 } as any,
@@ -82,13 +84,17 @@ function InboxTab() {
     });
   };
 
-  const handleTap = (id: number, isRead: boolean) => {
-    if (isRead) return;
-    markRead.mutate({ id }, {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
-      },
-    });
+  const handleTap = (notification: { id: number; isRead: boolean; type: string }) => {
+    if (!notification.isRead) {
+      markRead.mutate({ id: notification.id }, {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
+        },
+      });
+    }
+    if (notification.type === "admin_message" || notification.type === "support") {
+      setLocation("/support/chat");
+    }
   };
 
   if (isLoading) {
@@ -140,7 +146,7 @@ function InboxTab() {
             return (
               <div
                 key={n.id}
-                onClick={() => handleTap(n.id, n.isRead)}
+                onClick={() => handleTap(n)}
                 className={`flex items-start gap-3 p-4 rounded-2xl border transition-all cursor-pointer ${
                   n.isRead
                     ? "bg-card border-border/40 opacity-60"
@@ -165,6 +171,11 @@ function InboxTab() {
                   <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5 line-clamp-2">
                     {n.message}
                   </p>
+                  {(n.type === "admin_message" || n.type === "support") && (
+                    <p className="text-[10px] text-primary mt-1.5 font-medium">
+                      Tap to open private support chat
+                    </p>
+                  )}
                   <p className="text-[10px] text-muted-foreground/50 mt-1.5">
                     {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
                   </p>
