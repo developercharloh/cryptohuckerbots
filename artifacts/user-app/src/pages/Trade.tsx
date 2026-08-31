@@ -295,13 +295,17 @@ export default function Trade() {
       ]);
       const refreshedSignals = queryClient.getQueryData<SignalInfo[]>(["/api/trade/signals"]) ?? [];
       const hasAvailableSignal = refreshedSignals.some(
-        (signal) => signal.status !== "executed" && Boolean(signal.opportunityId),
+         (signal) =>
+           signal.status !== "executed" &&
+           Boolean(signal.opportunityId) &&
+           signal.pair === selectedPair &&
+           (!requestedDirection || signal.direction?.toUpperCase() === requestedDirection),
       );
       toast({
         title: hasAvailableSignal ? "AI signal ready" : "Signals refreshed",
         description: hasAvailableSignal
-          ? "Review the newly available signal above before executing."
-          : "There is no new signal for the selected pair right now. Try another pair or refresh again.",
+           ? `Review the newly available ${selectedPair} signal above before executing.`
+           : `There is no new signal for ${selectedPair} right now. Try another pair or refresh again.`,
       });
     } catch (error: any) {
       toast({

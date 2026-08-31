@@ -324,6 +324,38 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
     ["2.50"],
   );
 
+   // A fresh signal window for the same pair is a separate opportunity, so
+   // users can trade the same pair again within their daily allowance.
+   const repeatedPairSignals = await request<Array<{ id: string; opportunityId: number; pair: string }>>("/api/trade/signals");
+   const repeatedPairSignal = repeatedPairSignals.body.find((candidate) =>
+     candidate.pair === signal.pair && candidate.opportunityId !== signal.opportunityId
+   );
+   assert.ok(repeatedPairSignal, "The same pair should have another fresh signal opportunity");
+   const repeatedOpened = await request<{ id: number }>("/api/trade/execute", {
+     method: "POST",
+     body: { signalId: repeatedPairSignal.id, opportunityId: repeatedPairSignal.opportunityId, consent: true },
+   });
+   assert.equal(repeatedOpened.response.status, 200);
+   assert.notEqual(repeatedOpened.body.id, opened.body.id);
+   await db.update(positionsTable)
+     .set({ openedAt: new Date(Date.now() - 10 * 60 * 1000) })
+     .where(eq(positionsTable.id, repeatedOpened.body.id));
+   await request<Array<{ id: number; pnl: number; status: string }>>("/api/trade/positions");
+   const afterRepeatedClose = await request<{ mainWalletBalance: number; vaultCapital: number; portfolioBalance: number; totalProfit: number }>("/api/dashboard/summary");
+   assert.equal(afterRepeatedClose.body.mainWalletBalance, 42005);
+   assert.equal(afterRepeatedClose.body.vaultCapital, 8000);
+   assert.equal(afterRepeatedClose.body.portfolioBalance, 50005);
+   assert.equal(afterRepeatedClose.body.totalProfit, 5);
+
+   const repeatedSignalRewards = await db.select({
+     type: transactionsTable.type,
+     amount: transactionsTable.amount,
+   }).from(transactionsTable).where(eq(transactionsTable.userId, userId));
+   assert.deepEqual(
+     repeatedSignalRewards.filter((row) => row.type === "signal_reward").map((row) => row.amount),
+     ["2.50", "2.50"],
+   );
+
   const opportunities = await db.select({ id: signalOpportunitiesTable.id })
     .from(signalOpportunitiesTable)
     .orderBy(asc(signalOpportunitiesTable.id));

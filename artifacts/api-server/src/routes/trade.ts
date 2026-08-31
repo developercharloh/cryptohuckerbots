@@ -485,10 +485,15 @@ async function syncSignalOpportunities(settings: typeof settingsTable.$inferSele
   const config = getSignalSettings(settings);
   const now = new Date();
   const todayKey = localDateKey(now, config.timezone);
-  const keys = SIGNALS.map((signal) => ({
+  // Each configured signal window gets its own opportunity for every pair.
+  // This lets a user spend multiple daily signals on the same pair without
+  // reusing a claimed opportunity or weakening the one-claim-per-opportunity
+  // duplicate protection.
+  const keys = config.times.flatMap((time) => SIGNALS.map((signal) => ({
     signal,
-    scheduleKey: `${MANUAL_SIGNAL_PREFIX}:${todayKey}:${signal.id}`,
-  }));
+    time,
+    scheduleKey: `${MANUAL_SIGNAL_PREFIX}:${todayKey}:${time}:${signal.id}`,
+  })));
 
   for (const item of keys) {
     const signal = item.signal;
