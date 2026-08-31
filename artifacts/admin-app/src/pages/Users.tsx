@@ -194,11 +194,24 @@ export default function Users() {
                           <div className="flex items-center gap-2 mb-0.5">
                             <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>
                           </div>
-                          <div className="flex items-center gap-3 mt-1">
-                            <span className="text-[11px] font-mono font-bold text-primary/80 bg-primary/8 px-1.5 py-0.5 rounded">{user.accountUid}</span>
-                            <span className="text-[11px] text-emerald-400 font-medium">${user.balance.toFixed(2)}</span>
-                            <span className="text-[11px] text-muted-foreground">{user.totalBots} bots</span>
-                          </div>
+                           <div className="flex items-center gap-3 mt-1">
+                             <span className="text-[11px] font-mono font-bold text-primary/80 bg-primary/8 px-1.5 py-0.5 rounded">{user.accountUid}</span>
+                             <span className="text-[11px] text-muted-foreground">{user.totalBots} bots</span>
+                           </div>
+                           <div className="grid grid-cols-3 gap-2 mt-2 max-w-md">
+                             <div>
+                               <div className="text-[9px] uppercase tracking-wide text-muted-foreground">Main</div>
+                               <div className="text-[11px] text-emerald-400 font-semibold">${user.mainWalletBalance.toFixed(2)}</div>
+                             </div>
+                             <div>
+                               <div className="text-[9px] uppercase tracking-wide text-muted-foreground">Vault</div>
+                               <div className="text-[11px] text-amber-400 font-semibold">${user.vaultCapital.toFixed(2)}</div>
+                             </div>
+                             <div>
+                               <div className="text-[9px] uppercase tracking-wide text-muted-foreground">Portfolio</div>
+                               <div className="text-[11px] text-primary font-semibold">${user.portfolioBalance.toFixed(2)}</div>
+                             </div>
+                           </div>
                         </div>
                         <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
                       </div>

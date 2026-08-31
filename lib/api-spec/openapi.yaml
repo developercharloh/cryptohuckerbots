@@ -2415,12 +2415,17 @@ components:
         email: { type: string }
         status: { type: string }
         kycStatus: { type: string }
+        mainWalletBalance: { type: number }
+        vaultCapital: { type: number }
+        portfolioBalance: { type: number }
+        availableBalance: { type: number }
+        pendingOutflow: { type: number }
         balance: { type: number }
         totalBots: { type: integer }
         avatarUrl: { type: ["string", "null"] }
         country: { type: ["string", "null"] }
         createdAt: { type: string }
-      required: [id, accountUid, fullName, email, status, kycStatus, balance, totalBots, createdAt]
+      required: [id, accountUid, fullName, email, status, kycStatus, mainWalletBalance, vaultCapital, portfolioBalance, availableBalance, pendingOutflow, balance, totalBots, createdAt]
 
     AdminUserBot:
       type: object
@@ -2443,6 +2448,11 @@ components:
         email: { type: string }
         status: { type: string }
         kycStatus: { type: string }
+        mainWalletBalance: { type: number }
+        vaultCapital: { type: number }
+        portfolioBalance: { type: number }
+        availableBalance: { type: number }
+        pendingOutflow: { type: number }
         balance: { type: number }
         totalBots: { type: integer }
         avatarUrl: { type: ["string", "null"] }
@@ -2457,7 +2467,7 @@ components:
         transactions:
           type: array
           items: { $ref: "#/components/schemas/AdminTransaction" }
-      required: [id, accountUid, fullName, email, status, kycStatus, balance, totalBots, totalDeposits, totalWithdrawals, createdAt, bots, transactions]
+      required: [id, accountUid, fullName, email, status, kycStatus, mainWalletBalance, vaultCapital, portfolioBalance, availableBalance, pendingOutflow, balance, totalBots, totalDeposits, totalWithdrawals, createdAt, bots, transactions]
 
     AdminUserStatusInput:
       type: object

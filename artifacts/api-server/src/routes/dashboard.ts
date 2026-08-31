@@ -3,7 +3,7 @@ import { db, usersTable, sessionsTable, userBotsTable, botsTable, transactionsTa
 import { eq, desc, and, gte, sql } from "drizzle-orm";
 import { format, subDays, subMonths, subYears, startOfDay, startOfWeek, startOfMonth, startOfYear, eachDayOfInterval, eachMonthOfInterval, eachHourOfInterval } from "date-fns";
 import { getRequestToken, isUserSessionExpired } from "../lib/session";
-import { getVaultCapitalSnapshot, getWalletSnapshot } from "../utils/balance.js";
+import { composeAccountBalanceSnapshot, getVaultCapitalSnapshot, getWalletSnapshot } from "../utils/balance.js";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -64,9 +64,10 @@ router.get("/dashboard/summary", async (req, res) => {
   ]);
 
   const activeBots = userBots.filter(b => b.status === "running");
-  const availableBalance = wallet.availableBalance;
-  const mainWalletBalance = wallet.ledgerBalance;
-  const vaultCapital = vault.vaultCapital;
+  const account = composeAccountBalanceSnapshot(wallet, vault);
+  const availableBalance = account.availableBalance;
+  const mainWalletBalance = account.mainWalletBalance;
+  const vaultCapital = account.vaultCapital;
   const todayProfit = Number(profit?.todayProfit ?? 0);
   const totalEarnings = Number(profit?.totalProfit ?? 0);
   const totalTrades = userBots.reduce((sum, b) => sum + (b.totalTrades ?? 0), 0);
@@ -78,10 +79,10 @@ router.get("/dashboard/summary", async (req, res) => {
 
   res.setHeader("Cache-Control", "private, no-store, max-age=0");
   return res.json({
-    totalBalance: Math.max(0, mainWalletBalance + vaultCapital),
-    portfolioBalance: Math.max(0, mainWalletBalance + vaultCapital),
-    ledgerBalance: wallet.ledgerBalance,
-    pendingOutflow: wallet.pendingOutflow,
+    totalBalance: account.portfolioBalance,
+    portfolioBalance: account.portfolioBalance,
+    ledgerBalance: account.ledgerBalance,
+    pendingOutflow: account.pendingOutflow,
     availableBalance,
     mainWalletBalance,
     vaultCapital,

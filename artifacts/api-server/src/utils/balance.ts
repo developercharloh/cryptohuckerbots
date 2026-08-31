@@ -70,6 +70,33 @@ export type VaultCapitalSnapshot = {
   vaultCapital: number;
 };
 
+export type AccountBalanceSnapshot = WalletSnapshot & VaultCapitalSnapshot & {
+  mainWalletBalance: number;
+  portfolioBalance: number;
+};
+
+export function composeAccountBalanceSnapshot(
+  wallet: WalletSnapshot,
+  vault: VaultCapitalSnapshot,
+): AccountBalanceSnapshot {
+  const mainWalletBalance = wallet.ledgerBalance;
+  const portfolioBalance = Math.round(Math.max(0, mainWalletBalance + vault.vaultCapital) * 100) / 100;
+  return {
+    ...wallet,
+    ...vault,
+    mainWalletBalance,
+    portfolioBalance,
+  };
+}
+
+export async function getAccountBalanceSnapshot(userId: number): Promise<AccountBalanceSnapshot> {
+  const [wallet, vault] = await Promise.all([
+    getWalletSnapshot(userId),
+    getVaultCapitalSnapshot(userId),
+  ]);
+  return composeAccountBalanceSnapshot(wallet, vault);
+}
+
 export function calculateWalletSnapshot(txns: WalletTransaction[]): WalletSnapshot {
   let ledgerBalance = 0;
   let pendingOutflow = 0;

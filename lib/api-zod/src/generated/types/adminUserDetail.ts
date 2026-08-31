@@ -15,6 +15,11 @@ export interface AdminUserDetail {
   email: string;
   status: string;
   kycStatus: string;
+  mainWalletBalance: number;
+  vaultCapital: number;
+  portfolioBalance: number;
+  availableBalance: number;
+  pendingOutflow: number;
   balance: number;
   totalBots: number;
   /** @nullable */

@@ -259,12 +259,36 @@ export default function UserDetail() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Wallet</CardTitle>
+                <CardTitle>Wallets</CardTitle>
+                <CardDescription>Balances mirror the user app and are backed by the transaction ledger.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <div className="text-sm font-medium text-muted-foreground">Current Balance</div>
-                  <div className="text-3xl font-bold">${user.balance.toFixed(2)}</div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+                    <div className="text-xs font-medium text-muted-foreground">Main Wallet</div>
+                    <div className="text-xl font-bold text-emerald-500">${user.mainWalletBalance.toFixed(2)}</div>
+                    <div className="text-[10px] text-muted-foreground mt-1">Completed ledger balance</div>
+                  </div>
+                  <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
+                    <div className="text-xs font-medium text-muted-foreground">Vault Capital</div>
+                    <div className="text-xl font-bold text-amber-500">${user.vaultCapital.toFixed(2)}</div>
+                    <div className="text-[10px] text-muted-foreground mt-1">VIP trading capital</div>
+                  </div>
+                  <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
+                    <div className="text-xs font-medium text-muted-foreground">Portfolio Wallet</div>
+                    <div className="text-xl font-bold text-primary">${user.portfolioBalance.toFixed(2)}</div>
+                    <div className="text-[10px] text-muted-foreground mt-1">Main + Vault</div>
+                  </div>
+                </div>
+                <div className="rounded-xl bg-secondary/50 p-3 flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-medium text-muted-foreground">Available to withdraw</div>
+                    <div className="font-semibold">${user.availableBalance.toFixed(2)}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs font-medium text-muted-foreground">Pending holds</div>
+                    <div className="font-semibold text-amber-500">${user.pendingOutflow.toFixed(2)}</div>
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border">
                   <div>

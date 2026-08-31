@@ -18,11 +18,18 @@ import {
   broadcastsTable,
   adminLoginNotificationsTable,
   sessionsTable,
+  vipInvestmentCapitalTable,
+  vipPackagePurchasesTable,
   type PaymentMethod,
 } from "@workspace/db";
 import { eq, and, desc, sql, inArray, ilike, or, gte } from "drizzle-orm";
 import crypto from "crypto";
-import { calculateWalletSnapshot, getWalletSnapshot } from "../utils/balance.js";
+import {
+  calculateVaultCapital,
+  calculateWalletSnapshot,
+  composeAccountBalanceSnapshot,
+  getAccountBalanceSnapshot,
+} from "../utils/balance.js";
 import {
   AdminSetUserStatusBody,
   AdminAdjustBalanceBody,
@@ -344,7 +351,7 @@ router.get("/admin/users", async (req, res) => {
 
   if (userIds.length === 0) return res.json([]);
 
-  const [botRows, txnRows, profiles] = await Promise.all([
+  const [botRows, txnRows, profiles, purchaseRows, legacyCapitalRows] = await Promise.all([
     db.select({
       userId: userBotsTable.userId,
       totalBots: sql<number>`count(*)::int`,
@@ -356,10 +363,30 @@ router.get("/admin/users", async (req, res) => {
       status: transactionsTable.status,
     }).from(transactionsTable).where(inArray(transactionsTable.userId, userIds)),
     db.select().from(userProfilesTable).where(inArray(userProfilesTable.userId, userIds)),
+    db.select({
+      userId: vipPackagePurchasesTable.userId,
+      amount: sql<string>`coalesce(sum(${vipPackagePurchasesTable.amount}), 0)`,
+    }).from(vipPackagePurchasesTable)
+      .where(and(
+        inArray(vipPackagePurchasesTable.userId, userIds),
+        eq(vipPackagePurchasesTable.status, "completed"),
+      ))
+      .groupBy(vipPackagePurchasesTable.userId),
+    db.select({
+      userId: vipInvestmentCapitalTable.userId,
+      amount: sql<string>`coalesce(sum(${vipInvestmentCapitalTable.amount}), 0)`,
+    }).from(vipInvestmentCapitalTable)
+      .where(and(
+        inArray(vipInvestmentCapitalTable.userId, userIds),
+        eq(vipInvestmentCapitalTable.status, "locked"),
+      ))
+      .groupBy(vipInvestmentCapitalTable.userId),
   ]);
 
   const profileMap = new Map(profiles.map((p) => [p.userId, p]));
   const botMap = new Map(botRows.map((row) => [row.userId, row]));
+  const purchaseMap = new Map(purchaseRows.map((row) => [row.userId, Number(row.amount ?? 0)]));
+  const legacyCapitalMap = new Map(legacyCapitalRows.map((row) => [row.userId, Number(row.amount ?? 0)]));
   const txnMap = new Map<number, typeof txnRows>();
   for (const row of txnRows) {
     const rows = txnMap.get(row.userId) ?? [];
@@ -369,7 +396,14 @@ router.get("/admin/users", async (req, res) => {
 
   const result = await Promise.all(users.map(async (u) => {
     const botRow = botMap.get(u.id);
-    const balance = calculateWalletSnapshot(txnMap.get(u.id) ?? []).availableBalance;
+    const wallet = calculateWalletSnapshot(txnMap.get(u.id) ?? []);
+    const purchasedCapital = purchaseMap.get(u.id) ?? 0;
+    const legacyLockedCapital = legacyCapitalMap.get(u.id) ?? 0;
+    const initialCapital = purchasedCapital > 0 ? purchasedCapital : legacyLockedCapital;
+    const account = composeAccountBalanceSnapshot(wallet, {
+      initialCapital: Math.round(Math.max(0, initialCapital) * 100) / 100,
+      vaultCapital: calculateVaultCapital(initialCapital, txnMap.get(u.id) ?? []),
+    });
     return {
       id: u.id,
       accountUid: u.accountUid,
@@ -377,7 +411,13 @@ router.get("/admin/users", async (req, res) => {
       email: u.email,
       status: u.status,
       kycStatus: u.kycStatus,
-      balance: Math.max(0, Math.round(balance * 100) / 100),
+      // Keep balance for older admin clients; it is the withdrawable amount.
+      balance: account.availableBalance,
+      availableBalance: account.availableBalance,
+      pendingOutflow: account.pendingOutflow,
+      mainWalletBalance: account.mainWalletBalance,
+      vaultCapital: account.vaultCapital,
+      portfolioBalance: account.portfolioBalance,
       totalBots: Number(botRow?.totalBots ?? 0),
       avatarUrl: u.avatarUrl,
       country: profileMap.get(u.id)?.country ?? null,
@@ -412,7 +452,7 @@ router.get("/admin/users/:id", async (req, res) => {
     const amt = parseFloat(t.amount);
     if (t.type === "withdrawal") totalWithdrawals += amt;
   }
-  const wallet = await getWalletSnapshot(id);
+  const account = await getAccountBalanceSnapshot(id);
 
   return res.json({
     id: user.id,
@@ -422,12 +462,18 @@ router.get("/admin/users/:id", async (req, res) => {
     status: user.status,
     kycStatus: user.kycStatus,
     isAdmin: user.isAdmin,
-    balance: wallet.availableBalance,
+    // Keep balance for older admin clients; it is the withdrawable amount.
+    balance: account.availableBalance,
+    availableBalance: account.availableBalance,
+    pendingOutflow: account.pendingOutflow,
+    mainWalletBalance: account.mainWalletBalance,
+    vaultCapital: account.vaultCapital,
+    portfolioBalance: account.portfolioBalance,
     totalBots: userBots.length,
     avatarUrl: user.avatarUrl,
     phone: profile?.phone ?? null,
     country: profile?.country ?? null,
-    totalDeposits: wallet.totalDeposited,
+    totalDeposits: account.totalDeposited,
     totalWithdrawals: Math.round(totalWithdrawals * 100) / 100,
     createdAt: user.createdAt.toISOString(),
     bots: userBots.map((b) => ({
@@ -463,14 +509,20 @@ async function getAdminUser(id: number) {
   if (!user) return null;
   const [profile] = await db.select().from(userProfilesTable).where(eq(userProfilesTable.userId, id)).limit(1);
   const userBots = await db.select().from(userBotsTable).where(eq(userBotsTable.userId, id));
-  const wallet = await getWalletSnapshot(id);
+  const account = await getAccountBalanceSnapshot(id);
   return {
     id: user.id,
     fullName: user.fullName,
     email: user.email,
     status: user.status,
     kycStatus: user.kycStatus,
-    balance: wallet.availableBalance,
+    // Keep balance for older admin clients; it is the withdrawable amount.
+    balance: account.availableBalance,
+    availableBalance: account.availableBalance,
+    pendingOutflow: account.pendingOutflow,
+    mainWalletBalance: account.mainWalletBalance,
+    vaultCapital: account.vaultCapital,
+    portfolioBalance: account.portfolioBalance,
     totalBots: userBots.length,
     avatarUrl: user.avatarUrl,
     country: profile?.country ?? null,
