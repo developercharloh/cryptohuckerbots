@@ -1,11 +1,10 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Layout } from "@/components/Layout";
 import {
   useGetDashboardSummary,
   useGetRecentActivity,
   useListBots,
   useListNotifications,
-  useListTransactions,
 } from "@workspace/api-client-react";
 import {
   Bell, Eye, EyeOff, ArrowDownLeft, ArrowUpRight, ArrowLeftRight,
@@ -40,16 +39,6 @@ const ASSETS = [
   { name: "EUR/USD", symbol: "Forex",         icon: "€", color: "#3B82F6", pct: 8  },
 ];
 
-const MAIN_WALLET_CREDITS = new Set(["deposit", "trade_profit", "trade_loss_return", "signal_reward"]);
-const MAIN_WALLET_DEBITS = new Set([
-  "withdrawal",
-  "trade_loss",
-  "reserved_stake",
-  "trade_fee",
-  "bot_purchase",
-  "vip_package_purchase",
-]);
-
 export default function Dashboard() {
   const [balanceVisible, setBalanceVisible] = useState(true);
   const { user } = useAuth();
@@ -64,43 +53,13 @@ export default function Dashboard() {
   const { data: summary, isLoading: loadingSummary } = useGetDashboardSummary({
     query: { refetchInterval: 30000, refetchOnWindowFocus: true } as any,
   });
-  // If the summary is stale or contains legacy profit data, reconcile the
-  // visible Main Wallet and profit from the user's transaction ledger. This
-  // keeps the UI honest while preserving the server summary as the primary
-  // source once it is healthy.
-  const needsLedgerReconciliation = Boolean(
-    summary && (summary.mainWalletBalance === 0 || summary.totalProfit > 0),
-  );
-  const { data: ledgerTransactions = [] } = useListTransactions(undefined, {
-    query: { enabled: needsLedgerReconciliation, staleTime: 30000 } as any,
-  });
   const { data: recentActivity = [] } = useGetRecentActivity();
   const { data: bots = [] } = useListBots();
   const activeBots = bots.filter(b => b.status === "active");
 
   const initials = user?.fullName?.charAt(0)?.toUpperCase() ?? "U";
-  const ledgerReconciliation = useMemo(() => {
-    if (!needsLedgerReconciliation) return null;
-
-    let mainWallet = 0;
-    let totalProfit = 0;
-    for (const transaction of ledgerTransactions) {
-      if (transaction.status !== "completed") continue;
-      const amount = Number(transaction.amount);
-      if (!Number.isFinite(amount)) continue;
-      if (MAIN_WALLET_CREDITS.has(transaction.type)) mainWallet += amount;
-      if (MAIN_WALLET_DEBITS.has(transaction.type)) mainWallet -= amount;
-      if (transaction.type === "trade_profit") totalProfit += amount;
-    }
-
-    return {
-      mainWallet: Math.round(Math.max(0, mainWallet) * 100) / 100,
-      totalProfit: Math.round(totalProfit * 100) / 100,
-    };
-  }, [ledgerTransactions, needsLedgerReconciliation]);
-
-  const mainWalletBalance = ledgerReconciliation?.mainWallet ?? summary?.mainWalletBalance;
-  const totalProfit = ledgerReconciliation?.totalProfit ?? summary?.totalProfit;
+  const mainWalletBalance = summary?.mainWalletBalance;
+  const totalProfit = summary?.totalProfit ?? 0;
   const vaultCapital = summary?.vaultCapital ?? summary?.lockedInvestmentCapital;
   const portfolioBalance = mainWalletBalance !== undefined && vaultCapital !== undefined
     ? Math.max(0, mainWalletBalance + vaultCapital)
