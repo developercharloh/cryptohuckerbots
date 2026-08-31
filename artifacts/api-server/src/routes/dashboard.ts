@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, usersTable, sessionsTable, userBotsTable, botsTable, transactionsTable, earningsTable } from "@workspace/db";
+import { db, usersTable, sessionsTable, userBotsTable, botsTable, transactionsTable } from "@workspace/db";
 import { eq, desc, and, gte, sql } from "drizzle-orm";
 import { format, subDays, subMonths, subYears, startOfDay, startOfWeek, startOfMonth, startOfYear, eachDayOfInterval, eachMonthOfInterval, eachHourOfInterval } from "date-fns";
 import { getRequestToken, isUserSessionExpired } from "../lib/session";
@@ -42,12 +42,25 @@ router.get("/dashboard/summary", async (req, res) => {
       return { initialCapital: 0, vaultCapital: 0 };
     }),
      db.select({
-       totalProfit: sql<string>`coalesce(sum(${earningsTable.amount}), 0)`,
-       todayProfit: sql<string>`coalesce(sum(case
-         when ${earningsTable.date} >= ${startOfDay(new Date())}
-         then ${earningsTable.amount}
+       totalProfit: sql<string>`coalesce(sum(case
+         when ${transactionsTable.status} = 'completed'
+           and ${transactionsTable.type} in ('trade_profit', 'signal_reward')
+           then ${transactionsTable.amount}
+         when ${transactionsTable.status} = 'completed'
+           and ${transactionsTable.type} = 'trade_loss'
+           then -${transactionsTable.amount}
          else 0 end), 0)`,
-     }).from(earningsTable).where(eq(earningsTable.userId, user.id)),
+       todayProfit: sql<string>`coalesce(sum(case
+         when ${transactionsTable.status} = 'completed'
+           and ${transactionsTable.createdAt} >= ${startOfDay(new Date())}
+           and ${transactionsTable.type} in ('trade_profit', 'signal_reward')
+           then ${transactionsTable.amount}
+         when ${transactionsTable.status} = 'completed'
+           and ${transactionsTable.createdAt} >= ${startOfDay(new Date())}
+           and ${transactionsTable.type} = 'trade_loss'
+           then -${transactionsTable.amount}
+         else 0 end), 0)`,
+     }).from(transactionsTable).where(eq(transactionsTable.userId, user.id)),
   ]);
 
   const activeBots = userBots.filter(b => b.status === "running");

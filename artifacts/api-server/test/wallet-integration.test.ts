@@ -215,6 +215,7 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
     lockedInvestmentCapital: number;
     totalBalance: number;
     totalEarnings: number;
+    totalProfit: number;
   }>("/api/dashboard/summary");
   assert.equal(summary.response.status, 200);
   assert.equal(summary.body.mainWalletBalance, 425);
@@ -222,6 +223,7 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
   assert.equal(summary.body.lockedInvestmentCapital, 500);
   assert.equal(summary.body.totalBalance, 925);
   assert.equal(summary.body.totalEarnings, 50);
+  assert.equal(summary.body.totalProfit, 50);
 
   const withdrawalAgainstLockedCapital = await request("/api/cashier/withdraw", {
     method: "POST",
