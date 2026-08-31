@@ -11,3 +11,4 @@
 - [VIXUS AI wallet reconciliation](vixus-ai-wallet-reconciliation.md) — derive spendable wallet values from canonical transaction ledger rules; report locked VIP capital separately.
 - [Vercel serverless initialization](vixus-vercel-serverless-init.md) — background database migrations and seeds can be frozen after a fast health response; await readiness or initialize explicitly.
 - [VIXUS AI support inbox](vixus-ai-support-inbox.md) — system chat markers preserve full history while defining closed threads and pending admin replies.
+- [VIXUS AI notification inbox](vixus-ai-notification-inbox.md) — show unread-only notifications, exact counts through 9, then +10, and remove read items immediately.
