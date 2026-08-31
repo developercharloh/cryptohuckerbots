@@ -32,5 +32,8 @@ DEPOSIT_BTC_MAINNET = "bc1q6k05u2wm90cuga0vuejkw8lta63pn3hr54jr2s"
 [userenv.development]
 DIDIT_CALLBACK_URL = "https://aea5f575-eed1-4a10-a820-6ab64efe3196-00-1v8gli80w0fqc.janeway.replit.dev/user-app/profile/kyc"
 
+[userenv.production]
+DIDIT_CALLBACK_URL = "https://vixus.trade/profile/kyc"
+
 [nix]
 channel = "stable-25_05"

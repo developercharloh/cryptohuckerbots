@@ -31,7 +31,8 @@ router.post("/webhooks/didit", async (req, res) => {
       return res.status(401).json({ error: "Invalid signature" });
     }
   } else if (secret) {
-    logger.warn("Didit webhook received without signature — verify DIDIT_WEBHOOK_SECRET is set in both Render and Didit console");
+    logger.warn("Didit webhook received without a complete signature");
+    return res.status(401).json({ error: "Webhook signature required" });
   }
 
   const body = req.body as {
