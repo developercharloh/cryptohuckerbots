@@ -106,6 +106,11 @@ export default function Cashier() {
                 ) : (
                   <p style={{ fontSize: 32, fontWeight: 800, color: "#fff", letterSpacing: "0.15em", lineHeight: 1 }}>••••••</p>
                 )}
+                {!isLoading && Number(summary?.pendingOutflow ?? 0) > 0 && (
+                  <p style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", marginTop: 7 }}>
+                    Available: {formatUSD(summary?.availableBalance ?? 0)} · Pending holds: {formatUSD(summary?.pendingOutflow ?? 0)}
+                  </p>
+                )}
               </div>
               <button
                 onClick={() => setBalanceVisible((v) => !v)}
