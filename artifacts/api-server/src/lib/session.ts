@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { and, eq, ne } from "drizzle-orm";
-import { db, sessionsTable } from "@workspace/db";
+import { db, sessionsTable, usersTable } from "@workspace/db";
 
 export const USER_SESSION_COOKIE = "vixus_session";
 export const ADMIN_SESSION_COOKIE = "vixus_admin_session";
@@ -56,6 +56,29 @@ export function getRequestToken(req: Request, cookieName = USER_SESSION_COOKIE):
   return authorization?.startsWith("Bearer ")
     ? authorization.slice("Bearer ".length)
     : undefined;
+}
+
+export async function getUserSession(token: string | undefined) {
+  if (!token) return null;
+
+  const [record] = await db
+    .select({ session: sessionsTable, user: usersTable })
+    .from(sessionsTable)
+    .innerJoin(usersTable, eq(usersTable.id, sessionsTable.userId))
+    .where(eq(sessionsTable.token, token))
+    .limit(1);
+
+  if (!record) return null;
+  if (isUserSessionExpired(record.session.createdAt)) {
+    await db.delete(sessionsTable).where(eq(sessionsTable.id, record.session.id));
+    return null;
+  }
+
+  return record;
+}
+
+export async function getUserForSession(token: string | undefined) {
+  return (await getUserSession(token))?.user ?? null;
 }
 
 export function setUserSessionCookie(res: Response, token: string): void {

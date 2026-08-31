@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { db, usersTable, sessionsTable, transactionsTable, depositSessionsTable, notificationsTable } from "@workspace/db";
+import { db, transactionsTable, depositSessionsTable, notificationsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
-import { getRequestToken, isUserSessionExpired } from "../lib/session";
+import { getRequestToken, getUserForSession } from "../lib/session";
 import { CreateWithdrawalBody } from "@workspace/api-zod";
 import { sendPushToAllAdmins } from "../lib/webPush";
 import { notifyAdminTransaction } from "../lib/loginAlarm";
@@ -10,15 +10,7 @@ import { getAvailableBalance } from "../utils/balance.js";
 const router = Router();
 
 async function getUserFromToken(token: string | undefined) {
-  if (!token) return null;
-  const sessions = await db.select().from(sessionsTable).where(eq(sessionsTable.token, token)).limit(1);
-  if (sessions.length === 0) return null;
-  if (isUserSessionExpired(sessions[0].createdAt)) {
-    await db.delete(sessionsTable).where(eq(sessionsTable.id, sessions[0].id));
-    return null;
-  }
-  const users = await db.select().from(usersTable).where(eq(usersTable.id, sessions[0].userId)).limit(1);
-  return users[0] ?? null;
+  return getUserForSession(token);
 }
 
 const PAYMENT_METHODS = [

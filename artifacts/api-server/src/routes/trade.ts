@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db, usersTable, sessionsTable, userBotsTable, botsTable, transactionsTable, vipPackagePurchasesTable, vipInvestmentCapitalTable, earningsTable, notificationsTable, positionsTable, settingsTable, signalOpportunitiesTable, signalClaimsTable } from "@workspace/db";
 import { eq, and, desc, asc, gte, lt, inArray, sql } from "drizzle-orm";
 import { ExecuteTradeBody } from "@workspace/api-zod";
-import { getRequestToken } from "../lib/session";
+import { getRequestToken, getUserForSession } from "../lib/session";
 import { calculateVaultCapital, calculateWalletBalance, getAvailableBalance, getVaultCapitalSnapshot, getWalletSnapshot } from "../utils/balance.js";
 
 const router = Router();
@@ -23,11 +23,7 @@ const VIP_TIERS = [
 ] as const;
 
 async function getUserFromToken(token: string | undefined) {
-  if (!token) return null;
-  const sessions = await db.select().from(sessionsTable).where(eq(sessionsTable.token, token)).limit(1);
-  if (sessions.length === 0) return null;
-  const users = await db.select().from(usersTable).where(eq(usersTable.id, sessions[0].userId)).limit(1);
-  return users[0] ?? null;
+  return getUserForSession(token);
 }
 
 function getLocalParts(date: Date, timeZone: string) {

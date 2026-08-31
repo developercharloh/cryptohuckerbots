@@ -1,16 +1,13 @@
 import { Router } from "express";
-import { db, usersTable, sessionsTable, supportTicketsTable, faqTable, chatMessagesTable } from "@workspace/db";
+import { db, supportTicketsTable, faqTable, chatMessagesTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { CreateSupportTicketBody } from "@workspace/api-zod";
+import { getUserForSession } from "../lib/session";
 
 const router = Router();
 
 async function getUserFromToken(token: string | undefined) {
-  if (!token) return null;
-  const sessions = await db.select().from(sessionsTable).where(eq(sessionsTable.token, token)).limit(1);
-  if (sessions.length === 0) return null;
-  const users = await db.select().from(usersTable).where(eq(usersTable.id, sessions[0].userId)).limit(1);
-  return users[0] ?? null;
+  return getUserForSession(token);
 }
 
 router.get("/support/tickets", async (req, res) => {

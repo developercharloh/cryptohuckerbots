@@ -12,7 +12,7 @@ import {
   UpdateNotificationSettingsBody,
 } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
-import { clearUserSessionCookie, isUserSessionExpired, revokeUserSessions } from "../lib/session";
+import { clearUserSessionCookie, getUserSession, revokeUserSessions } from "../lib/session";
 
 const router = Router();
 
@@ -21,15 +21,8 @@ function hashPassword(password: string): string {
 }
 
 async function getUserFromToken(token: string | undefined) {
-  if (!token) return { user: null, session: null };
-  const sessions = await db.select().from(sessionsTable).where(eq(sessionsTable.token, token)).limit(1);
-  if (sessions.length === 0) return { user: null, session: null };
-  if (isUserSessionExpired(sessions[0].createdAt)) {
-    await db.delete(sessionsTable).where(eq(sessionsTable.id, sessions[0].id));
-    return { user: null, session: null };
-  }
-  const users = await db.select().from(usersTable).where(eq(usersTable.id, sessions[0].userId)).limit(1);
-  return { user: users[0] ?? null, session: sessions[0] };
+  const record = await getUserSession(token);
+  return record ?? { user: null, session: null };
 }
 
 router.get("/profile", async (req, res) => {
