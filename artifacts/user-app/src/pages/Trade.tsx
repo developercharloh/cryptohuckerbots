@@ -975,7 +975,7 @@ export default function Trade() {
                     {win ? "+" : "−"}${Math.abs(result.pnl).toFixed(2)}
                   </p>
                   <p style={{ fontSize: 13, color: "#6B7280", marginTop: 4 }}>{roi > 0 ? "+" : ""}{roi.toFixed(1)}% outcome on ${result.stake.toFixed(2)} signal</p>
-                   <p style={{ fontSize: 11, color: "#FFD86B", marginTop: 8 }}>Signal reward: +$2.50 to Main Wallet · reflected in Portfolio Wallet</p>
+                   <p style={{ fontSize: 11, color: "#FFD86B", marginTop: 8 }}>Disclosed signal outcome: +$2.50 to Main Wallet · reflected in Portfolio Wallet</p>
                 </div>
 
                  <div style={{
@@ -990,9 +990,7 @@ export default function Trade() {
                        {win ? "Congratulations — signal complete!" : "Signal complete — outcome recorded"}
                      </p>
                      <p style={{ fontSize: 11, lineHeight: 1.5, color: "#CBD5E1", marginTop: 4 }}>
-                       {win
-                         ? "Your position settled successfully. The disclosed $2.50 Signal Reward was added to Main Wallet."
-                         : "Your position has settled. The disclosed $2.50 Signal Reward was added to Main Wallet, separate from this trade outcome."}
+                        "Your position settled successfully at the disclosed +$2.50 signal outcome. The amount was added to Main Wallet."
                      </p>
                    </div>
                  </div>

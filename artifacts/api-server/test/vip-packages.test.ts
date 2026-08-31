@@ -297,8 +297,17 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
   assert.equal(afterOpen.body.vaultCapital, 7997.5);
   assert.equal(afterOpen.body.portfolioBalance, 49997.5);
 
-  const closed = await request(`/api/trade/positions/${opened.body.id}/close`, { method: "POST" });
-  assert.equal(closed.response.status, 200);
+  // Simulate the user closing the app before settlement. The next server
+  // read must settle the AI Signal independently of the browser timer.
+  await db.update(positionsTable)
+    .set({ openedAt: new Date(Date.now() - 10 * 60 * 1000) })
+    .where(eq(positionsTable.id, opened.body.id));
+  const restored = await request<Array<{ id: number; pnl: number; status: string }>>("/api/trade/positions");
+  const settled = restored.body.find((position) => position.id === opened.body.id);
+  assert.ok(settled);
+  assert.equal(settled.pnl, 2.5);
+  assert.equal(settled.status, "tp_hit");
+
   const afterClose = await request<{ mainWalletBalance: number; vaultCapital: number; portfolioBalance: number }>("/api/dashboard/summary");
   assert.equal(afterClose.body.mainWalletBalance, 42002.5);
   assert.equal(afterClose.body.vaultCapital, 8000);
@@ -351,8 +360,9 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
   assert.equal(afterCooldown.body.cooldownActive, false);
   assert.equal(afterCooldown.body.cooldownUntil, null);
 
-  const retryClose = await request(`/api/trade/positions/${opened.body.id}/close`, { method: "POST" });
+  const retryClose = await request<{ pnl: number }>(`/api/trade/positions/${opened.body.id}/close`, { method: "POST" });
   assert.equal(retryClose.response.status, 200);
+  assert.equal(retryClose.body.pnl, 2.5);
   const afterRetry = await request<{ mainWalletBalance: number; portfolioBalance: number }>("/api/dashboard/summary");
   assert.equal(afterRetry.body.mainWalletBalance, 42002.5);
   assert.equal(afterRetry.body.portfolioBalance, 50002.5);

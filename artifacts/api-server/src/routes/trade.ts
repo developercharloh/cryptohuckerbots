@@ -259,9 +259,15 @@ function shuffleSignals(seed: number) {
   return arr;
 }
 
-// This remains a deterministic simulation because live broker execution is out
-// of scope. It deliberately allows losses and never guarantees an outcome.
-async function getTradeOutcome(_userId: number, positionId: number, _isAdmin: boolean): Promise<"profit" | "loss"> {
+// Non-signal bot positions retain the deterministic simulation because live
+// broker execution is out of scope. AI Signals use the disclosed fixed outcome.
+async function getTradeOutcome(
+  _userId: number,
+  positionId: number,
+  _isAdmin: boolean,
+  isSignalPosition = false,
+): Promise<"profit" | "loss"> {
+  if (isSignalPosition) return "profit";
   const bucket = Math.abs(Math.imul(positionId, 1103515245) + 12345) % 100;
   return bucket < 62 ? "profit" : "loss";
 }
@@ -352,9 +358,19 @@ async function closePosition(
 ): Promise<AnyPosition> {
   return await db.transaction(async (tx) => {
     const fee = Math.round(parseFloat(p.stake) * 0.001 * 100) / 100;
-    const netRealized = Math.round((opts.realized - fee) * 100) / 100;
+    const [signalClaim] = await tx.select({ id: signalClaimsTable.id })
+      .from(signalClaimsTable)
+      .where(eq(signalClaimsTable.positionId, p.id))
+      .limit(1);
+    const isSignalPosition = Boolean(signalClaim);
+    const realized = isSignalPosition ? SIGNAL_REWARD_AMOUNT : opts.realized;
+    const netRealized = Math.round((realized - fee) * 100) / 100;
     const updated = await tx.update(positionsTable)
-      .set({ status: opts.status, realizedPnl: netRealized.toFixed(2), closedAt: opts.closedAt })
+      .set({
+        status: isSignalPosition ? "tp_hit" : opts.status,
+        realizedPnl: netRealized.toFixed(2),
+        closedAt: opts.closedAt,
+      })
       .where(and(eq(positionsTable.id, p.id), eq(positionsTable.status, "open")))
       .returning();
 
@@ -363,16 +379,11 @@ async function closePosition(
       return cur[0] ?? p;
     }
 
-    const [signalClaim] = await tx.select({ id: signalClaimsTable.id })
-      .from(signalClaimsTable)
-      .where(eq(signalClaimsTable.positionId, p.id))
-      .limit(1);
-
     // Stake was reserved from Vault Capital on open. Return the principal
-    // portion to the vault; profit is credited separately to Main Wallet.
-    // A loss consumes the corresponding portion of Vault Capital.
+    // portion to the vault. Signal outcomes are fixed at +$2.50 and credited
+    // through the one-time signal reward below.
     const stake = parseFloat(p.stake);
-    const vaultReturn = Math.max(0, stake + Math.min(opts.realized, 0));
+    const vaultReturn = Math.max(0, stake + Math.min(realized, 0));
     if (vaultReturn > 0) {
       await tx.insert(transactionsTable).values({
         userId: p.userId,
@@ -383,11 +394,11 @@ async function closePosition(
         description: `${opts.title}: Vault Capital principal return for ${p.pair} ${p.direction} (${p.botName})`,
       });
     }
-    if (opts.realized > 0) {
+    if (realized > 0 && !isSignalPosition) {
       await tx.insert(transactionsTable).values({
         userId: p.userId,
         type: "trade_profit",
-        amount: opts.realized.toFixed(2),
+        amount: realized.toFixed(2),
         status: "completed",
         paymentMethod: "balance",
         description: `${opts.title}: Main Wallet profit from ${p.pair} ${p.direction} (${p.botName})`,
@@ -414,11 +425,18 @@ async function closePosition(
       });
     }
     await tx.insert(earningsTable).values({ userId: p.userId, amount: netRealized.toFixed(2), source: "trade" });
+    const notificationTitle = isSignalPosition ? "Signal Complete" : opts.title;
+    const notificationMessage = isSignalPosition
+      ? `Your ${p.pair} ${p.direction} AI Signal settled with the disclosed +$${SIGNAL_REWARD_AMOUNT.toFixed(2)} outcome.`
+      : opts.message;
+    const notificationSuffix = isSignalPosition
+      ? " The outcome was credited to your Main Wallet and reflected in your Portfolio Wallet."
+      : ` Net realized P&L after a ${fee.toFixed(2)} fee: ${netRealized >= 0 ? "+" : "-"}$${Math.abs(netRealized).toFixed(2)}.`;
     await tx.insert(notificationsTable).values({
       userId: p.userId,
       type: "trade",
-      title: opts.title,
-      message: `${opts.message} Net realized P&L after a ${fee.toFixed(2)} fee: ${netRealized >= 0 ? "+" : "-"}$${Math.abs(netRealized).toFixed(2)}.${signalClaim ? ` A $${SIGNAL_REWARD_AMOUNT.toFixed(2)} signal reward was credited to your Main Wallet and reflected in your Portfolio Wallet.` : ""}`,
+      title: notificationTitle,
+      message: `${notificationMessage}${notificationSuffix}`,
     });
 
     return updated[0];
@@ -878,9 +896,16 @@ router.get("/trade/positions", async (req, res) => {
 
   const now = Date.now();
   const out = [];
+  const signalClaims = rows.length === 0 ? [] : await db.select({ positionId: signalClaimsTable.positionId })
+    .from(signalClaimsTable)
+    .where(and(
+      eq(signalClaimsTable.userId, user.id),
+      inArray(signalClaimsTable.positionId, rows.map((row) => row.id)),
+    ));
+  const signalPositionIds = new Set(signalClaims.flatMap((claim) => claim.positionId === null ? [] : [claim.positionId]));
   for (const p of rows) {
     if (p.status === "open") {
-      const outcome = await getTradeOutcome(user.id, p.id, user.isAdmin ?? false);
+      const outcome = await getTradeOutcome(user.id, p.id, user.isAdmin ?? false, signalPositionIds.has(p.id));
       const { row, pnl, elapsedMs } = await resolveOpen(p, now, outcome);
       out.push(serialize(row, pnl, elapsedMs));
     } else {
@@ -913,7 +938,11 @@ router.post("/trade/positions/:id/close", async (req, res) => {
   }
 
   const now = Date.now();
-  const outcome = await getTradeOutcome(user.id, p.id, user.isAdmin ?? false);
+  const [signalClaim] = await db.select({ id: signalClaimsTable.id })
+    .from(signalClaimsTable)
+    .where(and(eq(signalClaimsTable.userId, user.id), eq(signalClaimsTable.positionId, p.id)))
+    .limit(1);
+  const outcome = await getTradeOutcome(user.id, p.id, user.isAdmin ?? false, Boolean(signalClaim));
   const elapsed = now - p.openedAt.getTime();
   const walk = simulateWalk(p, elapsed, outcome);
 
