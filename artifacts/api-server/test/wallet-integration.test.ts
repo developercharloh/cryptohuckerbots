@@ -238,7 +238,7 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
     portfolioBalance: number;
   }>("/api/dashboard/summary");
   assert.equal(heldSummary.body.mainWalletBalance, 425);
-  assert.equal(heldSummary.body.availableBalance, 325);
+  assert.equal(heldSummary.body.availableBalance, 425);
   assert.equal(heldSummary.body.pendingOutflow, 100);
   assert.equal(heldSummary.body.totalBalance, 925);
   assert.equal(heldSummary.body.portfolioBalance, 925);
@@ -276,10 +276,10 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
   assert.equal(adminDetail.body.availableBalance, heldSummary.body.availableBalance);
   assert.equal(adminDetail.body.pendingOutflow, heldSummary.body.pendingOutflow);
 
-  const withdrawalAgainstLockedCapital = await request("/api/cashier/withdraw", {
+  const withdrawalFromMainWallet = await request("/api/cashier/withdraw", {
     method: "POST",
     body: { amount: 326, paymentMethod: "USDT (TRC20)", walletAddress: "test-withdrawal-wallet" },
   });
-  assert.equal(withdrawalAgainstLockedCapital.response.status, 400);
-  assert.match(withdrawalAgainstLockedCapital.body.error, /Available: \$325\.00/);
+  assert.equal(withdrawalFromMainWallet.response.status, 201);
+  assert.equal(withdrawalFromMainWallet.body.amount, 326);
 });

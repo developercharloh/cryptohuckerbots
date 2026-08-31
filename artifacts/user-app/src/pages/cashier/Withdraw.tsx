@@ -243,7 +243,7 @@ export default function Withdraw() {
                   </div>
                   {!loadingSummary && Number(summary?.pendingOutflow ?? 0) > 0 && (
                     <p className="text-[11px] text-muted-foreground">
-                      {formatUSD(summary?.pendingOutflow ?? 0)} is reserved for pending withdrawals.
+                      {formatUSD(summary?.pendingOutflow ?? 0)} is from pending withdrawal requests.
                     </p>
                   )}
                   <FormControl>

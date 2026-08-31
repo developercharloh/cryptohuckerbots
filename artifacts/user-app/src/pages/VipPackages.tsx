@@ -169,7 +169,7 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
                    <p className="mt-1 text-lg font-black text-amber-200">{walletDisplay}</p>
                   {pendingOutflow > 0 && (
                     <p className="mt-1 max-w-[150px] text-[9px] leading-3 text-gray-500">
-                      VIP purchases use completed wallet funds. Pending withdrawals stay reserved separately.
+                  VIP purchases use completed wallet funds. Pending withdrawals remain visible in your transaction history.
                     </p>
                   )}
                   <p className="mt-2 text-[9px] uppercase tracking-wider text-gray-500">Vault capital</p>

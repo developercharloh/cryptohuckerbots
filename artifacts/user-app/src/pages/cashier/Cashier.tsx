@@ -108,7 +108,7 @@ export default function Cashier() {
                 )}
                 {!isLoading && Number(summary?.pendingOutflow ?? 0) > 0 && (
                   <p style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", marginTop: 7 }}>
-                    Available: {formatUSD(summary?.availableBalance ?? 0)} · Pending holds: {formatUSD(summary?.pendingOutflow ?? 0)}
+                   Available to withdraw: {formatUSD(summary?.availableBalance ?? 0)} · Pending requests: {formatUSD(summary?.pendingOutflow ?? 0)}
                   </p>
                 )}
               </div>

@@ -153,7 +153,7 @@ export default function Dashboard() {
             )}
             {!loadingSummary && Number(summary?.pendingOutflow ?? 0) > 0 && (
               <p style={{ fontSize: 10, color: "rgba(255,255,255,0.52)", margin: "-8px 0 16px", position: "relative" }}>
-                Available after pending withdrawals: {formatUSD(summary?.availableBalance ?? 0)}
+                Available to withdraw: {formatUSD(summary?.availableBalance ?? 0)}
                 {" · "}Pending withdrawals: {formatUSD(summary?.pendingOutflow ?? 0)}
               </p>
             )}

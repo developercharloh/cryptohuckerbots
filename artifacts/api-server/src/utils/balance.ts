@@ -123,7 +123,7 @@ export function calculateWalletSnapshot(txns: WalletTransaction[]): WalletSnapsh
   return {
     ledgerBalance,
     pendingOutflow,
-    availableBalance: Math.round(Math.max(0, ledgerBalance - pendingOutflow) * 100) / 100,
+    availableBalance: ledgerBalance,
     totalDeposited: Math.round(totalDeposited * 100) / 100,
   };
 }
@@ -158,7 +158,7 @@ export async function getWalletSnapshot(userId: number): Promise<WalletSnapshot>
   return {
     ledgerBalance: Math.round(ledgerBalance * 100) / 100,
     pendingOutflow: Math.round(pendingOutflow * 100) / 100,
-    availableBalance: Math.round(Math.max(0, ledgerBalance - pendingOutflow) * 100) / 100,
+    availableBalance: Math.round(ledgerBalance * 100) / 100,
     totalDeposited: Math.round(Number(row?.totalDeposited ?? 0) * 100) / 100,
   };
 }
