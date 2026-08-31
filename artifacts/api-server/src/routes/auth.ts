@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, usersTable, sessionsTable, notificationSettingsTable, kycTable } from "@workspace/db";
+import { db, usersTable, sessionsTable, notificationSettingsTable, kycTable, userProfilesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
 import { verifySync } from "otplib";
@@ -61,7 +61,7 @@ router.post("/auth/register", async (req, res) => {
   if (!parsed.success) {
     return res.status(400).json({ error: "Invalid input" });
   }
-  const { fullName, email, password } = parsed.data;
+  const { fullName, email, password, country } = parsed.data;
 
   const existing = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
   if (existing.length > 0) {
@@ -85,6 +85,7 @@ router.post("/auth/register", async (req, res) => {
     depositWithdrawal: true,
     promotions: false,
   });
+  await db.insert(userProfilesTable).values({ userId: user.id, country });
   await db.insert(kycTable).values({ userId: user.id, status: "not_submitted" });
 
   const token = generateToken();

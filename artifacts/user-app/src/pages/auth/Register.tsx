@@ -7,13 +7,14 @@ import { useRegister } from "@workspace/api-client-react";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Loader2, User, Mail, Lock } from "lucide-react";
+import { Eye, EyeOff, Loader2, User, Mail, Lock, MapPin } from "lucide-react";
 import { VixusLogo } from "@/components/VixusLogo";
 
 const registerSchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
   email: z.string().email("Invalid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
+  country: z.string().min(2, "Country of residence is required"),
   confirmPassword: z.string(),
   terms: z.boolean().refine(val => val, "You must accept the terms"),
 }).refine(data => data.password === data.confirmPassword, {
@@ -42,7 +43,7 @@ export default function Register() {
 
   const form = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { fullName: "", email: "", password: "", confirmPassword: "", terms: false },
+    defaultValues: { fullName: "", email: "", password: "", country: "", confirmPassword: "", terms: false },
   });
 
   const onSubmit = (values: z.infer<typeof registerSchema>) => {
@@ -103,6 +104,19 @@ export default function Register() {
                   <div style={{ position: "relative" }}>
                     <Mail size={15} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "#475569" }} />
                     <Input placeholder="name@example.com" type="email" style={{ ...fieldStyle, paddingLeft: 38 }} {...field} />
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            <FormField control={form.control} name="country" render={({ field }) => (
+              <FormItem style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.03em" }}>Country of Residence</label>
+                <FormControl>
+                  <div style={{ position: "relative" }}>
+                    <MapPin size={15} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "#475569" }} />
+                    <Input placeholder="e.g. Kenya" style={{ ...fieldStyle, paddingLeft: 38 }} {...field} />
                   </div>
                 </FormControl>
                 <FormMessage />

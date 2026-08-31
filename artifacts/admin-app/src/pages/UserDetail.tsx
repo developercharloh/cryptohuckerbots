@@ -257,12 +257,11 @@ export default function UserDetail() {
                     <div>{user.phone}</div>
                   </div>
                 )}
-                {user.country && (
-                  <div>
-                    <div className="text-sm font-medium text-muted-foreground">Country</div>
-                    <div>{user.country}</div>
-                  </div>
-                )}
+                <div>
+                  <div className="text-sm font-medium text-muted-foreground">Country of residence</div>
+                  <div>{user.country || "Not provided at signup"}</div>
+                  <div className="text-[11px] text-muted-foreground/70 mt-0.5">Collected during account registration; independent of KYC.</div>
+                </div>
                 <div className="pt-4 border-t border-border flex flex-col gap-2">
                   <Button 
                     variant={user.status === "active" ? "destructive" : "default"}

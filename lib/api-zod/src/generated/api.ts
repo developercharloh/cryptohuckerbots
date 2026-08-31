@@ -36,7 +36,8 @@ export const ListMarketNewsResponse = zod.object({
 export const RegisterBody = zod.object({
   "fullName": zod.string(),
   "email": zod.string(),
-  "password": zod.string()
+  "password": zod.string(),
+  "country": zod.string()
 })
 
 export const RegisterResponse = zod.object({

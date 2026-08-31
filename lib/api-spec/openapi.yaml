@@ -1891,7 +1891,9 @@ components:
           type: string
         password:
           type: string
-      required: [fullName, email, password]
+        country:
+          type: string
+      required: [fullName, email, password, country]
 
     LoginInput:
       type: object
