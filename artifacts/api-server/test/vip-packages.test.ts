@@ -276,10 +276,11 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
     ["500.00", "500.00", "7000.00"],
   );
 
-  const beforeTrade = await request<{ mainWalletBalance: number; vaultCapital: number; portfolioBalance: number }>("/api/dashboard/summary");
+  const beforeTrade = await request<{ mainWalletBalance: number; vaultCapital: number; portfolioBalance: number; totalProfit: number }>("/api/dashboard/summary");
   assert.equal(beforeTrade.body.mainWalletBalance, 42000);
   assert.equal(beforeTrade.body.vaultCapital, 8000);
   assert.equal(beforeTrade.body.portfolioBalance, 50000);
+  assert.equal(beforeTrade.body.totalProfit, 0);
 
   const availableSignals = await request<Array<{ id: string; opportunityId: number }>>("/api/trade/signals");
   assert.equal(availableSignals.response.status, 200);
@@ -308,10 +309,11 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
   assert.equal(settled.pnl, 2.5);
   assert.equal(settled.status, "tp_hit");
 
-  const afterClose = await request<{ mainWalletBalance: number; vaultCapital: number; portfolioBalance: number }>("/api/dashboard/summary");
+  const afterClose = await request<{ mainWalletBalance: number; vaultCapital: number; portfolioBalance: number; totalProfit: number }>("/api/dashboard/summary");
   assert.equal(afterClose.body.mainWalletBalance, 42002.5);
   assert.equal(afterClose.body.vaultCapital, 8000);
   assert.equal(afterClose.body.portfolioBalance, 50002.5);
+  assert.equal(afterClose.body.totalProfit, 2.5);
 
   const signalRewards = await db.select({
     type: transactionsTable.type,
@@ -363,7 +365,8 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
   const retryClose = await request<{ pnl: number }>(`/api/trade/positions/${opened.body.id}/close`, { method: "POST" });
   assert.equal(retryClose.response.status, 200);
   assert.equal(retryClose.body.pnl, 2.5);
-  const afterRetry = await request<{ mainWalletBalance: number; portfolioBalance: number }>("/api/dashboard/summary");
+  const afterRetry = await request<{ mainWalletBalance: number; portfolioBalance: number; totalProfit: number }>("/api/dashboard/summary");
   assert.equal(afterRetry.body.mainWalletBalance, 42002.5);
   assert.equal(afterRetry.body.portfolioBalance, 50002.5);
+  assert.equal(afterRetry.body.totalProfit, 2.5);
 });
