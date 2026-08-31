@@ -23,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import vixusLogo from "../../../user-app/public/icons/vixus-ai-192.png";
 
 const statusTabs = ["open", "closed", "all"] as const;
 type MainTab = "tickets" | "chat";
@@ -270,8 +271,14 @@ function ChatThread({
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold">{userName}</p>
-          <p className={`text-[10px] ${isClosed ? "text-muted-foreground" : "text-emerald-400"}`}>
+          <div className="flex items-center gap-2">
+            <img src={vixusLogo} alt="VIXUS AI logo" className="h-7 w-7 rounded-lg border border-primary/30 object-cover" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold">VIXUS AI Support</p>
+              <p className="text-[10px] text-muted-foreground truncate">Conversation with {userName}</p>
+            </div>
+          </div>
+          <p className={`ml-9 text-[10px] ${isClosed ? "text-muted-foreground" : "text-emerald-400"}`}>
             {isClosed ? "Conversation closed" : "Open conversation"}
           </p>
         </div>
@@ -473,8 +480,13 @@ export default function Support() {
   return (
     <div className="admin-page p-4 space-y-4 pb-2">
       <div className="pt-1">
-        <h1 className="text-xl font-bold tracking-tight">Support</h1>
-        <p className="text-xs text-muted-foreground">Tickets & private support inbox</p>
+        <div className="flex items-center gap-3">
+          <img src={vixusLogo} alt="VIXUS AI logo" className="h-10 w-10 rounded-xl border border-primary/30 object-cover shadow-lg shadow-primary/10" />
+          <div>
+            <h1 className="text-xl font-bold tracking-tight">VIXUS AI Support</h1>
+            <p className="text-xs text-muted-foreground">Tickets & private support inbox</p>
+          </div>
+        </div>
       </div>
 
       <div className="flex gap-2">

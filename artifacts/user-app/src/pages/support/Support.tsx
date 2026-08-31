@@ -1,5 +1,6 @@
 import { useLocation, Link } from "wouter";
 import { Layout } from "@/components/Layout";
+import { VixusLogo } from "@/components/VixusLogo";
 import { ChevronLeft, ChevronRight, MessageSquare, TicketIcon } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useListFAQ } from "@workspace/api-client-react";
@@ -16,7 +17,10 @@ export default function Support() {
           <button onClick={() => setLocation("/profile")} className="w-10 h-10 flex items-center justify-center rounded-xl bg-card">
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-xl font-bold tracking-tight">Support</h1>
+          <div className="flex items-center gap-2">
+            <VixusLogo className="h-9 w-9 rounded-xl border border-amber-300/30 object-cover shadow-lg shadow-blue-950/40" />
+            <h1 className="text-xl font-bold tracking-tight">VIXUS AI Support</h1>
+          </div>
         </div>
 
         <div className="mb-6">
@@ -31,7 +35,7 @@ export default function Support() {
                   <MessageSquare className="w-6 h-6 text-blue-500" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-sm">Contact Support</h3>
+                   <h3 className="font-semibold text-sm">VIXUS AI Support</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">Private chat with VIXUS Support</p>
                 </div>
               </div>
