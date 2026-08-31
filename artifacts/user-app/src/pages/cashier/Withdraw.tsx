@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SiTether, SiBitcoin, SiEthereum } from "react-icons/si";
 import { useLivePairs } from "@/hooks/useLivePairs";
+import { formatUSD } from "@/lib/format";
 
 const withdrawSchema = z.object({
   amount: z.coerce.number().min(50, "Minimum withdrawal is $50"),
@@ -80,10 +81,16 @@ export default function Withdraw() {
   const livePricing = getLivePricing(activeMethod);
   const liveRate = livePricing ? livePairs.find((p) => p.symbol === livePricing.symbol)?.price ?? null : null;
   const cryptoEstimate = livePricing && liveRate && watchedAmount > 0 ? Number(watchedAmount) / liveRate : null;
+  const mainWalletBalance = summary?.mainWalletBalance ?? summary?.ledgerBalance ?? 0;
+  const availableBalance = summary?.availableBalance ?? 0;
 
   const onSubmit = (values: z.infer<typeof withdrawSchema>) => {
-    if (summary && values.amount > summary.availableBalance) {
-      form.setError("amount", { message: "Insufficient balance" });
+    if (!summary) {
+      toast({ title: "Balance is still loading", description: "Please try again in a moment.", variant: "destructive" });
+      return;
+    }
+    if (values.amount > availableBalance) {
+      form.setError("amount", { message: `Insufficient balance. Available: ${formatUSD(availableBalance)}` });
       return;
     }
     // Send method name (e.g. "USDT (TRC20)") not ID so admin can see the network
@@ -215,17 +222,30 @@ export default function Withdraw() {
                 <FormItem className="space-y-3">
                   <div className="flex justify-between items-center">
                     <FormLabel className="text-sm font-semibold">Amount (USD)</FormLabel>
-                    <span className="text-xs text-muted-foreground">
-                      Available:{" "}
-                      {loadingSummary ? (
-                        <Skeleton className="w-12 h-3 inline-block" />
-                      ) : (
-                        <span className="font-semibold text-foreground">
-                          ${summary?.availableBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) ?? "0.00"}
-                        </span>
-                      )}
-                    </span>
+                    <div className="text-right text-xs text-muted-foreground">
+                      <div>
+                        Main Wallet:{" "}
+                        {loadingSummary ? (
+                          <Skeleton className="w-16 h-3 inline-block" />
+                        ) : (
+                          <span className="font-semibold text-foreground">{formatUSD(mainWalletBalance)}</span>
+                        )}
+                      </div>
+                      <div className="mt-0.5">
+                        Available to withdraw:{" "}
+                        {loadingSummary ? (
+                          <Skeleton className="w-12 h-3 inline-block" />
+                        ) : (
+                          <span className="font-semibold text-foreground">{formatUSD(availableBalance)}</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
+                  {!loadingSummary && Number(summary?.pendingOutflow ?? 0) > 0 && (
+                    <p className="text-[11px] text-muted-foreground">
+                      {formatUSD(summary?.pendingOutflow ?? 0)} is reserved for pending withdrawals.
+                    </p>
+                  )}
                   <FormControl>
                     <div className="relative">
                       <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-xl font-bold">$</div>
@@ -294,7 +314,7 @@ export default function Withdraw() {
 
             <Button
               type="submit"
-              disabled={withdrawMutation.isPending}
+              disabled={loadingSummary || withdrawMutation.isPending}
               className="w-full h-14 rounded-xl text-base font-bold shadow-none bg-gradient-to-r from-[#F5B942] to-[#2563EB] hover:opacity-90 transition-opacity"
             >
               {withdrawMutation.isPending ? (
