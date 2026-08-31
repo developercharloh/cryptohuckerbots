@@ -243,6 +243,39 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
   assert.equal(heldSummary.body.totalBalance, 925);
   assert.equal(heldSummary.body.portfolioBalance, 925);
 
+  const adminUsers = await request<Array<{
+    id: number;
+    balance: number;
+    availableBalance: number;
+    pendingOutflow: number;
+    mainWalletBalance: number;
+    vaultCapital: number;
+    portfolioBalance: number;
+  }>>("/api/admin/users", { cookieJar: adminJar });
+  assert.equal(adminUsers.response.status, 200);
+  const adminListUser = adminUsers.body.find((entry) => entry.id === targetUserId);
+  assert.ok(adminListUser);
+  assert.equal(adminListUser.mainWalletBalance, heldSummary.body.mainWalletBalance);
+  assert.equal(adminListUser.vaultCapital, 500);
+  assert.equal(adminListUser.portfolioBalance, heldSummary.body.portfolioBalance);
+  assert.equal(adminListUser.availableBalance, heldSummary.body.availableBalance);
+  assert.equal(adminListUser.pendingOutflow, heldSummary.body.pendingOutflow);
+  assert.equal(adminListUser.balance, heldSummary.body.availableBalance);
+
+  const adminDetail = await request<{
+    mainWalletBalance: number;
+    vaultCapital: number;
+    portfolioBalance: number;
+    availableBalance: number;
+    pendingOutflow: number;
+  }>(`/api/admin/users/${targetUserId}`, { cookieJar: adminJar });
+  assert.equal(adminDetail.response.status, 200);
+  assert.equal(adminDetail.body.mainWalletBalance, heldSummary.body.mainWalletBalance);
+  assert.equal(adminDetail.body.vaultCapital, 500);
+  assert.equal(adminDetail.body.portfolioBalance, heldSummary.body.portfolioBalance);
+  assert.equal(adminDetail.body.availableBalance, heldSummary.body.availableBalance);
+  assert.equal(adminDetail.body.pendingOutflow, heldSummary.body.pendingOutflow);
+
   const withdrawalAgainstLockedCapital = await request("/api/cashier/withdraw", {
     method: "POST",
     body: { amount: 326, paymentMethod: "USDT (TRC20)", walletAddress: "test-withdrawal-wallet" },
