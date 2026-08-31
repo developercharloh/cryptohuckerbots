@@ -136,6 +136,16 @@ const fmtDuration = (ms: number) => {
   return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
 };
 const isBuy = (d: string) => d.toUpperCase() === "BUY";
+type BulkSignalPhase = "queued" | "scanning" | "selected" | "executing" | "active";
+
+const getBulkSignalPhase = (activityStep: number, index: number): BulkSignalPhase => {
+  const localStep = activityStep - index * 3;
+  if (localStep >= 3) return "active";
+  if (localStep === 2) return "executing";
+  if (localStep === 1) return "selected";
+  if (localStep === 0) return "scanning";
+  return "queued";
+};
 
 type SavedTrade = {
   positionId: number; endTimeMs: number; runtime: number;
@@ -143,7 +153,7 @@ type SavedTrade = {
   signalPair: string; signalDirection: string;
 };
 type SignalInfo = { id?: string | number; opportunityId?: number; confidence?: number; pair?: string; direction?: string; status?: string };
-type SavedBulkTrade = { positionIds: number[]; signals: SignalInfo[] };
+type SavedBulkTrade = { positionIds: number[]; signals: SignalInfo[]; activityStep?: number };
 
 export default function Trade() {
   const [, setLocation] = useLocation();
@@ -168,6 +178,7 @@ export default function Trade() {
   const [result, setResult]             = useState<TradePosition | null>(null);
   const [bulkPositionIds, setBulkPositionIds] = useState<number[]>([]);
   const [bulkSignals, setBulkSignals] = useState<SignalInfo[]>([]);
+  const [bulkActivityStep, setBulkActivityStep] = useState(0);
   const [bulkResultPositions, setBulkResultPositions] = useState<TradePosition[]>([]);
   const [showConfetti, setShowConfetti] = useState(false);
   const [refreshingSignals, setRefreshingSignals] = useState(false);
@@ -214,6 +225,7 @@ export default function Trade() {
         if (savedBulk.positionIds.length > 0 && tracked.length === savedBulk.positionIds.length) {
           setBulkPositionIds(savedBulk.positionIds);
           setBulkSignals(savedBulk.signals ?? []);
+          setBulkActivityStep(savedBulk.activityStep ?? (savedBulk.signals?.length ?? 0) * 3);
           finishedRef.current = false;
           if (tracked.every((position) => position.status !== "open")) {
             finishBulkTrade(tracked);
@@ -292,6 +304,31 @@ export default function Trade() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [positions, bulkPositionIds, step]);
+
+  // Reveal the server-selected batch as a readable AI activity feed.
+  // The API still opens the batch atomically; this only makes each decision visible.
+  useEffect(() => {
+    if (step !== "running" || bulkPositionIds.length === 0 || bulkSignals.length === 0) return;
+    const maxStep = bulkSignals.length * 3;
+    if (bulkActivityStep >= maxStep) return;
+    const timer = setInterval(() => {
+      setBulkActivityStep((currentStep) => {
+        const nextStep = Math.min(currentStep + 1, maxStep);
+        try {
+          const raw = localStorage.getItem(BULK_STORAGE_KEY);
+          if (raw) {
+            const saved = JSON.parse(raw) as SavedBulkTrade;
+            localStorage.setItem(BULK_STORAGE_KEY, JSON.stringify({ ...saved, activityStep: nextStep }));
+          }
+        } catch {
+          // The positions remain server-tracked if storage is unavailable.
+        }
+        return nextStep;
+      });
+    }, 820);
+    return () => clearInterval(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, bulkPositionIds.length, bulkSignals.length]);
 
   useEffect(() => {
     if (step !== "running") return;
@@ -509,6 +546,7 @@ export default function Trade() {
           }));
           setBulkPositionIds(batch.positions.map((position) => position.id));
           setBulkSignals(selectedSignals);
+          setBulkActivityStep(0);
           setBulkResultPositions([]);
           setResult(null);
           setActivePositionId(null);
@@ -519,6 +557,7 @@ export default function Trade() {
           localStorage.setItem(BULK_STORAGE_KEY, JSON.stringify({
             positionIds: batch.positions.map((position) => position.id),
             signals: selectedSignals,
+            activityStep: 0,
           } satisfies SavedBulkTrade));
           setStep("running");
           toast({
@@ -544,7 +583,7 @@ export default function Trade() {
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(BULK_STORAGE_KEY);
     setStep("configure"); setActivePositionId(null); setResult(null);
-    setBulkPositionIds([]); setBulkSignals([]); setBulkResultPositions([]);
+    setBulkPositionIds([]); setBulkSignals([]); setBulkActivityStep(0); setBulkResultPositions([]);
     setShowConfetti(false); setConsent(false); prevStatusRef.current = null; finishedRef.current = false;
   };
 
@@ -1154,53 +1193,122 @@ export default function Trade() {
           )}
 
           {/* ── RUNNING ── */}
-          {step === "running" && bulkPositionIds.length > 0 && (
-            <div className="flex flex-col items-center gap-5 pt-2">
-              <div style={{
-                width: "100%", borderRadius: 18, padding: "15px 16px",
-                display: "flex", alignItems: "center", gap: 12,
-                background: "linear-gradient(135deg, rgba(245,185,66,0.12), rgba(37,99,235,0.1))",
-                border: "1px solid rgba(245,185,66,0.28)",
-              }}>
-                <div style={{ width: 42, height: 42, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(245,185,66,0.16)" }}>
-                  <Sparkles style={{ width: 21, height: 21, color: "#FFD86B" }} />
-                </div>
-                <div>
-                  <p style={{ fontSize: 14, fontWeight: 850, color: "#fff" }}>AI signals are executing together</p>
-                  <p style={{ fontSize: 11, color: "#CBD5E1", marginTop: 3 }}>The server selected the highest-confidence available pairs.</p>
-                </div>
-              </div>
-
-              <div style={{ width: "100%", textAlign: "center" }}>
-                <p style={{ fontSize: 10, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em" }}>Expected Main Wallet reward</p>
-                <p style={{ fontSize: 38, fontWeight: 900, color: "#22c55e", fontFamily: "monospace", marginTop: 4 }}>
-                  +${(bulkSignals.length * signalAmount).toFixed(2)}
-                </p>
-                <p style={{ fontSize: 11, color: "#9CA3AF", marginTop: 4 }}>
-                  ${signalAmount.toFixed(2)} × {bulkSignals.length} signal{bulkSignals.length === 1 ? "" : "s"} · credited as each position settles
-                </p>
-              </div>
-
-              <div style={{ width: "100%", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                {bulkSignals.map((signal) => (
-                  <div key={`${signal.opportunityId}-${signal.id}`} style={{
-                    borderRadius: 12, padding: "10px 11px",
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(255,255,255,0.07)",
-                  }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
-                      <span style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>{signal.pair}</span>
-                      <span style={{ fontSize: 9, fontWeight: 800, color: isBuy(signal.direction ?? "") ? "#4ade80" : "#f87171" }}>{signal.direction}</span>
+          {step === "running" && bulkPositionIds.length > 0 && (() => {
+            const totalSteps = bulkSignals.length * 3;
+            const completedSteps = Math.min(bulkActivityStep, totalSteps);
+            const progress = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 100;
+            const currentIndex = totalSteps > 0 ? Math.min(Math.floor(completedSteps / 3), bulkSignals.length - 1) : 0;
+            const currentSignal = bulkSignals[currentIndex];
+            const currentPhase = currentSignal ? getBulkSignalPhase(completedSteps, currentIndex) : "active";
+            const feedTitle = completedSteps >= totalSteps
+              ? "All signals are live"
+              : currentPhase === "scanning"
+                ? "AI is scanning candidates"
+                : currentPhase === "selected"
+                  ? "AI confidence check complete"
+                  : "AI is opening the next position";
+            const feedSubtitle = completedSteps >= totalSteps
+              ? "Every selected pair is now being monitored by the server."
+              : currentSignal
+                ? `${currentSignal.pair} · ${currentSignal.direction} · ${currentSignal.confidence}% confidence`
+                : "Comparing available market opportunities";
+            return (
+              <div className="flex flex-col gap-4 pt-2">
+                <div style={{
+                  width: "100%", borderRadius: 20, padding: "17px 16px",
+                  background: "linear-gradient(135deg, rgba(245,185,66,0.15), rgba(37,99,235,0.13) 58%, rgba(124,58,237,0.12))",
+                  border: "1px solid rgba(245,185,66,0.3)",
+                  boxShadow: "0 16px 42px rgba(37,99,235,0.12)",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+                      <div style={{ position: "relative", width: 43, height: 43, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(145deg, rgba(245,185,66,0.28), rgba(124,58,237,0.22))" }}>
+                        <Sparkles style={{ width: 21, height: 21, color: "#FFE08A" }} />
+                        {completedSteps < totalSteps && <span style={{ position: "absolute", right: -2, top: -2, width: 10, height: 10, borderRadius: "50%", background: "#4ade80", border: "2px solid #121327", boxShadow: "0 0 0 4px rgba(74,222,128,0.16)" }} />}
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 9, color: "#FDE68A", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 900 }}>AI execution feed</p>
+                        <p style={{ fontSize: 15, fontWeight: 900, color: "#fff", marginTop: 4 }}>{feedTitle}</p>
+                      </div>
                     </div>
-                    <p style={{ fontSize: 9, color: "#94A3B8", marginTop: 3 }}>{signal.confidence}% AI confidence</p>
+                    <span style={{ fontSize: 12, fontWeight: 900, color: "#FFE08A", fontFamily: "monospace" }}>{progress}%</span>
                   </div>
-                ))}
+                  <p style={{ fontSize: 11, color: "#CBD5E1", marginTop: 11, paddingLeft: 54 }}>{feedSubtitle}</p>
+                  <div style={{ height: 5, marginTop: 15, background: "rgba(255,255,255,0.1)", borderRadius: 99, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${Math.max(progress, 3)}%`, borderRadius: 99, background: "linear-gradient(90deg, #F5B942, #4ade80)", boxShadow: "0 0 16px rgba(74,222,128,0.45)", transition: "width 500ms ease" }} />
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
+                    <span style={{ fontSize: 9, color: "#94A3B8" }}>{completedSteps >= totalSteps ? "Batch opened successfully" : "Reviewing available pairs"}</span>
+                    <span style={{ fontSize: 9, color: "#94A3B8" }}>{bulkSignals.length} signal{bulkSignals.length === 1 ? "" : "s"} · server secured</span>
+                  </div>
+                </div>
+
+                <div style={{ width: "100%", borderRadius: 20, padding: "15px 14px 13px", background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                    <div>
+                      <p style={{ fontSize: 12, color: "#fff", fontWeight: 850 }}>Pair-by-pair activity</p>
+                      <p style={{ fontSize: 9, color: "#7C8498", marginTop: 3 }}>A clear replay of every AI selection and execution step</p>
+                    </div>
+                    <span style={{ fontSize: 10, color: "#86EFAC", fontWeight: 800 }}>{bulkSignals.filter((signal, index) => getBulkSignalPhase(completedSteps, index) === "active").length}/{bulkSignals.length} live</span>
+                  </div>
+                  <div>
+                    {bulkSignals.map((signal, index) => {
+                      const phase = getBulkSignalPhase(completedSteps, index);
+                      const isCurrent = index === currentIndex && phase !== "active" && phase !== "queued";
+                      const phaseLabel = {
+                        queued: "Queued",
+                        scanning: "Scanning",
+                        selected: "Selected",
+                        executing: "Executing",
+                        active: "Position live",
+                      }[phase];
+                      const phaseColor = phase === "active" ? "#4ade80" : phase === "selected" ? "#60A5FA" : phase === "executing" ? "#FCD34D" : phase === "scanning" ? "#C4B5FD" : "#64748B";
+                      const PhaseIcon = phase === "active" ? CheckCircle2 : phase === "selected" ? Check : phase === "executing" ? ArrowUpRight : phase === "scanning" ? Loader2 : Activity;
+                      return (
+                        <div key={`${signal.opportunityId}-${signal.id}`} style={{ display: "flex", gap: 11, minHeight: index === bulkSignals.length - 1 ? 45 : 57 }}>
+                          <div style={{ width: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
+                            <div style={{ width: 24, height: 24, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: `${phaseColor}1f`, border: `1px solid ${phaseColor}66`, transition: "all 300ms ease" }}>
+                              <PhaseIcon className={phase === "scanning" ? "animate-spin" : ""} style={{ width: 12, height: 12, color: phaseColor }} />
+                            </div>
+                            {index < bulkSignals.length - 1 && <div style={{ width: 1, flex: 1, minHeight: 19, background: phase === "active" ? "rgba(74,222,128,0.45)" : "rgba(255,255,255,0.1)", transition: "background 300ms ease" }} />}
+                          </div>
+                          <div style={{ flex: 1, paddingBottom: 12, opacity: phase === "queued" ? 0.56 : 1, transition: "opacity 300ms ease" }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                                <span style={{ fontSize: 12, fontWeight: 850, color: "#fff" }}>{signal.pair}</span>
+                                <span style={{ fontSize: 8, fontWeight: 900, color: isBuy(signal.direction ?? "") ? "#4ade80" : "#f87171", background: isBuy(signal.direction ?? "") ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)", borderRadius: 5, padding: "3px 5px" }}>{signal.direction}</span>
+                              </div>
+                              <span style={{ fontSize: 9, color: phaseColor, fontWeight: 850 }}>{phaseLabel}</span>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 4 }}>
+                              <span style={{ fontSize: 9, color: isCurrent ? "#C4B5FD" : "#7C8498" }}>
+                                {phase === "queued" ? "Waiting for AI review" : phase === "scanning" ? "Comparing momentum and liquidity" : phase === "selected" ? "Best available opportunity selected" : phase === "executing" ? "Opening securely with Vault Capital" : "Monitoring position performance"}
+                              </span>
+                              <span style={{ fontSize: 9, color: "#FDE68A", fontFamily: "monospace" }}>{signal.confidence}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "3px 8px 0" }}>
+                  <Activity style={{ width: 14, height: 14, color: "#60A5FA" }} />
+                  <p style={{ fontSize: 10, color: "#8D94A8", textAlign: "center", lineHeight: 1.5 }}>
+                    All {bulkPositionIds.length} positions opened together. Rewards are credited to Main Wallet as each signal settles.
+                  </p>
+                </div>
+                <div style={{ width: "100%", textAlign: "center", paddingTop: 2 }}>
+                  <p style={{ fontSize: 10, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em" }}>Expected Main Wallet reward</p>
+                  <p style={{ fontSize: 32, fontWeight: 900, color: "#22c55e", fontFamily: "monospace", marginTop: 3 }}>
+                    +${(bulkSignals.length * signalAmount).toFixed(2)}
+                  </p>
+                  <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 3 }}>${signalAmount.toFixed(2)} × {bulkSignals.length} signal{bulkSignals.length === 1 ? "" : "s"}</p>
+                </div>
               </div>
-              <p style={{ fontSize: 10, color: "#8D94A8", textAlign: "center", lineHeight: 1.5 }}>
-                All {bulkPositionIds.length} positions were opened at the same time. Main Wallet rewards are recorded by the server when each signal settles.
-              </p>
-            </div>
-          )}
+            );
+          })()}
           {step === "running" && bulkPositionIds.length === 0 && pos && (
             <div className="flex flex-col items-center gap-5 pt-2">
               {/* Position status — settlement remains server-controlled without exposing a client countdown. */}
