@@ -360,8 +360,11 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
     .from(signalOpportunitiesTable)
     .orderBy(asc(signalOpportunitiesTable.id));
   const additionalClaims = opportunities
-    .filter((opportunity) => opportunity.id !== signal.opportunityId)
-    .slice(0, 6);
+     .filter((opportunity) =>
+       opportunity.id !== signal.opportunityId &&
+       opportunity.id !== repeatedPairSignal.opportunityId
+     )
+     .slice(0, 5);
   await db.insert(signalClaimsTable).values(additionalClaims.map((opportunity) => ({
     userId,
     opportunityId: opportunity.id,
@@ -398,7 +401,7 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
   assert.equal(retryClose.response.status, 200);
   assert.equal(retryClose.body.pnl, 2.5);
   const afterRetry = await request<{ mainWalletBalance: number; portfolioBalance: number; totalProfit: number }>("/api/dashboard/summary");
-  assert.equal(afterRetry.body.mainWalletBalance, 42002.5);
-  assert.equal(afterRetry.body.portfolioBalance, 50002.5);
-  assert.equal(afterRetry.body.totalProfit, 2.5);
+   assert.equal(afterRetry.body.mainWalletBalance, 42005);
+   assert.equal(afterRetry.body.portfolioBalance, 50005);
+   assert.equal(afterRetry.body.totalProfit, 5);
 });

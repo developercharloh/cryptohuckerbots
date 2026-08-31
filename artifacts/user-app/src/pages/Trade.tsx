@@ -316,7 +316,7 @@ export default function Trade() {
     } finally {
       setRefreshingSignals(false);
     }
-  }, [queryClient, refreshingSignals, toast]);
+  }, [queryClient, refreshingSignals, requestedDirection, selectedPair, toast]);
 
   const handleExecute = () => {
     const signal = bestSignal;
