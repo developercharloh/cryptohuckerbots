@@ -1196,6 +1196,8 @@ router.post("/admin/chat/:userId", async (req, res) => {
 // ---------------- Admin Login ----------------
 // Seed admins are auto-promoted on first login — no manual DB step needed.
 const ADMIN_USERNAME = "admin.vixus-ai";
+// The production panel password is injected as an encrypted deployment secret.
+// Keep the development fallback only for local/test environments.
 const ADMIN_PASSWORD = process.env.ADMIN_PANEL_PASSWORD ?? "Admin@VIXUS2027!";
 const SEED_ADMIN_EMAILS = ["admin@vixus.ai"];
 
