@@ -54,6 +54,7 @@ import type {
   Bot,
   BotDetail,
   BotProfitItem,
+  BulkTradeExecutionResponse,
   ChangePasswordInput,
   ChartPoint,
   ChatConversation,
@@ -63,6 +64,7 @@ import type {
   DepositInput,
   DepositSession,
   ErrorResponse,
+  ExecuteAllTradeSignalsInput,
   ExecuteTradeInput,
   FAQItem,
   ForgotPasswordInput,
@@ -2350,6 +2352,70 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getExecuteTradeMutationOptions(options));
+    }
+
+export const getExecuteAllTradeSignalsUrl = () => {
+
+
+
+
+  return `/api/trade/execute-all`
+}
+
+export const executeAllTradeSignals = async (executeAllTradeSignalsInput: ExecuteAllTradeSignalsInput, options?: RequestInit): Promise<BulkTradeExecutionResponse> => {
+
+  return customFetch<BulkTradeExecutionResponse>(getExecuteAllTradeSignalsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(executeAllTradeSignalsInput)
+  }
+);}
+
+
+
+
+export const getExecuteAllTradeSignalsMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof executeAllTradeSignals>>, TError,{data: BodyType<ExecuteAllTradeSignalsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof executeAllTradeSignals>>, TError,{data: BodyType<ExecuteAllTradeSignalsInput>}, TContext> => {
+
+const mutationKey = ['executeAllTradeSignals'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof executeAllTradeSignals>>, {data: BodyType<ExecuteAllTradeSignalsInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  executeAllTradeSignals(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ExecuteAllTradeSignalsMutationResult = NonNullable<Awaited<ReturnType<typeof executeAllTradeSignals>>>
+    export type ExecuteAllTradeSignalsMutationBody = BodyType<ExecuteAllTradeSignalsInput>
+    export type ExecuteAllTradeSignalsMutationError = ErrorType<ErrorResponse>
+
+    export const useExecuteAllTradeSignals = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof executeAllTradeSignals>>, TError,{data: BodyType<ExecuteAllTradeSignalsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof executeAllTradeSignals>>,
+        TError,
+        {data: BodyType<ExecuteAllTradeSignalsInput>},
+        TContext
+      > => {
+      return useMutation(getExecuteAllTradeSignalsMutationOptions(options));
     }
 
 export const getListTradePositionsUrl = () => {

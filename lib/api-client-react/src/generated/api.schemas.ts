@@ -128,15 +128,19 @@ export interface ExecuteTradeInput {
   clientRequestId?: string;
 }
 
-export interface TradeResult {
-  outcome: string;
+export interface ExecuteAllTradeSignalsInput {
+  consent: boolean;
+  clientRequestId?: string;
+}
+
+export interface BulkTradeExecutionSignal {
+  id: string;
+  opportunityId: number;
   pair: string;
   direction: string;
-  botName: string;
-  amount: number;
-  stake: number;
-  availableBalance: number;
-  message: string;
+  market: string;
+  confidence: number;
+  timeframe: string;
 }
 
 export interface TradePosition {
@@ -157,6 +161,27 @@ export interface TradePosition {
   /** @nullable */
   closedAt: string | null;
   elapsedMs: number;
+}
+
+export interface BulkTradeExecutionResponse {
+  message: string;
+  executedCount: number;
+  totalStake: number;
+  totalReward: number;
+  remainingToday: number;
+  positions: TradePosition[];
+  selectedSignals: BulkTradeExecutionSignal[];
+}
+
+export interface TradeResult {
+  outcome: string;
+  pair: string;
+  direction: string;
+  botName: string;
+  amount: number;
+  stake: number;
+  availableBalance: number;
+  message: string;
 }
 
 export interface RegisterInput {

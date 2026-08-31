@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db, usersTable, sessionsTable, userBotsTable, botsTable, transactionsTable, vipPackagePurchasesTable, vipInvestmentCapitalTable, earningsTable, notificationsTable, positionsTable, settingsTable, signalOpportunitiesTable, signalClaimsTable } from "@workspace/db";
 import { eq, and, desc, asc, gte, lt, inArray, sql } from "drizzle-orm";
-import { ExecuteTradeBody } from "@workspace/api-zod";
+import { ExecuteAllTradeSignalsBody, ExecuteTradeBody } from "@workspace/api-zod";
 import { getRequestToken, getUserForSession } from "../lib/session";
 import { calculateVaultCapital, calculateWalletBalance, getAvailableBalance, getVaultCapitalSnapshot, getWalletSnapshot } from "../utils/balance.js";
 
@@ -879,6 +879,177 @@ router.post("/trade/execute", async (req, res) => {
     if (existing[0]?.positionId) {
       const [position] = await db.select().from(positionsTable).where(eq(positionsTable.id, existing[0].positionId)).limit(1);
       if (position) return res.json(serialize(position, 0, 0));
+    }
+    throw error;
+  }
+});
+
+// Open all currently available AI Signal positions up to the user's remaining
+// VIP allowance. Pair selection is server-owned so a client cannot choose
+// around the quota or capital checks.
+router.post("/trade/execute-all", async (req, res) => {
+  const token = getRequestToken(req);
+  const user = await getUserFromToken(token);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+  const parsed = ExecuteAllTradeSignalsBody.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
+  if (!parsed.data.consent) {
+    return res.status(400).json({ code: "CONSENT_REQUIRED", error: "You must confirm the risk disclosure before execution." });
+  }
+
+  const settings = await getOrCreateSettings();
+  const { config, opportunities } = await syncSignalOpportunities(settings);
+  const access = await getVipAccess(user.id, config);
+  if (access.level === 0) {
+    return res.status(403).json({
+      code: "VIP_REQUIRED",
+      error: "Purchase a VIP package to access AI Signals.",
+      minimumDeposit: VIP_TIERS[0].price,
+      totalDeposited: access.totalDeposited,
+    });
+  }
+  if (access.cooldownUntil) {
+    return res.status(429).json({
+      code: "SIGNAL_COOLDOWN",
+      error: "Your daily signal allowance is complete. Please wait until the 24-hour cooldown ends.",
+      cooldownUntil: access.cooldownUntil.toISOString(),
+    });
+  }
+  if (!config.enabled) {
+    return res.status(409).json({ code: "SIGNALS_DISABLED", error: "AI Signals are temporarily disabled by the administrator." });
+  }
+
+  const [bot] = await db.select().from(botsTable).limit(1);
+  if (!bot) {
+    return res.status(503).json({ code: "SIGNAL_EXECUTION_UNAVAILABLE", error: "Signal execution is temporarily unavailable." });
+  }
+
+  try {
+    const result = await db.transaction(async (tx) => {
+      // One lock covers the complete selection, quota check, capital check,
+      // claim creation, and position creation for this user.
+      await tx.execute(sql`select pg_advisory_xact_lock(${user.id})`);
+
+      const freshClaims = await tx.select().from(signalClaimsTable).where(and(
+        eq(signalClaimsTable.userId, user.id),
+        gte(signalClaimsTable.createdAt, access.dayStart),
+        lt(signalClaimsTable.createdAt, access.nextDayStart),
+      ));
+      const remaining = Math.max(0, access.dailyLimit - freshClaims.length);
+      if (remaining <= 0) {
+        throw new SignalRuleError("DAILY_LIMIT", `You have reached today's ${access.dailyLimit}-signal limit.`);
+      }
+
+      const freshClaimedOpportunityIds = new Set(freshClaims.map((claim) => claim.opportunityId));
+      const available = opportunities
+        .filter((opportunity) => opportunity.status === "available" && !freshClaimedOpportunityIds.has(opportunity.id))
+        .sort((a, b) =>
+          Number(b.confidence) - Number(a.confidence) ||
+          a.scheduledAt.getTime() - b.scheduledAt.getTime() ||
+          a.id - b.id
+        );
+      // Choose each pair/signal only once per batch. This gives the user
+      // simultaneous pair diversification instead of repeated schedule slots.
+      const selected = available.filter((opportunity, index, all) =>
+        all.findIndex((candidate) => candidate.signalId === opportunity.signalId) === index
+      ).slice(0, remaining);
+      if (selected.length === 0) {
+        throw new SignalRuleError("NO_SIGNALS_AVAILABLE", "There are no new AI Signal pairs available right now.", 409);
+      }
+
+      const stake = SIGNAL_EXECUTION_AMOUNT;
+      const totalStake = stake * selected.length;
+      const vaultTransactions = await tx.select({
+        type: transactionsTable.type,
+        amount: transactionsTable.amount,
+        status: transactionsTable.status,
+      }).from(transactionsTable).where(eq(transactionsTable.userId, user.id));
+      const [purchaseBaseline] = await tx.select({
+        amount: sql<string>`coalesce(sum(${vipPackagePurchasesTable.amount}), 0)`,
+      }).from(vipPackagePurchasesTable).where(and(
+        eq(vipPackagePurchasesTable.userId, user.id),
+        eq(vipPackagePurchasesTable.status, "completed"),
+      ));
+      const [legacyCapital] = await tx.select({
+        amount: sql<string>`coalesce(sum(${vipInvestmentCapitalTable.amount}), 0)`,
+      }).from(vipInvestmentCapitalTable).where(and(
+        eq(vipInvestmentCapitalTable.userId, user.id),
+        eq(vipInvestmentCapitalTable.status, "locked"),
+      ));
+      const purchasedCapital = Number(purchaseBaseline?.amount ?? 0);
+      const initialCapital = purchasedCapital > 0 ? purchasedCapital : Number(legacyCapital?.amount ?? 0);
+      const currentVaultCapital = calculateVaultCapital(initialCapital, vaultTransactions);
+      if (totalStake > currentVaultCapital) {
+        throw new SignalRuleError("INSUFFICIENT_VAULT_CAPITAL", `Insufficient Vault Capital for ${selected.length} simultaneous signals.`, 400);
+      }
+      if (stake > currentVaultCapital * (config.maxStakePercent / 100)) {
+        throw new SignalRuleError("STAKE_LIMIT", `Stake exceeds the ${config.maxStakePercent}% maximum of Vault Capital.`, 400);
+      }
+
+      const consentAt = new Date();
+      const openedPositions = [];
+      for (const [index, opportunity] of selected.entries()) {
+        const [claim] = await tx.insert(signalClaimsTable).values({
+          userId: user.id,
+          opportunityId: opportunity.id,
+          consentAt,
+          clientRequestId: parsed.data.clientRequestId ? `${parsed.data.clientRequestId}-${index}` : null,
+        }).returning();
+        const [inserted] = await tx.insert(positionsTable).values({
+          userId: user.id,
+          botId: bot.id,
+          botName: bot.name,
+          signalId: opportunity.signalId,
+          pair: opportunity.pair,
+          direction: opportunity.direction,
+          market: opportunity.market,
+          winRate: bot.winRate,
+          stake: stake.toFixed(2),
+          targetProfit: stake.toFixed(2),
+          stopLoss: stake.toFixed(2),
+          status: "open",
+        }).returning();
+        await tx.update(signalClaimsTable).set({ positionId: inserted.id }).where(eq(signalClaimsTable.id, claim.id));
+        await tx.insert(transactionsTable).values({
+          userId: user.id,
+          type: "vault_trade_stake",
+          amount: stake.toFixed(2),
+          status: "completed",
+          paymentMethod: "balance",
+          description: `Reserved stake for AI Signal: ${opportunity.pair} ${opportunity.direction} (${bot.name})`,
+        });
+        openedPositions.push(inserted);
+      }
+
+      return {
+        positions: openedPositions,
+        selected,
+        remainingToday: Math.max(0, access.dailyLimit - freshClaims.length - selected.length),
+      };
+    });
+
+    const selectedSignals = result.selected.map((opportunity) => ({
+      id: opportunity.signalId,
+      opportunityId: opportunity.id,
+      pair: opportunity.pair,
+      direction: opportunity.direction,
+      market: opportunity.market,
+      confidence: Number(opportunity.confidence),
+      timeframe: opportunity.timeframe,
+    }));
+    return res.json({
+      message: `AI selected and opened ${result.positions.length} signal${result.positions.length === 1 ? "" : "s"} simultaneously.`,
+      executedCount: result.positions.length,
+      totalStake: Math.round(result.positions.length * SIGNAL_EXECUTION_AMOUNT * 100) / 100,
+      totalReward: Math.round(result.positions.length * SIGNAL_REWARD_AMOUNT * 100) / 100,
+      remainingToday: result.remainingToday,
+      positions: result.positions.map((position) => serialize(position, 0, 0)),
+      selectedSignals,
+    });
+  } catch (error) {
+    if (error instanceof SignalRuleError) {
+      return res.status(error.statusCode).json({ code: error.code, error: error.message });
     }
     throw error;
   }

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useLocation } from "wouter";
 import {
-  useListTradeSignals, useGetTradeAccess, useExecuteTrade,
+  useListTradeSignals, useGetTradeAccess, useExecuteTrade, useExecuteAllTradeSignals,
   useListTradePositions, useCloseTradePosition, useGetDashboardSummary,
   TradePosition,
 } from "@workspace/api-client-react";
@@ -21,8 +21,10 @@ import {
 } from "recharts";
 
 type Step = "configure" | "running" | "result";
+type ExecutionMode = "single" | "all";
 
 const STORAGE_KEY = "vixus_active_trade";
+const BULK_STORAGE_KEY = "vixus_active_bulk_trade";
 
 const AI_MESSAGES = [
   "Analyzing market conditions...",
@@ -141,6 +143,7 @@ type SavedTrade = {
   signalPair: string; signalDirection: string;
 };
 type SignalInfo = { id?: string | number; opportunityId?: number; confidence?: number; pair?: string; direction?: string; status?: string };
+type SavedBulkTrade = { positionIds: number[]; signals: SignalInfo[] };
 
 export default function Trade() {
   const [, setLocation] = useLocation();
@@ -149,11 +152,13 @@ export default function Trade() {
   const { data: positions } = useListTradePositions({ query: { refetchInterval: 4000 } as any });
   const { data: summary } = useGetDashboardSummary({ query: { refetchInterval: 10000 } as any });
   const executeMutation = useExecuteTrade();
+  const executeAllMutation = useExecuteAllTradeSignals();
   const closeMutation   = useCloseTradePosition();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const [step, setStep]                   = useState<Step>("configure");
+  const [executionMode, setExecutionMode] = useState<ExecutionMode>("single");
   const [consent, setConsent]             = useState(false);
   const [consentPrompt, setConsentPrompt] = useState(false);
   const [runtime]                         = useState(5);
@@ -161,6 +166,9 @@ export default function Trade() {
   const [executedSignal, setExecutedSignal]     = useState<SignalInfo | null>(null);
   const [msgIdx, setMsgIdx]             = useState(0);
   const [result, setResult]             = useState<TradePosition | null>(null);
+  const [bulkPositionIds, setBulkPositionIds] = useState<number[]>([]);
+  const [bulkSignals, setBulkSignals] = useState<SignalInfo[]>([]);
+  const [bulkResultPositions, setBulkResultPositions] = useState<TradePosition[]>([]);
   const [showConfetti, setShowConfetti] = useState(false);
   const [refreshingSignals, setRefreshingSignals] = useState(false);
 
@@ -197,6 +205,30 @@ export default function Trade() {
   useEffect(() => {
     if (!positions || positionsReadyRef.current) return;
     positionsReadyRef.current = true;
+
+    try {
+      const rawBulk = localStorage.getItem(BULK_STORAGE_KEY);
+      if (rawBulk) {
+        const savedBulk = JSON.parse(rawBulk) as SavedBulkTrade;
+        const tracked = positions.filter((position) => savedBulk.positionIds.includes(position.id));
+        if (savedBulk.positionIds.length > 0 && tracked.length === savedBulk.positionIds.length) {
+          setBulkPositionIds(savedBulk.positionIds);
+          setBulkSignals(savedBulk.signals ?? []);
+          finishedRef.current = false;
+          if (tracked.every((position) => position.status !== "open")) {
+            finishBulkTrade(tracked);
+          } else {
+            setStep("running");
+          }
+          return;
+        }
+        if (tracked.length > 0) return;
+        localStorage.removeItem(BULK_STORAGE_KEY);
+      }
+    } catch {
+      localStorage.removeItem(BULK_STORAGE_KEY);
+    }
+
     const saved = restoringRef.current;
     if (!saved) return;
     restoringRef.current = null;
@@ -253,6 +285,15 @@ export default function Trade() {
   [positions, activePositionId]);
 
   useEffect(() => {
+    if (step !== "running" || bulkPositionIds.length === 0 || !positions) return;
+    const tracked = positions.filter((position) => bulkPositionIds.includes(position.id));
+    if (tracked.length === bulkPositionIds.length && tracked.every((position) => position.status !== "open")) {
+      finishBulkTrade(tracked);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [positions, bulkPositionIds, step]);
+
+  useEffect(() => {
     if (step !== "running") return;
     const id = setInterval(() => setMsgIdx(i => (i + 1) % AI_MESSAGES.length), 3300);
     return () => clearInterval(id);
@@ -260,7 +301,7 @@ export default function Trade() {
 
   const prevStatusRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!activePosition || step !== "running") return;
+    if (!activePosition || step !== "running" || bulkPositionIds.length > 0) return;
     const cur = activePosition.status;
     const prev = prevStatusRef.current;
     prevStatusRef.current = cur;
@@ -269,7 +310,7 @@ export default function Trade() {
       finishTrade(activePosition);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activePosition]);
+  }, [activePosition, bulkPositionIds.length]);
 
   const finishTrade = (pos: TradePosition) => {
     if (finishedRef.current) return;
@@ -283,7 +324,25 @@ export default function Trade() {
     queryClient.invalidateQueries({ queryKey: ["/api/bots"] });
   };
 
+  const finishBulkTrade = (closedPositions: TradePosition[]) => {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
+    localStorage.removeItem(BULK_STORAGE_KEY);
+    setBulkResultPositions(closedPositions);
+    setBulkPositionIds([]);
+    setStep("result");
+    if (closedPositions.every((position) => position.pnl >= 0)) {
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 5500);
+    }
+    queryClient.invalidateQueries({ queryKey: ["/api/dashboard/summary"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/cashier/transactions"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/trade/access"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/trade/signals"] });
+  };
+
   const vaultCapital = summary?.vaultCapital ?? summary?.lockedInvestmentCapital ?? 0;
+  const signalAmount = vipAccess?.signalAmount ?? 2.5;
 
   const handleRefreshSignals = useCallback(async () => {
     if (refreshingSignals) return;
@@ -364,6 +423,9 @@ export default function Trade() {
           const endTimeMs = Date.now() + secs * 1000;
           localStorage.setItem(STORAGE_KEY, JSON.stringify({ positionId: pos.id, endTimeMs, runtime, signalId: signal.id, signalConfidence: signal.confidence, signalPair: signal.pair, signalDirection: signal.direction } as SavedTrade));
           setActivePositionId(pos.id);
+          setBulkPositionIds([]);
+          setBulkResultPositions([]);
+          localStorage.removeItem(BULK_STORAGE_KEY);
           setExecutedSignal(signal);
           prevStatusRef.current = "open";
           finishedRef.current = false;
@@ -392,10 +454,97 @@ export default function Trade() {
     );
   };
 
+  const handleExecuteAll = () => {
+    if (vipAccess?.vipLevel === 0) {
+      toast({
+        title: "Unlock AI Signals",
+        description: "Purchase a VIP package to execute AI Signals.",
+      });
+      setLocation("/vip-packages");
+      return;
+    }
+    if (cooldownActive || vipAccess?.remainingToday === 0) {
+      toast({
+        title: cooldownActive ? "24-hour cooldown active" : "Daily signal allowance reached",
+        description: cooldownActive
+          ? `No new signals can execute for ${formatCooldown(cooldownSeconds)}.`
+          : "Your signal allowance will be available again after the current signal window.",
+      });
+      return;
+    }
+    if (bulkSignalCount === 0) {
+      void handleRefreshSignals();
+      return;
+    }
+    if (!consent) {
+      setConsentPrompt(true);
+      toast({
+        title: "Confirm batch execution to continue",
+        description: "Tick the confirmation box above, then execute all available AI signals.",
+      });
+      consentRef.current?.focus();
+      return;
+    }
+    const totalStake = signalAmount * bulkSignalCount;
+    if (totalStake > vaultCapital) {
+      toast({
+        title: "Insufficient Vault Capital",
+        description: `You need $${totalStake.toFixed(2)} of Vault Capital for ${bulkSignalCount} simultaneous signals.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    executeAllMutation.mutate(
+      { data: { consent: true, clientRequestId: crypto.randomUUID() } },
+      {
+        onSuccess: (batch) => {
+          const selectedSignals: SignalInfo[] = batch.selectedSignals.map((signal) => ({
+            id: signal.id,
+            opportunityId: signal.opportunityId,
+            confidence: signal.confidence,
+            pair: signal.pair,
+            direction: signal.direction,
+            status: "executed",
+          }));
+          setBulkPositionIds(batch.positions.map((position) => position.id));
+          setBulkSignals(selectedSignals);
+          setBulkResultPositions([]);
+          setResult(null);
+          setActivePositionId(null);
+          setExecutedSignal(null);
+          setConsent(false);
+          setConsentPrompt(false);
+          finishedRef.current = false;
+          localStorage.setItem(BULK_STORAGE_KEY, JSON.stringify({
+            positionIds: batch.positions.map((position) => position.id),
+            signals: selectedSignals,
+          } satisfies SavedBulkTrade));
+          setStep("running");
+          toast({
+            title: `${batch.executedCount} AI signals executing`,
+            description: `AI selected the best available pairs. Expected Main Wallet reward after settlement: $${batch.totalReward.toFixed(2)}.`,
+          });
+          queryClient.invalidateQueries({ queryKey: ["/api/trade/positions"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/trade/access"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/trade/signals"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/dashboard/summary"] });
+        },
+        onError: (err: any) => toast({
+          title: "Signals could not be executed",
+          description: err?.data?.error ?? err?.message ?? "Please try again.",
+          variant: "destructive",
+        }),
+      },
+    );
+  };
+
   const handleReset = () => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(BULK_STORAGE_KEY);
     setStep("configure"); setActivePositionId(null); setResult(null);
+    setBulkPositionIds([]); setBulkSignals([]); setBulkResultPositions([]);
     setShowConfetti(false); setConsent(false); prevStatusRef.current = null; finishedRef.current = false;
   };
 
@@ -458,14 +607,23 @@ export default function Trade() {
      const matchingPair = matchingDirection.filter(s => s.pair === selectedPair);
      return matchingPair[0] ?? null;
   }, [signals, requestedDirection, selectedPair]);
-  const signalAmount = vipAccess?.signalAmount ?? 2.5;
+  const bulkSignalCount = useMemo(() => {
+    const uniqueSignalIds = new Set(
+      signals
+        .filter((signal) => signal.status !== "executed" && Boolean(signal.opportunityId))
+        .map((signal) => String(signal.id)),
+    );
+    return Math.min(uniqueSignalIds.size, vipAccess?.remainingToday ?? 0);
+  }, [signals, vipAccess?.remainingToday]);
   const refreshAction = !bestSignal &&
+    executionMode === "single" &&
     vipAccess?.vipLevel !== 0 &&
     !cooldownActive &&
     vipAccess?.remainingToday !== 0;
+  const executePending = executeMutation.isPending || executeAllMutation.isPending;
   const executeButtonLabel = refreshingSignals
     ? "Refreshing AI Signals…"
-    : executeMutation.isPending
+    : executePending
     ? "Executing signal…"
     : vipAccess?.vipLevel === 0
       ? "Unlock AI Signals"
@@ -473,13 +631,21 @@ export default function Trade() {
         ? "24-hour cooldown active"
       : vipAccess?.remainingToday === 0
         ? "Daily allowance complete"
-        : !bestSignal
-          ? "Refresh AI Signals"
-        : signalAmount > vaultCapital
-          ? "Add balance to continue"
-          : !consent
-            ? "Confirm & execute signal"
-            : "Execute AI Signal";
+        : executionMode === "all"
+          ? bulkSignalCount === 0
+            ? "Refresh AI Signals"
+            : bulkSignalCount * signalAmount > vaultCapital
+              ? "Add balance to continue"
+              : !consent
+                ? "Confirm & execute all signals"
+                : `Execute all ${bulkSignalCount} AI signals`
+          : !bestSignal
+            ? "Refresh AI Signals"
+            : signalAmount > vaultCapital
+              ? "Add balance to continue"
+              : !consent
+                ? "Confirm & execute signal"
+                : "Execute AI Signal";
   const pos = activePosition;
   const pnl   = pos?.pnl ?? 0;
   const posUp = pnl >= 0;
@@ -714,6 +880,53 @@ export default function Trade() {
                 </div>
               )}
 
+              {/* Execution mode */}
+              {vipAccess?.vipLevel !== 0 && (
+                <div style={{
+                  borderRadius: 16,
+                  padding: 14,
+                  border: "1px solid rgba(147,197,253,0.2)",
+                  background: "rgba(37,99,235,0.06)",
+                }}>
+                  <p style={{ fontSize: 9, color: "#93C5FD", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 800 }}>
+                    Execution mode
+                  </p>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 9 }}>
+                    {([
+                      ["single", "One by one", "Choose a pair"],
+                      ["all", "Execute all", "AI selects pairs"],
+                    ] as const).map(([mode, label, description]) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => {
+                          setExecutionMode(mode);
+                          setConsent(false);
+                          setConsentPrompt(false);
+                        }}
+                        style={{
+                          borderRadius: 11,
+                          padding: "9px 8px",
+                          textAlign: "left",
+                          border: `1px solid ${executionMode === mode ? "rgba(245,185,66,0.65)" : "rgba(255,255,255,0.1)"}`,
+                          background: executionMode === mode ? "rgba(245,185,66,0.14)" : "rgba(255,255,255,0.035)",
+                          color: executionMode === mode ? "#FFD86B" : "#CBD5E1",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <span style={{ display: "block", fontSize: 11, fontWeight: 900 }}>{label}</span>
+                        <span style={{ display: "block", fontSize: 9, color: executionMode === mode ? "#FDE68A" : "#94A3B8", marginTop: 3 }}>{description}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <p style={{ fontSize: 10, color: "#94A3B8", lineHeight: 1.45, marginTop: 9 }}>
+                    {executionMode === "all"
+                      ? `AI will choose up to ${bulkSignalCount} highest-confidence available pairs from your VIP allowance.`
+                      : "Review the selected pair and execute one signal at a time."}
+                  </p>
+                </div>
+              )}
+
               {cooldownActive && vipAccess?.cooldownUntil && (
                 <div style={{
                   borderRadius: 16,
@@ -749,7 +962,7 @@ export default function Trade() {
               )}
 
               {/* Best signal */}
-              {bestSignal && (() => {
+              {executionMode === "single" && bestSignal && (() => {
                 const buy = isBuy(bestSignal.direction);
                 return (
                   <div style={{ borderRadius: 16, padding: 14, border: `1px solid ${buy ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)"}`, background: buy ? "rgba(34,197,94,0.05)" : "rgba(239,68,68,0.05)" }}>
@@ -776,6 +989,35 @@ export default function Trade() {
                   </div>
                 );
               })()}
+              {executionMode === "all" && bulkSignalCount > 0 && (
+                <div style={{
+                  borderRadius: 16,
+                  padding: 14,
+                  border: "1px solid rgba(34,197,94,0.24)",
+                  background: "linear-gradient(135deg, rgba(34,197,94,0.08), rgba(37,99,235,0.06))",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                    <div>
+                      <p style={{ fontSize: 9, color: "#86EFAC", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 800 }}>
+                        AI batch execution
+                      </p>
+                      <p style={{ fontSize: 19, fontWeight: 900, color: "#fff" }}>{bulkSignalCount} pairs selected automatically</p>
+                      <p style={{ fontSize: 10, color: "#9CA3AF", lineHeight: 1.45, marginTop: 5 }}>
+                        The server will choose the highest-confidence unclaimed pairs and open them together.
+                      </p>
+                    </div>
+                    <Sparkles style={{ width: 25, height: 25, color: "#86EFAC", flexShrink: 0 }} />
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginTop: 12, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+                    <span style={{ fontSize: 10, color: "#A7F3D0" }}>Total signal stake</span>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: "#fff" }}>${(bulkSignalCount * signalAmount).toFixed(2)}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginTop: 5 }}>
+                    <span style={{ fontSize: 10, color: "#A7F3D0" }}>Expected Main Wallet reward</span>
+                    <span style={{ fontSize: 11, fontWeight: 900, color: "#86EFAC" }}>+${(bulkSignalCount * signalAmount).toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
               {!bestSignal && vipAccess?.vipLevel === 0 && (
                 <div style={{ borderRadius: 16, padding: 16, border: "1px solid rgba(245,185,66,0.25)", background: "rgba(245,185,66,0.06)" }}>
                   <p style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>VIP 1 access required</p>
@@ -840,8 +1082,10 @@ export default function Trade() {
                   </p>
                 </div>
 
-                <p style={{ fontSize: 10, color: "#8D94A8", lineHeight: 1.5, marginTop: 11 }}>
-                  Review the live signal, then confirm below to continue.
+                   <p style={{ fontSize: 10, color: "#8D94A8", lineHeight: 1.5, marginTop: 11 }}>
+                   {executionMode === "all"
+                     ? "Confirm once and the AI will select and execute the available pairs together."
+                     : "Review the live signal, then confirm below to continue."}
                 </p>
                 <label style={{
                   display: "flex", gap: 10, alignItems: "flex-start", marginTop: 12,
@@ -860,10 +1104,16 @@ export default function Trade() {
                   />
                   <span>
                     <strong style={{ display: "block", color: consent ? "#86EFAC" : "#fff", fontSize: 11 }}>
-                      {consent ? "Confirmed — ready to execute" : "Confirm signal execution"}
+                      {consent
+                        ? "Confirmed — ready to execute"
+                        : executionMode === "all"
+                          ? "Confirm all signal executions"
+                          : "Confirm signal execution"}
                     </strong>
                     <span style={{ display: "block", color: "#9CA3AF", marginTop: 3 }}>
-                      I have reviewed this live signal and consent to execute it.
+                       {executionMode === "all"
+                         ? "I consent to AI selecting and executing the best available pairs up to my VIP allowance."
+                         : "I have reviewed this live signal and consent to execute it."}
                     </span>
                   </span>
                 </label>
@@ -871,16 +1121,16 @@ export default function Trade() {
 
               {/* Execute button */}
               <button
-                onClick={refreshAction ? handleRefreshSignals : handleExecute}
-                type="button"
-                disabled={executeMutation.isPending || refreshingSignals || cooldownActive || vipAccess?.remainingToday === 0}
+                 onClick={refreshAction ? handleRefreshSignals : executionMode === "all" ? handleExecuteAll : handleExecute}
+                 type="button"
+                 disabled={executePending || refreshingSignals || cooldownActive || vipAccess?.remainingToday === 0}
                 style={{
                   width: "100%", height: 56, borderRadius: 16, border: "none", cursor: "pointer",
-                  background: executeMutation.isPending || refreshingSignals || cooldownActive || vipAccess?.remainingToday === 0 ? "rgba(245,185,66,0.3)" : "linear-gradient(135deg, #F5B942 0%, #2563EB 100%)",
+                   background: executePending || refreshingSignals || cooldownActive || vipAccess?.remainingToday === 0 ? "rgba(245,185,66,0.3)" : "linear-gradient(135deg, #F5B942 0%, #2563EB 100%)",
                   fontSize: 15, fontWeight: 800, color: "#fff",
-                  boxShadow: executeMutation.isPending || refreshingSignals || cooldownActive || vipAccess?.remainingToday === 0 ? "none" : "0 7px 24px rgba(124,58,237,0.38)",
+                   boxShadow: executePending || refreshingSignals || cooldownActive || vipAccess?.remainingToday === 0 ? "none" : "0 7px 24px rgba(124,58,237,0.38)",
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                  opacity: executeMutation.isPending || refreshingSignals || cooldownActive || vipAccess?.remainingToday === 0 ? 0.72 : 1,
+                   opacity: executePending || refreshingSignals || cooldownActive || vipAccess?.remainingToday === 0 ? 0.72 : 1,
                   transition: "transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease",
                 }}
               >
@@ -904,7 +1154,54 @@ export default function Trade() {
           )}
 
           {/* ── RUNNING ── */}
-          {step === "running" && pos && (
+          {step === "running" && bulkPositionIds.length > 0 && (
+            <div className="flex flex-col items-center gap-5 pt-2">
+              <div style={{
+                width: "100%", borderRadius: 18, padding: "15px 16px",
+                display: "flex", alignItems: "center", gap: 12,
+                background: "linear-gradient(135deg, rgba(245,185,66,0.12), rgba(37,99,235,0.1))",
+                border: "1px solid rgba(245,185,66,0.28)",
+              }}>
+                <div style={{ width: 42, height: 42, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(245,185,66,0.16)" }}>
+                  <Sparkles style={{ width: 21, height: 21, color: "#FFD86B" }} />
+                </div>
+                <div>
+                  <p style={{ fontSize: 14, fontWeight: 850, color: "#fff" }}>AI signals are executing together</p>
+                  <p style={{ fontSize: 11, color: "#CBD5E1", marginTop: 3 }}>The server selected the highest-confidence available pairs.</p>
+                </div>
+              </div>
+
+              <div style={{ width: "100%", textAlign: "center" }}>
+                <p style={{ fontSize: 10, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em" }}>Expected Main Wallet reward</p>
+                <p style={{ fontSize: 38, fontWeight: 900, color: "#22c55e", fontFamily: "monospace", marginTop: 4 }}>
+                  +${(bulkSignals.length * signalAmount).toFixed(2)}
+                </p>
+                <p style={{ fontSize: 11, color: "#9CA3AF", marginTop: 4 }}>
+                  ${signalAmount.toFixed(2)} × {bulkSignals.length} signal{bulkSignals.length === 1 ? "" : "s"} · credited as each position settles
+                </p>
+              </div>
+
+              <div style={{ width: "100%", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {bulkSignals.map((signal) => (
+                  <div key={`${signal.opportunityId}-${signal.id}`} style={{
+                    borderRadius: 12, padding: "10px 11px",
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.07)",
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+                      <span style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>{signal.pair}</span>
+                      <span style={{ fontSize: 9, fontWeight: 800, color: isBuy(signal.direction ?? "") ? "#4ade80" : "#f87171" }}>{signal.direction}</span>
+                    </div>
+                    <p style={{ fontSize: 9, color: "#94A3B8", marginTop: 3 }}>{signal.confidence}% AI confidence</p>
+                  </div>
+                ))}
+              </div>
+              <p style={{ fontSize: 10, color: "#8D94A8", textAlign: "center", lineHeight: 1.5 }}>
+                All {bulkPositionIds.length} positions were opened at the same time. Main Wallet rewards are recorded by the server when each signal settles.
+              </p>
+            </div>
+          )}
+          {step === "running" && bulkPositionIds.length === 0 && pos && (
             <div className="flex flex-col items-center gap-5 pt-2">
               {/* Position status — settlement remains server-controlled without exposing a client countdown. */}
               <div style={{
@@ -963,7 +1260,54 @@ export default function Trade() {
           )}
 
           {/* ── RESULT ── */}
-          {step === "result" && result && (() => {
+          {step === "result" && bulkResultPositions.length > 0 && (() => {
+            const totalReward = bulkResultPositions.length * signalAmount;
+            return (
+              <div className="flex flex-col items-center gap-5 pt-2">
+                <div style={{ width: 88, height: 88, borderRadius: "50%", background: "rgba(34,197,94,0.12)", border: "2px solid rgba(34,197,94,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <CheckCircle2 style={{ width: 40, height: 40, color: "#22c55e" }} />
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <p style={{ fontSize: 13, color: "#6B7280", marginBottom: 4 }}>All AI Signals Settled</p>
+                  <p style={{ fontSize: 44, fontWeight: 900, color: "#22c55e", fontFamily: "monospace", lineHeight: 1 }}>
+                    +${totalReward.toFixed(2)}
+                  </p>
+                  <p style={{ fontSize: 13, color: "#6B7280", marginTop: 6 }}>
+                    $2.50 × {bulkResultPositions.length} signal{bulkResultPositions.length === 1 ? "" : "s"} added to Main Wallet
+                  </p>
+                </div>
+                <div style={{
+                  width: "100%", borderRadius: 16, padding: "13px 14px",
+                  background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.24)",
+                }}>
+                  <p style={{ fontSize: 13, fontWeight: 850, color: "#fff" }}>AI-selected pairs completed successfully</p>
+                  <p style={{ fontSize: 11, lineHeight: 1.5, color: "#CBD5E1", marginTop: 4 }}>
+                    The fixed $2.50 reward for each settled signal has been recorded in your Main Wallet and is reflected in your Portfolio Wallet.
+                  </p>
+                </div>
+                <div style={{ width: "100%", background: "rgba(255,255,255,0.04)", borderRadius: 18, padding: "14px 16px", border: "1px solid rgba(255,255,255,0.07)" }}>
+                  {bulkResultPositions.map((position) => (
+                    <div key={position.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                      <span style={{ fontSize: 12, color: "#6B7280" }}>{position.pair} · {position.direction}</span>
+                      <span style={{ fontSize: 12, fontWeight: 800, color: "#4ade80" }}>+$2.50</span>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={handleReset}
+                  style={{ width: "100%", height: 52, borderRadius: 16, background: "linear-gradient(135deg, #F5B942, #2563EB)", border: "none", fontSize: 14, fontWeight: 800, color: "#fff", cursor: "pointer", boxShadow: "0 4px 16px rgba(245,185,66,0.25)", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <Zap style={{ width: 16, height: 16, fill: "#fff" }} />
+                  New Trade
+                </button>
+                {history.length > 0 && (
+                  <div style={{ width: "100%" }}>
+                    <p style={{ fontSize: 13, fontWeight: 800, color: "#fff", marginBottom: 10 }}>Trade Journal</p>
+                    {JournalRows}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+          {step === "result" && bulkResultPositions.length === 0 && result && (() => {
             const win = result.pnl >= 0;
             const buy = isBuy(result.direction);
             const roi = result.stake > 0 ? (result.pnl / result.stake) * 100 : 0;

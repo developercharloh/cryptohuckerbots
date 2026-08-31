@@ -582,6 +582,47 @@ export const ExecuteTradeResponse = zod.object({
 })
 
 
+export const ExecuteAllTradeSignalsBody = zod.object({
+  "consent": zod.boolean(),
+  "clientRequestId": zod.string().optional()
+})
+
+export const ExecuteAllTradeSignalsResponse = zod.object({
+  "message": zod.string(),
+  "executedCount": zod.number(),
+  "totalStake": zod.number(),
+  "totalReward": zod.number(),
+  "remainingToday": zod.number(),
+  "positions": zod.array(zod.object({
+  "id": zod.number(),
+  "signalId": zod.string(),
+  "pair": zod.string(),
+  "direction": zod.string(),
+  "market": zod.string(),
+  "botId": zod.number(),
+  "botName": zod.string(),
+  "stake": zod.number(),
+  "targetProfit": zod.number(),
+  "stopLoss": zod.number(),
+  "fee": zod.number(),
+  "status": zod.string(),
+  "pnl": zod.number(),
+  "openedAt": zod.string(),
+  "closedAt": zod.string().nullable(),
+  "elapsedMs": zod.number()
+})),
+  "selectedSignals": zod.array(zod.object({
+  "id": zod.string(),
+  "opportunityId": zod.number(),
+  "pair": zod.string(),
+  "direction": zod.string(),
+  "market": zod.string(),
+  "confidence": zod.number(),
+  "timeframe": zod.string()
+}))
+})
+
+
 export const ListTradePositionsResponseItem = zod.object({
   "id": zod.number(),
   "signalId": zod.string(),

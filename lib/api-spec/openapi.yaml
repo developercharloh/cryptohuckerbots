@@ -658,6 +658,36 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /trade/execute-all:
+    post:
+      operationId: executeAllTradeSignals
+      tags: [trade]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExecuteAllTradeSignalsInput"
+      responses:
+        "200":
+          description: Opened all selected AI signal positions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkTradeExecutionResponse"
+        "400":
+          description: Bulk execution rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /trade/positions:
     get:
       operationId: listTradePositions
@@ -1822,6 +1852,57 @@ components:
         clientRequestId:
           type: string
       required: [signalId, opportunityId, consent]
+
+    ExecuteAllTradeSignalsInput:
+      type: object
+      properties:
+        consent:
+          type: boolean
+        clientRequestId:
+          type: string
+      required: [consent]
+
+    BulkTradeExecutionSignal:
+      type: object
+      properties:
+        id:
+          type: string
+        opportunityId:
+          type: integer
+        pair:
+          type: string
+        direction:
+          type: string
+        market:
+          type: string
+        confidence:
+          type: number
+        timeframe:
+          type: string
+      required: [id, opportunityId, pair, direction, market, confidence, timeframe]
+
+    BulkTradeExecutionResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        executedCount:
+          type: integer
+        totalStake:
+          type: number
+        totalReward:
+          type: number
+        remainingToday:
+          type: integer
+        positions:
+          type: array
+          items:
+            $ref: "#/components/schemas/TradePosition"
+        selectedSignals:
+          type: array
+          items:
+            $ref: "#/components/schemas/BulkTradeExecutionSignal"
+      required: [message, executedCount, totalStake, totalReward, remainingToday, positions, selectedSignals]
 
     TradeResult:
       type: object
