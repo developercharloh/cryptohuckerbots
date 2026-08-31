@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { Layout } from "@/components/Layout";
-import { ChevronLeft, Send, Loader2 } from "lucide-react";
+import { ChevronLeft, Send, Loader2, LockKeyhole } from "lucide-react";
 import { useGetChatMessages, useSendChatMessage } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -17,6 +17,8 @@ export default function LiveChat() {
   });
 
   const mutation = useSendChatMessage();
+  const latestMessage = messages[messages.length - 1];
+  const isClosed = latestMessage?.sender === "system";
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -56,7 +58,12 @@ export default function LiveChat() {
           </button>
           <div>
             <h1 className="text-base font-bold tracking-tight">Contact Support</h1>
-            <p className="text-[11px] text-muted-foreground">Private conversation with VIXUS Support</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-[11px] text-muted-foreground">
+                {isClosed ? "Conversation closed" : "Private conversation with VIXUS Support"}
+              </p>
+              {isClosed && <LockKeyhole className="w-3 h-3 text-muted-foreground" />}
+            </div>
           </div>
         </div>
 
@@ -78,6 +85,15 @@ export default function LiveChat() {
             </div>
           ) : (
             messages.map((msg) => {
+              if (msg.sender === "system") {
+                return (
+                  <div key={msg.id} className="flex justify-center py-2">
+                    <div className="max-w-[90%] rounded-full border border-border/60 bg-card px-3 py-1.5 text-center text-[10px] text-muted-foreground">
+                      {msg.message}
+                    </div>
+                  </div>
+                );
+              }
               const isUser = msg.sender === "user";
               return (
                 <div key={msg.id} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
@@ -101,6 +117,12 @@ export default function LiveChat() {
           <div ref={bottomRef} />
         </div>
 
+        {isClosed && (
+          <div className="mx-4 mb-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-[11px] text-muted-foreground">
+            This conversation is closed. Send a message below to start a new private conversation with Support.
+          </div>
+        )}
+
         {/* Input */}
         <div className="shrink-0 p-4 border-t border-border/40">
           <div className="flex items-end gap-2">
@@ -108,7 +130,7 @@ export default function LiveChat() {
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={handleKey}
-              placeholder="Type a message…"
+              placeholder={isClosed ? "Start a new conversation…" : "Type a message…"}
               rows={1}
               className="flex-1 resize-none bg-card rounded-2xl px-4 py-3 text-sm outline-none border border-border/40 focus:border-primary/50 transition-colors max-h-28 overflow-y-auto"
               style={{ lineHeight: "1.5" }}

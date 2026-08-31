@@ -28,6 +28,7 @@ import type {
   AdminBotUpdate,
   AdminBroadcast,
   AdminBroadcastInput,
+  AdminCloseChat,
   AdminDepositSession,
   AdminKycItem,
   AdminKycReviewInput,
@@ -5462,6 +5463,70 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getAdminSendChatMessageMutationOptions(options));
+    }
+
+export const getAdminCloseChatUrl = (userId: number,) => {
+
+
+
+
+  return `/api/admin/chat/${userId}/close`
+}
+
+export const adminCloseChat = async (userId: number, options?: RequestInit): Promise<AdminCloseChat> => {
+
+  return customFetch<AdminCloseChat>(getAdminCloseChatUrl(userId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getAdminCloseChatMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminCloseChat>>, TError,{userId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminCloseChat>>, TError,{userId: number}, TContext> => {
+
+const mutationKey = ['adminCloseChat'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminCloseChat>>, {userId: number}> = (props) => {
+          const {userId} = props ?? {};
+
+          return  adminCloseChat(userId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminCloseChatMutationResult = NonNullable<Awaited<ReturnType<typeof adminCloseChat>>>
+
+    export type AdminCloseChatMutationError = ErrorType<unknown>
+
+    export const useAdminCloseChat = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminCloseChat>>, TError,{userId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminCloseChat>>,
+        TError,
+        {userId: number},
+        TContext
+      > => {
+      return useMutation(getAdminCloseChatMutationOptions(options));
     }
 
 export const getAdminGetSettingsUrl = () => {

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useLocation } from "wouter";
 import {
   useAdminListTickets,
   useAdminReplyTicket,
@@ -6,11 +7,14 @@ import {
   useAdminListChats,
   useAdminGetChat,
   useAdminSendChatMessage,
+  useAdminCloseChat,
   getAdminListTicketsQueryKey,
+  getAdminGetChatQueryKey,
+  getAdminListChatsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { CheckCircle2, MessageSquare, Clock, ChevronRight, Send, Loader2, ArrowLeft } from "lucide-react";
+import { CheckCircle2, MessageSquare, Clock, ChevronRight, Send, Loader2, ArrowLeft, XCircle, Inbox } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -194,10 +198,21 @@ function TicketsTab() {
 }
 
 // ─── Chat tab ─────────────────────────────────────────────────────────────────
-function ChatThread({ userId, userName, onBack }: { userId: number; userName: string; onBack: () => void }) {
+function ChatThread({
+  userId,
+  userName,
+  initialStatus,
+  onBack,
+}: {
+  userId: number;
+  userName: string;
+  initialStatus: string;
+  onBack: () => void;
+}) {
   const [text, setText] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const { data: messages = [], isLoading } = useAdminGetChat(
     userId,
@@ -205,6 +220,9 @@ function ChatThread({ userId, userName, onBack }: { userId: number; userName: st
   );
 
   const mutation = useAdminSendChatMessage();
+  const closeMutation = useAdminCloseChat();
+  const latestMessage = messages[messages.length - 1];
+  const isClosed = messages.length > 0 ? latestMessage?.sender === "system" : initialStatus === "closed";
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -218,9 +236,30 @@ function ChatThread({ userId, userName, onBack }: { userId: number; userName: st
       {
         onSuccess: () => {
           setText("");
-          queryClient.invalidateQueries({ queryKey: ["adminGetChat", userId] });
+          queryClient.invalidateQueries({ queryKey: getAdminGetChatQueryKey(userId) });
+          queryClient.invalidateQueries({ queryKey: getAdminListChatsQueryKey() });
+        },
+        onError: (err) => {
+          toast({ title: "Failed to send reply", description: err.message, variant: "destructive" });
         },
       }
+    );
+  };
+
+  const handleClose = () => {
+    if (!confirm("Close this conversation? The user will be notified and must start a new conversation to contact Support again.")) return;
+    closeMutation.mutate(
+      { userId },
+      {
+        onSuccess: () => {
+          toast({ title: "Conversation closed", description: "The user was notified to start a new conversation if needed." });
+          queryClient.invalidateQueries({ queryKey: getAdminGetChatQueryKey(userId) });
+          queryClient.invalidateQueries({ queryKey: getAdminListChatsQueryKey() });
+        },
+        onError: (err) => {
+          toast({ title: "Failed to close conversation", description: err.message, variant: "destructive" });
+        },
+      },
     );
   };
 
@@ -230,10 +269,22 @@ function ChatThread({ userId, userName, onBack }: { userId: number; userName: st
         <button onClick={onBack} className="p-1.5 rounded-lg hover:bg-card transition-colors">
           <ArrowLeft className="w-4 h-4" />
         </button>
-        <div>
+        <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold">{userName}</p>
-          <p className="text-[10px] text-muted-foreground">Live chat</p>
+          <p className={`text-[10px] ${isClosed ? "text-muted-foreground" : "text-emerald-400"}`}>
+            {isClosed ? "Conversation closed" : "Open conversation"}
+          </p>
         </div>
+        {!isClosed && (
+          <button
+            onClick={handleClose}
+            disabled={closeMutation.isPending}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-destructive/30 px-2.5 py-1.5 text-[10px] font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
+          >
+            <XCircle className="w-3.5 h-3.5" />
+            {closeMutation.isPending ? "Closing…" : "Close conversation"}
+          </button>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-2 pb-2">
@@ -243,6 +294,15 @@ function ChatThread({ userId, userName, onBack }: { userId: number; userName: st
           <p className="text-center text-xs text-muted-foreground py-8">No messages yet</p>
         ) : (
           messages.map((msg) => {
+            if (msg.sender === "system") {
+              return (
+                <div key={msg.id} className="flex justify-center py-2">
+                  <div className="max-w-[90%] rounded-full border border-border/60 bg-secondary/50 px-3 py-1.5 text-center text-[10px] text-muted-foreground">
+                    {msg.message}
+                  </div>
+                </div>
+              );
+            }
             const isAdmin = msg.sender === "admin";
             return (
               <div key={msg.id} className={`flex ${isAdmin ? "justify-end" : "justify-start"}`}>
@@ -260,18 +320,24 @@ function ChatThread({ userId, userName, onBack }: { userId: number; userName: st
         <div ref={bottomRef} />
       </div>
 
+      {isClosed && (
+        <div className="mb-2 rounded-xl border border-border/50 bg-secondary/30 px-3 py-2 text-[10px] text-muted-foreground">
+          This thread is closed. The user must send a new message before Support can reply again.
+        </div>
+      )}
       <div className="flex items-end gap-2 pt-2 border-t border-border/40">
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-          placeholder="Type a reply…"
+          placeholder={isClosed ? "Reply unavailable until the user starts a new conversation…" : "Type a reply…"}
           rows={1}
-          className="flex-1 resize-none bg-card rounded-xl px-3 py-2 text-xs outline-none border border-border/40 focus:border-primary/50 max-h-20 overflow-y-auto"
+          disabled={isClosed}
+          className="flex-1 resize-none bg-card rounded-xl px-3 py-2 text-xs outline-none border border-border/40 focus:border-primary/50 max-h-20 overflow-y-auto disabled:cursor-not-allowed disabled:opacity-50"
         />
         <button
           onClick={handleSend}
-          disabled={!text.trim() || mutation.isPending}
+          disabled={isClosed || !text.trim() || mutation.isPending}
           className="w-9 h-9 rounded-full bg-primary flex items-center justify-center shrink-0 disabled:opacity-40"
         >
           {mutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin text-primary-foreground" /> : <Send className="w-3.5 h-3.5 text-primary-foreground" />}
@@ -282,30 +348,84 @@ function ChatThread({ userId, userName, onBack }: { userId: number; userName: st
 }
 
 function ChatTab() {
-  const [selectedUser, setSelectedUser] = useState<{ userId: number; userName: string } | null>(null);
+  const [selectedUser, setSelectedUser] = useState<{ userId: number; userName: string; status: string } | null>(null);
+  const [filter, setFilter] = useState<"needs_reply" | "open" | "closed" | "all">("needs_reply");
+  const [, setLocation] = useLocation();
 
   const { data: conversations = [], isLoading } = useAdminListChats({
     query: { refetchInterval: 5000 } as any,
   });
 
+  useEffect(() => {
+    const requestedUserId = Number(new URLSearchParams(window.location.search).get("userId"));
+    if (!requestedUserId || selectedUser) return;
+    const requestedConversation = conversations.find((conversation) => conversation.userId === requestedUserId);
+    if (requestedConversation) {
+      setSelectedUser({
+        userId: requestedConversation.userId,
+        userName: requestedConversation.userName,
+        status: requestedConversation.status,
+      });
+      setLocation("/support");
+    }
+  }, [conversations, selectedUser, setLocation]);
+
   if (selectedUser) {
-    return <ChatThread userId={selectedUser.userId} userName={selectedUser.userName} onBack={() => setSelectedUser(null)} />;
+    return (
+      <ChatThread
+        userId={selectedUser.userId}
+        userName={selectedUser.userName}
+        initialStatus={selectedUser.status}
+        onBack={() => setSelectedUser(null)}
+      />
+    );
   }
+
+  const visibleConversations = conversations.filter((conversation) => {
+    if (filter === "needs_reply") return conversation.pendingReply;
+    if (filter === "open") return conversation.status === "open";
+    if (filter === "closed") return conversation.status === "closed";
+    return true;
+  });
 
   return (
     <div className="space-y-2">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        {([
+          ["needs_reply", "Needs reply"],
+          ["open", "Open"],
+          ["closed", "Closed"],
+          ["all", "All"],
+        ] as const).map(([value, label]) => (
+          <button
+            key={value}
+            onClick={() => setFilter(value)}
+            className={`shrink-0 rounded-full border px-3 py-1.5 text-[10px] font-medium transition-colors ${
+              filter === value
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-card text-muted-foreground"
+            }`}
+          >
+            {label}
+            {value === "needs_reply" && conversations.filter((conversation) => conversation.pendingReply).length > 0
+              ? ` (${conversations.filter((conversation) => conversation.pendingReply).length})`
+              : ""}
+          </button>
+        ))}
+      </div>
       {isLoading ? (
         Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-2xl" />)
-      ) : conversations.length === 0 ? (
+      ) : visibleConversations.length === 0 ? (
         <div className="text-center py-12 text-sm text-muted-foreground border border-dashed border-border rounded-2xl">
-          No conversations yet
+          <Inbox className="w-5 h-5 mx-auto mb-2 text-muted-foreground/50" />
+          {filter === "needs_reply" ? "No conversations waiting for a reply" : "No conversations found"}
         </div>
       ) : (
-        conversations.map((conv) => (
+        visibleConversations.map((conv) => (
           <Card
             key={conv.userId}
-            className="rounded-2xl border-border/60 cursor-pointer hover:border-primary/40 transition-colors"
-            onClick={() => setSelectedUser({ userId: conv.userId, userName: conv.userName })}
+            className={`rounded-2xl border-border/60 cursor-pointer hover:border-primary/40 transition-colors ${conv.status === "closed" ? "opacity-70" : ""}`}
+            onClick={() => setSelectedUser({ userId: conv.userId, userName: conv.userName, status: conv.status })}
           >
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -314,16 +434,25 @@ function ChatTab() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-0.5">
-                    <p className="text-sm font-semibold truncate">{conv.userName}</p>
+                     <div className="flex items-center gap-2 min-w-0">
+                       <p className="text-sm font-semibold truncate">{conv.userName}</p>
+                       <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium ${
+                         conv.status === "closed" ? "bg-secondary text-muted-foreground" : "bg-emerald-500/10 text-emerald-400"
+                       }`}>
+                         {conv.status === "closed" ? "Closed" : "Open"}
+                       </span>
+                     </div>
                     <span className="text-[10px] text-muted-foreground shrink-0 ml-2">{format(new Date(conv.lastMessageAt), "MMM d, HH:mm")}</span>
                   </div>
                   <p className="text-[11px] text-muted-foreground/60 truncate">{conv.userEmail}</p>
-                  <p className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5">{conv.lastMessage}</p>
+                   <p className={`text-[11px] line-clamp-1 mt-0.5 ${conv.pendingReply ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+                     {conv.pendingReply ? "User: " : ""}{conv.lastMessage}
+                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-1 shrink-0">
-                  {conv.unreadCount > 0 && (
-                    <span className="text-[10px] bg-primary text-primary-foreground rounded-full w-4 h-4 flex items-center justify-center font-bold">
-                      {conv.unreadCount > 9 ? "9+" : conv.unreadCount}
+                   {conv.pendingReply && (
+                     <span className="text-[10px] bg-primary text-primary-foreground rounded-full px-2 py-0.5 font-bold">
+                       Reply needed
                     </span>
                   )}
                   <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
@@ -345,7 +474,7 @@ export default function Support() {
     <div className="admin-page p-4 space-y-4 pb-2">
       <div className="pt-1">
         <h1 className="text-xl font-bold tracking-tight">Support</h1>
-        <p className="text-xs text-muted-foreground">Tickets & live chat</p>
+        <p className="text-xs text-muted-foreground">Tickets & private support inbox</p>
       </div>
 
       <div className="flex gap-2">
@@ -359,7 +488,7 @@ export default function Support() {
                 : "bg-card text-muted-foreground border-border"
             }`}
           >
-            {tab === "tickets" ? "Tickets" : "Live Chat"}
+            {tab === "tickets" ? "Tickets" : "Inbox"}
           </button>
         ))}
       </div>

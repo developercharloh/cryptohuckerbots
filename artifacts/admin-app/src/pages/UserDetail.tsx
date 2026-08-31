@@ -6,6 +6,7 @@ import {
   useAdminResetUserPassword,
   useAdminAdjustBalance,
   useAdminSendChatMessage,
+  useAdminListChats,
   getAdminGetChatQueryKey,
   getAdminListChatsQueryKey,
   getAdminGetUserQueryKey,
@@ -58,6 +59,10 @@ export default function UserDetail() {
   const { data: user, isLoading, error } = useAdminGetUser(userId, { 
     query: { enabled: !!userId, queryKey: getAdminGetUserQueryKey(userId) } as any 
   });
+  const { data: chatConversations = [] } = useAdminListChats({
+    query: { enabled: !!userId, refetchInterval: 5000 } as any,
+  });
+  const pendingConversation = chatConversations.find((conversation) => conversation.userId === userId);
   
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -209,6 +214,11 @@ export default function UserDetail() {
             <Badge variant={user.kycStatus === "verified" ? "default" : "secondary"} className="px-3 py-1 text-sm">
               KYC: {user.kycStatus}
             </Badge>
+            {pendingConversation?.pendingReply && (
+              <Badge variant="destructive" className="px-3 py-1 text-sm">
+                Reply needed
+              </Badge>
+            )}
           </div>
         </div>
 
@@ -277,6 +287,21 @@ export default function UserDetail() {
                   >
                     <MessageSquare className="w-4 h-4 mr-2" /> Message User
                   </Button>
+                  {pendingConversation && (
+                    <Link href={`/support?userId=${userId}`}>
+                      <Button
+                        variant={pendingConversation.pendingReply ? "default" : "secondary"}
+                        className="w-full"
+                        data-testid="btn-open-support-conversation"
+                      >
+                        <MessageSquare className="w-4 h-4 mr-2" />
+                        {pendingConversation.pendingReply ? "Open reply in Inbox" : "View full conversation"}
+                        {pendingConversation.pendingReply && (
+                          <span className="ml-auto rounded-full bg-background/20 px-1.5 py-0.5 text-[10px]">1</span>
+                        )}
+                      </Button>
+                    </Link>
+                  )}
                   <Button
                     variant={(user as any).isAdmin ? "outline" : "default"}
                     className={(user as any).isAdmin ? "border-amber-500 text-amber-400 hover:bg-amber-500/10" : "bg-purple-600 hover:bg-purple-700 text-white"}

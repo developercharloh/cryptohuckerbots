@@ -5,6 +5,7 @@
  * Quantum FX Bot API
  * OpenAPI spec version: 0.1.0
  */
+import type { ChatConversationStatus } from './chatConversationStatus';
 
 export interface ChatConversation {
   userId: number;
@@ -13,4 +14,6 @@ export interface ChatConversation {
   lastMessage: string;
   lastMessageAt: string;
   unreadCount: number;
+  status: ChatConversationStatus;
+  pendingReply: boolean;
 }

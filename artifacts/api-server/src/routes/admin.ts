@@ -1175,24 +1175,40 @@ router.get("/admin/signal-audit", async (_req, res) => {
 
 // ---------------- Live Chat ----------------
 router.get("/admin/chat", async (req, res) => {
-  // Latest message per user
+  // Latest message per user. A system message is the boundary between
+  // conversations, so the full history can remain available without a
+  // destructive data migration.
   const result = await db.execute(sql`
+    WITH latest AS (
+      SELECT DISTINCT ON (cm.user_id)
+        cm.user_id,
+        cm.sender,
+        cm.message,
+        cm.created_at
+      FROM chat_messages cm
+      ORDER BY cm.user_id, cm.created_at DESC, cm.id DESC
+    )
     SELECT
-      cm.user_id,
+      latest.user_id,
       u.full_name,
       u.email,
-      cm.message AS last_message,
-      cm.created_at AS last_message_at,
-      (SELECT COUNT(*) FROM chat_messages cm2 WHERE cm2.user_id = cm.user_id AND cm2.sender = 'user'
-       AND cm2.created_at > COALESCE(
-         (SELECT MAX(cm3.created_at) FROM chat_messages cm3 WHERE cm3.user_id = cm.user_id AND cm3.sender = 'admin'),
-         '1970-01-01'
-       )
-      ) AS unread_count
-    FROM chat_messages cm
-    JOIN users u ON u.id = cm.user_id
-    WHERE cm.created_at = (SELECT MAX(created_at) FROM chat_messages WHERE user_id = cm.user_id)
-    ORDER BY cm.created_at DESC
+      latest.sender AS last_sender,
+      latest.message AS last_message,
+      latest.created_at AS last_message_at,
+      CASE WHEN latest.sender = 'system' THEN 'closed' ELSE 'open' END AS status,
+      CASE WHEN latest.sender = 'user' THEN true ELSE false END AS pending_reply,
+      CASE WHEN latest.sender = 'user' THEN (
+        SELECT COUNT(*) FROM chat_messages cm2
+        WHERE cm2.user_id = latest.user_id
+          AND cm2.sender = 'user'
+          AND cm2.created_at > GREATEST(
+            COALESCE((SELECT MAX(cm3.created_at) FROM chat_messages cm3 WHERE cm3.user_id = latest.user_id AND cm3.sender = 'admin'), TIMESTAMP '1970-01-01'),
+            COALESCE((SELECT MAX(cm4.created_at) FROM chat_messages cm4 WHERE cm4.user_id = latest.user_id AND cm4.sender = 'system'), TIMESTAMP '1970-01-01')
+          )
+      ) ELSE 0 END AS unread_count
+    FROM latest
+    JOIN users u ON u.id = latest.user_id
+    ORDER BY latest.created_at DESC
   `);
 
   const rows = Array.isArray(result) ? result : (result as any).rows ?? [];
@@ -1203,6 +1219,8 @@ router.get("/admin/chat", async (req, res) => {
     lastMessage: r.last_message,
     lastMessageAt: new Date(r.last_message_at).toISOString(),
     unreadCount: Number(r.unread_count),
+    status: r.status,
+    pendingReply: Boolean(r.pending_reply),
   })));
 });
 
@@ -1220,6 +1238,60 @@ router.get("/admin/chat/:userId", async (req, res) => {
     message: m.message,
     createdAt: m.createdAt.toISOString(),
   })));
+});
+
+router.post("/admin/chat/:userId/close", async (req, res) => {
+  const userId = parseInt(req.params.userId, 10);
+  if (isNaN(userId)) return res.status(400).json({ error: "Invalid user id" });
+
+  const [targetUser] = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId))
+    .limit(1);
+  if (!targetUser) return res.status(404).json({ error: "User not found" });
+
+  const [latestMessage] = await db.select({
+    sender: chatMessagesTable.sender,
+    createdAt: chatMessagesTable.createdAt,
+  }).from(chatMessagesTable)
+    .where(eq(chatMessagesTable.userId, userId))
+    .orderBy(desc(chatMessagesTable.createdAt), desc(chatMessagesTable.id))
+    .limit(1);
+
+  if (!latestMessage) {
+    return res.status(400).json({ error: "Cannot close a conversation with no messages" });
+  }
+
+  if (latestMessage.sender === "system") {
+    return res.json({
+      status: "closed",
+      closedAt: latestMessage.createdAt.toISOString(),
+    });
+  }
+
+  const closedMessage = await db.transaction(async (tx) => {
+    const [createdMessage] = await tx.insert(chatMessagesTable).values({
+      userId,
+      sender: "system",
+      message: "This conversation was closed by VIXUS Support. Start a new conversation if you need more help.",
+    }).returning();
+
+    await tx.insert(notificationsTable).values({
+      userId,
+      type: "support_closed",
+      title: "Support conversation closed",
+      message: "Your VIXUS Support conversation was closed. Start a new conversation if you still need help.",
+      isRead: false,
+    });
+
+    return createdMessage;
+  });
+
+  return res.json({
+    status: "closed",
+    closedAt: closedMessage.createdAt.toISOString(),
+  });
 });
 
 router.post("/admin/chat/:userId", async (req, res) => {
@@ -1241,6 +1313,19 @@ router.post("/admin/chat/:userId", async (req, res) => {
     .where(eq(usersTable.id, userId))
     .limit(1);
   if (!targetUser) return res.status(404).json({ error: "User not found" });
+
+  const [latestMessage] = await db.select({
+    sender: chatMessagesTable.sender,
+  }).from(chatMessagesTable)
+    .where(eq(chatMessagesTable.userId, userId))
+    .orderBy(desc(chatMessagesTable.createdAt), desc(chatMessagesTable.id))
+    .limit(1);
+  if (latestMessage?.sender === "system") {
+    return res.status(409).json({
+      code: "CHAT_CLOSED",
+      error: "This conversation is closed. The user must start a new conversation before you can reply.",
+    });
+  }
 
   const msg = await db.transaction(async (tx) => {
     const [createdMessage] = await tx.insert(chatMessagesTable).values({

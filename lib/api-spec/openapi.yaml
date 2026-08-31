@@ -1490,6 +1490,24 @@ paths:
               schema:
                 $ref: "#/components/schemas/ChatMessage"
 
+  /admin/chat/{userId}/close:
+    post:
+      operationId: adminCloseChat
+      tags: [admin]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Conversation closed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminCloseChat"
+
   /admin/settings:
     get:
       operationId: adminGetSettings
@@ -2759,7 +2777,7 @@ components:
       type: object
       properties:
         id: { type: integer }
-        sender: { type: string }
+        sender: { type: string, enum: [user, admin, system] }
         message: { type: string }
         createdAt: { type: string }
       required: [id, sender, message, createdAt]
@@ -2779,7 +2797,16 @@ components:
         lastMessage: { type: string }
         lastMessageAt: { type: string }
         unreadCount: { type: integer }
-      required: [userId, userName, userEmail, lastMessage, lastMessageAt, unreadCount]
+        status: { type: string, enum: [open, closed] }
+        pendingReply: { type: boolean }
+      required: [userId, userName, userEmail, lastMessage, lastMessageAt, unreadCount, status, pendingReply]
+
+    AdminCloseChat:
+      type: object
+      properties:
+        status: { type: string, enum: [closed] }
+        closedAt: { type: string }
+      required: [status, closedAt]
 
     AdminBroadcastInput:
       type: object

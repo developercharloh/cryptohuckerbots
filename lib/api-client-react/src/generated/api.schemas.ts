@@ -813,9 +813,18 @@ export interface AdminReviewDepositInput {
   confirmations?: number;
 }
 
+export type ChatMessageSender = typeof ChatMessageSender[keyof typeof ChatMessageSender];
+
+
+export const ChatMessageSender = {
+  user: 'user',
+  admin: 'admin',
+  system: 'system',
+} as const;
+
 export interface ChatMessage {
   id: number;
-  sender: string;
+  sender: ChatMessageSender;
   message: string;
   createdAt: string;
 }
@@ -824,6 +833,14 @@ export interface SendChatMessageInput {
   message: string;
 }
 
+export type ChatConversationStatus = typeof ChatConversationStatus[keyof typeof ChatConversationStatus];
+
+
+export const ChatConversationStatus = {
+  open: 'open',
+  closed: 'closed',
+} as const;
+
 export interface ChatConversation {
   userId: number;
   userName: string;
@@ -831,6 +848,20 @@ export interface ChatConversation {
   lastMessage: string;
   lastMessageAt: string;
   unreadCount: number;
+  status: ChatConversationStatus;
+  pendingReply: boolean;
+}
+
+export type AdminCloseChatStatus = typeof AdminCloseChatStatus[keyof typeof AdminCloseChatStatus];
+
+
+export const AdminCloseChatStatus = {
+  closed: 'closed',
+} as const;
+
+export interface AdminCloseChat {
+  status: AdminCloseChatStatus;
+  closedAt: string;
 }
 
 export interface AdminBroadcastInput {

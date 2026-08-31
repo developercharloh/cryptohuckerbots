@@ -1329,7 +1329,7 @@ export const AdminCloseTicketResponse = zod.object({
 
 export const GetChatMessagesResponseItem = zod.object({
   "id": zod.number(),
-  "sender": zod.string(),
+  "sender": zod.enum(['user', 'admin', 'system']),
   "message": zod.string(),
   "createdAt": zod.string()
 })
@@ -1342,7 +1342,7 @@ export const SendChatMessageBody = zod.object({
 
 export const SendChatMessageResponse = zod.object({
   "id": zod.number(),
-  "sender": zod.string(),
+  "sender": zod.enum(['user', 'admin', 'system']),
   "message": zod.string(),
   "createdAt": zod.string()
 })
@@ -1354,7 +1354,9 @@ export const AdminListChatsResponseItem = zod.object({
   "userEmail": zod.string(),
   "lastMessage": zod.string(),
   "lastMessageAt": zod.string(),
-  "unreadCount": zod.number()
+  "unreadCount": zod.number(),
+  "status": zod.enum(['open', 'closed']),
+  "pendingReply": zod.boolean()
 })
 export const AdminListChatsResponse = zod.array(AdminListChatsResponseItem)
 
@@ -1365,7 +1367,7 @@ export const AdminGetChatParams = zod.object({
 
 export const AdminGetChatResponseItem = zod.object({
   "id": zod.number(),
-  "sender": zod.string(),
+  "sender": zod.enum(['user', 'admin', 'system']),
   "message": zod.string(),
   "createdAt": zod.string()
 })
@@ -1382,9 +1384,19 @@ export const AdminSendChatMessageBody = zod.object({
 
 export const AdminSendChatMessageResponse = zod.object({
   "id": zod.number(),
-  "sender": zod.string(),
+  "sender": zod.enum(['user', 'admin', 'system']),
   "message": zod.string(),
   "createdAt": zod.string()
+})
+
+
+export const AdminCloseChatParams = zod.object({
+  "userId": zod.coerce.number()
+})
+
+export const AdminCloseChatResponse = zod.object({
+  "status": zod.enum(['closed']),
+  "closedAt": zod.string()
 })
 
 

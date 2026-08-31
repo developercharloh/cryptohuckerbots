@@ -51,6 +51,7 @@ function getNotifMeta(type: string) {
       return { Icon: Bot, color: "text-primary", bg: "bg-primary/10" };
     case "support":
     case "admin_message":
+    case "support_closed":
       return { Icon: MessageSquare, color: "text-blue-400", bg: "bg-blue-500/10" };
     case "kyc":
       return { Icon: ShieldCheck, color: "text-yellow-400", bg: "bg-yellow-500/10" };
@@ -92,7 +93,7 @@ function InboxTab() {
         },
       });
     }
-    if (notification.type === "admin_message" || notification.type === "support") {
+    if (notification.type === "admin_message" || notification.type === "support" || notification.type === "support_closed") {
       setLocation("/support/chat");
     }
   };
@@ -171,9 +172,9 @@ function InboxTab() {
                   <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5 line-clamp-2">
                     {n.message}
                   </p>
-                  {(n.type === "admin_message" || n.type === "support") && (
+                  {(n.type === "admin_message" || n.type === "support" || n.type === "support_closed") && (
                     <p className="text-[10px] text-primary mt-1.5 font-medium">
-                      Tap to open private support chat
+                      {n.type === "support_closed" ? "Tap to start a new private support chat" : "Tap to open private support chat"}
                     </p>
                   )}
                   <p className="text-[10px] text-muted-foreground/50 mt-1.5">

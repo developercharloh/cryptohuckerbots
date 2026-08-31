@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, supportTicketsTable, faqTable, chatMessagesTable } from "@workspace/db";
+import { db, supportTicketsTable, faqTable, chatMessagesTable, notificationsTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { CreateSupportTicketBody } from "@workspace/api-zod";
 import { getUserForSession } from "../lib/session";
@@ -81,15 +81,39 @@ router.post("/support/chat", async (req, res) => {
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
   const { message } = req.body as { message?: string };
-  if (!message || typeof message !== "string" || !message.trim()) {
+  const trimmedMessage = typeof message === "string" ? message.trim() : "";
+  if (!trimmedMessage) {
     return res.status(400).json({ error: "message is required" });
   }
+  if (trimmedMessage.length > 2000) {
+    return res.status(400).json({ error: "message must be 2000 characters or fewer" });
+  }
 
-  const [msg] = await db.insert(chatMessagesTable).values({
-    userId: user.id,
-    sender: "user",
-    message: message.trim(),
-  }).returning();
+  const [latestMessage] = await db.select({
+    sender: chatMessagesTable.sender,
+  }).from(chatMessagesTable)
+    .where(eq(chatMessagesTable.userId, user.id))
+    .orderBy(desc(chatMessagesTable.createdAt), desc(chatMessagesTable.id))
+    .limit(1);
+
+  const msg = await db.transaction(async (tx) => {
+    // A system marker closes the previous thread. The first user message after
+    // that marker starts a new private conversation without deleting history.
+    if (latestMessage?.sender === "system") {
+      await tx.insert(chatMessagesTable).values({
+        userId: user.id,
+        sender: "system",
+        message: "New conversation started.",
+      });
+    }
+
+    const [createdMessage] = await tx.insert(chatMessagesTable).values({
+      userId: user.id,
+      sender: "user",
+      message: trimmedMessage,
+    }).returning();
+    return createdMessage;
+  });
 
   return res.status(201).json({
     id: msg.id,
