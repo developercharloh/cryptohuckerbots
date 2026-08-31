@@ -129,8 +129,13 @@ async function runStartupTasks(): Promise<void> {
   }
 }
 
-getInitPromise().catch((err) =>
-  logger.error({ err }, "Vercel cold-start tasks failed"),
-);
+// Keep module initialization tied to the first serverless invocation. A
+// background promise can be frozen when Vercel returns a fast health response,
+// leaving migrations/seeding half-finished for the next request.
+try {
+  await getInitPromise();
+} catch (err) {
+  logger.error({ err }, "Vercel cold-start tasks failed");
+}
 
 export default app;
