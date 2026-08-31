@@ -1,13 +1,25 @@
 import { useEffect, lazy, Suspense, Component, ReactNode } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 
-const CHUNK_RECOVERY_KEY = "vixus_chunk_recovery_attempted";
+const CHUNK_RECOVERY_KEY = "vixus_chunk_recovery_attempts";
+const CHUNK_RECOVERY_MAX_ATTEMPTS = 3;
+
+function isChunkLoadError(error: unknown): boolean {
+  const message = typeof error === "string"
+    ? error
+    : error instanceof Error
+      ? error.message
+      : String(error ?? "");
+  return /dynamically imported module|importing a module script failed|failed to fetch|loading chunk|chunk load error/i.test(message);
+}
 
 async function recoverFromStaleClient(force = false): Promise<void> {
   if (typeof window === "undefined") return;
-  if (!force && sessionStorage.getItem(CHUNK_RECOVERY_KEY)) return;
 
-  sessionStorage.setItem(CHUNK_RECOVERY_KEY, "1");
+  const attempts = Number(sessionStorage.getItem(CHUNK_RECOVERY_KEY) ?? "0");
+  if (!force && attempts >= CHUNK_RECOVERY_MAX_ATTEMPTS) return;
+  sessionStorage.setItem(CHUNK_RECOVERY_KEY, String(attempts + 1));
+
   try {
     if ("serviceWorker" in navigator) {
       const registrations = await navigator.serviceWorker.getRegistrations();
@@ -22,8 +34,28 @@ async function recoverFromStaleClient(force = false): Promise<void> {
       );
     }
   } finally {
-    window.location.reload();
+    const url = new URL(window.location.href);
+    url.searchParams.set("vixus_refresh", String(Date.now()));
+    window.location.replace(url.toString());
   }
+}
+
+function watchForChunkFailures() {
+  if (typeof window === "undefined") return;
+  const recover = (error: unknown) => {
+    if (isChunkLoadError(error)) void recoverFromStaleClient();
+  };
+  window.addEventListener("error", (event) => recover(event.error ?? event.message));
+  window.addEventListener("unhandledrejection", (event) => recover(event.reason));
+}
+
+if (typeof window !== "undefined") {
+  const url = new URL(window.location.href);
+  if (url.searchParams.has("vixus_refresh")) {
+    url.searchParams.delete("vixus_refresh");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+  }
+  watchForChunkFailures();
 }
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
@@ -35,7 +67,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: string |
     return { error: err?.message ?? "Unknown error" };
   }
   componentDidCatch(err: Error) {
-    if (/dynamically imported module|importing a module script failed|failed to fetch/i.test(err.message)) {
+    if (isChunkLoadError(err)) {
       void recoverFromStaleClient();
     }
   }

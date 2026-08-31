@@ -214,7 +214,7 @@ router.post("/profile/kyc/session", async (req, res) => {
     return res.status(503).json({ error: "KYC verification service not configured. Set DIDIT_API_KEY and DIDIT_WORKFLOW_ID." });
   }
   if (!callbackUrl) {
-    return res.status(503).json({ error: "KYC verification service not configured. Set DIDIT_CALLBACK_URL to this app's /profile/kyc page." });
+    return res.status(503).json({ error: "KYC verification service not configured. Set DIDIT_CALLBACK_URL to the published user app's /profile/kyc page." });
   }
 
   try {

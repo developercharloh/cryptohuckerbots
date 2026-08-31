@@ -14,14 +14,6 @@ function timingSafeEqual(a: string, b: string): boolean {
   }
 }
 
-function diditStatusToKycStatus(status: string): "pending" | "verified" | "rejected" {
-  switch (status) {
-    case "Approved": return "verified";
-    case "Declined": return "rejected";
-    default: return "pending";
-  }
-}
-
 router.post("/webhooks/didit", async (req, res) => {
   const secret = process.env["DIDIT_WEBHOOK_SECRET"];
   const rawBody: Buffer | undefined = (req as any).rawBody;
@@ -55,28 +47,39 @@ router.post("/webhooks/didit", async (req, res) => {
     return res.json({ ok: true });
   }
 
-  const kycStatus = diditStatusToKycStatus(status);
-  const isTerminal = status === "Approved" || status === "Declined";
+  const [kyc] = await db
+    .select({ userId: kycTable.userId, status: kycTable.status })
+    .from(kycTable)
+    .where(eq(kycTable.diditSessionId, session_id))
+    .limit(1);
 
-  await db
-    .update(kycTable)
-    .set({
-      status: kycStatus,
-      reviewedAt: isTerminal ? new Date() : undefined,
-    })
-    .where(eq(kycTable.diditSessionId, session_id));
-
-  if (vendor_data) {
-    const userId = parseInt(vendor_data, 10);
-    if (!Number.isNaN(userId)) {
-      await db
-        .update(usersTable)
-        .set({ kycStatus })
-        .where(eq(usersTable.id, userId));
-    }
+  if (!kyc) {
+    logger.warn({ session_id, status }, "Didit webhook does not match a KYC session");
+    return res.json({ ok: true });
   }
 
-  logger.info({ session_id, status, kycStatus }, "Didit webhook processed");
+  // Didit verifies the submitted identity documents, but VIXUS AI retains
+  // the final account decision. Never let a provider callback bypass the
+  // admin review action, and never let a late callback undo that decision.
+  const adminHasReviewed = kyc.status === "verified" || kyc.status === "rejected";
+  if (!adminHasReviewed) {
+    await db
+      .update(kycTable)
+      .set({ status: "pending" })
+      .where(eq(kycTable.diditSessionId, session_id));
+
+    await db
+      .update(usersTable)
+      .set({ kycStatus: "pending" })
+      .where(eq(usersTable.id, kyc.userId));
+  }
+
+  logger.info({
+    session_id,
+    providerStatus: status,
+    appStatus: adminHasReviewed ? kyc.status : "pending",
+    awaitingAdminReview: !adminHasReviewed,
+  }, "Didit webhook processed");
   return res.json({ ok: true });
 });
 

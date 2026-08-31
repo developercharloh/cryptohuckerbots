@@ -1,4 +1,4 @@
-const CACHE_NAME = "vixus-ai-shell-v4";
+const CACHE_NAME = "vixus-ai-shell-v5";
 
 self.addEventListener("install", () => {
   self.skipWaiting();
@@ -25,12 +25,8 @@ self.addEventListener("fetch", (event) => {
 
   if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const copy = response.clone();
-          void caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-          return response;
-        })
+      fetch(request, { cache: "no-store" })
+        .then((response) => response)
         .catch(() => caches.match(request).then((cached) => cached ?? caches.match("./index.html"))),
     );
     return;
@@ -44,11 +40,14 @@ self.addEventListener("fetch", (event) => {
           // Otherwise one stale chunk can keep breaking every later reload.
           const contentType = response.headers.get("content-type") ?? "";
           if (contentType.includes("text/html")) {
+            void caches.open(CACHE_NAME).then((cache) => cache.delete(request));
             return new Response(null, { status: 404, statusText: "Asset not found" });
           }
           if (response.ok) {
             const copy = response.clone();
             void caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          } else {
+            void caches.open(CACHE_NAME).then((cache) => cache.delete(request));
           }
           return response;
         })
