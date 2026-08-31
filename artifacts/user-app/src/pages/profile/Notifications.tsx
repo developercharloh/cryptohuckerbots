@@ -69,18 +69,20 @@ function InboxTab() {
   const [, setLocation] = useLocation();
 
   const { data: notifications = [], isLoading } = useListNotifications({
-    query: { refetchInterval: 10000 } as any,
+    query: { refetchInterval: 10000, refetchOnWindowFocus: true } as any,
   });
 
   const markRead = useMarkNotificationRead();
   const markAll = useMarkAllNotificationsRead();
   const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const unreadNotifications = notifications.filter((n) => !n.isRead);
 
   const handleMarkAll = () => {
     markAll.mutate(undefined, {
       onSuccess: () => {
+        queryClient.setQueryData(getListNotificationsQueryKey(), []);
         queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
-        toast({ title: "All notifications cleared" });
+        toast({ title: "All notifications marked as read" });
       },
     });
   };
@@ -89,6 +91,9 @@ function InboxTab() {
     if (!notification.isRead) {
       markRead.mutate({ id: notification.id }, {
         onSuccess: () => {
+          queryClient.setQueryData(getListNotificationsQueryKey(), (current: any[] = []) =>
+            current.filter((item) => item.id !== notification.id)
+          );
           queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
         },
       });
@@ -130,28 +135,26 @@ function InboxTab() {
       )}
 
       {/* Empty state */}
-      {notifications.length === 0 ? (
+      {unreadNotifications.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 space-y-3">
           <div className="w-16 h-16 rounded-full bg-card flex items-center justify-center">
             <Inbox className="w-7 h-7 text-muted-foreground/40" />
           </div>
-          <p className="text-sm text-muted-foreground">No notifications yet</p>
+          <p className="text-sm text-muted-foreground">No unread notifications</p>
           <p className="text-xs text-muted-foreground/60 text-center max-w-[200px]">
-            Deposit alerts, bot updates, and account activity will show here
+            New deposit alerts, bot updates, and account activity will appear here
           </p>
         </div>
       ) : (
         <div className="space-y-2">
-          {notifications.map((n) => {
+          {unreadNotifications.map((n) => {
             const { Icon, color, bg } = getNotifMeta(n.type);
             return (
               <div
                 key={n.id}
                 onClick={() => handleTap(n)}
                 className={`flex items-start gap-3 p-4 rounded-2xl border transition-all cursor-pointer ${
-                  n.isRead
-                    ? "bg-card border-border/40 opacity-60"
-                    : "bg-card border-border/60 shadow-sm"
+                    "bg-card border-border/60 shadow-sm"
                 }`}
               >
                 {/* Icon */}
@@ -162,12 +165,10 @@ function InboxTab() {
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
-                    <p className={`text-sm font-semibold leading-snug ${n.isRead ? "text-muted-foreground" : "text-foreground"}`}>
+                    <p className="text-sm font-semibold leading-snug text-foreground">
                       {n.title}
                     </p>
-                    {!n.isRead && (
-                      <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_6px_hsl(var(--primary))] shrink-0 mt-1" />
-                    )}
+                    <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_6px_hsl(var(--primary))] shrink-0 mt-1" />
                   </div>
                   <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5 line-clamp-2">
                     {n.message}
@@ -278,8 +279,11 @@ function SettingsTab() {
 export default function Notifications() {
   const [, setLocation] = useLocation();
   const [tab, setTab] = useState<MainTab>("inbox");
-  const { data: notifications = [] } = useListNotifications();
+  const { data: notifications = [] } = useListNotifications({
+    query: { refetchInterval: 10000, refetchOnWindowFocus: true } as any,
+  });
   const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const unreadBadge = unreadCount > 9 ? "+10" : unreadCount;
 
   return (
     <Layout>
@@ -298,7 +302,7 @@ export default function Notifications() {
           {unreadCount > 0 && tab === "inbox" && (
             <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
               <span className="text-[10px] font-bold text-primary-foreground">
-                {unreadCount > 9 ? "9+" : unreadCount}
+                {unreadBadge}
               </span>
             </div>
           )}

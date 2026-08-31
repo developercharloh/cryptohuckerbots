@@ -47,8 +47,11 @@ export default function Dashboard() {
     .map(sym => livePairs.find(p => p.symbol === sym))
     .filter((p): p is NonNullable<typeof p> => !!p);
 
-  const { data: notifications = [] } = useListNotifications();
+  const { data: notifications = [] } = useListNotifications({
+    query: { refetchInterval: 10000, refetchOnWindowFocus: true } as any,
+  });
   const unreadCount = notifications.filter(n => !n.isRead).length;
+  const unreadBadge = unreadCount > 9 ? "+10" : unreadCount;
 
   const { data: summary, isLoading: loadingSummary } = useGetDashboardSummary({
     query: { refetchInterval: 5000, refetchOnWindowFocus: true } as any,
@@ -80,7 +83,26 @@ export default function Dashboard() {
               <button style={{ width: 36, height: 36, borderRadius: 12, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", cursor: "pointer" }}>
                 <Bell style={{ width: 16, height: 16, color: "#9CA3AF" }} />
                 {unreadCount > 0 && (
-                  <span style={{ position: "absolute", top: 6, right: 6, width: 8, height: 8, borderRadius: "50%", background: "#F5B942", border: "2px solid #07091A" }} />
+                  <span style={{
+                    position: "absolute",
+                    top: 3,
+                    right: 3,
+                    minWidth: unreadCount > 9 ? 22 : 17,
+                    height: 17,
+                    padding: "0 4px",
+                    borderRadius: 999,
+                    background: "#F5B942",
+                    border: "2px solid #07091A",
+                    color: "#111827",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 8,
+                    fontWeight: 900,
+                    lineHeight: 1,
+                  }}>
+                    {unreadBadge}
+                  </span>
                 )}
               </button>
             </Link>
