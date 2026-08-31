@@ -10,3 +10,4 @@
 - [VIXUS AI API origin](vixus-ai-api-origin.md) — browser requests must share the configured API-base helper; production fallback is the live api.vixus.trade origin.
 - [VIXUS AI wallet reconciliation](vixus-ai-wallet-reconciliation.md) — derive spendable wallet values from canonical transaction ledger rules; report locked VIP capital separately.
 - [Vercel serverless initialization](vixus-vercel-serverless-init.md) — background database migrations and seeds can be frozen after a fast health response; await readiness or initialize explicitly.
+- [VIXUS AI support inbox](vixus-ai-support-inbox.md) — system chat markers preserve full history while defining closed threads and pending admin replies.
