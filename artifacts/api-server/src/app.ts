@@ -52,6 +52,7 @@ const DEFAULT_ALLOWED_ORIGINS = [
   "https://vixus.trade",
   "https://www.vixus.trade",
   "https://vixus-user-app.vercel.app",
+  "https://vixus-admin.vercel.app",
   "https://vixus-ai-admin.vercel.app",
   "https://cryptohuckerbots-admin-app-gamma.vercel.app",
 ];
