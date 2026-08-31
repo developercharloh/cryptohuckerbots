@@ -8,9 +8,16 @@ setBaseUrl(API_BASE || null);
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    void navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`, {
-      scope: import.meta.env.BASE_URL,
-    });
+    void navigator.serviceWorker
+      .register(`${import.meta.env.BASE_URL}sw.js`, {
+        scope: import.meta.env.BASE_URL,
+        updateViaCache: "none",
+      })
+      .then((registration) => registration.update())
+      .catch(() => {
+        // A service worker is an optional offline enhancement. Login and API
+        // requests must continue through the normal network path if it fails.
+      });
   });
 }
 

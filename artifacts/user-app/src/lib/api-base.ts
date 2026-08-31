@@ -32,7 +32,14 @@ export async function fetchWithTimeout(
     if (isAbortError(error)) {
       throw new Error("The connection timed out before the server responded. Please try again.");
     }
-    throw error;
+    const offline =
+      typeof navigator !== "undefined" && navigator.onLine === false;
+    throw new Error(
+      offline
+        ? "You appear to be offline. Check your connection and try again."
+        : "Unable to reach the VIXUS API. Check your connection and try again.",
+      { cause: error },
+    );
   } finally {
     clearTimeout(timeoutId);
   }

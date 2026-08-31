@@ -234,6 +234,27 @@ export class ResponseParseError extends Error {
   }
 }
 
+export class ApiNetworkError extends Error {
+  readonly name = "ApiNetworkError";
+  readonly method: string;
+  readonly url: string;
+  readonly cause: unknown;
+
+  constructor(cause: unknown, requestInfo: { method: string; url: string }) {
+    const offline =
+      typeof navigator !== "undefined" && navigator.onLine === false;
+    super(
+      offline
+        ? "You appear to be offline. Check your connection and try again."
+        : "Unable to reach the VIXUS API. Check your connection and try again.",
+    );
+    Object.setPrototypeOf(this, new.target.prototype);
+    this.method = requestInfo.method;
+    this.url = requestInfo.url;
+    this.cause = cause;
+  }
+}
+
 async function parseJsonBody(
   response: Response,
   requestInfo: { method: string; url: string },
@@ -396,7 +417,7 @@ export async function customFetch<T = unknown>(
         "The connection timed out before the server responded. Please check your connection and try again.",
       );
     }
-    throw error;
+    throw new ApiNetworkError(error, requestInfo);
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
   }
