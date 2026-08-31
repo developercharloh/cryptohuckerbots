@@ -75,6 +75,10 @@ Each app is a **separate Vercel project** pointing at the same GitHub repo (`dev
 | VIXUS AI Admin | `artifacts/admin-app` | Other (no framework) |
 | VIXUS AI API | `artifacts/api-server` | Other (no framework) |
 
+**Canonical admin production URL:** https://cryptohuckerbots-admin-app-three.vercel.app/
+
+All admin-app updates must be deployed and verified against this URL.
+
 ### Steps (do once per project on vercel.com)
 
 1. **Import** the GitHub repo → pick the project name & root directory from the table above.
