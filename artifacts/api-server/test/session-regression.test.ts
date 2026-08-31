@@ -363,6 +363,19 @@ test("covers admin login, invalid credentials, logout, invalidation, and expiry"
   assert.ok(adminJar.value(ADMIN_SESSION_COOKIE));
   assert.equal(login.raw.includes("token"), false);
 
+  const accountPasswordAdminJar = new CookieJar();
+  const accountPasswordLogin = await request<{ ok: boolean; name: string }>("/api/admin/login", {
+    method: "POST",
+    jar: accountPasswordAdminJar,
+    body: {
+      email: userEmail,
+      username: ADMIN_USERNAME,
+      password: userPassword,
+    },
+  });
+  assert.equal(accountPasswordLogin.response.status, 200);
+  assert.deepEqual(accountPasswordLogin.body, { ok: true, name: "Cookie Regression User" });
+
   const session = await request<{ authenticated: boolean }>("/api/admin/session", {
     jar: adminJar,
   });

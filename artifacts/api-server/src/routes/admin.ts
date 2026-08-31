@@ -1205,7 +1205,7 @@ router.post("/admin/login", async (req, res) => {
   if (!email || !username || !password)
     return res.status(400).json({ error: "Email, username and password are required." });
 
-  if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD)
+  if (username !== ADMIN_USERNAME)
     return res.status(401).json({ error: "Invalid credentials. Access denied." });
 
   const normalised = String(email).toLowerCase().trim();
@@ -1217,6 +1217,15 @@ router.post("/admin/login", async (req, res) => {
     return res.status(403).json({ error: "No account found with that email. Sign up on the platform first." });
   if (user.status !== "active")
     return res.status(403).json({ error: "Your account has been suspended. Contact support." });
+
+  // The panel password is a server-controlled master credential. Seeded and
+  // promoted admins may also use the password stored on their own account,
+  // which keeps admin access working when only the account password was
+  // configured during setup.
+  const panelPasswordMatches = String(password) === ADMIN_PASSWORD;
+  const accountPasswordMatches = user.passwordHash === hashPassword(String(password));
+  if (!panelPasswordMatches && !accountPasswordMatches)
+    return res.status(401).json({ error: "Invalid credentials. Access denied." });
 
   // Auto-promote seed admins on first login if not already promoted.
   if (!user.isAdmin && SEED_ADMIN_EMAILS.includes(normalised)) {
