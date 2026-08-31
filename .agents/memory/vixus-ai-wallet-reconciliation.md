@@ -7,10 +7,10 @@ All spendable wallet balances must be derived from the canonical transaction led
 
 Signal rewards are separate ledger credits to Main Wallet, but count once in the per-user Total Profit metric as earned income; they must not be duplicated through legacy earnings or trade-profit rows.
 
-Vault Capital is not part of the spendable Main Wallet and must be reported separately. Portfolio Wallet may combine Main Wallet and Vault Capital, but trading validation must use only Vault Capital and withdrawal validation must use only Main Wallet.
+Vault Capital is not part of the Main Wallet and must be reported separately. Main Wallet and Portfolio Wallet use the non-negative completed-ledger balance, while availableBalance subtracts pending outflows for trading and withdrawals. Portfolio Wallet combines Main Wallet and Vault Capital; trading validation must use only Vault Capital and withdrawal validation must use only available Main Wallet funds.
 
 Deposit sessions are workflow records, not wallet credits. A deposit becomes spendable only after approval creates or completes its corresponding completed deposit transaction. Completion screens must read `mainWalletBalance` or `availableBalance`, not a non-existent generic `balance` field.
 
-**Why:** Multiple route-specific balance formulas caused admin, dashboard, trade, and withdrawal views to disagree about credited deposits, returns, fees, and locked capital.
+**Why:** Multiple route-specific balance formulas caused admin, dashboard, trade, and withdrawal views to disagree about credited deposits, returns, fees, locked capital, and pending withdrawal holds.
 
 **How to apply:** Reuse the shared wallet snapshot or its pure transaction-delta helper whenever a route needs a balance. For per-user Total Profit, net completed trade profits and signal rewards against completed trade losses; ignore legacy bot totals and principal movements.

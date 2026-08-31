@@ -3,7 +3,7 @@ import { db, usersTable, sessionsTable, userBotsTable, botsTable, transactionsTa
 import { eq, and, desc, asc, gte, lt, inArray, sql } from "drizzle-orm";
 import { ExecuteTradeBody } from "@workspace/api-zod";
 import { getRequestToken } from "../lib/session";
-import { calculateVaultCapital, calculateWalletBalance, getAvailableBalance, getVaultCapitalSnapshot } from "../utils/balance.js";
+import { calculateVaultCapital, calculateWalletBalance, getAvailableBalance, getVaultCapitalSnapshot, getWalletSnapshot } from "../utils/balance.js";
 
 const router = Router();
 const SIGNAL_EXECUTION_AMOUNT = 2.5;
@@ -702,9 +702,9 @@ router.post("/trade/vip-packages/:level/purchase", async (req, res) => {
       };
     });
 
-    const [finalVaultCapital, finalMainWalletBalance] = await Promise.all([
+    const [finalVaultCapital, finalWallet] = await Promise.all([
       getVaultCapitalSnapshot(user.id),
-      getAvailableBalance(user.id),
+      getWalletSnapshot(user.id),
     ]);
     return res.status(201).json({
       message: purchaseResult.isUpgrade
@@ -718,9 +718,9 @@ router.post("/trade/vip-packages/:level/purchase", async (req, res) => {
       },
       amountPaid: purchaseResult.amountDue,
        vaultCapital: finalVaultCapital.vaultCapital,
-       portfolioBalance: finalMainWalletBalance + finalVaultCapital.vaultCapital,
+       portfolioBalance: finalWallet.ledgerBalance + finalVaultCapital.vaultCapital,
        lockedInvestmentCapital: finalVaultCapital.vaultCapital,
-       mainWalletBalance: finalMainWalletBalance,
+       mainWalletBalance: finalWallet.ledgerBalance,
     });
   } catch (error) {
     if (error instanceof VipPurchaseError) {
