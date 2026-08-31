@@ -38,3 +38,9 @@ When supplying legacy `routes` for an SPA file deployment, put `{ "handle": "fil
 **Why:** A catch-all route alone can make deep links return 200 while silently replacing the JavaScript response with HTML, leaving the app unusable.
 
 **How to apply:** Use filesystem handling first, then `{ "src": "/(.*)", "dest": "/index.html" }` for the SPA fallback, and verify both a deep link and the referenced hashed asset after promotion.
+
+The Vercel deployment list filtered only by production target can briefly return the previous ready deployment while the newest Git commit is still queued or building.
+
+**Why:** Linked projects can begin their Git-triggered deployments at slightly different times, so a state check can race the new deployment.
+
+**How to apply:** After every push, identify the deployment by the pushed commit SHA, wait for that exact deployment to become `READY`, then fetch the public hashed asset and confirm the new user-visible string or behavior.
