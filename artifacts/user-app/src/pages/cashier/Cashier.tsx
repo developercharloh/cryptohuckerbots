@@ -48,7 +48,9 @@ const ACCOUNTS = [
 
 export default function Cashier() {
   const [balanceVisible, setBalanceVisible] = useState(true);
-  const { data: summary, isLoading } = useGetDashboardSummary();
+  const { data: summary, isLoading } = useGetDashboardSummary({
+    query: { refetchInterval: 5000, refetchOnWindowFocus: true } as any,
+  });
 
   return (
     <Layout showNav>

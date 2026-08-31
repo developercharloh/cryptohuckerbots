@@ -64,7 +64,9 @@ export default function Withdraw() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
-  const { data: summary, isLoading: loadingSummary } = useGetDashboardSummary();
+  const { data: summary, isLoading: loadingSummary } = useGetDashboardSummary({
+    query: { refetchInterval: 5000, refetchOnWindowFocus: true } as any,
+  });
   const { data: paymentMethods, isLoading: loadingMethods } = useListPaymentMethods();
   const withdrawMutation = useCreateWithdrawal();
   const livePairs = useLivePairs();

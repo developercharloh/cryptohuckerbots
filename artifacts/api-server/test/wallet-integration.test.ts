@@ -15,6 +15,7 @@ const {
   sql,
   eq,
   adminLoginNotificationsTable,
+  depositSessionsTable,
   earningsTable,
   kycTable,
   notificationSettingsTable,
@@ -133,6 +134,7 @@ after(async () => {
     await db.delete(kycTable).where(eq(kycTable.userId, userId));
     await db.delete(notificationSettingsTable).where(eq(notificationSettingsTable.userId, userId));
     await db.delete(vipInvestmentCapitalTable).where(eq(vipInvestmentCapitalTable.userId, userId));
+    await db.delete(depositSessionsTable).where(eq(depositSessionsTable.userId, userId));
     await db.delete(transactionsTable).where(eq(transactionsTable.userId, userId));
     await db.delete(sessionsTable).where(eq(sessionsTable.userId, userId));
     await db.delete(usersTable).where(eq(usersTable.id, userId));
@@ -225,6 +227,32 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
   assert.equal(summary.body.totalEarnings, 50);
   assert.equal(summary.body.totalProfit, 50);
 
+  const depositSession = await request<{ id: number; status: string; amount: number }>("/api/cashier/deposit/session", {
+    method: "POST",
+    body: { amount: 80, paymentMethodId: "usdt_trc20" },
+  });
+  assert.equal(depositSession.response.status, 201);
+  assert.equal(depositSession.body.status, "waiting_payment");
+  assert.equal(depositSession.body.amount, 80);
+
+  const beforeSessionApproval = await request<{ mainWalletBalance: number }>("/api/dashboard/summary");
+  assert.equal(beforeSessionApproval.body.mainWalletBalance, 425);
+
+  const approvedDepositSession = await request(`/api/admin/deposit-sessions/${depositSession.body.id}/review`, {
+    method: "POST",
+    cookieJar: adminJar,
+    body: { action: "approve" },
+  });
+  assert.equal(approvedDepositSession.response.status, 200);
+  assert.equal(approvedDepositSession.body.status, "completed");
+
+  const afterSessionApproval = await request<{
+    mainWalletBalance: number;
+    availableBalance: number;
+  }>("/api/dashboard/summary");
+  assert.equal(afterSessionApproval.body.mainWalletBalance, 505);
+  assert.equal(afterSessionApproval.body.availableBalance, 505);
+
   const pendingWithdrawal = await request("/api/cashier/withdraw", {
     method: "POST",
     body: { amount: 100, paymentMethod: "USDT (TRC20)", walletAddress: "pending-withdrawal-wallet" },
@@ -237,11 +265,11 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
     totalBalance: number;
     portfolioBalance: number;
   }>("/api/dashboard/summary");
-  assert.equal(heldSummary.body.mainWalletBalance, 425);
-  assert.equal(heldSummary.body.availableBalance, 425);
+  assert.equal(heldSummary.body.mainWalletBalance, 505);
+  assert.equal(heldSummary.body.availableBalance, 505);
   assert.equal(heldSummary.body.pendingOutflow, 100);
-  assert.equal(heldSummary.body.totalBalance, 925);
-  assert.equal(heldSummary.body.portfolioBalance, 925);
+  assert.equal(heldSummary.body.totalBalance, 1005);
+  assert.equal(heldSummary.body.portfolioBalance, 1005);
 
   const adminUsers = await request<Array<{
     id: number;

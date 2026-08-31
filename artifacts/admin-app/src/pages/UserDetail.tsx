@@ -286,7 +286,7 @@ export default function UserDetail() {
                     <div className="font-semibold">${user.availableBalance.toFixed(2)}</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-xs font-medium text-muted-foreground">Pending holds</div>
+                        <div className="text-xs font-medium text-muted-foreground">Pending requests</div>
                     <div className="font-semibold text-amber-500">${user.pendingOutflow.toFixed(2)}</div>
                   </div>
                 </div>
