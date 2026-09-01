@@ -16,10 +16,13 @@ let initPromise: Promise<void> | null = null;
 
 function startupErrorCode(error: unknown): string {
   const messages: string[] = [];
+  const codes: string[] = [];
   let current: unknown = error;
   for (let depth = 0; depth < 4 && current; depth++) {
     if (current instanceof Error) {
       messages.push(current.message);
+      const code = (current as Error & { code?: unknown }).code;
+      if (typeof code === "string" && /^[A-Z0-9_]{2,12}$/.test(code)) codes.push(code);
       current = current.cause;
     } else {
       messages.push(String(current));
@@ -28,7 +31,9 @@ function startupErrorCode(error: unknown): string {
   }
   const message = messages.join(" | ");
   if (/journal|migration|ENOENT|migrationsFolder/i.test(message)) return "migration-assets";
-  if (/postgres|database|ECONN|EAI_AGAIN|ENOTFOUND|ETIMEDOUT|timeout|connection|relation|column|SQLSTATE|violates|does not exist/i.test(message)) return "database";
+  if (/postgres|database|ECONN|EAI_AGAIN|ENOTFOUND|ETIMEDOUT|timeout|connection|relation|column|SQLSTATE|violates|does not exist/i.test(message)) {
+    return codes[0] ? `database-${codes[0]}` : "database";
+  }
   if (/ADMIN_|SESSION_SECRET|NEON_DATABASE_URL|DIDIT_/i.test(message)) return "configuration";
   return `startup-${error instanceof Error ? error.name.toLowerCase() : "unknown"}`;
 }
