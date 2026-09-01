@@ -1,6 +1,8 @@
 import { runMigrations } from "@workspace/db/migrate";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import app from "./app.js";
 import { logger } from "./lib/logger.js";
 import {
@@ -11,6 +13,14 @@ import {
 } from "./lib/seed.js";
 
 let initPromise: Promise<void> | null = null;
+
+// Vercel deploys the bundled handler from the API artifact directory, not the
+// workspace root. Point migration startup at the copy packaged beside the
+// handler so readiness does not depend on source files outside the function.
+process.env.MIGRATIONS_DIR ??= path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "migrations",
+);
 
 function getInitPromise(): Promise<void> {
   if (!initPromise) {

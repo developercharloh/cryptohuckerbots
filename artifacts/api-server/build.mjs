@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
-import { rm, mkdir, writeFile } from "node:fs/promises";
+import { rm, mkdir, writeFile, cp } from "node:fs/promises";
 
 // Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
 globalThis.require = createRequire(import.meta.url);
@@ -19,6 +19,11 @@ async function buildAll() {
   const publicDir = path.resolve(artifactDir, "public");
   await mkdir(publicDir, { recursive: true });
   await writeFile(path.resolve(publicDir, ".gitkeep"), "");
+  await cp(
+    path.resolve(artifactDir, "../../lib/db/migrations"),
+    path.resolve(distDir, "migrations"),
+    { recursive: true },
+  );
 
   await esbuild({
     entryPoints: [
