@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import app from "./app.js";
+import app, { setStartupPromise } from "./app.js";
 import { logger } from "./lib/logger.js";
 import {
   seedBots,
@@ -126,10 +126,17 @@ async function runStartupTasks(): Promise<void> {
   await ensureAdminEmail();
 }
 
-// Keep module initialization tied to the first serverless invocation. A
-// background promise can be frozen when Vercel returns a fast health response,
-// leaving migrations/seeding half-finished for the next request.
-await getInitPromise();
-app.locals.startupReady = true;
+// Export the handler synchronously for Vercel. The app gates real traffic on
+// this promise, so initialization cannot be frozen behind a fast health check.
+const startupPromise = getInitPromise();
+setStartupPromise(startupPromise);
+void startupPromise.then(
+  () => {
+    app.locals.startupReady = true;
+  },
+  (err) => {
+    logger.error({ err }, "Serverless startup failed");
+  },
+);
 
 export default app;

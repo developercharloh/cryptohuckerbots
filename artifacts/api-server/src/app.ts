@@ -14,6 +14,11 @@ import { consumeRateLimit, rejectRateLimited, requestIp } from "./lib/security";
 
 const app: Express = express();
 app.disable("x-powered-by");
+let startupPromise: Promise<void> | null = null;
+
+export function setStartupPromise(promise: Promise<void>): void {
+  startupPromise = promise;
+}
 
 // Ultra-simple health check before any middleware — responds instantly even if
 // pinoHttp or static-file middleware is slow to initialize on cold start.
@@ -28,6 +33,23 @@ app.get("/api/readyz", (_req, res) => {
     return;
   }
   res.status(503).json({ status: "starting" });
+});
+
+// Vercel's function loader expects a synchronously exported handler. The
+// serverless entrypoint registers its initialization promise here instead of
+// using top-level await, while keeping health checks fast and gating all real
+// API traffic on successful startup.
+app.use(async (req, _res, next) => {
+  if (!startupPromise || req.path === "/api/healthz" || req.path === "/api/readyz") {
+    next();
+    return;
+  }
+  try {
+    await startupPromise;
+    next();
+  } catch (err) {
+    next(err);
+  }
 });
 
 app.use(
