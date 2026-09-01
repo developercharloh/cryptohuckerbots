@@ -27,10 +27,21 @@ app.get("/api/healthz", (_req, res) => {
   res.end('{"status":"ok"}');
 });
 
-app.get("/api/readyz", (_req, res) => {
+app.get("/api/readyz", async (_req, res) => {
   if (app.locals.startupReady === true) {
     res.json({ status: "ready" });
     return;
+  }
+  if (startupPromise) {
+    try {
+      await startupPromise;
+      app.locals.startupReady = true;
+      res.json({ status: "ready" });
+      return;
+    } catch {
+      res.status(503).json({ status: "unavailable" });
+      return;
+    }
   }
   res.status(503).json({ status: "starting" });
 });
