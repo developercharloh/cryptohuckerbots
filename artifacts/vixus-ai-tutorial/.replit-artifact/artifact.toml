@@ -1,0 +1,30 @@
+kind = "video"
+previewPath = "/vixus-ai-tutorial/"
+title = "What Is VIXUS AI?"
+description = "A narrated 4:5 educational trading video explaining how VIXUS AI analyzes market data, identifies trading setups, scores signals, and follows positions through settlement."
+version = "1.0.0"
+id = "artifacts/vixus-ai-tutorial"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/vixus-ai-tutorial/" ]
+localPort = 24810
+
+[services.development]
+run = "pnpm --filter @workspace/vixus-ai-tutorial run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/vixus-ai-tutorial", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/vixus-ai-tutorial/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24810"
+BASE_PATH = "/vixus-ai-tutorial/"
+
+videoAspectRatio = "4:5"

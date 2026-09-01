@@ -1,0 +1,160 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+:root {
+  --color-primary: #f1c76c;
+  --color-secondary: #8e9ab8;
+  --color-accent: #8bd8ce;
+  --color-bg-light: #101829;
+  --color-bg-dark: #080d18;
+  --color-bg-muted: #172238;
+  --color-text-primary: #f7f1e7;
+  --color-text-secondary: #b7c1d2;
+  --color-text-muted: #6f7d98;
+  --color-text-inverse: #0b1220;
+  --color-success: #8bd8ce;
+  --color-warning: #f1c76c;
+  --color-error: #ef766b;
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'Manrope', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+  --line: rgba(183, 193, 210, .14);
+}
+
+@theme inline {
+  --color-primary: var(--color-primary);
+  --color-secondary: var(--color-secondary);
+  --color-accent: var(--color-accent);
+  --color-bg-light: var(--color-bg-light);
+  --color-bg-dark: var(--color-bg-dark);
+  --color-bg-muted: var(--color-bg-muted);
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+  --color-text-inverse: var(--color-text-inverse);
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-error: var(--color-error);
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--color-bg-dark);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.vixus-video {
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  background:
+    radial-gradient(circle at 86% 8%, rgba(139, 216, 206, .11), transparent 34%),
+    radial-gradient(circle at 0% 100%, rgba(241, 199, 108, .08), transparent 40%),
+    var(--color-bg-dark);
+  isolation: isolate;
+}
+
+.vixus-video::after {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  content: '';
+  opacity: .045;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");
+  mix-blend-mode: screen;
+}
+
+.display-font { font-family: var(--font-display); }
+.mono-font { font-family: var(--font-mono); }
+.eyebrow {
+  font: 500 clamp(.55rem, 1.5vmin, .82rem)/1.2 var(--font-mono);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+.hairline { height: 1px; background: var(--line); }
+.panel {
+  border: 1px solid var(--line);
+  background: rgba(23, 34, 56, .66);
+  box-shadow: 0 22px 60px rgba(1, 5, 14, .28);
+  backdrop-filter: blur(10px);
+}
+.panel-light {
+  border: 1px solid rgba(241, 199, 108, .32);
+  background: rgba(241, 199, 108, .09);
+}
+.text-gold { color: var(--color-primary); }
+.text-teal { color: var(--color-accent); }
+.text-muted { color: var(--color-text-muted); }
+
+@keyframes drift {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50% { transform: translate3d(1.8vw, -1.2vh, 0) rotate(3deg); }
+}
+@keyframes scan {
+  0% { transform: translateY(-110%); opacity: 0; }
+  15%, 80% { opacity: .5; }
+  100% { transform: translateY(120%); opacity: 0; }
+}
+@keyframes pulseLine {
+  0%, 100% { opacity: .22; transform: scaleX(.72); }
+  50% { opacity: .75; transform: scaleX(1); }
+}
+@keyframes ticker {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.drift { animation: drift 7s ease-in-out infinite; }
+.scan { animation: scan 4.8s ease-in-out infinite; }
+.pulse-line { animation: pulseLine 2.8s ease-in-out infinite; transform-origin: left; }
+.ticker-track { animation: ticker 18s linear infinite; }
+
+.video-media-frame {
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  width: 100%;
+}
+
+.video-media-frame > :is(img, video) {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  width: 100%;
+}
+
+.video-media-frame[data-media-fit='contain'] > :is(img, video) {
+  object-fit: contain;
+}
+
+.video-media-frame[data-media-position='top'] > :is(img, video) {
+  object-position: top;
+}
+
+.video-media-frame[data-media-position='right'] > :is(img, video) {
+  object-position: right;
+}
+
+.video-media-frame[data-media-position='bottom'] > :is(img, video) {
+  object-position: bottom;
+}
+
+.video-media-frame[data-media-position='left'] > :is(img, video) {
+  object-position: left;
+}
