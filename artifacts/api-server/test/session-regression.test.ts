@@ -18,6 +18,7 @@ const {
   adminLoginNotificationsTable,
   kycTable,
   notificationSettingsTable,
+  authRateLimitsTable,
   sessionsTable,
   usersTable,
 } = await (async () => {
@@ -175,6 +176,7 @@ before(async () => {
 
   const usersTableStatus = await db.execute(sql`select to_regclass('public.users') as table_name`);
   if (!usersTableStatus.rows[0]?.table_name) return;
+  await db.delete(authRateLimitsTable);
 
   const registration = await request<{ user: { id: number } }>("/api/auth/register", {
     method: "POST",
@@ -182,6 +184,7 @@ before(async () => {
       fullName: "Cookie Regression User",
       email: userEmail,
       password: userPassword,
+      country: "Kenya",
     },
   });
   assert.equal(registration.response.status, 201);
@@ -275,7 +278,7 @@ test("handles credentialed preflight for configured frontend origins", async () 
   assert.match(response.headers.get("access-control-allow-headers") ?? "", /content-type/i);
 });
 
-test("keeps user sessions in persistent HttpOnly cookies across reloads until logout", async (t) => {
+test("expires user sessions after the absolute session lifetime", async (t) => {
   if (skipWithoutDatabase(t)) return;
   const loginJar = new CookieJar();
   const login = await request<{ user: { id: number; email: string } }>("/api/auth/login", {
@@ -327,11 +330,11 @@ test("keeps user sessions in persistent HttpOnly cookies across reloads until lo
     .where(eq(sessionsTable.id, session.id));
 
   const persistent = await request("/api/auth/me", { jar: persistentJar });
-  assert.equal(persistent.response.status, 200);
-  assert.equal(persistentJar.value(USER_SESSION_COOKIE), persistentToken);
+  assert.equal(persistent.response.status, 401);
+  assert.equal(persistentJar.value(USER_SESSION_COOKIE), undefined);
   const retainedSession = await db.select().from(sessionsTable)
     .where(eq(sessionsTable.id, session.id));
-  assert.equal(retainedSession.length, 1);
+  assert.equal(retainedSession.length, 0);
 });
 
 test("covers admin login, invalid credentials, logout, invalidation, and expiry", async (t) => {

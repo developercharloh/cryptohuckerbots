@@ -67,11 +67,15 @@ export async function consumeRateLimit({
 
   const row = result.rows[0] as {
     count: number;
-    window_started_at: Date;
-    blocked_until: Date | null;
+    blocked_until: Date | string | null;
   } | undefined;
-  const activeBlock = row?.blocked_until && row.blocked_until > now;
-  const overLimit = (row?.count ?? limit) > limit;
+  const blockedUntilMs = row?.blocked_until
+    ? row.blocked_until instanceof Date
+      ? row.blocked_until.getTime()
+      : Date.parse(row.blocked_until)
+    : null;
+  const activeBlock = blockedUntilMs !== null && blockedUntilMs > now.getTime();
+  const overLimit = Number(row?.count ?? limit) > limit;
 
   if (Date.now() - lastCleanupAt > CLEANUP_INTERVAL_MS) {
     lastCleanupAt = Date.now();
@@ -84,7 +88,7 @@ export async function consumeRateLimit({
   }
 
   if (activeBlock || overLimit) {
-    const retryAt = row?.blocked_until?.getTime() ?? now.getTime() + blockMs;
+    const retryAt = blockedUntilMs ?? now.getTime() + blockMs;
     return {
       allowed: false,
       retryAfterSeconds: Math.max(1, Math.ceil((retryAt - now.getTime()) / 1000)),

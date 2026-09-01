@@ -14,6 +14,7 @@ const {
   pool,
   chatMessagesTable,
   notificationsTable,
+  authRateLimitsTable,
   sessionsTable,
   usersTable,
   sql,
@@ -88,10 +89,11 @@ before(async () => {
 
   const status = await db.execute(sql`select to_regclass('public.users') as table_name`);
   if (!status.rows[0]?.table_name) return;
+  await db.delete(authRateLimitsTable);
 
   const adminRegistration = await request<{ user: { id: number } }>("/api/auth/register", {
     method: "POST",
-    body: { fullName: "Support Chat Admin", email: adminEmail, password },
+    body: { fullName: "Support Chat Admin", email: adminEmail, password, country: "Kenya" },
     cookieJar: adminJar,
   });
   assert.equal(adminRegistration.response.status, 201);
@@ -100,7 +102,7 @@ before(async () => {
 
   const userRegistration = await request<{ user: { id: number } }>("/api/auth/register", {
     method: "POST",
-    body: { fullName: "Support Chat User", email: userEmail, password },
+    body: { fullName: "Support Chat User", email: userEmail, password, country: "Kenya" },
     cookieJar: userJar,
   });
   assert.equal(userRegistration.response.status, 201);

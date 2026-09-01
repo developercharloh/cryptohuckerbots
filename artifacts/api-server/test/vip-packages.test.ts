@@ -8,7 +8,7 @@ process.env.ADMIN_JWT_SECRET = "vip-package-test-jwt-secret";
 
 const { default: app } = await import("../src/app.ts");
 const database = await import("@workspace/db");
-const { db, pool, sql, eq, asc, transactionsTable, vipPackagePurchasesTable, vipInvestmentCapitalTable, signalClaimsTable, signalOpportunitiesTable, positionsTable, usersTable, sessionsTable } = {
+const { db, pool, sql, eq, asc, transactionsTable, vipPackagePurchasesTable, vipInvestmentCapitalTable, signalClaimsTable, signalOpportunitiesTable, positionsTable, usersTable, sessionsTable, authRateLimitsTable } = {
   ...database,
   ...(await import("drizzle-orm")),
 };
@@ -74,16 +74,17 @@ before(async () => {
 
   const status = await db.execute(sql`select to_regclass('public.vip_package_purchases') as table_name`);
   if (!status.rows[0]?.table_name) return;
+  await db.delete(authRateLimitsTable);
   const registration = await request<{ user: { id: number } }>("/api/auth/register", {
     method: "POST",
-    body: { fullName: "VIP Package Test User", email: userEmail, password: userPassword },
+    body: { fullName: "VIP Package Test User", email: userEmail, password: userPassword, country: "Kenya" },
   });
   assert.equal(registration.response.status, 201);
   userId = registration.body.user.id;
   const emptyRegistration = await request<{ user: { id: number } }>("/api/auth/register", {
     method: "POST",
     cookieJar: noBalanceJar,
-    body: { fullName: "VIP Empty Wallet User", email: noBalanceEmail, password: userPassword },
+    body: { fullName: "VIP Empty Wallet User", email: noBalanceEmail, password: userPassword, country: "Kenya" },
   });
   assert.equal(emptyRegistration.response.status, 201);
   noBalanceUserId = emptyRegistration.body.user.id;
