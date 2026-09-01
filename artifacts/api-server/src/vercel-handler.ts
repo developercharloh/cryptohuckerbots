@@ -15,11 +15,22 @@ import {
 let initPromise: Promise<void> | null = null;
 
 function startupErrorCode(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
+  const messages: string[] = [];
+  let current: unknown = error;
+  for (let depth = 0; depth < 4 && current; depth++) {
+    if (current instanceof Error) {
+      messages.push(current.message);
+      current = current.cause;
+    } else {
+      messages.push(String(current));
+      break;
+    }
+  }
+  const message = messages.join(" | ");
   if (/journal|migration|ENOENT|migrationsFolder/i.test(message)) return "migration-assets";
-  if (/postgres|database|ECONN|ETIMEDOUT|timeout|connection/i.test(message)) return "database";
+  if (/postgres|database|ECONN|EAI_AGAIN|ENOTFOUND|ETIMEDOUT|timeout|connection|relation|column|SQLSTATE|violates|does not exist/i.test(message)) return "database";
   if (/ADMIN_|SESSION_SECRET|NEON_DATABASE_URL|DIDIT_/i.test(message)) return "configuration";
-  return "startup";
+  return `startup-${error instanceof Error ? error.name.toLowerCase() : "unknown"}`;
 }
 
 // Vercel deploys the bundled handler from the API artifact directory, not the
