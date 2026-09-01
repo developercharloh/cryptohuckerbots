@@ -418,3 +418,48 @@ export const signalScheduleAuditTable = pgTable("signal_schedule_audit", {
 ]);
 
 export type SignalScheduleAudit = typeof signalScheduleAuditTable.$inferSelect;
+
+// Short-lived, server-side records used to throttle authentication and other
+// abuse-prone endpoints across serverless instances.
+export const authRateLimitsTable = pgTable("auth_rate_limits", {
+  key: varchar("key", { length: 255 }).primaryKey(),
+  count: integer("count").notNull().default(0),
+  windowStartedAt: timestamp("window_started_at").notNull().defaultNow(),
+  blockedUntil: timestamp("blocked_until"),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type AuthRateLimit = typeof authRateLimitsTable.$inferSelect;
+
+// Password reset tokens are stored only as hashes. The plaintext token is
+// delivered out-of-band and is single-use, short-lived, and revocable.
+export const passwordResetTokensTable = pgTable("password_reset_tokens", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  tokenHash: varchar("token_hash", { length: 128 }).notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  index("password_reset_tokens_user_id_idx").on(table.userId),
+  index("password_reset_tokens_expires_at_idx").on(table.expiresAt),
+]);
+
+export type PasswordResetToken = typeof passwordResetTokensTable.$inferSelect;
+
+// Security events are intentionally append-only application audit records.
+// Sensitive values (passwords, reset tokens, bearer tokens) must never be
+// included in metadata.
+export const securityEventsTable = pgTable("security_events", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id"),
+  event: varchar("event", { length: 100 }).notNull(),
+  ip: varchar("ip", { length: 100 }).notNull().default("Unknown"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  index("security_events_user_created_at_idx").on(table.userId, table.createdAt),
+  index("security_events_event_created_at_idx").on(table.event, table.createdAt),
+]);
+
+export type SecurityEvent = typeof securityEventsTable.$inferSelect;

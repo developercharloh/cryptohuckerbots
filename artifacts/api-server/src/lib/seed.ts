@@ -1,7 +1,7 @@
-import crypto from "node:crypto";
 import { db, botsTable, usersTable, faqTable, notificationSettingsTable, kycTable, sessionsTable, userBotsTable, positionsTable, transactionsTable, earningsTable, notificationsTable, depositSessionsTable, supportTicketsTable, userProfilesTable, vipPackagePurchasesTable, vipInvestmentCapitalTable } from "@workspace/db";
 import { eq, sql, notInArray, inArray, or, like } from "drizzle-orm";
 import { logger } from "./logger";
+import { hashPassword } from "./password";
 
 const FAQ_ENTRIES = [
   { question: "How do I deposit funds?", answer: "Go to Wallet > Deposit, choose your preferred method (USDT TRC20/ERC20, BTC, or card), and follow the on-screen instructions. Your balance updates once the transaction is confirmed.", category: "Deposits" },
@@ -15,10 +15,6 @@ const FAQ_ENTRIES = [
 
 // Primary admin accounts — always promoted on startup regardless of env vars.
 const SEED_ADMINS = ["admin@vixus.ai"];
-
-function hashPassword(password: string): string {
-  return crypto.createHash("sha256").update(password + "vixus_salt_2024").digest("hex");
-}
 
 function generateUid(): string {
   return Math.random().toString(36).substring(2, 10).toUpperCase();
@@ -43,12 +39,16 @@ export async function ensureAdminEmail(): Promise<void> {
 
     // User doesn't exist — create the admin account automatically
     try {
-      const adminPassword = process.env["ADMIN_ACCOUNT_PASSWORD"] ?? "Admin@VIXUS2027!";
+      const adminPassword = process.env["ADMIN_ACCOUNT_PASSWORD"];
+      if (!adminPassword) {
+        logger.error({ email }, "Admin account was not created because ADMIN_ACCOUNT_PASSWORD is missing");
+        continue;
+      }
       await db.insert(usersTable).values({
         accountUid: generateUid(),
         fullName: "Platform Admin",
         email,
-        passwordHash: hashPassword(adminPassword),
+        passwordHash: await hashPassword(adminPassword),
         isAdmin: true,
         kycStatus: "verified",
         status: "active",

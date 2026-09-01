@@ -48,15 +48,26 @@ import {
   getRequestToken,
   revokeUserSessions,
   setAdminSessionCookie,
+  ADMIN_SESSION_TTL_MS,
 } from "../lib/session";
+import { hashPassword, verifyPassword } from "../lib/password";
+import { consumeRateLimit, recordSecurityEvent, rejectRateLimited, requestIp } from "../lib/security";
 
 const router = Router();
 
-function hashPassword(password: string): string {
-  return crypto.createHash("sha256").update(password + "vixus_salt_2024").digest("hex");
+const configuredJwtSecret = process.env.ADMIN_JWT_SECRET ?? process.env.ADMIN_PANEL_PASSWORD;
+if (process.env.NODE_ENV === "production" && !configuredJwtSecret) {
+  throw new Error("ADMIN_JWT_SECRET must be configured in production.");
 }
+// Development/test processes get an ephemeral secret rather than a guessable
+// source-controlled fallback. It changes on restart, which is appropriate.
+const JWT_SECRET = configuredJwtSecret ?? crypto.randomBytes(32).toString("hex");
 
-const JWT_SECRET = process.env.ADMIN_JWT_SECRET ?? process.env.ADMIN_ACCOUNT_PASSWORD ?? "vixus_admin_secret_2024";
+function safeEqualStrings(left: string, right: string): boolean {
+  const a = Buffer.from(left);
+  const b = Buffer.from(right);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
 
 function createAdminToken(userId: number): string {
   const payload = Buffer.from(JSON.stringify({
@@ -74,7 +85,7 @@ function parseAdminToken(token: string | undefined): { userId: number; expiresAt
   if (parts.length !== 2) return null;
   const [payload, sig] = parts;
   const expectedSig = crypto.createHmac("sha256", JWT_SECRET).update(payload).digest("base64url");
-  if (sig !== expectedSig) return null;
+  if (!safeEqualStrings(sig, expectedSig)) return null;
   try {
     const parsed = JSON.parse(Buffer.from(payload, "base64url").toString()) as {
       userId?: unknown;
@@ -114,6 +125,14 @@ async function requireAdmin(req: Request, res: Response, next: NextFunction) {
     clearAdminSessionCookie(res);
     return res.status(401).json({ error: "Admin authentication required." });
   }
+  if (Date.now() - session.lastActive.getTime() > ADMIN_SESSION_TTL_MS) {
+    await db.delete(sessionsTable).where(eq(sessionsTable.id, session.id));
+    clearAdminSessionCookie(res);
+    return res.status(401).json({ error: "Admin authentication required." });
+  }
+  await db.update(sessionsTable)
+    .set({ lastActive: new Date() })
+    .where(eq(sessionsTable.id, session.id));
 
   const [admin] = await db
     .select({ id: usersTable.id })
@@ -549,8 +568,9 @@ router.post("/admin/users/:id/reset-password", async (req, res) => {
   if (!user) return res.status(404).json({ error: "User not found" });
 
   const tempPassword = "Qfx-" + crypto.randomBytes(4).toString("hex");
-  await db.update(usersTable).set({ passwordHash: hashPassword(tempPassword) }).where(eq(usersTable.id, id));
+  await db.update(usersTable).set({ passwordHash: await hashPassword(tempPassword), updatedAt: new Date() }).where(eq(usersTable.id, id));
   await revokeUserSessions(id);
+  await recordSecurityEvent(req, "admin_password_reset", id);
   return res.json({ tempPassword });
 });
 
@@ -1358,10 +1378,21 @@ router.post("/admin/chat/:userId", async (req, res) => {
 const ADMIN_USERNAME = "admin.vixus-ai";
 // The production panel password is injected as an encrypted deployment secret.
 // Keep the development fallback only for local/test environments.
-const ADMIN_PASSWORD = process.env.ADMIN_PANEL_PASSWORD ?? "Admin@VIXUS2027!";
+const ADMIN_PASSWORD = process.env.ADMIN_PANEL_PASSWORD;
+if (process.env.NODE_ENV === "production" && !ADMIN_PASSWORD) {
+  throw new Error("ADMIN_PANEL_PASSWORD must be configured in production.");
+}
 const SEED_ADMIN_EMAILS = ["admin@vixus.ai"];
 
 router.post("/admin/login", async (req, res) => {
+  const ipLimit = await consumeRateLimit({
+    key: `admin-login:ip:${requestIp(req)}`,
+    limit: 8,
+    windowMs: 15 * 60 * 1000,
+    blockMs: 30 * 60 * 1000,
+  });
+  if (rejectRateLimited(res, ipLimit)) return;
+
   const { email, username, password } = req.body ?? {};
 
   if (!email || !username || !password)
@@ -1384,10 +1415,20 @@ router.post("/admin/login", async (req, res) => {
   // promoted admins may also use the password stored on their own account,
   // which keeps admin access working when only the account password was
   // configured during setup.
-  const panelPasswordMatches = String(password) === ADMIN_PASSWORD;
-  const accountPasswordMatches = user.passwordHash === hashPassword(String(password));
+  const panelPasswordMatches = Boolean(ADMIN_PASSWORD && safeEqualStrings(String(password), ADMIN_PASSWORD));
+  const accountVerification = await verifyPassword(String(password), user.passwordHash);
+  const accountPasswordMatches = accountVerification.valid;
   if (!panelPasswordMatches && !accountPasswordMatches)
+    {
+    await recordSecurityEvent(req, "admin_login_failed", user.id, { reason: "invalid_credentials" });
     return res.status(401).json({ error: "Invalid credentials. Access denied." });
+    }
+
+  if (accountVerification.needsRehash) {
+    await db.update(usersTable)
+      .set({ passwordHash: await hashPassword(String(password)), updatedAt: new Date() })
+      .where(eq(usersTable.id, user.id));
+  }
 
   // Auto-promote seed admins on first login if not already promoted.
   if (!user.isAdmin && SEED_ADMIN_EMAILS.includes(normalised)) {
@@ -1407,6 +1448,7 @@ router.post("/admin/login", async (req, res) => {
     location: "Unknown",
   });
   setAdminSessionCookie(res, token);
+  await recordSecurityEvent(req, "admin_login_succeeded", user.id);
   return res.json({ ok: true, name: user.fullName });
 });
 

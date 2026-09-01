@@ -29,7 +29,11 @@ export default function ResetPassword() {
 
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
-    defaultValues: { token: "", password: "", confirmPassword: "" },
+    defaultValues: {
+      token: new URLSearchParams(window.location.search).get("token") ?? "",
+      password: "",
+      confirmPassword: "",
+    },
   });
 
   const onSubmit = (values: z.infer<typeof schema>) => {
@@ -58,18 +62,20 @@ export default function ResetPassword() {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="token"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Input placeholder="Reset Token" className="bg-card border-none h-14 rounded-xl px-4" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {!form.getValues("token") && (
+              <FormField
+                control={form.control}
+                name="token"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Input placeholder="Reset Token" className="bg-card border-none h-14 rounded-xl px-4" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             
             <FormField
               control={form.control}

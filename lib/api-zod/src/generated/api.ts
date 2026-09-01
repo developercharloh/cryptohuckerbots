@@ -34,10 +34,10 @@ export const ListMarketNewsResponse = zod.object({
 
 
 export const RegisterBody = zod.object({
-  "fullName": zod.string(),
-  "email": zod.string(),
-  "password": zod.string(),
-  "country": zod.string()
+  "fullName": zod.string().trim().min(2).max(120),
+  "email": zod.string().trim().email().max(255),
+  "password": zod.string().min(12).max(128),
+  "country": zod.string().trim().min(2).max(100)
 })
 
 export const RegisterResponse = zod.object({
@@ -55,8 +55,8 @@ export const RegisterResponse = zod.object({
 
 
 export const LoginBody = zod.object({
-  "email": zod.string(),
-  "password": zod.string()
+  "email": zod.string().trim().email().max(255),
+  "password": zod.string().min(1).max(128)
 })
 
 export const LoginResponse = zod.object({
@@ -79,7 +79,7 @@ export const LogoutResponse = zod.object({
 
 
 export const ForgotPasswordBody = zod.object({
-  "email": zod.string()
+  "email": zod.string().trim().email().max(255)
 })
 
 export const ForgotPasswordResponse = zod.object({
@@ -88,8 +88,8 @@ export const ForgotPasswordResponse = zod.object({
 
 
 export const ResetPasswordBody = zod.object({
-  "token": zod.string(),
-  "password": zod.string()
+  "token": zod.string().min(20).max(512),
+  "password": zod.string().min(12).max(128)
 })
 
 export const ResetPasswordResponse = zod.object({
@@ -703,8 +703,8 @@ export const UpdateProfileResponse = zod.object({
 
 
 export const ChangePasswordBody = zod.object({
-  "currentPassword": zod.string(),
-  "newPassword": zod.string()
+  "currentPassword": zod.string().min(1).max(128),
+  "newPassword": zod.string().min(12).max(128)
 })
 
 export const ChangePasswordResponse = zod.object({

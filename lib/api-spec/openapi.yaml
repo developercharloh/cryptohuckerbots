@@ -1990,6 +1990,8 @@ components:
       properties:
         email:
           type: string
+          format: email
+          maxLength: 255
       required: [email]
 
     ResetPasswordInput:
@@ -1997,8 +1999,12 @@ components:
       properties:
         token:
           type: string
+          minLength: 20
+          maxLength: 512
         password:
           type: string
+          minLength: 12
+          maxLength: 128
       required: [token, password]
 
     AuthResponse:
@@ -2309,8 +2315,12 @@ components:
       properties:
         currentPassword:
           type: string
+          minLength: 1
+          maxLength: 128
         newPassword:
           type: string
+          minLength: 12
+          maxLength: 128
       required: [currentPassword, newPassword]
 
     TwoFAStatus:

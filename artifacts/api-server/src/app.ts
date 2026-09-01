@@ -10,14 +10,24 @@ import {
   getCookie,
   USER_SESSION_COOKIE,
 } from "./lib/session";
+import { consumeRateLimit, rejectRateLimited, requestIp } from "./lib/security";
 
 const app: Express = express();
+app.disable("x-powered-by");
 
 // Ultra-simple health check before any middleware — responds instantly even if
 // pinoHttp or static-file middleware is slow to initialize on cold start.
 app.get("/api/healthz", (_req, res) => {
   res.setHeader("Content-Type", "application/json");
   res.end('{"status":"ok"}');
+});
+
+app.get("/api/readyz", (_req, res) => {
+  if (app.locals.startupReady === true) {
+    res.json({ status: "ready" });
+    return;
+  }
+  res.status(503).json({ status: "starting" });
 });
 
 app.use(
@@ -39,6 +49,21 @@ app.use(
     },
   }),
 );
+
+// API responses must never be interpreted as executable content or cached as
+// private account data. The API has no reason to be framed by another page.
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  res.setHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'");
+  res.setHeader("Cache-Control", "no-store");
+  if (process.env.NODE_ENV === "production") {
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
+  next();
+});
 // A bare `cors()` responds with `Access-Control-Allow-Origin: *`, which
 // browsers reject for credentialed requests (e.g. `xhr.withCredentials =
 // true`, used by the file upload flow to send the session cookie). Since
@@ -170,6 +195,41 @@ app.use(express.json({
   },
 }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
+
+// Distributed PostgreSQL-backed throttling for high-impact mutations. Login
+// and password routes apply tighter account-aware limits in their own handlers.
+app.use(async (req, res, next) => {
+  const path = req.path;
+  const isMutation = stateChangingMethods.has(req.method);
+  const isSensitiveMutation =
+    isMutation &&
+    (
+      (path.startsWith("/api/admin/") && path !== "/api/admin/login") ||
+      path.startsWith("/api/cashier/deposit") ||
+      path === "/api/cashier/withdraw" ||
+      path.startsWith("/api/trade/") ||
+      path.startsWith("/api/support/") ||
+      path.startsWith("/api/profile/kyc")
+    );
+  if (!isSensitiveMutation) {
+    next();
+    return;
+  }
+
+  try {
+    const result = await consumeRateLimit({
+      key: `sensitive-mutation:ip:${requestIp(req)}`,
+      limit: path.startsWith("/api/admin/") ? 120 : 40,
+      windowMs: 15 * 60 * 1000,
+      blockMs: 15 * 60 * 1000,
+    });
+    if (rejectRateLimited(res, result)) return;
+    next();
+  } catch (err) {
+    req.log?.error({ err }, "Sensitive mutation rate limiter unavailable");
+    res.status(503).json({ error: "This action is temporarily unavailable. Please try again." });
+  }
+});
 
 // Promote the HttpOnly session cookie to the internal auth representation used
 // by the route modules. The token never reaches browser JavaScript; the

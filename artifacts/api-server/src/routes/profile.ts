@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { db, usersTable, sessionsTable, kycTable, notificationSettingsTable, userProfilesTable } from "@workspace/db";
-import { eq, ne } from "drizzle-orm";
-import crypto from "crypto";
+import { eq, and } from "drizzle-orm";
 import { generateSecret, generateURI, verifySync } from "otplib";
 import QRCode from "qrcode";
 import {
@@ -13,12 +12,10 @@ import {
 } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
 import { clearUserSessionCookie, getUserSession, revokeUserSessions } from "../lib/session";
+import { hashPassword, verifyPassword } from "../lib/password";
+import { consumeRateLimit, rejectRateLimited, requestIp, recordSecurityEvent } from "../lib/security";
 
 const router = Router();
-
-function hashPassword(password: string): string {
-  return crypto.createHash("sha256").update(password + "vixus_salt_2024").digest("hex");
-}
 
 async function getUserFromToken(token: string | undefined) {
   const record = await getUserSession(token);
@@ -95,17 +92,19 @@ router.post("/profile/change-password", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
 
   const { currentPassword, newPassword } = parsed.data;
-  if (user.passwordHash !== hashPassword(currentPassword)) {
+  const currentPasswordVerification = await verifyPassword(currentPassword, user.passwordHash);
+  if (!currentPasswordVerification.valid) {
     return res.status(400).json({ error: "Current password is incorrect" });
   }
 
   await db.update(usersTable).set({
-    passwordHash: hashPassword(newPassword),
+    passwordHash: await hashPassword(newPassword),
     updatedAt: new Date(),
   }).where(eq(usersTable.id, user.id));
 
   await revokeUserSessions(user.id);
   clearUserSessionCookie(res);
+  await recordSecurityEvent(req, "password_changed", user.id);
 
   return res.json({ message: "Password changed successfully. Please sign in again." });
 });
@@ -136,6 +135,14 @@ router.post("/profile/2fa/setup", async (req, res) => {
 
 // Verify code and activate 2FA
 router.post("/profile/2fa/enable", async (req, res) => {
+  const limited = await consumeRateLimit({
+    key: `2fa-enable:ip:${requestIp(req)}`,
+    limit: 6,
+    windowMs: 15 * 60 * 1000,
+    blockMs: 15 * 60 * 1000,
+  });
+  if (rejectRateLimited(res, limited)) return;
+
   const token = req.headers.authorization?.replace("Bearer ", "");
   const { user } = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
@@ -155,6 +162,14 @@ router.post("/profile/2fa/enable", async (req, res) => {
 
 // Verify current code and disable 2FA
 router.post("/profile/2fa/disable", async (req, res) => {
+  const limited = await consumeRateLimit({
+    key: `2fa-disable:ip:${requestIp(req)}`,
+    limit: 6,
+    windowMs: 15 * 60 * 1000,
+    blockMs: 15 * 60 * 1000,
+  });
+  if (rejectRateLimited(res, limited)) return;
+
   const token = req.headers.authorization?.replace("Bearer ", "");
   const { user } = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
@@ -373,7 +388,10 @@ router.delete("/profile/sessions/:id", async (req, res) => {
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
   const id = parseInt(req.params.id);
-  await db.delete(sessionsTable).where(eq(sessionsTable.id, id));
+  const deleted = await db.delete(sessionsTable)
+    .where(and(eq(sessionsTable.id, id), eq(sessionsTable.userId, user.id)))
+    .returning({ id: sessionsTable.id });
+  if (deleted.length === 0) return res.status(404).json({ error: "Session not found" });
 
   return res.json({ message: "Session revoked" });
 });

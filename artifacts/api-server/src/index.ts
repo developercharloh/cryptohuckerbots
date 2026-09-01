@@ -20,12 +20,8 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 async function runStartupTasks() {
-  try {
-    const migrationsFolder = await runMigrations();
-    logger.info({ migrationsFolder }, "Database migrations applied");
-  } catch (err) {
-    logger.warn({ err }, "Database migration skipped (non-fatal) — schema may already be current");
-  }
+  const migrationsFolder = await runMigrations();
+  logger.info({ migrationsFolder }, "Database migrations applied");
 
   try {
     await db.execute(sql`
@@ -39,7 +35,7 @@ async function runStartupTasks() {
     `);
     logger.info("admin_push_subscriptions table ensured");
   } catch (err) {
-    logger.warn({ err }, "Could not ensure admin_push_subscriptions table");
+    throw new Error("Could not ensure admin_push_subscriptions table", { cause: err });
   }
 
   try {
@@ -58,7 +54,7 @@ async function runStartupTasks() {
     `);
     logger.info("admin_login_notifications table ensured");
   } catch (err) {
-    logger.warn({ err }, "Could not ensure admin_login_notifications table");
+    throw new Error("Could not ensure admin_login_notifications table", { cause: err });
   }
 
   try {
@@ -79,11 +75,7 @@ async function runStartupTasks() {
     logger.error({ err }, "Demo/FAQ seeding failed");
   }
 
-  try {
-    await ensureAdminEmail();
-  } catch (err) {
-    logger.error({ err }, "Admin email promotion failed");
-  }
+  await ensureAdminEmail();
 }
 
 // Bind the port immediately so Render's health check passes right away,
@@ -96,7 +88,11 @@ app.listen(port, (err?: Error) => {
   }
   logger.info({ port }, "Server listening");
 
-  runStartupTasks().catch((err) => {
+  runStartupTasks().then(() => {
+    app.locals.startupReady = true;
+    logger.info("Startup tasks complete; readiness enabled");
+  }).catch((err) => {
     logger.error({ err }, "Startup tasks failed");
+    process.exit(1);
   });
 });

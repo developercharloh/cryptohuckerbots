@@ -245,13 +245,13 @@ test("blocks cookie-authenticated mutations without a trusted Origin", async () 
   assert.equal(blockedStream.response.status, 403);
 });
 
-test("keeps password reset and logout available from a trusted frontend", async () => {
+test("rejects unknown password reset tokens and keeps logout available from a trusted frontend", async () => {
   const reset = await request("/api/auth/reset-password", {
     method: "POST",
     body: { token: "cookie-regression-reset-token", password: "NewCookiePassword1!" },
   });
-  assert.equal(reset.response.status, 200);
-  assert.deepEqual(reset.body, { message: "Password reset successfully" });
+  assert.equal(reset.response.status, 400);
+  assert.deepEqual(reset.body, { error: "This reset link is invalid or expired." });
   assertCredentialedCors(reset.response);
 
   const logout = await request("/api/auth/logout", { method: "POST" });

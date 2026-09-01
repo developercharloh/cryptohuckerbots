@@ -61,11 +61,6 @@ async function runStartupTasks(): Promise<void> {
   await retryWithBackoff(
     () => runMigrations(),
     "Database migrations",
-  ).catch((err) =>
-    logger.warn(
-      { err },
-      "Database migrations ultimately failed — schema may already be current",
-    ),
   );
 
   await retryWithBackoff(
@@ -80,8 +75,6 @@ async function runStartupTasks(): Promise<void> {
         )
       `),
     "Ensure admin_push_subscriptions table",
-  ).catch((err) =>
-    logger.warn({ err }, "Could not ensure admin_push_subscriptions table"),
   );
 
   await retryWithBackoff(
@@ -100,8 +93,6 @@ async function runStartupTasks(): Promise<void> {
         )
       `),
     "Ensure admin_login_notifications table",
-  ).catch((err) =>
-    logger.warn({ err }, "Could not ensure admin_login_notifications table"),
   );
 
   try {
@@ -122,20 +113,13 @@ async function runStartupTasks(): Promise<void> {
     logger.error({ err }, "Demo/FAQ seeding failed");
   }
 
-  try {
-    await ensureAdminEmail();
-  } catch (err) {
-    logger.error({ err }, "Admin email promotion failed");
-  }
+  await ensureAdminEmail();
 }
 
 // Keep module initialization tied to the first serverless invocation. A
 // background promise can be frozen when Vercel returns a fast health response,
 // leaving migrations/seeding half-finished for the next request.
-try {
-  await getInitPromise();
-} catch (err) {
-  logger.error({ err }, "Vercel cold-start tasks failed");
-}
+await getInitPromise();
+app.locals.startupReady = true;
 
 export default app;

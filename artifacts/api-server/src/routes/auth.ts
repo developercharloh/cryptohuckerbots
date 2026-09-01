@@ -1,7 +1,15 @@
 import { Router } from "express";
-import { db, usersTable, sessionsTable, notificationSettingsTable, kycTable, userProfilesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
-import crypto from "crypto";
+import {
+  db,
+  usersTable,
+  sessionsTable,
+  notificationSettingsTable,
+  kycTable,
+  userProfilesTable,
+  passwordResetTokensTable,
+} from "@workspace/db";
+import { eq, lt } from "drizzle-orm";
+import crypto from "node:crypto";
 import { verifySync } from "otplib";
 import { notifyUserLogin } from "../lib/loginAlarm";
 import { sendPushToAllAdmins } from "../lib/webPush";
@@ -12,6 +20,15 @@ import {
   revokeUserSessions,
   setUserSessionCookie,
 } from "../lib/session";
+import { hashPassword, verifyPassword, generateOpaqueToken, hashOpaqueToken } from "../lib/password";
+import {
+  consumeRateLimit,
+  normalizeEmail,
+  recordSecurityEvent,
+  rejectRateLimited,
+  requestIp,
+} from "../lib/security";
+import { logger } from "../lib/logger";
 import {
   RegisterBody,
   LoginBody,
@@ -31,10 +48,6 @@ const pending2FACleanup = setInterval(() => {
 pending2FACleanup.unref();
 
 const router = Router();
-
-function hashPassword(password: string): string {
-  return crypto.createHash("sha256").update(password + "vixus_salt_2024").digest("hex");
-}
 
 function generateToken(): string {
   return crypto.randomBytes(32).toString("hex");
@@ -57,6 +70,14 @@ function getUserAgent(req: any): string {
 }
 
 router.post("/auth/register", async (req, res) => {
+  const limited = await consumeRateLimit({
+    key: `register:ip:${requestIp(req)}`,
+    limit: 8,
+    windowMs: 60 * 60 * 1000,
+    blockMs: 60 * 60 * 1000,
+  });
+  if (rejectRateLimited(res, limited)) return;
+
   const parsed = RegisterBody.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: "Invalid input" });
@@ -68,11 +89,12 @@ router.post("/auth/register", async (req, res) => {
     return res.status(400).json({ error: "Email already registered" });
   }
 
+  const passwordHash = await hashPassword(password);
   const [user] = await db.insert(usersTable).values({
     accountUid: generateAccountUid(),
     fullName,
     email,
-    passwordHash: hashPassword(password),
+    passwordHash,
     kycStatus: "not_verified",
     twoFAEnabled: false,
   }).returning();
@@ -111,17 +133,44 @@ router.post("/auth/register", async (req, res) => {
 });
 
 router.post("/auth/login", async (req, res) => {
+  const ipLimit = await consumeRateLimit({
+    key: `login:ip:${requestIp(req)}`,
+    limit: 15,
+    windowMs: 15 * 60 * 1000,
+    blockMs: 15 * 60 * 1000,
+  });
+  if (rejectRateLimited(res, ipLimit)) return;
+
   const parsed = LoginBody.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: "Invalid input" });
   }
-  const { email, password } = parsed.data;
+  const { password } = parsed.data;
+  const email = normalizeEmail(parsed.data.email);
+
+  const accountLimit = await consumeRateLimit({
+    key: `login:account:${email}`,
+    limit: 8,
+    windowMs: 15 * 60 * 1000,
+    blockMs: 15 * 60 * 1000,
+  });
+  if (rejectRateLimited(res, accountLimit)) return;
 
   const users = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
-  if (users.length === 0 || users[0].passwordHash !== hashPassword(password)) {
+  const verification = users.length > 0
+    ? await verifyPassword(password, users[0].passwordHash)
+    : { valid: false, needsRehash: false };
+  if (!verification.valid) {
+    await recordSecurityEvent(req, "login_failed", users[0]?.id, { reason: "invalid_credentials" });
     return res.status(401).json({ error: "Invalid email or password" });
   }
   const user = users[0];
+
+  if (verification.needsRehash) {
+    await db.update(usersTable)
+      .set({ passwordHash: await hashPassword(password), updatedAt: new Date() })
+      .where(eq(usersTable.id, user.id));
+  }
 
   if (user.status === "suspended") {
     return res.status(403).json({ error: "Your account has been suspended. Please contact support." });
@@ -187,6 +236,14 @@ router.post("/auth/login", async (req, res) => {
 
 // Verify 2FA code after password login
 router.post("/auth/2fa/verify", async (req, res) => {
+  const limited = await consumeRateLimit({
+    key: `2fa:ip:${requestIp(req)}`,
+    limit: 10,
+    windowMs: 10 * 60 * 1000,
+    blockMs: 10 * 60 * 1000,
+  });
+  if (rejectRateLimited(res, limited)) return;
+
   const { tempToken, code } = req.body;
   if (!tempToken || !code) return res.status(400).json({ error: "Missing tempToken or code" });
 
@@ -201,6 +258,7 @@ router.post("/auth/2fa/verify", async (req, res) => {
   const user = users[0];
 
   if (!user.twoFASecret || !verifySync({ token: code, secret: user.twoFASecret }).valid) {
+    await recordSecurityEvent(req, "two_factor_failed", user.id);
     return res.status(401).json({ error: "Invalid 2FA code" });
   }
 
@@ -237,37 +295,115 @@ router.post("/auth/logout", async (req, res) => {
 });
 
 router.post("/auth/forgot-password", async (req, res) => {
+  const ipLimit = await consumeRateLimit({
+    key: `forgot-password:ip:${requestIp(req)}`,
+    limit: 5,
+    windowMs: 60 * 60 * 1000,
+    blockMs: 60 * 60 * 1000,
+  });
+  if (rejectRateLimited(res, ipLimit)) return;
+
   const parsed = ForgotPasswordBody.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: "Invalid input" });
   }
-  // In production this would send an email. We just return success.
-  return res.json({ message: "Password reset link sent to your email" });
+  const email = normalizeEmail(parsed.data.email);
+  const accountLimit = await consumeRateLimit({
+    key: `forgot-password:account:${email}`,
+    limit: 3,
+    windowMs: 60 * 60 * 1000,
+    blockMs: 60 * 60 * 1000,
+  });
+  if (rejectRateLimited(res, accountLimit)) return;
+
+  const [user] = await db.select({ id: usersTable.id, email: usersTable.email })
+    .from(usersTable)
+    .where(eq(usersTable.email, email))
+    .limit(1);
+
+  // Always use the same public response for known and unknown emails.
+  if (!user) {
+    return res.json({ message: "If an account exists, reset instructions will be sent shortly." });
+  }
+
+  const deliveryUrl = process.env.PASSWORD_RESET_DELIVERY_URL?.trim();
+  if (!deliveryUrl && process.env.NODE_ENV === "production") {
+    logger.error("Password reset requested but PASSWORD_RESET_DELIVERY_URL is not configured");
+    return res.status(503).json({ error: "Password recovery is temporarily unavailable. Please contact support." });
+  }
+
+  const token = generateOpaqueToken();
+  await db.delete(passwordResetTokensTable).where(eq(passwordResetTokensTable.userId, user.id));
+  await db.insert(passwordResetTokensTable).values({
+    userId: user.id,
+    tokenHash: hashOpaqueToken(token),
+    expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+  });
+
+  const baseUrl = (process.env.PASSWORD_RESET_BASE_URL ?? "https://vixus.trade").replace(/\/+$/, "");
+  const resetLink = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
+
+  if (!deliveryUrl) {
+    logger.info({ userId: user.id, resetLink }, "Password reset link generated for non-production delivery");
+    return res.json({ message: "If an account exists, reset instructions will be sent shortly." });
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5_000);
+    const deliveryResponse = await fetch(deliveryUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(process.env.PASSWORD_RESET_DELIVERY_SECRET
+          ? { "X-Reset-Delivery-Secret": process.env.PASSWORD_RESET_DELIVERY_SECRET }
+          : {}),
+      },
+      body: JSON.stringify({ email: user.email, resetLink, expiresInMinutes: 30 }),
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeout));
+    if (!deliveryResponse.ok) throw new Error(`Reset delivery returned ${deliveryResponse.status}`);
+  } catch (err) {
+    await db.delete(passwordResetTokensTable).where(eq(passwordResetTokensTable.tokenHash, hashOpaqueToken(token)));
+    logger.error({ err, userId: user.id }, "Password reset delivery failed");
+    return res.status(503).json({ error: "Password recovery is temporarily unavailable. Please contact support." });
+  }
+
+  return res.json({ message: "If an account exists, reset instructions will be sent shortly." });
 });
 
 router.post("/auth/reset-password", async (req, res) => {
+  const limited = await consumeRateLimit({
+    key: `reset-password:ip:${requestIp(req)}`,
+    limit: 8,
+    windowMs: 60 * 60 * 1000,
+    blockMs: 60 * 60 * 1000,
+  });
+  if (rejectRateLimited(res, limited)) return;
+
   const parsed = ResetPasswordBody.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: "Invalid input" });
   }
-  // In production, verify token and update password
-  //
-  // The current reset-token implementation does not persist a reset identity.
-  // If reset completion is performed from an authenticated browser, invalidate
-  // that user's sessions as a safe fallback rather than leaving the active
-  // session alive after a password credential change.
-  const requestToken = getRequestToken(req);
-  if (requestToken) {
-    const [session] = await db
-      .select({ userId: sessionsTable.userId })
-      .from(sessionsTable)
-      .where(eq(sessionsTable.token, requestToken))
-      .limit(1);
-    if (session) {
-      await revokeUserSessions(session.userId);
-      clearUserSessionCookie(res);
-    }
+  const tokenHash = hashOpaqueToken(parsed.data.token);
+  const [reset] = await db.select().from(passwordResetTokensTable)
+    .where(eq(passwordResetTokensTable.tokenHash, tokenHash))
+    .limit(1);
+  if (!reset || reset.usedAt || reset.expiresAt.getTime() <= Date.now()) {
+    return res.status(400).json({ error: "This reset link is invalid or expired." });
   }
+
+  const passwordHash = await hashPassword(parsed.data.password);
+  await db.update(usersTable)
+    .set({ passwordHash, updatedAt: new Date() })
+    .where(eq(usersTable.id, reset.userId));
+  await db.update(passwordResetTokensTable)
+    .set({ usedAt: new Date() })
+    .where(eq(passwordResetTokensTable.id, reset.id));
+  await db.delete(passwordResetTokensTable).where(eq(passwordResetTokensTable.userId, reset.userId));
+  await revokeUserSessions(reset.userId);
+  clearUserSessionCookie(res);
+  await recordSecurityEvent(req, "password_reset_completed", reset.userId);
   return res.json({ message: "Password reset successfully" });
 });
 

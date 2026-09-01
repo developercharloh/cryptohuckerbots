@@ -5,12 +5,12 @@ import { db, sessionsTable, usersTable } from "@workspace/db";
 export const USER_SESSION_COOKIE = "vixus_session";
 export const ADMIN_SESSION_COOKIE = "vixus_admin_session";
 
-// User sessions are intentionally persistent. The cookie is long-lived and is
-// renewed whenever the API confirms the session, while the database session
-// remains valid until the user explicitly logs out or the account/session is
-// revoked by a security-sensitive action.
-export const USER_SESSION_MAX_AGE_MS = 10 * 365 * 24 * 60 * 60 * 1000;
+// User sessions have both an absolute lifetime and an idle timeout. The cookie
+// is renewed for active users, but a stolen token cannot remain valid forever.
+export const USER_SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+export const USER_SESSION_IDLE_TIMEOUT_MS = 24 * 60 * 60 * 1000;
 export const ADMIN_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+const SESSION_ACTIVITY_REFRESH_MS = 5 * 60 * 1000;
 
 const secureCookies =
   process.env.NODE_ENV === "production" || process.env.COOKIE_SECURE === "true";
@@ -69,9 +69,15 @@ export async function getUserSession(token: string | undefined) {
     .limit(1);
 
   if (!record) return null;
-  if (isUserSessionExpired(record.session.createdAt)) {
+  if (isUserSessionExpired(record.session.createdAt, record.session.lastActive)) {
     await db.delete(sessionsTable).where(eq(sessionsTable.id, record.session.id));
     return null;
+  }
+
+  if (Date.now() - record.session.lastActive.getTime() >= SESSION_ACTIVITY_REFRESH_MS) {
+    await db.update(sessionsTable)
+      .set({ lastActive: new Date() })
+      .where(eq(sessionsTable.id, record.session.id));
   }
 
   return record;
@@ -113,10 +119,12 @@ export async function revokeUserSessions(userId: number, exceptToken?: string): 
 }
 
 /**
- * Kept as a compatibility helper for route modules that share the session
- * lookup pattern. User sessions no longer expire based on age; they end when
- * explicitly logged out or revoked.
+ * A session expires after either its absolute lifetime or its idle lifetime.
  */
-export function isUserSessionExpired(_createdAt: Date): boolean {
-  return false;
+export function isUserSessionExpired(createdAt: Date, lastActive: Date): boolean {
+  const now = Date.now();
+  return (
+    now - createdAt.getTime() > USER_SESSION_MAX_AGE_MS ||
+    now - lastActive.getTime() > USER_SESSION_IDLE_TIMEOUT_MS
+  );
 }
