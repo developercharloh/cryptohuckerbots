@@ -7,4 +7,4 @@ Serverless handlers must not rely on fire-and-forget database migrations or seed
 
 **Why:** A fresh deployment returned a healthy response while its asynchronous startup work had not completed, and the database remained empty until initialization was run explicitly.
 
-**How to apply:** Make readiness await required initialization, or run a separate idempotent initialization step before promoting a fresh production deployment. Verify row counts for required public seed data and bootstrap records afterward.
+**How to apply:** Make readiness await required initialization, or run a separate idempotent initialization step before promoting a fresh production deployment. Verify row counts for required public seed data and bootstrap records afterward. If an older Neon schema predates the Drizzle journal, baseline only the confirmed legacy migrations and keep newer migrations idempotent so startup can repair the journal without replaying table creation.
