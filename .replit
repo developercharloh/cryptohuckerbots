@@ -29,6 +29,7 @@ DEPOSIT_USDT_ERC20 = "0x50ef0c6963bf42fd7f9e0ba7003e036d2e994c6b"
 DEPOSIT_USDT_BEP20 = "0x50ef0c6963bf42fd7f9e0ba7003e036d2e994c6b"
 DEPOSIT_ETH_ERC20 = "0x50ef0c6963bf42fd7f9e0ba7003e036d2e994c6b"
 DEPOSIT_BTC_MAINNET = "bc1q6k05u2wm90cuga0vuejkw8lta63pn3hr54jr2s"
+AUTH_EMAIL_FROM = "Vixus AI <no-reply@vixus.trade>"
 
 [userenv.development]
 DIDIT_CALLBACK_URL = "https://aea5f575-eed1-4a10-a820-6ab64efe3196-00-1v8gli80w0fqc.janeway.replit.dev/user-app/profile/kyc"

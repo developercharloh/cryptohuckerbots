@@ -80,20 +80,36 @@ function generateLoginOtp(): string {
   return crypto.randomInt(100000, 1000000).toString();
 }
 
+function brandedEmail(content: string): string {
+  const logoUrl = `${getAuthEmailBaseUrl()}/icons/vixus-ai-192.png`;
+  return `
+    <div style="margin:0;background:#0d0f18;padding:32px 16px;font-family:Arial,sans-serif;line-height:1.6;color:#172033">
+      <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;overflow:hidden">
+        <div style="padding:24px 28px;background:#101827;text-align:center">
+          <img src="${logoUrl}" width="56" height="56" alt="Vixus AI logo" style="display:inline-block;width:56px;height:56px;border-radius:14px;vertical-align:middle;object-fit:cover" />
+          <div style="margin-top:10px;color:#f6c453;font-size:18px;font-weight:700;letter-spacing:.04em">VIXUS AI</div>
+        </div>
+        <div style="padding:28px">${content}</div>
+        <div style="padding:16px 28px;border-top:1px solid #e5e7eb;color:#6b7280;font-size:12px;text-align:center">
+          VIXUS AI · Trade with confidence
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 async function sendVerificationEmail(email: string, token: string): Promise<void> {
   const link = `${getAuthEmailBaseUrl()}/verify-email?token=${encodeURIComponent(token)}`;
   await sendTransactionalEmail({
     to: email,
     subject: "Verify your VIXUS AI email",
     text: `Verify your VIXUS AI email by opening this link: ${link}\n\nThis link expires in 30 minutes and can be used once.`,
-    html: `
-      <div style="font-family:Arial,sans-serif;line-height:1.6;color:#172033">
-        <h2>Verify your VIXUS AI email</h2>
+    html: brandedEmail(`
+        <h2 style="margin:0 0 12px;color:#172033">Verify your VIXUS AI email</h2>
         <p>Click the button below to verify your email address and activate your account.</p>
         <p><a href="${link}" style="display:inline-block;padding:12px 20px;background:#d99b18;color:#fff;text-decoration:none;border-radius:8px">Verify email</a></p>
         <p>This link expires in 30 minutes and can be used once.</p>
-      </div>
-    `,
+    `),
   });
 }
 
@@ -102,15 +118,13 @@ async function sendLoginOtpEmail(email: string, code: string): Promise<void> {
     to: email,
     subject: "Your VIXUS AI login code",
     text: `Your VIXUS AI login code is ${code}. It expires in 10 minutes and can be used once. If you did not request this code, change your password and contact support.`,
-    html: `
-      <div style="font-family:Arial,sans-serif;line-height:1.6;color:#172033">
-        <h2>Your VIXUS AI login code</h2>
+    html: brandedEmail(`
+        <h2 style="margin:0 0 12px;color:#172033">Your VIXUS AI login code</h2>
         <p>Enter this code to finish signing in:</p>
-        <p style="font-size:30px;font-weight:700;letter-spacing:8px">${code}</p>
+        <p style="margin:20px 0;font-size:30px;font-weight:700;letter-spacing:8px;color:#b77908">${code}</p>
         <p>This code expires in 10 minutes and can be used once.</p>
         <p>If you did not request this code, change your password and contact support.</p>
-      </div>
-    `,
+    `),
   });
 }
 
@@ -119,14 +133,12 @@ async function sendPasswordResetEmail(email: string, resetLink: string): Promise
     to: email,
     subject: "Reset your VIXUS AI password",
     text: `Reset your VIXUS AI password by opening this link: ${resetLink}\n\nThis link expires in 30 minutes and can be used once.`,
-    html: `
-      <div style="font-family:Arial,sans-serif;line-height:1.6;color:#172033">
-        <h2>Reset your VIXUS AI password</h2>
+    html: brandedEmail(`
+        <h2 style="margin:0 0 12px;color:#172033">Reset your VIXUS AI password</h2>
         <p>Click the button below to choose a new password.</p>
         <p><a href="${resetLink}" style="display:inline-block;padding:12px 20px;background:#d99b18;color:#fff;text-decoration:none;border-radius:8px">Reset password</a></p>
         <p>This link expires in 30 minutes and can be used once.</p>
-      </div>
-    `,
+    `),
   });
 }
 
