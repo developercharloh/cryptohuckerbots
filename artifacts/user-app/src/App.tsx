@@ -123,6 +123,7 @@ const Transactions = lazy(() => import("@/pages/cashier/Transactions"));
 const PaymentMethods = lazy(() => import("@/pages/cashier/PaymentMethods"));
 const Markets = lazy(() => import("@/pages/Markets"));
 const News = lazy(() => import("@/pages/News"));
+const Tutorials = lazy(() => import("@/pages/Tutorials"));
 const TradePairPage = lazy(() => import("@/pages/TradePairPage"));
 const Trade = lazy(() => import("@/pages/Trade"));
 const VipPackages = lazy(() => import("@/pages/VipPackages"));
@@ -211,6 +212,9 @@ function Router() {
       </Route>
       <Route path="/news">
         <News />
+      </Route>
+      <Route path="/tutorials">
+        <AuthGuard><Tutorials /></AuthGuard>
       </Route>
       <Route path="/trade">
         <AuthGuard><Trade /></AuthGuard>

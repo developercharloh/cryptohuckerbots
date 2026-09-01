@@ -8,6 +8,7 @@ const DESKTOP_NAV = [
   { href: "/dashboard", label: "Overview" },
   { href: "/markets", label: "Markets" },
   { href: "/news", label: "News" },
+  { href: "/tutorials", label: "Tutorials" },
   { href: "/trade", label: "Trade" },
   { href: "/orders", label: "Orders" },
   { href: "/bots", label: "VIP Levels" },
