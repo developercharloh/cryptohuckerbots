@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
-import { useLogout, useGetProfile } from "@workspace/api-client-react";
+import { useGetProfile } from "@workspace/api-client-react";
 import { Layout } from "@/components/Layout";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -17,7 +17,6 @@ export default function Profile() {
   const { user, logout } = useAuth();
   const { data: profile, isLoading } = useGetProfile();
   const [copied, setCopied] = useState(false);
-  const logoutMutation = useLogout();
   const queryClient = useQueryClient();
 
   const handleCopyUid = async () => {
@@ -29,10 +28,11 @@ export default function Profile() {
   };
 
   const handleLogout = () => {
-    logoutMutation.mutate(undefined, {
-      onSuccess: () => { logout(); queryClient.clear(); setLocation("/login"); },
-      onError:   () => { logout(); queryClient.clear(); setLocation("/login"); },
-    });
+    // Clear the local session immediately. AuthContext sends the server logout
+    // request in the background so a slow API cannot hold the UI on this page.
+    logout();
+    queryClient.clear();
+    setLocation("/login");
   };
 
   const getKycColor = (status: string) => {
@@ -206,14 +206,13 @@ export default function Profile() {
         <div style={{ padding: "8px 16px 16px" }}>
           <button
             onClick={handleLogout}
-            disabled={logoutMutation.isPending}
             style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "13px 14px", background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 16, cursor: "pointer" }}
           >
             <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(239,68,68,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <LogOut style={{ width: 17, height: 17, color: "#f87171" }} />
             </div>
             <span style={{ fontSize: 13, fontWeight: 700, color: "#f87171" }}>
-              {logoutMutation.isPending ? "Logging out..." : "Log Out"}
+              Log Out
             </span>
           </button>
         </div>
