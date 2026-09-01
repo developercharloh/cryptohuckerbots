@@ -237,7 +237,7 @@ export default function VideoWithControls() {
   const [collapsed, setCollapsed] = useState(false);
   const [hovering, setHovering] = useState(false);
   const [tapPinned, setTapPinned] = useState(false);
-  const [muted, setMuted] = useState(false);
+  const [muted, setMuted] = useState(true);
   const {
     sceneKeys,
     activeIndex,
@@ -294,12 +294,12 @@ export default function VideoWithControls() {
     });
   }, []);
 
-  if (!isIframed) return <VideoTemplate />;
+  if (!isIframed) return <VideoTemplate muted />;
 
   const barVisible = !collapsed || hovering || tapPinned;
 
   return (
-    <div className="relative h-screen w-full">
+    <div className="relative min-h-[100dvh] w-full">
       <VideoTemplate
         key={mountKey}
         durations={durations}
@@ -308,6 +308,24 @@ export default function VideoWithControls() {
         muted={muted}
         onSceneChange={onSceneChange}
       />
+      <button
+        type="button"
+        onClick={() => setMuted((value) => !value)}
+        className={`absolute right-[5%] top-[5%] z-40 flex items-center gap-2 rounded-full border px-3 py-2 font-mono text-[clamp(.62rem,1.7vmin,.82rem)] tracking-[.08em] shadow-lg backdrop-blur-md transition-[background-color,border-color,color,transform,opacity] duration-200 ${
+          muted
+            ? 'border-[#f1c76c]/60 bg-[#101829]/90 text-[#f1c76c] hover:scale-[1.02] hover:bg-[#172238]'
+            : 'border-[#8bd8ce]/45 bg-[#101829]/75 text-[#8bd8ce] hover:scale-[1.02] hover:bg-[#172238]'
+        }`}
+        aria-label={muted ? 'Unmute VIXUS AI narration' : 'Mute VIXUS AI narration'}
+        aria-pressed={muted}
+      >
+        {muted ? (
+          <VolumeX className="h-4 w-4" aria-hidden="true" />
+        ) : (
+          <Volume2 className="h-4 w-4" aria-hidden="true" />
+        )}
+        <span>{muted ? 'AUDIO OFF · TAP TO LISTEN' : 'AUDIO ON'}</span>
+      </button>
       <div
         ref={sensorRef}
         className="absolute bottom-0 left-0 right-0 z-50 flex flex-col justify-end"

@@ -20,13 +20,13 @@ import {
 } from './video_scenes/Scenes';
 
 export const SCENE_DURATIONS = {
-  intro: 3800,
-  presenter: 4300,
-  pairs: 4200,
-  candles: 4200,
-  score: 4300,
-  follow: 4100,
-  outro: 3900,
+  intro: 12300,
+  presenter: 14500,
+  pairs: 15000,
+  candles: 13100,
+  score: 13000,
+  follow: 14500,
+  outro: 12300,
 };
 
 const VIDEO_ASPECT_RATIO: VideoAspectRatio = '4:5';
@@ -57,7 +57,7 @@ export default function VideoTemplate({
   durations = SCENE_DURATIONS,
   loop = true,
   paused = false,
-  muted = false,
+  muted = true,
   onSceneChange,
 }: {
   durations?: Record<string, number>;
@@ -85,6 +85,7 @@ export default function VideoTemplate({
     if (!audio) return;
 
     audio.volume = 1;
+    audio.muted = muted;
     if (paused) {
       audio.pause();
       return;
