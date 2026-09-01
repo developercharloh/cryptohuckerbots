@@ -32,10 +32,6 @@ app.get("/api/readyz", (_req, res) => {
     res.json({ status: "ready" });
     return;
   }
-  if (typeof app.locals.startupErrorCode === "string") {
-    res.status(503).json({ status: "failed", error: app.locals.startupErrorCode });
-    return;
-  }
   res.status(503).json({ status: "starting" });
 });
 
