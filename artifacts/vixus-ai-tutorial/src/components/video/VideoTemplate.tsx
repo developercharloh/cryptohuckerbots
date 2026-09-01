@@ -20,13 +20,13 @@ import {
 } from './video_scenes/Scenes';
 
 export const SCENE_DURATIONS = {
-  intro: 12300,
-  presenter: 14500,
-  pairs: 15000,
-  candles: 13100,
-  score: 13000,
-  follow: 14500,
-  outro: 12300,
+  intro: 16000,
+  presenter: 18700,
+  pairs: 18300,
+  candles: 18700,
+  score: 18300,
+  follow: 17400,
+  outro: 17800,
 };
 
 const VIDEO_ASPECT_RATIO: VideoAspectRatio = '4:5';

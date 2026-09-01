@@ -166,20 +166,25 @@ export function ScenePresenter() {
       <Grid />
       <CornerLabel>01 / START WITH CONTEXT</CornerLabel>
       <motion.div
-        className="absolute bottom-0 right-[-5%] h-[83%] w-[66%]"
+        className="absolute bottom-[4%] right-[-2%] top-[13%] w-[56%]"
         initial={{ x: 100, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ delay: .25, duration: 1, ease }}
       >
-        <div className="absolute bottom-[9%] left-[5%] h-[68%] w-[86%] rounded-[50%] bg-[#8bd8ce]/10 blur-[4vmin]" />
+        <div className="absolute inset-[3%] rounded-[6vmin] border border-teal/30 bg-[radial-gradient(circle_at_50%_25%,rgba(139,216,206,.18),transparent_55%),linear-gradient(145deg,rgba(23,34,56,.72),rgba(16,24,41,.2))] shadow-[0_2vmin_8vmin_rgba(0,0,0,.28)]" />
+        <div className="absolute left-[10%] right-[10%] top-[6%] h-px bg-gradient-to-r from-transparent via-teal/60 to-transparent" />
         <img
-          src={`${base}presenter.png`}
-          alt="Professional American financial educator"
-          className="relative h-full w-full object-contain object-bottom"
+          src={`${base}presenter-card.png`}
+          alt="VIXUS AI market educator explaining a signal"
+          className="relative z-10 h-full w-full rounded-[5.5vmin] object-cover object-center drop-shadow-[0_2vmin_2vmin_rgba(0,0,0,.45)]"
         />
+        <div className="panel absolute bottom-[4%] right-[5%] z-20 w-[78%] px-[2vmin] py-[1.4vmin]">
+          <div className="mono-font text-[1.35vmin] tracking-[.14em] text-teal">VIXUS AI / MARKET EDUCATOR</div>
+          <div className="mt-[.65vmin] text-[1.55vmin] text-[#f7f1e7]">Explaining the signal, not selling the outcome.</div>
+        </div>
       </motion.div>
       <motion.div
-        className="absolute left-[7%] top-[22%] w-[56%]"
+        className="absolute left-[7%] top-[22%] w-[48%]"
         initial={{ y: 25, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: .6, duration: .7, ease }}
