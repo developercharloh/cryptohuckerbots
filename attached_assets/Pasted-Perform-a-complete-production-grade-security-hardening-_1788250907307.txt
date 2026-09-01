@@ -1,0 +1,273 @@
+Perform a complete production-grade security hardening of this application. The goal is to make the application highly resistant to unauthorized access, reverse engineering, code theft, API abuse, data leaks, account takeover, automated attacks, and common web/mobile vulnerabilities while preserving all existing functionality.
+
+1. ARCHITECTURE
+
+- Review the entire application architecture and identify security weaknesses.
+- Keep all sensitive business logic, proprietary algorithms, trading strategies, calculations, API keys, private credentials, database credentials, wallet secrets, and signing credentials strictly server-side.
+- Never trust frontend/client-side validation.
+- Treat all client-side code as publicly discoverable.
+- Enforce authorization on every sensitive server endpoint.
+- Apply least-privilege principles throughout the system.
+- Separate public, authenticated, administrative, and privileged functionality.
+
+2. BACKEND SECURITY
+
+- Validate and sanitize every user-controlled input.
+- Prevent SQL injection, NoSQL injection, command injection, path traversal, SSRF, prototype pollution, and other injection attacks.
+- Use parameterized queries/ORM-safe database access.
+- Implement strict request schemas and type validation.
+- Prevent mass assignment and insecure object-property manipulation.
+- Return generic production errors without exposing stack traces, internal paths, database details, secrets, or implementation details.
+- Add secure request size limits and timeout limits.
+- Prevent duplicate, replayed, malformed, and unauthorized requests.
+
+3. AUTHENTICATION
+
+- Implement secure password hashing using Argon2id or another modern password-hashing algorithm.
+- Never store plaintext passwords.
+- Implement secure login, logout, registration, password reset, email verification, and account recovery.
+- Add protection against brute-force attacks and credential stuffing.
+- Implement rate limiting and temporary lockouts where appropriate.
+- Use secure session management.
+- Rotate and invalidate sessions after sensitive security events.
+- Add optional or required 2FA where appropriate.
+- Prevent account enumeration through authentication and recovery endpoints.
+
+4. AUTHORIZATION
+
+- Implement strict server-side role-based access control.
+- Verify ownership of every resource before allowing access.
+- Prevent IDOR/BOLA vulnerabilities.
+- Ensure normal users cannot access administrator functionality by manipulating URLs, IDs, API requests, or frontend state.
+- Never trust role information supplied by the client.
+- Protect every admin endpoint independently.
+
+5. API SECURITY
+
+- Secure every API endpoint.
+- Implement authentication and authorization consistently.
+- Add endpoint-specific rate limits.
+- Detect and prevent automated abuse.
+- Validate HTTP methods, content types, parameters, headers, and request bodies.
+- Prevent CORS misconfiguration.
+- Use secure API error responses.
+- Add request logging and security monitoring without logging sensitive secrets.
+
+6. SECRETS & ENVIRONMENT VARIABLES
+
+- Search the entire repository for hardcoded API keys, passwords, tokens, private keys, database URLs, webhook secrets, and other credentials.
+- Remove exposed secrets from source code.
+- Move secrets into secure environment/configuration management.
+- Ensure .env files and sensitive configuration are excluded from version control.
+- Never expose server environment variables to frontend bundles.
+- Never return secrets through API responses.
+- Recommend rotation of any credentials discovered in source code.
+
+7. DATABASE SECURITY
+
+- Apply least-privilege database permissions.
+- Validate all database inputs.
+- Use parameterized queries.
+- Protect sensitive fields.
+- Add appropriate indexes and constraints.
+- Prevent unauthorized data access.
+- Ensure users can only read or modify records they are authorized to access.
+- Review database backups and sensitive-data handling.
+
+8. FRONTEND SECURITY
+
+- Prevent XSS through proper escaping and safe rendering.
+- Avoid unsafe HTML injection.
+- Sanitize user-generated content where HTML is required.
+- Do not place secrets or proprietary server-side logic in frontend code.
+- Minify production assets.
+- Remove development/debug information from production builds.
+- Disable unnecessary source maps in production if appropriate.
+- Prevent sensitive information from being stored insecurely in localStorage/sessionStorage.
+
+9. SECURITY HEADERS
+
+Configure appropriate production security headers, including:
+
+- Content-Security-Policy
+- Strict-Transport-Security
+- X-Content-Type-Options
+- Referrer-Policy
+- Permissions-Policy
+- Frame protection/clickjacking protection
+- Secure cookie attributes
+
+Configure them correctly for the application's actual architecture rather than blindly applying values that could break functionality.
+
+10. TRANSPORT & DATA PROTECTION
+
+- Force HTTPS in production.
+- Secure cookies using Secure, HttpOnly, and SameSite attributes where appropriate.
+- Encrypt sensitive data in transit.
+- Protect sensitive data at rest where appropriate.
+- Never expose private keys or authentication tokens to clients.
+- Review logs to ensure passwords, tokens, API keys, and private information are not recorded.
+
+11. REVERSE ENGINEERING & CODE PROTECTION
+
+The application must not depend on secrecy of client-side code.
+
+For proprietary logic:
+
+- Move critical algorithms to the backend.
+- Keep API keys and credentials server-side.
+- Minify and optimize production frontend code.
+- Remove unnecessary debug metadata.
+- Disable production debugging.
+- Where appropriate, use code obfuscation as an additional layer, not as the primary security mechanism.
+- For performance-critical sensitive backend components, consider Rust or another memory-safe compiled language.
+- Do not introduce unnecessary native code merely for the appearance of security.
+
+12. DEPENDENCY SECURITY
+
+- Audit all dependencies.
+- Identify outdated, vulnerable, abandoned, or unnecessary packages.
+- Upgrade vulnerable dependencies where compatible.
+- Remove unused packages.
+- Lock dependency versions appropriately.
+- Check transitive dependencies.
+- Do not install packages solely because they claim to provide security.
+
+13. FILE & UPLOAD SECURITY
+
+If the application supports file uploads:
+
+- Validate file type and size server-side.
+- Do not trust file extensions or MIME types supplied by users.
+- Prevent executable uploads.
+- Generate safe filenames.
+- Store uploads outside executable directories where possible.
+- Scan and sanitize files where appropriate.
+
+14. PAYMENT & FINANCIAL FEATURES
+
+For payment, wallet, trading, or financial functionality:
+
+- Never trust balances, prices, transaction states, permissions, or trade parameters supplied by the client.
+- Verify all transactions server-side.
+- Prevent replay attacks and duplicate transactions.
+- Use idempotency controls where appropriate.
+- Protect withdrawal/payment operations with additional authorization.
+- Log security-relevant financial actions.
+- Implement strict limits and anomaly detection.
+- Never expose private wallet keys or signing secrets to the frontend.
+
+15. ADMIN PANEL
+
+- Completely separate administrative privileges from normal user privileges.
+- Require strong authentication.
+- Implement role-based permissions.
+- Protect administrative endpoints even if the frontend hides them.
+- Add rate limiting and suspicious-login monitoring.
+- Prevent privilege escalation.
+- Log important administrator actions.
+- Do not use predictable admin URLs as a security mechanism; authentication and authorization must provide the actual protection.
+
+16. CLOUDFLARE / INFRASTRUCTURE
+
+Where applicable:
+
+- Configure WAF protections.
+- Configure rate limiting.
+- Protect the origin server from direct exposure where practical.
+- Restrict unnecessary ports/services.
+- Configure DNS securely.
+- Prevent origin IP leakage where possible.
+- Use HTTPS between clients, proxies, and origin servers.
+- Add DDoS protections available through the infrastructure provider.
+
+17. SECURITY MONITORING
+
+Implement appropriate monitoring for:
+
+- Repeated failed logins
+- Brute-force attempts
+- Suspicious IP activity
+- Excessive API requests
+- Privilege escalation attempts
+- Unusual account activity
+- Repeated invalid requests
+- Suspicious financial/trading activity
+
+Do not collect unnecessary personal information.
+
+18. SECURITY TESTING
+
+Perform a comprehensive defensive security review of the codebase.
+
+Check for:
+
+- OWASP Top 10 vulnerabilities
+- Authentication vulnerabilities
+- Authorization vulnerabilities
+- Injection vulnerabilities
+- XSS
+- CSRF
+- SSRF
+- IDOR/BOLA
+- Broken access control
+- Session vulnerabilities
+- Sensitive-data exposure
+- Security misconfiguration
+- Dependency vulnerabilities
+- Race conditions
+- Rate-limit bypasses
+- Privilege escalation
+- API abuse
+- Information disclosure
+
+Do not perform destructive actions or attacks against external systems.
+
+19. PRODUCTION CONFIGURATION
+
+Create a secure production configuration:
+
+- Disable debug mode.
+- Remove development credentials.
+- Remove test accounts and test secrets.
+- Disable unnecessary endpoints.
+- Configure secure logging.
+- Configure proper error handling.
+- Configure secure cookies.
+- Configure security headers.
+- Configure rate limits.
+- Ensure secrets are loaded securely.
+
+20. CODE QUALITY
+
+Do not randomly rewrite working code.
+
+Before modifying anything:
+
+1. Understand the existing architecture.
+2. Identify security risks.
+3. Make the smallest safe changes necessary.
+4. Preserve existing features and UI.
+5. Maintain backward compatibility where possible.
+6. Avoid introducing unnecessary dependencies.
+7. Keep the code clean and maintainable.
+
+21. FINAL SECURITY REPORT
+
+After completing the hardening, provide:
+
+- Every vulnerability discovered.
+- Severity of each issue.
+- What was changed.
+- Files/components modified.
+- Dependencies changed.
+- Security controls added.
+- Remaining risks.
+- Configuration changes required for deployment.
+- Secrets that must be rotated.
+- Recommended future security improvements.
+
+Do not claim the application is “unhackable.” The objective is defense-in-depth and substantially reducing the attack surface.
+
+IMPORTANT:
+Do not expose proprietary algorithms, secrets, credentials, private keys, or sensitive configuration in the frontend or in the final response. Never hardcode credentials. Never weaken authentication or authorization to make implementation easier.

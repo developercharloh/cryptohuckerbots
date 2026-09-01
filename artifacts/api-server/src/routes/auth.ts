@@ -60,6 +60,42 @@ function generateAccountUid(): string {
   return uid;
 }
 
+function getPasswordResetDeliveryUrl(): URL | null {
+  const raw = process.env.PASSWORD_RESET_DELIVERY_URL?.trim();
+  if (!raw) return null;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    throw new Error("PASSWORD_RESET_DELIVERY_URL is not a valid URL");
+  }
+
+  if (
+    parsed.username ||
+    parsed.password ||
+    parsed.search ||
+    parsed.hash ||
+    parsed.pathname === "" ||
+    (process.env.NODE_ENV === "production" && parsed.protocol !== "https:")
+  ) {
+    throw new Error("PASSWORD_RESET_DELIVERY_URL must be a clean HTTPS endpoint in production");
+  }
+
+  const hostname = parsed.hostname.toLowerCase();
+  const blockedHostnames = new Set(["localhost", "localhost.localdomain", "[::1]"]);
+  const isPrivateIpv4 =
+    /^(10|127)\./.test(hostname) ||
+    /^192\.168\./.test(hostname) ||
+    /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname) ||
+    hostname === "0.0.0.0";
+  if (blockedHostnames.has(hostname) || isPrivateIpv4) {
+    throw new Error("PASSWORD_RESET_DELIVERY_URL cannot target a local or private address");
+  }
+
+  return parsed;
+}
+
 function getUserAgent(req: any): string {
   const ua = req.headers["user-agent"] || "Unknown";
   if (ua.includes("Mobile")) return "Mobile Browser";
@@ -326,9 +362,20 @@ router.post("/auth/forgot-password", async (req, res) => {
     return res.json({ message: "If an account exists, reset instructions will be sent shortly." });
   }
 
-  const deliveryUrl = process.env.PASSWORD_RESET_DELIVERY_URL?.trim();
-  if (!deliveryUrl && process.env.NODE_ENV === "production") {
+  let deliveryEndpoint: URL | null;
+  try {
+    deliveryEndpoint = getPasswordResetDeliveryUrl();
+  } catch (err) {
+    logger.error({ err }, "Password reset delivery URL is invalid");
+    return res.status(503).json({ error: "Password recovery is temporarily unavailable. Please contact support." });
+  }
+
+  if (!deliveryEndpoint && process.env.NODE_ENV === "production") {
     logger.error("Password reset requested but PASSWORD_RESET_DELIVERY_URL is not configured");
+    return res.status(503).json({ error: "Password recovery is temporarily unavailable. Please contact support." });
+  }
+  if (deliveryEndpoint && process.env.NODE_ENV === "production" && !process.env.PASSWORD_RESET_DELIVERY_SECRET?.trim()) {
+    logger.error("Password reset delivery is configured without PASSWORD_RESET_DELIVERY_SECRET");
     return res.status(503).json({ error: "Password recovery is temporarily unavailable. Please contact support." });
   }
 
@@ -343,7 +390,7 @@ router.post("/auth/forgot-password", async (req, res) => {
   const baseUrl = (process.env.PASSWORD_RESET_BASE_URL ?? "https://vixus.trade").replace(/\/+$/, "");
   const resetLink = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
 
-  if (!deliveryUrl) {
+  if (!deliveryEndpoint) {
     logger.info({ userId: user.id, resetLink }, "Password reset link generated for non-production delivery");
     return res.json({ message: "If an account exists, reset instructions will be sent shortly." });
   }
@@ -351,7 +398,7 @@ router.post("/auth/forgot-password", async (req, res) => {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5_000);
-    const deliveryResponse = await fetch(deliveryUrl, {
+    const deliveryResponse = await fetch(deliveryEndpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

@@ -55,10 +55,21 @@ import { consumeRateLimit, recordSecurityEvent, rejectRateLimited, requestIp } f
 
 const router = Router();
 
-const configuredJwtSecret = process.env.ADMIN_JWT_SECRET ?? process.env.ADMIN_PANEL_PASSWORD;
-if (process.env.NODE_ENV === "production" && !configuredJwtSecret) {
-  throw new Error("ADMIN_JWT_SECRET must be configured in production.");
+const adminJwtSecret = process.env.ADMIN_JWT_SECRET?.trim();
+const adminPanelPassword = process.env.ADMIN_PANEL_PASSWORD?.trim();
+if (
+  process.env.NODE_ENV === "production" &&
+  (
+    !adminJwtSecret ||
+    adminJwtSecret.length < 32 ||
+    adminJwtSecret === adminPanelPassword
+  )
+) {
+  throw new Error(
+    "ADMIN_JWT_SECRET must be a dedicated random secret of at least 32 characters in production.",
+  );
 }
+const configuredJwtSecret = adminJwtSecret ?? adminPanelPassword;
 // Development/test processes get an ephemeral secret rather than a guessable
 // source-controlled fallback. It changes on restart, which is appropriate.
 const JWT_SECRET = configuredJwtSecret ?? crypto.randomBytes(32).toString("hex");
