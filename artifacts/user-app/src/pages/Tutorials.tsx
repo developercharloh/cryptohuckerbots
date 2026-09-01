@@ -203,6 +203,35 @@ export default function Tutorials() {
             </div>
           </section>
 
+          <section className="mt-8 overflow-hidden rounded-[2rem] border border-slate-700/60 bg-[#0b1020] shadow-2xl shadow-black/10">
+            <div className="grid items-center gap-6 p-5 sm:p-7 lg:grid-cols-[minmax(0,0.8fr)_minmax(260px,0.42fr)]">
+              <div className="order-2 lg:order-1">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-amber-300">
+                  Featured tutorial
+                </p>
+                <h2 className="mt-2 text-2xl font-black tracking-tight text-white sm:text-3xl">
+                  What is VIXUS AI?
+                </h2>
+                <p className="mt-3 max-w-xl text-sm leading-6 text-slate-300">
+                  Watch the short narrated walkthrough to see how VIXUS AI connects market context, pair comparison, candlestick setups, signal confidence, and position follow-through.
+                </p>
+                <div className="mt-5 flex flex-wrap gap-2 text-[11px] font-semibold text-slate-200">
+                  <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1.5">4:5 portrait</span>
+                  <span className="rounded-full border border-teal-300/20 bg-teal-300/10 px-3 py-1.5">Narrated explainer</span>
+                  <span className="rounded-full border border-slate-500/30 bg-white/5 px-3 py-1.5">About 29 seconds</span>
+                </div>
+              </div>
+              <div className="order-1 overflow-hidden rounded-2xl border border-white/10 bg-black lg:order-2">
+                <iframe
+                  title="What is VIXUS AI? video tutorial"
+                  src="/vixus-ai-tutorial/"
+                  className="aspect-[4/5] w-full"
+                  allow="autoplay"
+                />
+              </div>
+            </div>
+          </section>
+
           <section className="mt-8">
             <div className="mb-4 flex items-end justify-between gap-4">
               <div>
