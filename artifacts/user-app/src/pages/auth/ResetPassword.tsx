@@ -12,7 +12,7 @@ import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 const schema = z.object({
   token: z.string().min(1, "Token is required"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z.string().min(12, "Password must be at least 12 characters").max(128),
   confirmPassword: z.string()
 }).refine(data => data.password === data.confirmPassword, {
   message: "Passwords don't match",
@@ -26,11 +26,12 @@ export default function ResetPassword() {
 
   const [showPwd, setShowPwd] = useState(false);
   const [showConfPwd, setShowConfPwd] = useState(false);
+  const initialToken = new URLSearchParams(window.location.search).get("token") ?? "";
 
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: {
-      token: new URLSearchParams(window.location.search).get("token") ?? "",
+      token: initialToken,
       password: "",
       confirmPassword: "",
     },
@@ -62,7 +63,7 @@ export default function ResetPassword() {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {!form.getValues("token") && (
+            {!initialToken && (
               <FormField
                 control={form.control}
                 name="token"

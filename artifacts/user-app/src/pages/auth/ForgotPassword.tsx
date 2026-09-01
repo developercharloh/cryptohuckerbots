@@ -26,13 +26,13 @@ export default function ForgotPassword() {
   const onSubmit = (values: z.infer<typeof schema>) => {
     mutation.mutate({ data: values }, {
       onSuccess: () => {
-        toast({ title: "Reset link sent", description: "Check your email for further instructions." });
+         toast({ title: "If the account exists, a reset link is on its way", description: "Check your email for further instructions." });
         form.reset();
       },
       onError: (err: any) => {
         toast({ 
-          title: "Failed to send link", 
-          description: err.message || "An error occurred",
+           title: "Reset service unavailable",
+           description: "Please try again later. Your account details were not changed.",
           variant: "destructive"
         });
       }

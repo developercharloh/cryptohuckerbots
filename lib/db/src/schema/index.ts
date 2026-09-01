@@ -463,3 +463,15 @@ export const securityEventsTable = pgTable("security_events", {
 ]);
 
 export type SecurityEvent = typeof securityEventsTable.$inferSelect;
+
+// Provider callbacks must be idempotent because delivery can be retried and a
+// valid signed request can otherwise repeat a state transition.
+export const diditWebhookEventsTable = pgTable("didit_webhook_events", {
+  eventKey: varchar("event_key", { length: 128 }).primaryKey(),
+  sessionId: text("session_id").notNull(),
+  receivedAt: timestamp("received_at").notNull().defaultNow(),
+}, (table) => [
+  index("didit_webhook_events_session_id_idx").on(table.sessionId),
+]);
+
+export type DiditWebhookEvent = typeof diditWebhookEventsTable.$inferSelect;

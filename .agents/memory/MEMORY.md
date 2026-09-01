@@ -15,3 +15,4 @@
 - [VIXUS AI deployment verification](vixus-ai-vercel-deployment.md) — match Vercel deployment state to the pushed commit before trusting a live bundle; “latest production” can briefly show the prior ready build.
 - [VIXUS AI social previews](vixus-ai-social-preview-cache.md) — live crawler HTML can be clean while WhatsApp still shows an older cached Open Graph preview for the same URL.
 - [VIXUS AI video audio fallback](vixus-ai-video-audio.md) — if hosted voice/music generation is unavailable, use local FFmpeg Flite narration and composite delayed scene audio.
+- [VIXUS AI security hardening](vixus-ai-security-hardening.md) — shared rate limits and webhook idempotency must be database-backed; inspect existing schema/journal state before applying migrations.

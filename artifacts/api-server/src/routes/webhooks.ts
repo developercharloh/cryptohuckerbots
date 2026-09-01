@@ -1,6 +1,6 @@
 import { Router } from "express";
 import crypto from "node:crypto";
-import { db, kycTable, usersTable } from "@workspace/db";
+import { db, diditWebhookEventsTable, kycTable, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
 
@@ -40,12 +40,41 @@ router.post("/webhooks/didit", async (req, res) => {
     status?: string;
     vendor_data?: string;
     webhook_type?: string;
+    webhook_id?: string;
+    event_id?: string;
   };
 
-  const { session_id, status, vendor_data } = body;
+  const { session_id, status } = body;
 
   if (!session_id || !status) {
     return res.json({ ok: true });
+  }
+
+  // Prefer a provider event identifier. When Didit omits one, hashing the
+  // signed raw body still makes identical retries harmless.
+  const providerEventId =
+    req.headers["x-webhook-id"] ??
+    req.headers["x-event-id"] ??
+    body.webhook_id ??
+    body.event_id;
+  const eventKey = providerEventId
+    ? `id:${crypto.createHash("sha256").update(String(providerEventId)).digest("hex")}`
+    : `body:${crypto.createHash("sha256")
+        .update(rawBody ?? Buffer.from(JSON.stringify(body)))
+        .digest("hex")}`;
+
+  try {
+    const inserted = await db.insert(diditWebhookEventsTable)
+      .values({ eventKey: eventKey.slice(0, 128), sessionId: session_id })
+      .onConflictDoNothing()
+      .returning({ eventKey: diditWebhookEventsTable.eventKey });
+    if (inserted.length === 0) {
+      logger.info({ session_id, eventKey }, "Duplicate Didit webhook ignored");
+      return res.json({ ok: true, duplicate: true });
+    }
+  } catch (err) {
+    logger.error({ err, session_id }, "Didit webhook idempotency check failed");
+    return res.status(503).json({ error: "Webhook temporarily unavailable" });
   }
 
   const [kyc] = await db
