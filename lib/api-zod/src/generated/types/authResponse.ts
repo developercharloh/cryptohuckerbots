@@ -9,6 +9,10 @@ import type { User } from './user';
 
 export interface AuthResponse {
   user?: User;
+  requiresEmailVerification?: boolean;
+  email?: string;
+  requiresEmailOtp?: boolean;
+  challengeToken?: string;
   requires2FA?: boolean;
   tempToken?: string;
 }

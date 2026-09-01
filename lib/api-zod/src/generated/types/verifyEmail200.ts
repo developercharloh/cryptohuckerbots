@@ -6,7 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface ForgotPasswordInput {
-  /** @maxLength 255 */
+export type VerifyEmail200 = {
+  message: string;
   email: string;
-}
+};

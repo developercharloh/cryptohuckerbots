@@ -7,6 +7,14 @@
  */
 
 export interface ChangePasswordInput {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
   currentPassword: string;
+  /**
+     * @minLength 12
+     * @maxLength 128
+     */
   newPassword: string;
 }

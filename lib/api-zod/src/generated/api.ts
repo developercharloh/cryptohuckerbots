@@ -34,10 +34,10 @@ export const ListMarketNewsResponse = zod.object({
 
 
 export const RegisterBody = zod.object({
-  "fullName": zod.string().trim().min(2).max(120),
-  "email": zod.string().trim().email().max(255),
-  "password": zod.string().min(12).max(128),
-  "country": zod.string().trim().min(2).max(100)
+  "fullName": zod.string(),
+  "email": zod.string(),
+  "password": zod.string(),
+  "country": zod.string()
 })
 
 export const RegisterResponse = zod.object({
@@ -49,14 +49,48 @@ export const RegisterResponse = zod.object({
   "kycStatus": zod.string(),
   "createdAt": zod.string()
 }).optional(),
+  "requiresEmailVerification": zod.boolean().optional(),
+  "email": zod.string().optional(),
+  "requiresEmailOtp": zod.boolean().optional(),
+  "challengeToken": zod.string().optional(),
   "requires2FA": zod.boolean().optional(),
   "tempToken": zod.string().optional()
 })
 
 
+export const verifyEmailQueryTokenTokenMin = 20;
+export const verifyEmailQueryTokenTokenMax = 512;
+
+
+
+export const VerifyEmailQueryParams = zod.object({
+  "token": zod.object({
+  "token": zod.coerce.string().min(verifyEmailQueryTokenTokenMin).max(verifyEmailQueryTokenTokenMax)
+})
+})
+
+export const VerifyEmailResponse = zod.object({
+  "message": zod.string(),
+  "email": zod.string()
+})
+
+
+export const resendVerificationBodyEmailMax = 255;
+
+
+
+export const ResendVerificationBody = zod.object({
+  "email": zod.string().email().max(resendVerificationBodyEmailMax)
+})
+
+export const ResendVerificationResponse = zod.object({
+  "message": zod.string()
+})
+
+
 export const LoginBody = zod.object({
-  "email": zod.string().trim().email().max(255),
-  "password": zod.string().min(1).max(128)
+  "email": zod.string(),
+  "password": zod.string()
 })
 
 export const LoginResponse = zod.object({
@@ -68,8 +102,55 @@ export const LoginResponse = zod.object({
   "kycStatus": zod.string(),
   "createdAt": zod.string()
 }).optional(),
+  "requiresEmailVerification": zod.boolean().optional(),
+  "email": zod.string().optional(),
+  "requiresEmailOtp": zod.boolean().optional(),
+  "challengeToken": zod.string().optional(),
   "requires2FA": zod.boolean().optional(),
   "tempToken": zod.string().optional()
+})
+
+
+export const verifyLoginOtpBodyChallengeTokenMin = 20;
+export const verifyLoginOtpBodyChallengeTokenMax = 512;
+
+export const verifyLoginOtpBodyCodeRegExp = new RegExp('^[0-9]{6}$');
+
+
+export const VerifyLoginOtpBody = zod.object({
+  "challengeToken": zod.string().min(verifyLoginOtpBodyChallengeTokenMin).max(verifyLoginOtpBodyChallengeTokenMax),
+  "code": zod.string().regex(verifyLoginOtpBodyCodeRegExp)
+})
+
+export const VerifyLoginOtpResponse = zod.object({
+  "user": zod.object({
+  "id": zod.number(),
+  "fullName": zod.string(),
+  "email": zod.string(),
+  "avatarUrl": zod.string().nullish(),
+  "kycStatus": zod.string(),
+  "createdAt": zod.string()
+}).optional(),
+  "requiresEmailVerification": zod.boolean().optional(),
+  "email": zod.string().optional(),
+  "requiresEmailOtp": zod.boolean().optional(),
+  "challengeToken": zod.string().optional(),
+  "requires2FA": zod.boolean().optional(),
+  "tempToken": zod.string().optional()
+})
+
+
+export const resendLoginOtpBodyChallengeTokenMin = 20;
+export const resendLoginOtpBodyChallengeTokenMax = 512;
+
+
+
+export const ResendLoginOtpBody = zod.object({
+  "challengeToken": zod.string().min(resendLoginOtpBodyChallengeTokenMin).max(resendLoginOtpBodyChallengeTokenMax)
+})
+
+export const ResendLoginOtpResponse = zod.object({
+  "message": zod.string()
 })
 
 
@@ -78,8 +159,12 @@ export const LogoutResponse = zod.object({
 })
 
 
+export const forgotPasswordBodyEmailMax = 255;
+
+
+
 export const ForgotPasswordBody = zod.object({
-  "email": zod.string().trim().email().max(255)
+  "email": zod.string().email().max(forgotPasswordBodyEmailMax)
 })
 
 export const ForgotPasswordResponse = zod.object({
@@ -87,9 +172,17 @@ export const ForgotPasswordResponse = zod.object({
 })
 
 
+export const resetPasswordBodyTokenMin = 20;
+export const resetPasswordBodyTokenMax = 512;
+
+export const resetPasswordBodyPasswordMin = 12;
+export const resetPasswordBodyPasswordMax = 128;
+
+
+
 export const ResetPasswordBody = zod.object({
-  "token": zod.string().min(20).max(512),
-  "password": zod.string().min(12).max(128)
+  "token": zod.string().min(resetPasswordBodyTokenMin).max(resetPasswordBodyTokenMax),
+  "password": zod.string().min(resetPasswordBodyPasswordMin).max(resetPasswordBodyPasswordMax)
 })
 
 export const ResetPasswordResponse = zod.object({
@@ -702,9 +795,16 @@ export const UpdateProfileResponse = zod.object({
 })
 
 
+export const changePasswordBodyCurrentPasswordMax = 128;
+
+export const changePasswordBodyNewPasswordMin = 12;
+export const changePasswordBodyNewPasswordMax = 128;
+
+
+
 export const ChangePasswordBody = zod.object({
-  "currentPassword": zod.string().min(1).max(128),
-  "newPassword": zod.string().min(12).max(128)
+  "currentPassword": zod.string().min(1).max(changePasswordBodyCurrentPasswordMax),
+  "newPassword": zod.string().min(changePasswordBodyNewPasswordMin).max(changePasswordBodyNewPasswordMax)
 })
 
 export const ChangePasswordResponse = zod.object({

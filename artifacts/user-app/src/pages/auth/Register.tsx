@@ -13,7 +13,7 @@ import { VixusLogo } from "@/components/VixusLogo";
 const registerSchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
   email: z.string().email("Invalid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z.string().min(12, "Password must be at least 12 characters"),
   country: z.string().min(2, "Country of residence is required"),
   confirmPassword: z.string(),
   terms: z.boolean().refine(val => val, "You must accept the terms"),
@@ -50,8 +50,8 @@ export default function Register() {
     const { terms, confirmPassword, ...data } = values;
     registerMutation.mutate({ data }, {
       onSuccess: () => {
-        toast({ title: "Account created", description: "Please sign in." });
-        setLocation(`/login?email=${encodeURIComponent(data.email)}`);
+        toast({ title: "Check your email", description: "We sent a verification link to your email address." });
+        setLocation(`/verify-email?email=${encodeURIComponent(data.email)}`);
       },
       onError: (err: any) => {
         toast({ title: "Registration failed", description: err.message || "An error occurred", variant: "destructive" });

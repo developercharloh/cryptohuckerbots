@@ -15,6 +15,7 @@ export const usersTable = pgTable("users", {
   isAdmin: boolean("is_admin").notNull().default(false),
   twoFAEnabled: boolean("two_fa_enabled").notNull().default(false),
   twoFASecret: text("two_fa_secret"),
+  emailVerifiedAt: timestamp("email_verified_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (table) => [
@@ -446,6 +447,39 @@ export const passwordResetTokensTable = pgTable("password_reset_tokens", {
 ]);
 
 export type PasswordResetToken = typeof passwordResetTokensTable.$inferSelect;
+
+// Email verification links are stored only as hashes and can be used once.
+export const emailVerificationTokensTable = pgTable("email_verification_tokens", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  tokenHash: varchar("token_hash", { length: 128 }).notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  index("email_verification_tokens_user_id_idx").on(table.userId),
+  index("email_verification_tokens_expires_at_idx").on(table.expiresAt),
+]);
+
+export type EmailVerificationToken = typeof emailVerificationTokensTable.$inferSelect;
+
+// Login OTP challenges are shared across serverless instances. Both the
+// challenge token and six-digit code are stored only as hashes.
+export const loginOtpChallengesTable = pgTable("login_otp_challenges", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  challengeHash: varchar("challenge_hash", { length: 128 }).notNull().unique(),
+  otpHash: varchar("otp_hash", { length: 128 }).notNull(),
+  attempts: integer("attempts").notNull().default(0),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  index("login_otp_challenges_user_id_idx").on(table.userId),
+  index("login_otp_challenges_expires_at_idx").on(table.expiresAt),
+]);
+
+export type LoginOtpChallenge = typeof loginOtpChallengesTable.$inferSelect;
 
 // Security events are intentionally append-only application audit records.
 // Sensitive values (passwords, reset tokens, bearer tokens) must never be

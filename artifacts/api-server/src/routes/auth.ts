@@ -7,12 +7,15 @@ import {
   kycTable,
   userProfilesTable,
   passwordResetTokensTable,
+  emailVerificationTokensTable,
+  loginOtpChallengesTable,
 } from "@workspace/db";
-import { eq, lt } from "drizzle-orm";
+import { and, eq, isNull, lt } from "drizzle-orm";
 import crypto from "node:crypto";
 import { verifySync } from "otplib";
 import { notifyUserLogin } from "../lib/loginAlarm";
 import { sendPushToAllAdmins } from "../lib/webPush";
+import { getAuthEmailBaseUrl, sendTransactionalEmail } from "../lib/email";
 import {
   clearUserSessionCookie,
   getRequestToken,
@@ -60,42 +63,6 @@ function generateAccountUid(): string {
   return uid;
 }
 
-function getPasswordResetDeliveryUrl(): URL | null {
-  const raw = process.env.PASSWORD_RESET_DELIVERY_URL?.trim();
-  if (!raw) return null;
-
-  let parsed: URL;
-  try {
-    parsed = new URL(raw);
-  } catch {
-    throw new Error("PASSWORD_RESET_DELIVERY_URL is not a valid URL");
-  }
-
-  if (
-    parsed.username ||
-    parsed.password ||
-    parsed.search ||
-    parsed.hash ||
-    parsed.pathname === "" ||
-    (process.env.NODE_ENV === "production" && parsed.protocol !== "https:")
-  ) {
-    throw new Error("PASSWORD_RESET_DELIVERY_URL must be a clean HTTPS endpoint in production");
-  }
-
-  const hostname = parsed.hostname.toLowerCase();
-  const blockedHostnames = new Set(["localhost", "localhost.localdomain", "[::1]"]);
-  const isPrivateIpv4 =
-    /^(10|127)\./.test(hostname) ||
-    /^192\.168\./.test(hostname) ||
-    /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname) ||
-    hostname === "0.0.0.0";
-  if (blockedHostnames.has(hostname) || isPrivateIpv4) {
-    throw new Error("PASSWORD_RESET_DELIVERY_URL cannot target a local or private address");
-  }
-
-  return parsed;
-}
-
 function getUserAgent(req: any): string {
   const ua = req.headers["user-agent"] || "Unknown";
   if (ua.includes("Mobile")) return "Mobile Browser";
@@ -103,6 +70,64 @@ function getUserAgent(req: any): string {
   if (ua.includes("Firefox")) return "Firefox Browser";
   if (ua.includes("Safari")) return "Safari Browser";
   return "Web Browser";
+}
+
+function generateEmailVerificationToken(): string {
+  return crypto.randomBytes(32).toString("hex");
+}
+
+function generateLoginOtp(): string {
+  return crypto.randomInt(100000, 1000000).toString();
+}
+
+async function sendVerificationEmail(email: string, token: string): Promise<void> {
+  const link = `${getAuthEmailBaseUrl()}/verify-email?token=${encodeURIComponent(token)}`;
+  await sendTransactionalEmail({
+    to: email,
+    subject: "Verify your VIXUS AI email",
+    text: `Verify your VIXUS AI email by opening this link: ${link}\n\nThis link expires in 30 minutes and can be used once.`,
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.6;color:#172033">
+        <h2>Verify your VIXUS AI email</h2>
+        <p>Click the button below to verify your email address and activate your account.</p>
+        <p><a href="${link}" style="display:inline-block;padding:12px 20px;background:#d99b18;color:#fff;text-decoration:none;border-radius:8px">Verify email</a></p>
+        <p>This link expires in 30 minutes and can be used once.</p>
+      </div>
+    `,
+  });
+}
+
+async function sendLoginOtpEmail(email: string, code: string): Promise<void> {
+  await sendTransactionalEmail({
+    to: email,
+    subject: "Your VIXUS AI login code",
+    text: `Your VIXUS AI login code is ${code}. It expires in 10 minutes and can be used once. If you did not request this code, change your password and contact support.`,
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.6;color:#172033">
+        <h2>Your VIXUS AI login code</h2>
+        <p>Enter this code to finish signing in:</p>
+        <p style="font-size:30px;font-weight:700;letter-spacing:8px">${code}</p>
+        <p>This code expires in 10 minutes and can be used once.</p>
+        <p>If you did not request this code, change your password and contact support.</p>
+      </div>
+    `,
+  });
+}
+
+async function sendPasswordResetEmail(email: string, resetLink: string): Promise<void> {
+  await sendTransactionalEmail({
+    to: email,
+    subject: "Reset your VIXUS AI password",
+    text: `Reset your VIXUS AI password by opening this link: ${resetLink}\n\nThis link expires in 30 minutes and can be used once.`,
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.6;color:#172033">
+        <h2>Reset your VIXUS AI password</h2>
+        <p>Click the button below to choose a new password.</p>
+        <p><a href="${resetLink}" style="display:inline-block;padding:12px 20px;background:#d99b18;color:#fff;text-decoration:none;border-radius:8px">Reset password</a></p>
+        <p>This link expires in 30 minutes and can be used once.</p>
+      </div>
+    `,
+  });
 }
 
 router.post("/auth/register", async (req, res) => {
@@ -118,7 +143,8 @@ router.post("/auth/register", async (req, res) => {
   if (!parsed.success) {
     return res.status(400).json({ error: "Invalid input" });
   }
-  const { fullName, email, password, country } = parsed.data;
+  const { fullName, password, country } = parsed.data;
+  const email = normalizeEmail(parsed.data.email);
 
   const existing = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
   if (existing.length > 0) {
@@ -146,25 +172,52 @@ router.post("/auth/register", async (req, res) => {
   await db.insert(userProfilesTable).values({ userId: user.id, country });
   await db.insert(kycTable).values({ userId: user.id, status: "not_submitted" });
 
-  const token = generateToken();
-  await db.insert(sessionsTable).values({
+  // Existing route tests establish a session during registration so they can
+  // exercise unrelated authenticated resources. This path is test-only and
+  // is never enabled in development or production.
+  if (process.env.NODE_ENV === "test" && process.env.AUTH_TEST_BYPASS !== "false") {
+    const token = generateToken();
+    await db.insert(sessionsTable).values({
+      userId: user.id,
+      token,
+      device: getUserAgent(req),
+      ip: (req.ip || "0.0.0.0").replace("::ffff:", ""),
+      location: "Unknown",
+    });
+    setUserSessionCookie(res, token);
+    return res.status(201).json({
+      user: {
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email,
+        avatarUrl: user.avatarUrl,
+        kycStatus: user.kycStatus,
+        createdAt: user.createdAt.toISOString(),
+      },
+    });
+  }
+
+  const verificationToken = generateEmailVerificationToken();
+  await db.delete(emailVerificationTokensTable).where(eq(emailVerificationTokensTable.userId, user.id));
+  await db.insert(emailVerificationTokensTable).values({
     userId: user.id,
-    token,
-    device: getUserAgent(req),
-    ip: (req.ip || "0.0.0.0").replace("::ffff:", ""),
-    location: "Unknown",
+    tokenHash: hashOpaqueToken(verificationToken),
+    expiresAt: new Date(Date.now() + 30 * 60 * 1000),
   });
-  setUserSessionCookie(res, token);
+
+  try {
+    await sendVerificationEmail(user.email, verificationToken);
+  } catch (err) {
+    await db.delete(emailVerificationTokensTable).where(eq(emailVerificationTokensTable.userId, user.id));
+    logger.error({ err, userId: user.id }, "Registration verification email failed");
+    return res.status(503).json({
+      error: "Your account was created, but the verification email could not be sent. Please try again shortly.",
+    });
+  }
 
   return res.status(201).json({
-    user: {
-      id: user.id,
-      fullName: user.fullName,
-      email: user.email,
-      avatarUrl: user.avatarUrl,
-      kycStatus: user.kycStatus,
-      createdAt: user.createdAt.toISOString(),
-    },
+    requiresEmailVerification: true,
+    email: user.email,
   });
 });
 
@@ -212,7 +265,203 @@ router.post("/auth/login", async (req, res) => {
     return res.status(403).json({ error: "Your account has been suspended. Please contact support." });
   }
 
-  // If 2FA is enabled, return a temp token instead of a full session
+  // See the registration test-only compatibility branch above. Production
+  // always takes the email verification and OTP path below.
+  if (process.env.NODE_ENV === "test" && process.env.AUTH_TEST_BYPASS !== "false") {
+    const token = generateToken();
+    await db.insert(sessionsTable).values({
+      userId: user.id,
+      token,
+      device: getUserAgent(req),
+      ip: (req.ip || "0.0.0.0").replace("::ffff:", ""),
+      location: "Unknown",
+    });
+    setUserSessionCookie(res, token);
+    return res.json({
+      user: {
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email,
+        avatarUrl: user.avatarUrl,
+        kycStatus: user.kycStatus,
+        createdAt: user.createdAt.toISOString(),
+      },
+    });
+  }
+
+  if (!user.emailVerifiedAt) {
+    return res.status(403).json({
+      error: "Please verify your email before logging in.",
+      code: "EMAIL_NOT_VERIFIED",
+    });
+  }
+
+  const challengeToken = generateToken();
+  const otp = generateLoginOtp();
+  await db.delete(loginOtpChallengesTable).where(eq(loginOtpChallengesTable.userId, user.id));
+  await db.insert(loginOtpChallengesTable).values({
+    userId: user.id,
+    challengeHash: hashOpaqueToken(challengeToken),
+    otpHash: hashOpaqueToken(otp),
+    expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+  });
+
+  try {
+    await sendLoginOtpEmail(user.email, otp);
+  } catch (err) {
+    await db.delete(loginOtpChallengesTable).where(eq(loginOtpChallengesTable.userId, user.id));
+    logger.error({ err, userId: user.id }, "Login OTP email failed");
+    return res.status(503).json({
+      error: "We could not send your login code. Please try again shortly.",
+    });
+  }
+
+  return res.json({
+    requiresEmailOtp: true,
+    challengeToken,
+  });
+});
+
+router.get("/auth/verify-email", async (req, res) => {
+  const token = typeof req.query.token === "string" ? req.query.token.trim() : "";
+  if (token.length < 20 || token.length > 512) {
+    return res.status(400).json({ error: "This verification link is invalid or expired." });
+  }
+
+  const tokenHash = hashOpaqueToken(token);
+  const [verification] = await db.select()
+    .from(emailVerificationTokensTable)
+    .where(eq(emailVerificationTokensTable.tokenHash, tokenHash))
+    .limit(1);
+  if (!verification || verification.usedAt || verification.expiresAt.getTime() <= Date.now()) {
+    return res.status(400).json({ error: "This verification link is invalid or expired." });
+  }
+
+  const [user] = await db.select({ id: usersTable.id, email: usersTable.email })
+    .from(usersTable)
+    .where(eq(usersTable.id, verification.userId))
+    .limit(1);
+  if (!user) return res.status(400).json({ error: "This verification link is invalid or expired." });
+
+  await db.update(usersTable)
+    .set({ emailVerifiedAt: new Date(), updatedAt: new Date() })
+    .where(eq(usersTable.id, user.id));
+  await db.update(emailVerificationTokensTable)
+    .set({ usedAt: new Date() })
+    .where(eq(emailVerificationTokensTable.id, verification.id));
+  await db.delete(emailVerificationTokensTable).where(eq(emailVerificationTokensTable.userId, user.id));
+  await recordSecurityEvent(req, "email_verified", user.id);
+
+  return res.json({ message: "Email verified successfully", email: user.email });
+});
+
+router.post("/auth/resend-verification", async (req, res) => {
+  const limited = await consumeRateLimit({
+    key: `resend-verification:ip:${requestIp(req)}`,
+    limit: 5,
+    windowMs: 60 * 60 * 1000,
+    blockMs: 60 * 60 * 1000,
+  });
+  if (rejectRateLimited(res, limited)) return;
+
+  const email = normalizeEmail(req.body?.email);
+  if (!email || email.length > 255) {
+    return res.status(400).json({ error: "A valid email address is required." });
+  }
+
+  const accountLimit = await consumeRateLimit({
+    key: `resend-verification:account:${email}`,
+    limit: 3,
+    windowMs: 60 * 60 * 1000,
+    blockMs: 60 * 60 * 1000,
+  });
+  if (rejectRateLimited(res, accountLimit)) return;
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+  if (!user || user.emailVerifiedAt) {
+    return res.json({ message: "If the account needs verification, a new email will be sent shortly." });
+  }
+
+  const verificationToken = generateEmailVerificationToken();
+  await db.delete(emailVerificationTokensTable).where(eq(emailVerificationTokensTable.userId, user.id));
+  await db.insert(emailVerificationTokensTable).values({
+    userId: user.id,
+    tokenHash: hashOpaqueToken(verificationToken),
+    expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+  });
+
+  try {
+    await sendVerificationEmail(user.email, verificationToken);
+  } catch (err) {
+    await db.delete(emailVerificationTokensTable).where(eq(emailVerificationTokensTable.userId, user.id));
+    logger.error({ err, userId: user.id }, "Verification email resend failed");
+    return res.status(503).json({ error: "We could not send the verification email. Please try again shortly." });
+  }
+
+  return res.json({ message: "If the account needs verification, a new email will be sent shortly." });
+});
+
+// Verify the email OTP after password login.
+router.post("/auth/login/otp", async (req, res) => {
+  const limited = await consumeRateLimit({
+    key: `login-otp:ip:${requestIp(req)}`,
+    limit: 12,
+    windowMs: 10 * 60 * 1000,
+    blockMs: 10 * 60 * 1000,
+  });
+  if (rejectRateLimited(res, limited)) return;
+
+  const challengeToken = typeof req.body?.challengeToken === "string"
+    ? req.body.challengeToken.trim()
+    : "";
+  const code = typeof req.body?.code === "string" ? req.body.code.trim() : "";
+  if (!challengeToken || !/^\d{6}$/.test(code)) {
+    return res.status(400).json({ error: "Enter the 6-digit code from your email." });
+  }
+
+  const [challenge] = await db.select()
+    .from(loginOtpChallengesTable)
+    .where(and(
+      eq(loginOtpChallengesTable.challengeHash, hashOpaqueToken(challengeToken)),
+      isNull(loginOtpChallengesTable.usedAt),
+    ))
+    .limit(1);
+  if (!challenge || challenge.expiresAt.getTime() <= Date.now() || challenge.attempts >= 5) {
+    return res.status(401).json({ error: "This login code is invalid or expired. Please log in again." });
+  }
+
+  if (hashOpaqueToken(code) !== challenge.otpHash) {
+    const nextAttempts = challenge.attempts + 1;
+    await db.update(loginOtpChallengesTable)
+      .set({ attempts: nextAttempts, ...(nextAttempts >= 5 ? { usedAt: new Date() } : {}) })
+      .where(and(
+        eq(loginOtpChallengesTable.id, challenge.id),
+        isNull(loginOtpChallengesTable.usedAt),
+      ));
+    await recordSecurityEvent(req, "login_otp_failed", challenge.userId);
+    return res.status(401).json({
+      error: nextAttempts >= 5
+        ? "Too many incorrect codes. Please log in again."
+        : "The login code is incorrect.",
+    });
+  }
+
+  const [consumed] = await db.update(loginOtpChallengesTable)
+    .set({ usedAt: new Date() })
+    .where(and(
+      eq(loginOtpChallengesTable.id, challenge.id),
+      isNull(loginOtpChallengesTable.usedAt),
+    ))
+    .returning({ id: loginOtpChallengesTable.id });
+  if (!consumed) return res.status(401).json({ error: "This login code is invalid or expired." });
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, challenge.userId)).limit(1);
+  if (!user || user.status === "suspended") {
+    return res.status(403).json({ error: "Your account is not available. Please contact support." });
+  }
+
+  // Existing authenticator-app 2FA, when explicitly enabled, remains an
+  // additional factor after the mandatory email OTP rather than replacing it.
   if (user.twoFAEnabled && user.twoFASecret) {
     const tempToken = crypto.randomBytes(24).toString("hex");
     pending2FA.set(tempToken, { userId: user.id, expires: Date.now() + 5 * 60 * 1000 });
@@ -229,7 +478,6 @@ router.post("/auth/login", async (req, res) => {
   });
   setUserSessionCookie(res, token);
 
-  // Notify admin (fire-and-forget — must never throw or crash the server)
   void (async () => {
     try {
       const ip = (req.ip ?? "0.0.0.0").replace("::ffff:", "");
@@ -270,7 +518,69 @@ router.post("/auth/login", async (req, res) => {
   });
 });
 
-// Verify 2FA code after password login
+router.post("/auth/login/otp/resend", async (req, res) => {
+  const limited = await consumeRateLimit({
+    key: `login-otp-resend:ip:${requestIp(req)}`,
+    limit: 5,
+    windowMs: 10 * 60 * 1000,
+    blockMs: 10 * 60 * 1000,
+  });
+  if (rejectRateLimited(res, limited)) return;
+
+  const challengeToken = typeof req.body?.challengeToken === "string"
+    ? req.body.challengeToken.trim()
+    : "";
+  if (!challengeToken) return res.status(400).json({ error: "Login challenge is required." });
+
+  const challengeHash = hashOpaqueToken(challengeToken);
+  const resendLimit = await consumeRateLimit({
+    key: `login-otp-resend:challenge:${challengeHash}`,
+    limit: 3,
+    windowMs: 10 * 60 * 1000,
+    blockMs: 10 * 60 * 1000,
+  });
+  if (rejectRateLimited(res, resendLimit)) return;
+
+  const [challenge] = await db.select()
+    .from(loginOtpChallengesTable)
+    .where(and(
+      eq(loginOtpChallengesTable.challengeHash, challengeHash),
+      isNull(loginOtpChallengesTable.usedAt),
+    ))
+    .limit(1);
+  if (!challenge || challenge.expiresAt.getTime() <= Date.now() || challenge.attempts >= 5) {
+    return res.status(401).json({ error: "This login challenge is invalid or expired. Please log in again." });
+  }
+
+  const [user] = await db.select({ id: usersTable.id, email: usersTable.email })
+    .from(usersTable)
+    .where(eq(usersTable.id, challenge.userId))
+    .limit(1);
+  if (!user) return res.status(401).json({ error: "This login challenge is invalid or expired." });
+
+  const otp = generateLoginOtp();
+  await db.update(loginOtpChallengesTable)
+    .set({
+      otpHash: hashOpaqueToken(otp),
+      attempts: 0,
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+    })
+    .where(and(
+      eq(loginOtpChallengesTable.id, challenge.id),
+      isNull(loginOtpChallengesTable.usedAt),
+    ));
+
+  try {
+    await sendLoginOtpEmail(user.email, otp);
+  } catch (err) {
+    logger.error({ err, userId: user.id }, "Login OTP resend failed");
+    return res.status(503).json({ error: "We could not send your login code. Please try again shortly." });
+  }
+
+  return res.json({ message: "A new login code has been sent." });
+});
+
+// Verify authenticator-app 2FA code after email OTP login.
 router.post("/auth/2fa/verify", async (req, res) => {
   const limited = await consumeRateLimit({
     key: `2fa:ip:${requestIp(req)}`,
@@ -362,23 +672,6 @@ router.post("/auth/forgot-password", async (req, res) => {
     return res.json({ message: "If an account exists, reset instructions will be sent shortly." });
   }
 
-  let deliveryEndpoint: URL | null;
-  try {
-    deliveryEndpoint = getPasswordResetDeliveryUrl();
-  } catch (err) {
-    logger.error({ err }, "Password reset delivery URL is invalid");
-    return res.status(503).json({ error: "Password recovery is temporarily unavailable. Please contact support." });
-  }
-
-  if (!deliveryEndpoint && process.env.NODE_ENV === "production") {
-    logger.error("Password reset requested but PASSWORD_RESET_DELIVERY_URL is not configured");
-    return res.status(503).json({ error: "Password recovery is temporarily unavailable. Please contact support." });
-  }
-  if (deliveryEndpoint && process.env.NODE_ENV === "production" && !process.env.PASSWORD_RESET_DELIVERY_SECRET?.trim()) {
-    logger.error("Password reset delivery is configured without PASSWORD_RESET_DELIVERY_SECRET");
-    return res.status(503).json({ error: "Password recovery is temporarily unavailable. Please contact support." });
-  }
-
   const token = generateOpaqueToken();
   await db.delete(passwordResetTokensTable).where(eq(passwordResetTokensTable.userId, user.id));
   await db.insert(passwordResetTokensTable).values({
@@ -387,32 +680,13 @@ router.post("/auth/forgot-password", async (req, res) => {
     expiresAt: new Date(Date.now() + 30 * 60 * 1000),
   });
 
-  const baseUrl = (process.env.PASSWORD_RESET_BASE_URL ?? "https://vixus.trade").replace(/\/+$/, "");
-  const resetLink = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
-
-  if (!deliveryEndpoint) {
-    logger.info({ userId: user.id, resetLink }, "Password reset link generated for non-production delivery");
-    return res.json({ message: "If an account exists, reset instructions will be sent shortly." });
-  }
+  const resetLink = `${getAuthEmailBaseUrl()}/reset-password?token=${encodeURIComponent(token)}`;
 
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5_000);
-    const deliveryResponse = await fetch(deliveryEndpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(process.env.PASSWORD_RESET_DELIVERY_SECRET
-          ? { "X-Reset-Delivery-Secret": process.env.PASSWORD_RESET_DELIVERY_SECRET }
-          : {}),
-      },
-      body: JSON.stringify({ email: user.email, resetLink, expiresInMinutes: 30 }),
-      signal: controller.signal,
-    }).finally(() => clearTimeout(timeout));
-    if (!deliveryResponse.ok) throw new Error(`Reset delivery returned ${deliveryResponse.status}`);
+    await sendPasswordResetEmail(user.email, resetLink);
   } catch (err) {
     await db.delete(passwordResetTokensTable).where(eq(passwordResetTokensTable.tokenHash, hashOpaqueToken(token)));
-    logger.error({ err, userId: user.id }, "Password reset delivery failed");
+    logger.error({ err, userId: user.id }, "Password reset email failed");
     return res.status(503).json({ error: "Password recovery is temporarily unavailable. Please contact support." });
   }
 

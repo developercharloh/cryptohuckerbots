@@ -108,6 +108,7 @@ const Risk = lazy(() => import("@/pages/legal/Risk"));
 const Contact = lazy(() => import("@/pages/legal/Contact"));
 const Login = lazy(() => import("@/pages/auth/Login"));
 const Register = lazy(() => import("@/pages/auth/Register"));
+const VerifyEmail = lazy(() => import("@/pages/auth/VerifyEmail"));
 const ForgotPassword = lazy(() => import("@/pages/auth/ForgotPassword"));
 const ResetPassword = lazy(() => import("@/pages/auth/ResetPassword"));
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
@@ -170,6 +171,7 @@ function Router() {
       <Route path="/contact" component={Contact} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
+      <Route path="/verify-email" component={VerifyEmail} />
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/reset-password" component={ResetPassword} />
       

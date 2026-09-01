@@ -43,6 +43,13 @@
       "when": 1788246800000,
       "tag": "0005_didit_webhook_idempotency",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788250000000,
+      "tag": "0006_email_auth",
+      "breakpoints": true
     }
   ]
 }

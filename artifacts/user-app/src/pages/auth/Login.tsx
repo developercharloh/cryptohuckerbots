@@ -3,7 +3,7 @@ import { Link, useLocation, useSearch } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useLogin } from "@workspace/api-client-react";
+import { useLogin, useResendLoginOtp, useVerifyLoginOtp } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
@@ -32,10 +32,14 @@ export default function Login() {
   const search = useSearch();
   const prefilledEmail = new URLSearchParams(search).get("email") ?? "";
 
-  const [step, setStep] = useState<"credentials" | "2fa">("credentials");
+  const [step, setStep] = useState<"credentials" | "emailOtp" | "2fa">("credentials");
   const [tempToken, setTempToken] = useState("");
+  const [challengeToken, setChallengeToken] = useState("");
+  const [emailOtpCode, setEmailOtpCode] = useState("");
   const [twoFACode, setTwoFACode] = useState("");
   const [verifying, setVerifying] = useState(false);
+  const verifyLoginOtpMutation = useVerifyLoginOtp();
+  const resendLoginOtpMutation = useResendLoginOtp();
 
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
@@ -45,7 +49,11 @@ export default function Login() {
   const onSubmit = (values: z.infer<typeof loginSchema>) => {
     loginMutation.mutate({ data: { email: values.email, password: values.password } }, {
       onSuccess: (res: any) => {
-        if (res.requires2FA) {
+        if (res.requiresEmailOtp) {
+          setChallengeToken(res.challengeToken);
+          setEmailOtpCode("");
+          setStep("emailOtp");
+        } else if (res.requires2FA) {
           setTempToken(res.tempToken);
           setTwoFACode("");
           setStep("2fa");
@@ -56,9 +64,59 @@ export default function Login() {
         }
       },
       onError: (err: any) => {
+        if (err.status === 403 && err.data?.code === "EMAIL_NOT_VERIFIED") {
+          toast({ title: "Verify your email first", description: "Open the verification email we sent you, then return to log in." });
+          setLocation(`/verify-email?email=${encodeURIComponent(values.email)}`);
+          return;
+        }
         toast({ title: "Login failed", description: err.message || "Unable to sign in. Please try again.", variant: "destructive" });
       },
     });
+  };
+
+  const handleEmailOtpVerify = () => {
+    if (emailOtpCode.length !== 6) {
+      toast({ title: "Enter the 6-digit code", variant: "destructive" });
+      return;
+    }
+    verifyLoginOtpMutation.mutate(
+      { data: { challengeToken, code: emailOtpCode } },
+      {
+        onSuccess: (res: any) => {
+          if (res.requires2FA) {
+            setTempToken(res.tempToken);
+            setTwoFACode("");
+            setStep("2fa");
+            return;
+          }
+          if (!res.user) {
+            toast({ title: "Login failed", description: "Login did not return a user session.", variant: "destructive" });
+            return;
+          }
+          setAuth(res.user);
+          setLocation("/dashboard");
+        },
+        onError: (err: any) => {
+          toast({ title: "Invalid login code", description: err.message || "The code is invalid or expired.", variant: "destructive" });
+          setEmailOtpCode("");
+        },
+      },
+    );
+  };
+
+  const handleResendEmailOtp = () => {
+    resendLoginOtpMutation.mutate(
+      { data: { challengeToken } },
+      {
+        onSuccess: () => {
+          setEmailOtpCode("");
+          toast({ title: "New code sent", description: "Check your verified email for a new login code." });
+        },
+        onError: (err: any) => {
+          toast({ title: "Could not resend code", description: err.message || "Please try again later.", variant: "destructive" });
+        },
+      },
+    );
   };
 
   const handle2FAVerify = async () => {
@@ -85,6 +143,52 @@ export default function Login() {
       setVerifying(false);
     }
   };
+
+  if (step === "emailOtp") {
+    return (
+      <div style={{ minHeight: "100dvh", background: `linear-gradient(160deg, ${BG} 0%, #15120B 50%, ${BG} 100%)`, display: "flex", flexDirection: "column", padding: "24px 24px", position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: "10%", left: "50%", transform: "translateX(-50%)", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(circle, rgba(245,185,66,0.15) 0%, transparent 70%)", pointerEvents: "none" }} />
+        <div style={{ paddingTop: 40, position: "relative", zIndex: 1 }}>
+          <button onClick={() => setStep("credentials")} style={{ display: "flex", alignItems: "center", gap: 4, color: "#64748B", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+            <ChevronLeft size={18} /> Back to login
+          </button>
+          <div style={{ textAlign: "center", margin: "72px 0 32px" }}>
+            <div style={{ width: 64, height: 64, borderRadius: 20, margin: "0 auto 20px", background: "rgba(245,185,66,0.12)", border: `1px solid ${BORDER}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Mail size={30} color={LIGHT} />
+            </div>
+            <h1 style={{ fontSize: 26, fontWeight: 800, color: "#F1F5F9", marginBottom: 10 }}>Check your email</h1>
+            <p style={{ fontSize: 13, color: "#64748B", lineHeight: 1.6, maxWidth: 290, margin: "0 auto" }}>
+              We sent a 6-digit login code to your verified email. It expires in 10 minutes.
+            </p>
+          </div>
+          <input
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            placeholder="000 000"
+            maxLength={6}
+            value={emailOtpCode}
+            onChange={e => setEmailOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            style={{ width: "100%", height: 72, borderRadius: 16, background: CARD, border: `1px solid ${BORDER}`, textAlign: "center", fontSize: 32, fontFamily: "monospace", fontWeight: 700, letterSpacing: "0.4em", color: "#F1F5F9", outline: "none", marginBottom: 16 }}
+          />
+          <button
+            onClick={handleEmailOtpVerify}
+            disabled={verifyLoginOtpMutation.isPending || emailOtpCode.length !== 6}
+            style={{ width: "100%", height: 54, borderRadius: 14, fontSize: 16, fontWeight: 700, background: emailOtpCode.length === 6 ? "linear-gradient(135deg, #F5B942, #D99B18)" : "rgba(245,185,66,0.2)", color: "#fff", border: "none", cursor: emailOtpCode.length === 6 ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: emailOtpCode.length === 6 ? "0 8px 28px rgba(245,185,66,0.3)" : "none" }}
+          >
+            {verifyLoginOtpMutation.isPending ? <Loader2 size={20} style={{ animation: "spin 1s linear infinite" }} /> : "Verify & Login"}
+          </button>
+          <button
+            onClick={handleResendEmailOtp}
+            disabled={resendLoginOtpMutation.isPending}
+            style={{ display: "block", margin: "20px auto 0", color: LIGHT, background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700 }}
+          >
+            {resendLoginOtpMutation.isPending ? "Sending…" : "Resend code"}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (step === "2fa") {
     return (

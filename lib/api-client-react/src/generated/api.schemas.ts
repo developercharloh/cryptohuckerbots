@@ -197,12 +197,47 @@ export interface LoginInput {
 }
 
 export interface ForgotPasswordInput {
+  /** @maxLength 255 */
   email: string;
 }
 
 export interface ResetPasswordInput {
+  /**
+     * @minLength 20
+     * @maxLength 512
+     */
   token: string;
+  /**
+     * @minLength 12
+     * @maxLength 128
+     */
   password: string;
+}
+
+export interface VerifyEmailToken {
+  /**
+     * @minLength 20
+     * @maxLength 512
+     */
+  token: string;
+}
+
+export interface VerifyLoginOtpInput {
+  /**
+     * @minLength 20
+     * @maxLength 512
+     */
+  challengeToken: string;
+  /** @pattern ^[0-9]{6}$ */
+  code: string;
+}
+
+export interface ResendLoginOtpInput {
+  /**
+     * @minLength 20
+     * @maxLength 512
+     */
+  challengeToken: string;
 }
 
 export interface User {
@@ -217,6 +252,10 @@ export interface User {
 
 export interface AuthResponse {
   user?: User;
+  requiresEmailVerification?: boolean;
+  email?: string;
+  requiresEmailOtp?: boolean;
+  challengeToken?: string;
   requires2FA?: boolean;
   tempToken?: string;
 }
@@ -384,7 +423,15 @@ export interface ProfileUpdate {
 }
 
 export interface ChangePasswordInput {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
   currentPassword: string;
+  /**
+     * @minLength 12
+     * @maxLength 128
+     */
   newPassword: string;
 }
 
@@ -902,6 +949,15 @@ export interface AdminBroadcast {
   recipientCount: number;
   createdAt: string;
 }
+
+export type VerifyEmailParams = {
+token: VerifyEmailToken;
+};
+
+export type VerifyEmail200 = {
+  message: string;
+  email: string;
+};
 
 export type GetEarningsChartParams = {
 period?: string;

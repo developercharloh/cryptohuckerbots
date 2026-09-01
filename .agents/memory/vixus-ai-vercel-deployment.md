@@ -44,3 +44,9 @@ The Vercel deployment list filtered only by production target can briefly return
 **Why:** Linked projects can begin their Git-triggered deployments at slightly different times, so a state check can race the new deployment.
 
 **How to apply:** After every push, identify the deployment by the pushed commit SHA, wait for that exact deployment to become `READY`, then fetch the public hashed asset and confirm the new user-visible string or behavior.
+
+Workspace/Replit secrets are not automatically guaranteed to exist in the separately linked Vercel runtime. Any production-only provider key must be added to the correct Vercel project and environment before promoting code that depends on it.
+
+**Why:** The local API workflow can report healthy and exercise the provider integration while the independently deployed API still lacks the runtime secret.
+
+**How to apply:** Treat workspace verification and Vercel environment verification as separate gates; never claim production email delivery is ready based only on the local secret.

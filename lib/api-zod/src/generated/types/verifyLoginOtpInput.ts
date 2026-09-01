@@ -6,15 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface ResetPasswordInput {
+export interface VerifyLoginOtpInput {
   /**
      * @minLength 20
      * @maxLength 512
      */
-  token: string;
-  /**
-     * @minLength 12
-     * @maxLength 128
-     */
-  password: string;
+  challengeToken: string;
+  /** @pattern ^[0-9]{6}$ */
+  code: string;
 }

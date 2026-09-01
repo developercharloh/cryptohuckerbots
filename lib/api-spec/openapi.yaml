@@ -75,6 +75,61 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Verification email could not be sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/verify-email:
+    get:
+      operationId: verifyEmail
+      tags: [auth]
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/VerifyEmailToken"
+      responses:
+        "200":
+          description: Email verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  email:
+                    type: string
+                required: [message, email]
+        "400":
+          description: Invalid or expired verification link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/resend-verification:
+    post:
+      operationId: resendVerification
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForgotPasswordInput"
+      responses:
+        "200":
+          description: Verification email request accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
 
   /auth/login:
     post:
@@ -99,6 +154,60 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Email verification required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Login code could not be sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login/otp:
+    post:
+      operationId: verifyLoginOtp
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyLoginOtpInput"
+      responses:
+        "200":
+          description: Email OTP accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid or expired OTP
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login/otp/resend:
+    post:
+      operationId: resendLoginOtp
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResendLoginOtpInput"
+      responses:
+        "200":
+          description: New login OTP sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
 
   /auth/logout:
     post:
@@ -2007,11 +2116,49 @@ components:
           maxLength: 128
       required: [token, password]
 
+    VerifyEmailToken:
+      type: object
+      properties:
+        token:
+          type: string
+          minLength: 20
+          maxLength: 512
+      required: [token]
+
+    VerifyLoginOtpInput:
+      type: object
+      properties:
+        challengeToken:
+          type: string
+          minLength: 20
+          maxLength: 512
+        code:
+          type: string
+          pattern: "^[0-9]{6}$"
+      required: [challengeToken, code]
+
+    ResendLoginOtpInput:
+      type: object
+      properties:
+        challengeToken:
+          type: string
+          minLength: 20
+          maxLength: 512
+      required: [challengeToken]
+
     AuthResponse:
       type: object
       properties:
         user:
           $ref: "#/components/schemas/User"
+        requiresEmailVerification:
+          type: boolean
+        email:
+          type: string
+        requiresEmailOtp:
+          type: boolean
+        challengeToken:
+          type: string
         requires2FA:
           type: boolean
         tempToken:

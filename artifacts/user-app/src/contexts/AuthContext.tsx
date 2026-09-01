@@ -30,6 +30,7 @@ function needsSessionValidation(pathname: string) {
     "/contact",
     "/login",
     "/register",
+    "/verify-email",
     "/forgot-password",
     "/reset-password",
     "/news",
