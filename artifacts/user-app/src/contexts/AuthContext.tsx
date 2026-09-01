@@ -18,6 +18,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+const SESSION_RESTORE_PATHS = new Set(["/", "/splash", "/login", "/register"]);
+
 function needsSessionValidation(pathname: string) {
   return ![
     "/",
@@ -38,8 +40,9 @@ function needsSessionValidation(pathname: string) {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [location] = useLocation();
-  const shouldValidateSession = needsSessionValidation(location);
+  const [location, setLocation] = useLocation();
+  const shouldValidateSession =
+    needsSessionValidation(location) || SESSION_RESTORE_PATHS.has(location);
   // This is only an in-memory authentication marker, not the session token.
   // The initial /auth/me request validates the HttpOnly cookie.
   const [token, setToken] = useState<string | null>("cookie-session");
@@ -74,6 +77,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sessionWasValidated.current = true;
       setUser(meData);
       setIsInitializing(false);
+      if (SESSION_RESTORE_PATHS.has(location)) {
+        setLocation("/dashboard");
+      }
     } else if (isError) {
       setIsInitializing(false);
       if (meError instanceof ApiError && meError.status === 401) {
@@ -83,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       setIsInitializing(true);
     }
-  }, [meData, meError, isError, token, user, shouldValidateSession]);
+  }, [meData, meError, isError, token, user, shouldValidateSession, location, setLocation]);
 
   const setAuth = (newUser: User) => {
     setAuthTokenGetter(null);
