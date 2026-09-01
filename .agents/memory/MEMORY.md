@@ -13,3 +13,4 @@
 - [VIXUS AI support inbox](vixus-ai-support-inbox.md) — system chat markers preserve full history while defining closed threads and pending admin replies.
 - [VIXUS AI notification inbox](vixus-ai-notification-inbox.md) — show unread-only notifications, exact counts through 9, then +10, and remove read items immediately.
 - [VIXUS AI deployment verification](vixus-ai-vercel-deployment.md) — match Vercel deployment state to the pushed commit before trusting a live bundle; “latest production” can briefly show the prior ready build.
+- [VIXUS AI social previews](vixus-ai-social-preview-cache.md) — live crawler HTML can be clean while WhatsApp still shows an older cached Open Graph preview for the same URL.
