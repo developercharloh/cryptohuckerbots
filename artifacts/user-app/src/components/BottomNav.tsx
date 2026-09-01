@@ -1,10 +1,9 @@
 import { Link, useLocation } from "wouter";
-import { Home, BarChart2, Wallet, LayoutGrid, TrendingUp, Bot, BookOpen } from "lucide-react";
+import { Home, BarChart2, Wallet, LayoutGrid, TrendingUp, Bot } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Home",    icon: Home,          center: false },
   { href: "/markets",   label: "Markets", icon: BarChart2,     center: false },
-  { href: "/tutorials", label: "Tutorials", icon: BookOpen,     center: false },
   { href: "/trade",     label: "Trade",  icon: TrendingUp,    center: true  },
   { href: "/bots",      label: "VIP Levels", icon: Bot,         center: false },
   { href: "/cashier",   label: "Wallet",  icon: Wallet,        center: false },
