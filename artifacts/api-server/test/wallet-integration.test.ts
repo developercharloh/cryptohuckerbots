@@ -257,7 +257,11 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
 
   const pendingWithdrawal = await request("/api/cashier/withdraw", {
     method: "POST",
-    body: { amount: 100, paymentMethod: "USDT (TRC20)", walletAddress: "pending-withdrawal-wallet" },
+    body: {
+      amount: 100,
+      paymentMethod: "USDT (BEP-20)",
+      walletAddress: "0x1234567890abcdef1234567890ABCDEF12345678",
+    },
   });
   assert.equal(pendingWithdrawal.response.status, 201);
   const heldSummary = await request<{
@@ -308,7 +312,11 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
 
   const withdrawalFromMainWallet = await request("/api/cashier/withdraw", {
     method: "POST",
-    body: { amount: 326, paymentMethod: "USDT (TRC20)", walletAddress: "test-withdrawal-wallet" },
+    body: {
+      amount: 326,
+      paymentMethod: "USDT (BEP-20)",
+      walletAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+    },
   });
   assert.equal(withdrawalFromMainWallet.response.status, 201);
   assert.equal(withdrawalFromMainWallet.body.amount, 326);
