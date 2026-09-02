@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, BadgeCheck, Check, Crown, LayoutDashboard, LockKeyhole, Sparkles, WalletCards } from "lucide-react";
+import { ArrowLeft, ArrowRight, BadgeCheck, Check, Crown, LayoutDashboard, LockKeyhole, WalletCards } from "lucide-react";
 import { useLocation } from "wouter";
 import {
   useGetDashboardSummary,
@@ -167,9 +167,9 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
                 <p className="mb-1 flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-amber-300">
                   <Crown className="h-4 w-4" /> VIP Levels
                 </p>
-                <h1 className="text-2xl font-black tracking-tight">Choose Your VIP Level</h1>
+                <h1 className="text-2xl font-black tracking-tight">VIXUS Referral Programme</h1>
                    <p className="mt-2 max-w-xl text-xs leading-5 text-gray-400">
-                    VIP 1 starts with a $350 Main Wallet activation. VIP 2–10 are free referral upgrades that permanently unlock higher daily signal allowances.
+                    Every qualified referral credits $20.00 to your referral bonus total. VIP 1 starts with a $350 Main Wallet activation; VIP 2–10 unlock through active referrals.
                 </p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-2 text-right">
@@ -195,54 +195,109 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
             )}
           </div>
 
+          <div className="mb-4 grid grid-cols-3 gap-2">
+            <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#18223B] to-[#0D1428] px-3 py-3">
+              <p className="text-[9px] font-extrabold uppercase tracking-[0.12em] text-gray-500">Per referral</p>
+              <p className="mt-1 text-lg font-black text-amber-200">$20.00</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#18223B] to-[#0D1428] px-3 py-3">
+              <p className="text-[9px] font-extrabold uppercase tracking-[0.12em] text-gray-500">VIP levels</p>
+              <p className="mt-1 text-lg font-black text-white">10</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#18223B] to-[#0D1428] px-3 py-3">
+              <p className="text-[9px] font-extrabold uppercase tracking-[0.12em] text-gray-500">VIP 10 target</p>
+              <p className="mt-1 text-lg font-black text-blue-200">185</p>
+              <p className="text-[9px] text-gray-500">referrals</p>
+            </div>
+          </div>
+
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-gray-400">The complete VIP ladder</p>
+              <p className="mt-1 text-[11px] text-gray-600">Select a row to activate or upgrade your level.</p>
+            </div>
             {selectedLevel !== null && (
               <button
                 onClick={() => setSelectedLevel(null)}
-                className="mb-3 flex items-center gap-2 text-xs font-semibold text-gray-400 transition hover:text-white"
+                className="flex items-center gap-1 text-[10px] font-bold text-gray-400 transition hover:text-white"
               >
-                <ArrowLeft className="h-4 w-4" /> Back to all VIP levels
+                <ArrowLeft className="h-3.5 w-3.5" /> Clear
               </button>
             )}
+          </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-             {(selectedLevel === null ? packageOptions : packageOptions.filter((pkg) => pkg.level === selectedLevel)).map((pkg) => {
-              const selectedCard = selectedLevel === pkg.level;
-              const active = pkg.level === activeLevel;
-               const includedTier = pkg.level < activeLevel;
-              return (
-                <button
-                  key={pkg.level}
-                  onClick={() => setSelectedLevel(pkg.level)}
-                  className={`rounded-2xl border p-4 text-left transition ${
-                    selectedCard ? "border-amber-300 bg-amber-300/10 shadow-lg shadow-amber-500/10" : "border-white/10 bg-white/[0.04] hover:border-amber-300/40"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-black text-amber-200">VIP {pkg.level}</p>
-                       <p className="mt-1 text-2xl font-black text-white">{pkg.level === 1 ? formatUSD(pkg.price) : "Referral only"}</p>
-                       {pkg.level > 1 && (
-                         <p className="mt-1 text-[10px] font-bold text-blue-200">{pkg.referralRequirement} active referrals required</p>
-                       )}
-                       {pkg.level === 1 && pkg.level > activeLevel && (
-                         <p className="mt-1 text-[10px] font-bold text-blue-200">Deposit minimum: {formatUSD(pkg.amountDue)}</p>
-                       )}
-                    </div>
-                    {active ? (
-                      <span className="rounded-full bg-green-400/15 px-2 py-1 text-[9px] font-bold uppercase text-green-300">Active</span>
-                     ) : includedTier ? (
-                       <BadgeCheck className="h-4 w-4 text-blue-300" />
-                    ) : (
-                      <Sparkles className="h-4 w-4 text-blue-300" />
-                    )}
-                  </div>
-                  <p className="mt-3 text-xs text-gray-400">{pkg.dailySignals} AI Signals per day</p>
-                    <p className="mt-1 text-[10px] text-gray-600">
-                     {active ? "Currently active" : includedTier ? `Included with VIP ${activeLevel}` : selectedCard ? "Selected for activation" : "Tap to select"}
-                  </p>
-                </button>
-              );
-            })}
+          <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#0D152A] shadow-[0_12px_35px_rgba(0,0,0,0.2)]">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[680px] border-collapse">
+                <thead>
+                  <tr className="border-b border-white/10 bg-white/[0.03]">
+                    <th className="px-3 py-3 text-center text-[9px] font-extrabold uppercase tracking-[0.12em] text-gray-500">Level</th>
+                    <th className="px-3 py-3 text-center text-[9px] font-extrabold uppercase tracking-[0.12em] text-gray-500">Referrals needed</th>
+                    <th className="px-3 py-3 text-center text-[9px] font-extrabold uppercase tracking-[0.12em] text-gray-500">Bonus total at milestone</th>
+                    <th className="px-3 py-3 text-center text-[9px] font-extrabold uppercase tracking-[0.12em] text-gray-500">Daily signals</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {packageOptions.map((pkg) => {
+                    const active = pkg.level === activeLevel;
+                    const includedTier = pkg.level < activeLevel;
+                    const selectedRow = selectedLevel === pkg.level;
+                    const referralRequirement = Number(pkg.referralRequirement ?? 0);
+                    const bonusTotal = referralRequirement * 20;
+                    return (
+                      <tr
+                        key={pkg.level}
+                        onClick={() => setSelectedLevel(pkg.level)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            setSelectedLevel(pkg.level);
+                          }
+                        }}
+                        tabIndex={0}
+                        className={`cursor-pointer border-b border-white/[0.06] text-center transition last:border-b-0 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-amber-300/70 ${
+                          selectedRow
+                            ? "bg-amber-300/10"
+                            : active
+                              ? "bg-green-400/[0.07]"
+                              : "hover:bg-white/[0.05]"
+                        }`}
+                        aria-label={`Select VIP ${pkg.level}`}
+                      >
+                        <td className="px-3 py-3">
+                          <div className="flex items-center justify-center gap-2">
+                            <span className={`flex h-7 w-7 items-center justify-center rounded-full border text-xs font-black ${
+                              active
+                                ? "border-green-300/40 bg-green-300/15 text-green-200"
+                                : selectedRow
+                                  ? "border-amber-300/50 bg-amber-300/15 text-amber-200"
+                                  : "border-blue-300/20 bg-blue-300/10 text-blue-200"
+                            }`}>
+                              {pkg.level}
+                            </span>
+                            <span className="text-xs font-black text-white">VIP {pkg.level}</span>
+                          </div>
+                          <p className="mt-1 text-[9px] text-gray-600">
+                            {active ? "Active" : includedTier ? `Included with VIP ${activeLevel}` : pkg.level === 1 ? "Required" : "Unlock"}
+                          </p>
+                        </td>
+                        <td className="px-3 py-3 text-xs font-bold text-gray-200">
+                          {referralRequirement === 0 ? "Start here" : referralRequirement}
+                        </td>
+                        <td className={`px-3 py-3 text-sm font-black ${
+                          pkg.level === 1 ? "text-amber-200" : "text-blue-200"
+                        }`}>
+                          {formatUSD(bonusTotal)}
+                        </td>
+                        <td className="px-3 py-3 text-xs font-bold text-gray-200">
+                          {pkg.dailySignals}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {selected && (
