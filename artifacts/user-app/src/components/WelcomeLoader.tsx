@@ -3,6 +3,7 @@ import { VixusLogo } from "@/components/VixusLogo";
 
 const LOADER_DURATION = 10_000;
 const FADE_DURATION = 700;
+const LANDING_SETTLE_DELAY = 900;
 
 const LOADING_MESSAGES = [
   "Preparing your live market view",
@@ -11,38 +12,65 @@ const LOADING_MESSAGES = [
   "Almost ready for the next move",
 ];
 
+const DOLLAR_SIGNS = [
+  { left: "7%", top: "14%", size: 18, delay: "-1.2s", duration: "7.5s", drift: "-22px" },
+  { left: "18%", top: "67%", size: 12, delay: "-5.8s", duration: "9s", drift: "18px" },
+  { left: "29%", top: "29%", size: 10, delay: "-3.4s", duration: "8.2s", drift: "-14px" },
+  { left: "41%", top: "82%", size: 16, delay: "-7.1s", duration: "10s", drift: "24px" },
+  { left: "56%", top: "12%", size: 11, delay: "-4.2s", duration: "8.8s", drift: "-18px" },
+  { left: "69%", top: "75%", size: 18, delay: "-8.4s", duration: "9.6s", drift: "20px" },
+  { left: "80%", top: "24%", size: 13, delay: "-2.1s", duration: "7.9s", drift: "-24px" },
+  { left: "92%", top: "57%", size: 10, delay: "-6.3s", duration: "8.6s", drift: "16px" },
+  { left: "12%", top: "42%", size: 9, delay: "-7.7s", duration: "10.5s", drift: "-12px" },
+  { left: "87%", top: "86%", size: 14, delay: "-0.6s", duration: "9.2s", drift: "26px" },
+];
+
 export function WelcomeLoader() {
   const [progress, setProgress] = useState(0);
   const [messageIndex, setMessageIndex] = useState(0);
+  const [started, setStarted] = useState(false);
   const [leaving, setLeaving] = useState(false);
-  const [visible, setVisible] = useState(true);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const startedAt = Date.now();
-    const progressTimer = window.setInterval(() => {
-      setProgress(Math.min(((Date.now() - startedAt) / LOADER_DURATION) * 100, 100));
-    }, 80);
-    const messageTimer = window.setInterval(() => {
-      setMessageIndex((current) => (current + 1) % LOADING_MESSAGES.length);
-    }, 2400);
-    const fadeTimer = window.setTimeout(() => {
-      setProgress(100);
-      setLeaving(true);
-      window.setTimeout(() => setVisible(false), FADE_DURATION);
-    }, LOADER_DURATION - FADE_DURATION);
-
     const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    let progressTimer: number | undefined;
+    let messageTimer: number | undefined;
+    let fadeTimer: number | undefined;
+    let hideTimer: number | undefined;
+
+    const launchTimer = window.setTimeout(() => {
+      setStarted(true);
+      setVisible(true);
+      document.body.style.overflow = "hidden";
+      const startedAt = Date.now();
+      progressTimer = window.setInterval(() => {
+        setProgress(Math.min(((Date.now() - startedAt) / LOADER_DURATION) * 100, 100));
+      }, 80);
+      messageTimer = window.setInterval(() => {
+        setMessageIndex((current) => (current + 1) % LOADING_MESSAGES.length);
+      }, 2400);
+      fadeTimer = window.setTimeout(() => {
+        setProgress(100);
+        setLeaving(true);
+        hideTimer = window.setTimeout(() => {
+          setVisible(false);
+          document.body.style.overflow = previousOverflow;
+        }, FADE_DURATION);
+      }, LOADER_DURATION - FADE_DURATION);
+    }, LANDING_SETTLE_DELAY);
 
     return () => {
-      window.clearInterval(progressTimer);
-      window.clearInterval(messageTimer);
-      window.clearTimeout(fadeTimer);
+      window.clearTimeout(launchTimer);
+      if (progressTimer) window.clearInterval(progressTimer);
+      if (messageTimer) window.clearInterval(messageTimer);
+      if (fadeTimer) window.clearTimeout(fadeTimer);
+      if (hideTimer) window.clearTimeout(hideTimer);
       document.body.style.overflow = previousOverflow;
     };
   }, []);
 
-  if (!visible) return null;
+  if (!started || !visible) return null;
 
   return (
     <div
@@ -54,6 +82,23 @@ export function WelcomeLoader() {
       <div className="welcome-loader__aurora welcome-loader__aurora--gold" />
       <div className="welcome-loader__aurora welcome-loader__aurora--blue" />
       <div className="welcome-loader__grid" />
+      <div className="welcome-loader__money-field" aria-hidden="true">
+        {DOLLAR_SIGNS.map((sign, index) => (
+          <span
+            key={index}
+            style={{
+              left: sign.left,
+              top: sign.top,
+              fontSize: sign.size,
+              animationDelay: sign.delay,
+              animationDuration: sign.duration,
+              ["--money-drift" as string]: sign.drift,
+            }}
+          >
+            $
+          </span>
+        ))}
+      </div>
 
       <div className="welcome-loader__content">
         <div className="welcome-loader__stage" aria-hidden="true">
@@ -153,6 +198,25 @@ export function WelcomeLoader() {
           mask-image: radial-gradient(ellipse at center, black 10%, transparent 78%);
           pointer-events: none;
           z-index: -1;
+        }
+
+        .welcome-loader__money-field {
+          position: absolute;
+          inset: -12% 0;
+          overflow: hidden;
+          pointer-events: none;
+          z-index: -1;
+        }
+
+        .welcome-loader__money-field span {
+          position: absolute;
+          color: rgba(255, 216, 107, 0.42);
+          font-family: "JetBrains Mono", monospace;
+          font-weight: 700;
+          line-height: 1;
+          text-shadow: 0 0 18px rgba(245, 185, 66, 0.4);
+          animation: welcome-money-flow linear infinite;
+          will-change: transform, opacity;
         }
 
         .welcome-loader__content {
@@ -379,6 +443,23 @@ export function WelcomeLoader() {
         @keyframes welcome-message-in {
           from { opacity: 0; transform: translateY(4px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes welcome-money-flow {
+          0% {
+            opacity: 0;
+            transform: translate3d(0, -14vh, 0) rotate(-12deg) scale(0.72);
+          }
+          14% { opacity: 0.72; }
+          50% {
+            opacity: 0.3;
+            transform: translate3d(var(--money-drift), 44vh, 0) rotate(10deg) scale(1);
+          }
+          84% { opacity: 0.58; }
+          100% {
+            opacity: 0;
+            transform: translate3d(calc(var(--money-drift) * -0.6), 116vh, 0) rotate(-8deg) scale(0.78);
+          }
         }
 
         @media (prefers-reduced-motion: reduce) {
