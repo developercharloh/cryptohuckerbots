@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,6 +28,8 @@ export default function Login() {
   const { setAuth } = useAuth();
   const { toast } = useToast();
   const loginMutation = useLogin();
+  const apiWarmupRef = useRef<Promise<boolean> | null>(null);
+  const [warmingApi, setWarmingApi] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const search = useSearch();
   const prefilledEmail = new URLSearchParams(search).get("email") ?? "";
@@ -41,13 +43,24 @@ export default function Login() {
   const verifyLoginOtpMutation = useVerifyLoginOtp();
   const resendLoginOtpMutation = useResendLoginOtp();
 
-  // Warm the serverless API while the user fills in the form. This hides the
-  // first-deployment database wake-up behind normal typing time without
-  // delaying the initial login screen.
+  const warmApi = () => {
+    if (!apiWarmupRef.current) {
+      apiWarmupRef.current = fetchWithTimeout(
+        `${API_BASE}/api/readyz`,
+        { credentials: "include" },
+        25_000,
+      )
+        .then((response) => response.ok)
+        .catch(() => false);
+    }
+    return apiWarmupRef.current;
+  };
+
+  // Warm the serverless API while the user fills in the form. Login also
+  // awaits this same request, so a cold database/serverless instance cannot
+  // race the credential request and look like a network failure.
   useEffect(() => {
-    void fetchWithTimeout(`${API_BASE}/api/readyz`).catch(() => {
-      // Login remains usable if the readiness probe is temporarily unavailable.
-    });
+    void warmApi();
   }, []);
 
   const form = useForm<z.infer<typeof loginSchema>>({
@@ -55,7 +68,21 @@ export default function Login() {
     defaultValues: { email: prefilledEmail, password: "" },
   });
 
-  const onSubmit = (values: z.infer<typeof loginSchema>) => {
+  const onSubmit = async (values: z.infer<typeof loginSchema>) => {
+    setWarmingApi(true);
+    const apiReady = await warmApi();
+    setWarmingApi(false);
+
+    if (!apiReady) {
+      apiWarmupRef.current = null;
+      toast({
+        title: "VIXUS is still waking up",
+        description: "The secure login service did not respond. Please tap Login again in a moment.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     loginMutation.mutate({ data: { email: values.email, password: values.password } }, {
       onSuccess: (res: any) => {
         if (res.requiresEmailOtp) {
@@ -327,17 +354,17 @@ export default function Login() {
 
             <button
               type="submit"
-              disabled={loginMutation.isPending}
+              disabled={loginMutation.isPending || warmingApi}
               style={{
                 width: "100%", height: 54, borderRadius: 14, fontSize: 16, fontWeight: 700,
                  background: "linear-gradient(135deg, #F5B942, #D99B18)",
                 color: "#fff", border: "none", cursor: "pointer",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                  boxShadow: "0 8px 28px rgba(245,185,66,0.3)",
-                opacity: loginMutation.isPending ? 0.8 : 1,
+                opacity: loginMutation.isPending || warmingApi ? 0.8 : 1,
               }}
             >
-              {loginMutation.isPending ? <Loader2 size={20} style={{ animation: "spin 1s linear infinite" }} /> : "Login"}
+              {loginMutation.isPending || warmingApi ? <Loader2 size={20} style={{ animation: "spin 1s linear infinite" }} /> : "Login"}
             </button>
           </form>
         </Form>
