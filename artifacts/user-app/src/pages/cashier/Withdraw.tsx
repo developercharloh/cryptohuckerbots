@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -86,6 +87,12 @@ export default function Withdraw() {
   const mainWalletBalance = summary?.mainWalletBalance ?? summary?.ledgerBalance ?? 0;
   const availableBalance = summary?.availableBalance ?? 0;
 
+  useEffect(() => {
+    if (!form.getValues("paymentMethod") && paymentMethods?.length === 1) {
+      form.setValue("paymentMethod", paymentMethods[0].id, { shouldValidate: true });
+    }
+  }, [paymentMethods, form]);
+
   const onSubmit = (values: z.infer<typeof withdrawSchema>) => {
     if (!summary) {
       toast({ title: "Balance is still loading", description: "Please try again in a moment.", variant: "destructive" });
@@ -142,9 +149,9 @@ export default function Withdraw() {
 
             {/* Network selector */}
             <div className="space-y-3">
-              <p className="text-sm font-semibold">Select Network</p>
+                <p className="text-sm font-semibold">Withdrawal Network</p>
               {loadingMethods ? (
-                Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-xl" />)
+                <Skeleton className="h-16 w-full rounded-xl" />
               ) : (
                 <div className="space-y-2">
                   {paymentMethods?.map((method) => {
@@ -308,8 +315,7 @@ export default function Withdraw() {
             <div className="flex gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
               <AlertTriangle className="w-5 h-5 shrink-0 text-amber-400 mt-0.5" />
               <p className="text-xs leading-relaxed text-amber-200/90">
-                Double-check your address matches the selected network
-                {activeMethod?.network ? ` (${activeMethod.network})` : ""}. Crypto transactions are
+                    Double-check your address is a BNB Smart Chain (BEP-20) address. Crypto transactions are
                 irreversible — funds sent to the wrong address or network are permanently lost.
               </p>
             </div>

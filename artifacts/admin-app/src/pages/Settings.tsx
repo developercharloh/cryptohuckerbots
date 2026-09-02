@@ -6,8 +6,8 @@ import {
   getAdminGetSettingsQueryKey
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useForm, useFieldArray } from "react-hook-form";
-import { Plus, Trash2, Save, Bell, BellOff, Volume2 } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { Save, Bell, BellOff, Volume2 } from "lucide-react";
 import { ALARM_KEY, isAlarmEnabled, playTestAlarm } from "@/hooks/useLoginAlarm";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -46,8 +46,7 @@ export default function Settings() {
       withdrawalsEnabled: true,
       minDeposit: 0,
       minWithdrawal: 0,
-      paymentMethods: [] as any[]
-      ,signalsEnabled: true,
+       signalsEnabled: true,
       signalsEmergencyStop: false,
       signalsTimezone: "Africa/Nairobi",
        signalTimes: ["07:00", "09:00", "11:00", "13:00", "15:00", "17:00", "19:00", "21:00", "23:00"],
@@ -55,11 +54,6 @@ export default function Settings() {
       signalSpacingMinutes: 120,
       signalMaxStakePercent: 10
     }
-  });
-
-  const { fields: paymentFields, append: appendPayment, remove: removePayment } = useFieldArray({
-    control: form.control,
-    name: "paymentMethods"
   });
 
   useEffect(() => {
@@ -72,8 +66,7 @@ export default function Settings() {
         withdrawalsEnabled: settings.withdrawalsEnabled,
         minDeposit: settings.minDeposit,
         minWithdrawal: settings.minWithdrawal,
-        paymentMethods: settings.paymentMethods || []
-        ,signalsEnabled: settings.signalsEnabled,
+         signalsEnabled: settings.signalsEnabled,
         signalsEmergencyStop: settings.signalsEmergencyStop,
         signalsTimezone: settings.signalsTimezone,
         signalTimes: settings.signalTimes,
@@ -89,10 +82,6 @@ export default function Settings() {
       ...data,
       minDeposit: Number(data.minDeposit),
       minWithdrawal: Number(data.minWithdrawal),
-      paymentMethods: data.paymentMethods.map((m: any) => ({
-        ...m,
-        id: m.id || `pm-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
-      })),
       signalsEnabled: data.signalsEnabled,
       signalsEmergencyStop: data.signalsEmergencyStop,
       signalsTimezone: data.signalsTimezone,
@@ -340,84 +329,22 @@ export default function Settings() {
             </CardContent>
           </Card>
 
-          {/* Payment Methods */}
-          <Card className="rounded-2xl border-border/60">
-            <CardHeader className="px-4 pt-4 pb-2 flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-sm">Payment Methods</CardTitle>
-                <CardDescription className="text-xs">Deposit wallets</CardDescription>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-7 px-2 rounded-xl text-xs"
-                onClick={() => appendPayment({ name: "", network: "", address: "", enabled: true })}
-              >
-                <Plus className="w-3 h-3 mr-1" /> Add
-              </Button>
+          {/* Settlement Network */}
+          <Card className="rounded-2xl border-amber-500/30">
+            <CardHeader className="px-4 pt-4 pb-2">
+              <CardTitle className="text-sm">Settlement Network</CardTitle>
+              <CardDescription className="text-xs">Deposits and withdrawals are locked to one supported network.</CardDescription>
             </CardHeader>
-            <CardContent className="px-4 pb-4 space-y-3">
-              {paymentFields.length === 0 ? (
-                <div className="text-center py-4 text-xs text-muted-foreground border border-dashed border-border rounded-xl">
-                  No payment methods
-                </div>
-              ) : (
-                paymentFields.map((field, index) => (
-                  <div key={field.id} className="p-3 rounded-xl border border-border bg-secondary/10 space-y-2">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium text-muted-foreground">Method {index + 1}</span>
-                      <div className="flex items-center gap-2">
-                        <FormField
-                          control={form.control}
-                          name={`paymentMethods.${index}.enabled`}
-                          render={({ field: ef }) => (
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[11px] text-muted-foreground">On</span>
-                              <Switch checked={ef.value} onCheckedChange={ef.onChange} className="scale-75" />
-                            </div>
-                          )}
-                        />
-                        <Button type="button" variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive" onClick={() => removePayment(index)}>
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <FormField
-                        control={form.control}
-                        name={`paymentMethods.${index}.name`}
-                        render={({ field: f }) => (
-                          <FormItem>
-                            <FormLabel className="text-[10px]">Asset</FormLabel>
-                            <FormControl><Input {...f} placeholder="USDT" className="h-8 rounded-lg text-xs" /></FormControl>
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name={`paymentMethods.${index}.network`}
-                        render={({ field: f }) => (
-                          <FormItem>
-                            <FormLabel className="text-[10px]">Network</FormLabel>
-                            <FormControl><Input {...f} placeholder="TRC20" className="h-8 rounded-lg text-xs" value={f.value || ''} /></FormControl>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <FormField
-                      control={form.control}
-                      name={`paymentMethods.${index}.address`}
-                      render={({ field: f }) => (
-                        <FormItem>
-                          <FormLabel className="text-[10px]">Wallet Address</FormLabel>
-                          <FormControl><Input {...f} placeholder="0x..." className="h-8 rounded-lg text-xs font-mono" /></FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                ))
-              )}
+            <CardContent className="px-4 pb-4">
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-2">
+                <p className="text-sm font-semibold">USDT on BNB Smart Chain (BEP-20)</p>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  All other deposit and withdrawal methods have been removed. Users can deposit to the platform address and withdraw only to a valid BEP-20 wallet address.
+                </p>
+                <p className="break-all rounded-lg bg-background/70 p-2 font-mono text-[11px] text-amber-300">
+                  {settings?.paymentMethods?.[0]?.address ?? "Configured on the server"}
+                </p>
+              </div>
             </CardContent>
           </Card>
 
