@@ -50,3 +50,9 @@ Workspace/Replit secrets are not automatically guaranteed to exist in the separa
 **Why:** The local API workflow can report healthy and exercise the provider integration while the independently deployed API still lacks the runtime secret.
 
 **How to apply:** Treat workspace verification and Vercel environment verification as separate gates; never claim production email delivery is ready based only on the local secret.
+
+The linked GitHub push can fail with an invalid-credential error using the default remote helper even though the workspace's secured GitHub token works. After a verified commit, push through a temporary secured credential helper and verify all three Vercel projects independently by commit SHA; the admin project naming can differ from the user and API projects.
+
+**Why:** The referral release could not use the default Git remote credential, while the secured workspace token successfully triggered the user, admin, and API production builds.
+
+**How to apply:** Never print or persist the token. Confirm each project reaches READY, then check the user signup chunk, admin referral bundle, API `/api/healthz`, and protected endpoints separately.
