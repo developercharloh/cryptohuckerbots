@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
-import { useGetProfile, useGetReferralSummary } from "@workspace/api-client-react";
+import { useGetProfile, useGetReferralSummary, useGetTradeAccess } from "@workspace/api-client-react";
 import { Layout } from "@/components/Layout";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   User as UserIcon, Shield, FileCheck, Bell, HelpCircle, LogOut,
-  ChevronRight, Copy, Check, CreditCard, Settings, Bot,
+  ChevronRight, Copy, Check, CreditCard, Settings,
   History, MessageSquare, BadgeCheck, Pencil, BarChart2, Users, Share2,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -17,6 +17,7 @@ export default function Profile() {
   const { user, logout } = useAuth();
   const { data: profile, isLoading } = useGetProfile();
   const { data: referralSummary, isLoading: referralsLoading } = useGetReferralSummary();
+  const { data: tradeAccess, isLoading: tradeAccessLoading } = useGetTradeAccess();
   const [copied, setCopied] = useState(false);
   const [referralCopied, setReferralCopied] = useState(false);
   const queryClient = useQueryClient();
@@ -57,9 +58,9 @@ export default function Profile() {
 
   const joinedDate = profile?.createdAt ? format(new Date(profile.createdAt), "MMM d, yyyy") : "—";
   const kycColors  = getKycColor(profile?.kycStatus ?? "unverified");
+  const successfulReferralCount = referralSummary?.referrals.filter((referral) => referral.status === "credited").length ?? 0;
 
   const QUICK_TILES = [
-    { label: "VIP Levels",  icon: Bot,      href: "/bots",                iconBg: "linear-gradient(135deg,#F5B942,#D99B18)", color: "#111827" },
     { label: "History",     icon: History,  href: "/cashier/transactions",iconBg: "linear-gradient(135deg,#3B82F6,#06B6D4)", color: "#fff" },
     { label: "Live Chat",   icon: MessageSquare, href: "/support/chat",   iconBg: "linear-gradient(135deg,#10B981,#22C55E)", color: "#fff" },
     { label: "News",        icon: Bell,     href: "/news",                iconBg: "linear-gradient(135deg,#2563EB,#38BDF8)", color: "#fff" },
@@ -194,9 +195,25 @@ export default function Profile() {
                    Invite friends and earn $20 when they activate VIP 1.
                 </p>
               </div>
-              <div style={{ textAlign: "right", flexShrink: 0 }}>
-                <p style={{ fontSize: 9, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em" }}>Earned</p>
-                <p style={{ fontSize: 19, fontWeight: 800, color: "#4ADE80" }}>${(referralSummary?.totalEarned ?? 0).toFixed(2)}</p>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8, marginTop: 14 }}>
+              <div style={{ background: "rgba(0,0,0,0.18)", borderRadius: 10, padding: "9px 8px", textAlign: "center" }}>
+                <p style={{ fontSize: 9, color: "#6B7280", marginBottom: 3 }}>SUCCESSFUL REFERRALS</p>
+                <p style={{ fontSize: 17, color: "#4ADE80", fontWeight: 800 }}>
+                  {referralsLoading ? "…" : successfulReferralCount}
+                </p>
+              </div>
+              <div style={{ background: "rgba(0,0,0,0.18)", borderRadius: 10, padding: "9px 8px", textAlign: "center" }}>
+                <p style={{ fontSize: 9, color: "#6B7280", marginBottom: 3 }}>AMOUNT CREDITED</p>
+                <p style={{ fontSize: 17, color: "#FFD86B", fontWeight: 800 }}>
+                  {referralsLoading ? "…" : `$${(referralSummary?.totalEarned ?? 0).toFixed(2)}`}
+                </p>
+              </div>
+              <div style={{ background: "rgba(0,0,0,0.18)", borderRadius: 10, padding: "9px 8px", textAlign: "center" }}>
+                <p style={{ fontSize: 9, color: "#6B7280", marginBottom: 3 }}>CURRENT VIP LEVEL</p>
+                <p style={{ fontSize: 17, color: "#93C5FD", fontWeight: 800 }}>
+                  {tradeAccessLoading ? "…" : `VIP ${tradeAccess?.vipLevel ?? 0}`}
+                </p>
               </div>
             </div>
             <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
@@ -211,35 +228,6 @@ export default function Profile() {
                 {referralCopied ? "Copied" : "Share"}
               </button>
             </div>
-             {(referralSummary?.pendingCount ?? 0) > 0 && (
-              <p style={{ fontSize: 10, color: "#FACC15", marginTop: 10 }}>
-                 {referralSummary?.pendingCount} inactive referral{referralSummary?.pendingCount === 1 ? "" : "s"} waiting for a VIP package purchase.
-              </p>
-            )}
-            {referralSummary?.referrals?.length ? (
-              <div style={{ marginTop: 14, borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 10 }}>
-                <p style={{ fontSize: 10, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Your referrals</p>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {referralSummary.referrals.map((referral) => (
-                    <div key={referral.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                      <div style={{ minWidth: 0 }}>
-                        <p style={{ fontSize: 12, color: "#E5E7EB", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{referral.referredName}</p>
-                        <p style={{ fontSize: 10, color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {referral.referredPhone ?? "Phone pending"} · {referral.referredCountry ?? "Country pending"}
-                        </p>
-                      </div>
-                       <span style={{ fontSize: 10, color: referral.activityStatus === "active" ? "#4ADE80" : "#FACC15", fontWeight: 700, whiteSpace: "nowrap", textAlign: "right" }}>
-                         <span style={{ display: "block" }}>{referral.activityStatus === "active" ? "Active" : "Inactive"}</span>
-                         <span style={{ display: "block", fontSize: 9, color: "#9CA3AF", marginTop: 2 }}>
-                           {referral.currentVipLevel > 0 ? `VIP ${referral.currentVipLevel}` : "No VIP package"}
-                         </span>
-                         {referral.status === "credited" && <span style={{ display: "block", marginTop: 2 }}>+${referral.bonusAmount.toFixed(2)}</span>}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
           </div>
         </div>
 
