@@ -98,6 +98,7 @@ import { InstallAppPrompt } from "@/components/InstallAppPrompt";
 
 // Keep the entry chunk small. Pages load only when their route is visited so
 // login does not download charts, cashier forms, support, and bot analytics.
+const loadLogin = () => import("@/pages/auth/Login");
 const Landing = lazy(() => import("@/pages/Landing"));
 const Splash = lazy(() => import("@/pages/Splash"));
 const Onboarding = lazy(() => import("@/pages/Onboarding"));
@@ -106,7 +107,7 @@ const Terms = lazy(() => import("@/pages/legal/Terms"));
 const Privacy = lazy(() => import("@/pages/legal/Privacy"));
 const Risk = lazy(() => import("@/pages/legal/Risk"));
 const Contact = lazy(() => import("@/pages/legal/Contact"));
-const Login = lazy(() => import("@/pages/auth/Login"));
+const Login = lazy(loadLogin);
 const Register = lazy(() => import("@/pages/auth/Register"));
 const VerifyEmail = lazy(() => import("@/pages/auth/VerifyEmail"));
 const ForgotPassword = lazy(() => import("@/pages/auth/ForgotPassword"));
@@ -268,6 +269,15 @@ function App() {
     } else {
       document.documentElement.classList.remove("dark");
     }
+  }, []);
+
+  useEffect(() => {
+    // Preload Login without inflating the initial shell. This removes the
+    // second-request wait for users who click Login after landing.
+    const timer = window.setTimeout(() => {
+      void loadLogin();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   return (

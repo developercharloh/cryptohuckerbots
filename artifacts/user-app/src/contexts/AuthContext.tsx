@@ -18,7 +18,14 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const SESSION_RESTORE_PATHS = new Set(["/", "/splash", "/login", "/register"]);
+const SESSION_RESTORE_PATHS = new Set(["/", "/splash"]);
+const AUTH_ENTRY_PATHS = new Set([
+  "/login",
+  "/register",
+  "/verify-email",
+  "/forgot-password",
+  "/reset-password",
+]);
 
 function needsSessionValidation(pathname: string) {
   return ![
@@ -69,6 +76,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!token || !shouldValidateSession) {
+      if (AUTH_ENTRY_PATHS.has(location)) {
+        setUser(null);
+        setToken(null);
+      }
       setIsInitializing(false);
       return;
     }

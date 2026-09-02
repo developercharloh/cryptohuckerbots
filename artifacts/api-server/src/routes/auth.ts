@@ -331,6 +331,9 @@ router.post("/auth/login", async (req, res) => {
   }
 
   if (!user.emailVerifiedAt) {
+    // A browser may still carry an older session while the user is trying to
+    // sign in again. Do not let that session survive a new verification flow.
+    clearUserSessionCookie(res);
     return res.status(403).json({
       error: "Please verify your email before logging in.",
       code: "EMAIL_NOT_VERIFIED",
@@ -339,6 +342,10 @@ router.post("/auth/login", async (req, res) => {
 
   const challengeToken = generateToken();
   const otp = generateLoginOtp();
+  // Password validation only proves the first factor. Remove any stale
+  // browser cookie now; the OTP endpoint is the only place that may issue a
+  // new session for this login attempt.
+  clearUserSessionCookie(res);
   await db.delete(loginOtpChallengesTable).where(eq(loginOtpChallengesTable.userId, user.id));
   await db.insert(loginOtpChallengesTable).values({
     userId: user.id,

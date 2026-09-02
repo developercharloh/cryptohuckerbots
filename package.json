@@ -7,6 +7,7 @@
     "build": "pnpm run build:verify && pnpm run sync:release",
     "build:verify": "pnpm run typecheck && pnpm -r --if-present run build",
     "sync:release": "node ./scripts/sync-release.mjs",
+    "production:check": "pnpm --filter @workspace/scripts run production:check",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
   },

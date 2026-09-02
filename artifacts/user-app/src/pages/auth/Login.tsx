@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -40,6 +40,15 @@ export default function Login() {
   const [verifying, setVerifying] = useState(false);
   const verifyLoginOtpMutation = useVerifyLoginOtp();
   const resendLoginOtpMutation = useResendLoginOtp();
+
+  // Warm the serverless API while the user fills in the form. This hides the
+  // first-deployment database wake-up behind normal typing time without
+  // delaying the initial login screen.
+  useEffect(() => {
+    void fetchWithTimeout(`${API_BASE}/api/readyz`).catch(() => {
+      // Login remains usable if the readiness probe is temporarily unavailable.
+    });
+  }, []);
 
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
