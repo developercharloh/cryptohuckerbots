@@ -1,4 +1,4 @@
-const CACHE_NAME = "vixus-shell-v6";
+const CACHE_NAME = "vixus-shell-v7";
 
 self.addEventListener("install", () => {
   self.skipWaiting();

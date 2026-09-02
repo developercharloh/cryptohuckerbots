@@ -3,7 +3,7 @@ import { VixusLogo } from "@/components/VixusLogo";
 
 const LOADER_DURATION = 10_000;
 const FADE_DURATION = 700;
-const LANDING_SETTLE_DELAY = 900;
+const LANDING_SETTLE_DELAY = 350;
 
 const LOADING_MESSAGES = [
   "Preparing your live market view",
