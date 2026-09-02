@@ -40,7 +40,7 @@ description: FX trading bot admin panel — architecture, credentials, seeding, 
 
 - VIP 1 requires $350 in completed deposits and a $350 wallet activation; VIP 2–10 are free referral upgrades requiring 5, 10, 20, 35, 55, 80, 110, 145, and 185 credited referrals.
 - New referral bonuses are $20 when the referred user activates VIP 1; already-credited historical payouts remain unchanged, while pending legacy referrals are normalized to $20.
-- Admin-assigned demo referrals are count-only credited records with $0 bonus and $0 reserved amount; they satisfy an existing VIP level without creating wallet earnings.
+- Admin-assigned demo referrals satisfy an existing VIP level and display the standard $20 credited bonus per referral, while keeping reserved amount at $0 and creating no wallet transaction.
 
 **Why:** The product changed from paid doubling tiers and $25 referral bonuses to a $350 entry tier with referral-only progression and a $20 referral reward.
 
