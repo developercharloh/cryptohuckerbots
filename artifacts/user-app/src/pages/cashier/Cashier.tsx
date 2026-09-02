@@ -5,44 +5,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowDownCircle, ArrowUpCircle, History, ChevronRight, Eye, EyeOff, LockKeyhole } from "lucide-react";
 import { useState } from "react";
 import { formatUSD } from "@/lib/format";
-import { SiTether, SiBitcoin, SiEthereum } from "react-icons/si";
+import { SiTether } from "react-icons/si";
 
 const ACCOUNTS = [
   {
     name: "USDT",
-    sub: "Main Account",
+    sub: "BNB Smart Chain (BEP-20)",
     Icon: SiTether,
     iconColor: "text-[#26A17B]",
     iconBg: "bg-[#26A17B]/15",
-    balance: null,
     isMain: true,
-  },
-  {
-    name: "USDT",
-    sub: "TRC20",
-    Icon: SiTether,
-    iconColor: "text-[#26A17B]",
-    iconBg: "bg-[#26A17B]/15",
-    balance: 0,
-    isMain: false,
-  },
-  {
-    name: "ETH",
-    sub: "Ethereum",
-    Icon: SiEthereum,
-    iconColor: "text-[#627EEA]",
-    iconBg: "bg-[#627EEA]/15",
-    balance: 0,
-    isMain: false,
-  },
-  {
-    name: "BTC",
-    sub: "Bitcoin",
-    Icon: SiBitcoin,
-    iconColor: "text-[#F7931A]",
-    iconBg: "bg-[#F7931A]/15",
-    balance: 0,
-    isMain: false,
   },
 ];
 

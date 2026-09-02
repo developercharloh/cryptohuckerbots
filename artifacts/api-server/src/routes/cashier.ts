@@ -42,17 +42,13 @@ router.post("/cashier/deposit/session", async (req, res) => {
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
-  const { amount, cryptoAmount, paymentMethodId } = req.body as { amount?: unknown; cryptoAmount?: unknown; paymentMethodId?: unknown };
+  const { amount, paymentMethodId } = req.body as { amount?: unknown; paymentMethodId?: unknown };
   if (typeof paymentMethodId !== "string") return res.status(400).json({ error: "Payment method is required" });
 
   const method = paymentMethodId === BSC_PAYMENT_METHOD.id ? BSC_PAYMENT_METHOD : undefined;
   if (!method) return res.status(400).json({ error: "Invalid payment method" });
 
   let numAmount: number;
-  let cryptoAsset: string | null = null;
-  let numCryptoAmount: number | null = null;
-  let conversionRate: number | null = null;
-
   // USDT is a stable-value deposit: amount entered is already USD-equivalent.
   numAmount = Number(amount);
   if (!numAmount || numAmount < 10) return res.status(400).json({ error: "Minimum deposit is $10" });
@@ -68,9 +64,9 @@ router.post("/cashier/deposit/session", async (req, res) => {
     network: method.network,
     depositAddress: method.depositAddress,
     requiredConfirmations: method.requiredConfirmations,
-    cryptoAsset,
-    cryptoAmount: numCryptoAmount !== null ? numCryptoAmount.toFixed(8) : null,
-    conversionRate: conversionRate !== null ? conversionRate.toFixed(8) : null,
+    cryptoAsset: null,
+    cryptoAmount: null,
+    conversionRate: null,
     expiresAt,
   }).returning();
 

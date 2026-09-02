@@ -15,7 +15,7 @@ import { SiTether, SiBitcoin } from "react-icons/si";
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 function getAssetSymbol(network: string) {
-  if (network === "TRC20" || network === "ERC20") return "USDT";
+  if (network === "BEP-20" || network === "TRC20" || network === "ERC20") return "USDT";
   if (network === "Bitcoin" || network === "Bitcoin Mainnet") return "BTC";
   return "CRYPTO";
 }
@@ -118,7 +118,7 @@ function Footer({ amount, network, assetSymbol }: { amount: number; network: str
       </div>
       <div className="flex-1 rounded-xl bg-card p-3 text-center">
         <p className="text-[10px] text-muted-foreground mb-0.5">Network</p>
-        <p className="text-sm font-bold">{network}</p>
+        <p className="text-sm font-bold">{network === "BEP-20" ? "BNB Smart Chain (BEP-20)" : network}</p>
       </div>
     </div>
   );
@@ -219,7 +219,7 @@ export default function DepositStatus() {
             {[
               { label: "You sent",   value: `${sendAmount} ${assetSymbol}` },
               ...(cryptoAmount != null ? [{ label: "Credited", value: `$${amount.toFixed(2)} USDT` }] : []),
-              { label: "Network",     value: network },
+              { label: "Network",     value: network === "BEP-20" ? "BNB Smart Chain (BEP-20)" : network },
               ...(newBalance != null ? [{ label: "New Main Wallet Balance", value: `$${Number(newBalance).toFixed(2)}` }] : []),
             ].map(({ label, value }) => (
               <div key={label} className="flex items-center justify-between px-5 py-4">
@@ -392,7 +392,7 @@ export default function DepositStatus() {
 
         {/* Instruction */}
         <p className="text-sm text-center text-muted-foreground">
-          Send only {assetSymbol} ({network}) to this address
+              Send only {assetSymbol} on BNB Smart Chain (BEP-20) to this address
         </p>
 
         {/* QR Code with coin logo overlay */}
@@ -436,7 +436,7 @@ export default function DepositStatus() {
         <div className="flex gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5">
           <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
           <p className="text-[11px] leading-relaxed text-amber-200/90">
-            <span className="font-bold">Deposit via {network} only.</span> Sending from any other network will result in permanent, irreversible loss of funds.
+            <span className="font-bold">Use BNB Smart Chain (BEP-20) only.</span> Sending from any other network will result in permanent, irreversible loss of funds.
           </p>
         </div>
       </div>

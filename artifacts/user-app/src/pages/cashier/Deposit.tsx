@@ -7,25 +7,13 @@ import { Input } from "@/components/ui/input";
 import { ChevronLeft, Loader2, AlertTriangle, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SiTether, SiBitcoin } from "react-icons/si";
-import { useLivePairs, fmtPrice } from "@/hooks/useLivePairs";
+import { SiTether } from "react-icons/si";
 
 const QUICK_AMOUNTS = [100, 250, 500, 1000];
 const MIN_DEPOSIT = 10;
 
 const NETWORK_INFO: Record<string, { time: string; confirmations: number; fullName: string; asset: string }> = {
   "BEP-20":          { time: "1 – 3 minutes",   confirmations: 15, fullName: "BNB Smart Chain (BEP-20)", asset: "USDT" },
-  TRC20:            { time: "1 – 5 minutes",   confirmations: 20, fullName: "TRC20",            asset: "USDT" },
-  ERC20:            { time: "3 – 10 minutes",  confirmations: 12, fullName: "ERC20",            asset: "USDT" },
-  Bitcoin:          { time: "10 – 60 minutes", confirmations: 6,  fullName: "Bitcoin",          asset: "BTC"  },
-  "Bitcoin Mainnet": { time: "10 – 60 minutes", confirmations: 6,  fullName: "Bitcoin Mainnet", asset: "BTC"  },
-};
-
-// Payment methods priced in their own coin (not a stable USD-equivalent).
-// The user enters an amount of the coin and sees a live USDT conversion.
-const LIVE_PRICED_METHODS: Record<string, string> = {
-  bitcoin:   "BTC/USD",
-  eth_erc20: "ETH/USD",
 };
 
 function getAssetSymbol(network: string | undefined) {
@@ -34,18 +22,14 @@ function getAssetSymbol(network: string | undefined) {
 }
 
 function CoinIcon({ name, network, size = "lg" }: { name: string; network?: string; size?: "sm" | "lg" }) {
-  const isBTC  = name.includes("BTC") || name.includes("Bitcoin");
   const isLg   = size === "lg";
   const outer  = isLg ? "w-20 h-20" : "w-10 h-10";
   const inner  = isLg ? "w-10 h-10" : "w-5 h-5";
 
   return (
     <div className="relative inline-flex">
-      <div className={`${outer} rounded-full flex items-center justify-center ${isBTC ? "bg-[#F7931A]/20" : "bg-[#26A17B]/20"}`}>
-        {isBTC
-          ? <SiBitcoin className={`${inner} text-[#F7931A]`} />
-          : <SiTether  className={`${inner} text-[#26A17B]`} />
-        }
+      <div className={`${outer} rounded-full flex items-center justify-center bg-[#26A17B]/20`}>
+        <SiTether className={`${inner} text-[#26A17B]`} />
       </div>
       {network && (
         <span className="absolute -bottom-1 -right-1 bg-primary text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none">
@@ -57,10 +41,9 @@ function CoinIcon({ name, network, size = "lg" }: { name: string; network?: stri
 }
 
 function MethodIcon({ name }: { name: string }) {
-  const isBTC = name.includes("BTC") || name.includes("Bitcoin");
   return (
-    <div className={`w-9 h-9 rounded-full flex items-center justify-center ${isBTC ? "bg-[#F7931A]/20" : "bg-[#26A17B]/20"}`}>
-      {isBTC ? <SiBitcoin className="w-5 h-5 text-[#F7931A]" /> : <SiTether className="w-5 h-5 text-[#26A17B]" />}
+    <div className="w-9 h-9 rounded-full flex items-center justify-center bg-[#26A17B]/20">
+      <SiTether className="w-5 h-5 text-[#26A17B]" />
     </div>
   );
 }
@@ -71,25 +54,15 @@ export default function Deposit() {
 
   const { data: paymentMethods, isLoading: loadingMethods } = useListPaymentMethods();
   const createSession = useCreateDepositSession();
-  const livePairs = useLivePairs();
 
   const [step, setStep]                   = useState<"select" | "review">("select");
   const [selectedMethodId, setSelectedMethodId] = useState("");
   const [amount, setAmount]               = useState(100);
   const [amountInput, setAmountInput]     = useState("100");
-  const [cryptoAmount, setCryptoAmount]       = useState(0);
-  const [cryptoAmountInput, setCryptoAmountInput] = useState("");
-  const [lockedRate, setLockedRate]       = useState<number | null>(null);
 
   const activeMethod = paymentMethods?.find((m) => m.id === selectedMethodId);
   const netInfo      = activeMethod?.network ? NETWORK_INFO[activeMethod.network] ?? null : null;
   const assetSymbol  = getAssetSymbol(activeMethod?.network ?? undefined);
-
-  const livePairSymbol = selectedMethodId ? LIVE_PRICED_METHODS[selectedMethodId] : undefined;
-  const isLivePriced   = !!livePairSymbol;
-  const livePair       = livePairSymbol ? livePairs.find((p) => p.symbol === livePairSymbol) : undefined;
-  const liveRate       = livePair?.price ?? null;
-  const estimatedUsd   = isLivePriced && liveRate ? cryptoAmount * liveRate : amount;
 
   useEffect(() => {
     if (!selectedMethodId && paymentMethods?.length === 1) {
@@ -99,23 +72,13 @@ export default function Deposit() {
 
   const handleContinue = () => {
     if (!selectedMethodId) { toast({ title: "Select a payment method", variant: "destructive" }); return; }
-    if (isLivePriced) {
-      if (!cryptoAmount || cryptoAmount <= 0) { toast({ title: `Enter an amount in ${assetSymbol}`, variant: "destructive" }); return; }
-      if (!liveRate) { toast({ title: "Live rate unavailable, try again in a moment", variant: "destructive" }); return; }
-      if (estimatedUsd < MIN_DEPOSIT) { toast({ title: `Minimum deposit is $${MIN_DEPOSIT}`, variant: "destructive" }); return; }
-      setLockedRate(liveRate);
-    } else {
-      if (!amount || amount < MIN_DEPOSIT) { toast({ title: `Minimum deposit is $${MIN_DEPOSIT}`, variant: "destructive" }); return; }
-    }
+    if (!amount || amount < MIN_DEPOSIT) { toast({ title: `Minimum deposit is $${MIN_DEPOSIT}`, variant: "destructive" }); return; }
     setStep("review");
   };
 
   const handleConfirm = () => {
-    const data = isLivePriced
-      ? { cryptoAmount, paymentMethodId: selectedMethodId }
-      : { amount, paymentMethodId: selectedMethodId };
     createSession.mutate(
-      { data },
+      { data: { amount, paymentMethodId: selectedMethodId } },
       {
         onSuccess: (session) => setLocation(`/cashier/deposit/${session.id}`),
         onError:   (err: any) => toast({ title: "Failed to create deposit", description: err.message, variant: "destructive" }),
@@ -174,32 +137,7 @@ export default function Deposit() {
           )}
 
           {/* Amount */}
-          {isLivePriced ? (
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">Enter Amount in {assetSymbol}</p>
-              <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-xl font-bold">{assetSymbol}</div>
-                <Input
-                  type="number" min={0} step="any" value={cryptoAmountInput}
-                  onChange={(e) => { setCryptoAmountInput(e.target.value); setCryptoAmount(parseFloat(e.target.value) || 0); }}
-                  className="pl-20 pr-4 bg-card border-none h-16 rounded-xl text-xl font-bold"
-                  placeholder="0.00"
-                />
-              </div>
-              <div className="flex items-center justify-between rounded-xl bg-card p-3.5">
-                <span className="text-xs text-muted-foreground">You'll receive ≈</span>
-                <span className="text-sm font-semibold text-emerald-400">
-                  {liveRate ? `$${estimatedUsd.toFixed(2)} USDT` : "Fetching live rate…"}
-                </span>
-              </div>
-              {liveRate && (
-                <p className="text-[11px] text-muted-foreground text-right">
-                  Live rate: 1 {assetSymbol} = ${fmtPrice(liveRate)}
-                </p>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-3">
+          <div className="space-y-3">
               <p className="text-sm text-muted-foreground">Enter Amount</p>
               <div className="relative">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-xl font-bold">$</div>
@@ -219,8 +157,7 @@ export default function Deposit() {
                   </Button>
                 ))}
               </div>
-            </div>
-          )}
+          </div>
 
           <Button className="w-full h-14 rounded-xl text-base font-semibold shadow-none" onClick={handleContinue}>
             Continue
@@ -248,23 +185,13 @@ export default function Deposit() {
 
         {/* Details table */}
         <div className="rounded-2xl bg-card p-5 space-y-0 divide-y divide-border/40">
-          {(isLivePriced
-            ? [
-                { label: "Asset",            value: assetSymbol },
-                { label: "Network",          value: netInfo?.fullName ?? activeMethod?.network ?? "" as string },
-                { label: "You send",         value: `${cryptoAmount} ${assetSymbol}` },
-                { label: "Locked rate",      value: `$${fmtPrice(lockedRate ?? 0)} / ${assetSymbol}` },
-                { label: "You will receive", value: `≈ $${((lockedRate ?? 0) * cryptoAmount).toFixed(2)} USDT` },
-                { label: "Processing time",  value: netInfo?.time ?? "Varies" },
-              ]
-            : [
-                { label: "Asset",           value: assetSymbol },
-                { label: "Network",         value: netInfo?.fullName ?? activeMethod?.network ?? "" as string },
-                { label: "Amount",          value: `$${amount.toFixed(2)}` },
-                { label: "You will receive", value: `${amount} ${assetSymbol}` },
-                { label: "Processing time", value: netInfo?.time ?? "Varies" },
-              ]
-          ).map(({ label, value }) => (
+          {[
+            { label: "Asset",            value: assetSymbol },
+            { label: "Network",          value: netInfo?.fullName ?? activeMethod?.network ?? "" as string },
+            { label: "Amount",            value: `$${amount.toFixed(2)}` },
+            { label: "You will receive", value: `${amount} ${assetSymbol}` },
+            { label: "Processing time", value: netInfo?.time ?? "Varies" },
+          ].map(({ label, value }) => (
             <div key={label} className="flex items-center justify-between py-3.5">
               <span className="text-sm text-muted-foreground">{label}</span>
               <span className="text-sm font-semibold">{value}</span>

@@ -11,8 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { ChevronLeft, Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SiTether, SiBitcoin, SiEthereum } from "react-icons/si";
-import { useLivePairs } from "@/hooks/useLivePairs";
+import { SiTether } from "react-icons/si";
 import { formatUSD } from "@/lib/format";
 
 const withdrawSchema = z.object({
@@ -23,39 +22,14 @@ const withdrawSchema = z.object({
 
 const QUICK_AMOUNTS = [100, 250, 500, 1000];
 
-// Networks whose payout is priced in the coin itself (not a USD-stable coin) —
-// show a live crypto-amount estimate alongside the USD input.
-const LIVE_PRICED_NETWORKS: Record<string, { symbol: string; asset: string }> = {
-  Bitcoin: { symbol: "BTC/USD", asset: "BTC" },
-  "Bitcoin Mainnet": { symbol: "BTC/USD", asset: "BTC" },
-  ERC20_ETH: { symbol: "ETH/USD", asset: "ETH" },
-};
-
-function getLivePricing(method?: { name?: string; network?: string | null }) {
-  if (!method) return null;
-  if (method.network && LIVE_PRICED_NETWORKS[method.network]) return LIVE_PRICED_NETWORKS[method.network];
-  const name = method.name?.toLowerCase() ?? "";
-  if (name.includes("bitcoin") || name.includes("btc")) return LIVE_PRICED_NETWORKS.Bitcoin;
-  if (name.includes("ethereum") || name.includes("eth")) return LIVE_PRICED_NETWORKS.ERC20_ETH;
-  return null;
-}
-
-function NetworkIcon({ name }: { name: string }) {
-  if (name.includes("BTC") || name.includes("Bitcoin")) return <SiBitcoin className="w-6 h-6 text-[#F7931A]" />;
-  if (name.includes("ETH") || name.includes("Ethereum")) return <SiEthereum className="w-6 h-6 text-[#627EEA]" />;
+function NetworkIcon() {
   return <SiTether className="w-6 h-6 text-[#26A17B]" />;
 }
 
 function NetworkBadge({ network }: { network?: string | null }) {
   if (!network) return null;
-  const colors: Record<string, string> = {
-    TRC20: "bg-red-500/10 text-red-400",
-    ERC20: "bg-blue-500/10 text-blue-400",
-    BEP20: "bg-yellow-500/10 text-yellow-400",
-    Bitcoin: "bg-orange-500/10 text-orange-400",
-  };
   return (
-    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${colors[network] ?? "bg-muted text-muted-foreground"}`}>
+    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400">
       {network}
     </span>
   );
@@ -70,7 +44,6 @@ export default function Withdraw() {
   });
   const { data: paymentMethods, isLoading: loadingMethods } = useListPaymentMethods();
   const withdrawMutation = useCreateWithdrawal();
-  const livePairs = useLivePairs();
 
   const form = useForm<z.infer<typeof withdrawSchema>>({
     resolver: zodResolver(withdrawSchema),
@@ -79,11 +52,7 @@ export default function Withdraw() {
 
   const selectedMethodId = form.watch("paymentMethod");
   const activeMethod = paymentMethods?.find((m) => m.id === selectedMethodId);
-  const watchedAmount = form.watch("amount");
 
-  const livePricing = getLivePricing(activeMethod);
-  const liveRate = livePricing ? livePairs.find((p) => p.symbol === livePricing.symbol)?.price ?? null : null;
-  const cryptoEstimate = livePricing && liveRate && watchedAmount > 0 ? Number(watchedAmount) / liveRate : null;
   const mainWalletBalance = summary?.mainWalletBalance ?? summary?.ledgerBalance ?? 0;
   const availableBalance = summary?.availableBalance ?? 0;
 
@@ -102,16 +71,13 @@ export default function Withdraw() {
       form.setError("amount", { message: `Insufficient balance. Available: ${formatUSD(availableBalance)}` });
       return;
     }
-    // Send method name (e.g. "USDT (TRC20)") not ID so admin can see the network
+    // Send the canonical method name so admin records show the network.
     const methodName = activeMethod?.name ?? values.paymentMethod;
     withdrawMutation.mutate(
       {
         data: {
           ...values,
           paymentMethod: methodName,
-          cryptoAmount: cryptoEstimate ?? undefined,
-          cryptoAsset: livePricing?.asset ?? undefined,
-          conversionRate: liveRate ?? undefined,
         },
       },
       {
@@ -173,7 +139,7 @@ export default function Withdraw() {
                       >
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
-                            <NetworkIcon name={method.name} />
+                            <NetworkIcon />
                           </div>
                           <div>
                             <p className="text-sm font-semibold leading-tight">{method.name}</p>
@@ -265,14 +231,6 @@ export default function Withdraw() {
                       />
                     </div>
                   </FormControl>
-                  {livePricing && (
-                    <div className="flex items-center justify-between rounded-xl bg-card p-3.5">
-                      <span className="text-xs text-muted-foreground">You'll withdraw ≈</span>
-                      <span className="text-sm font-semibold text-emerald-400">
-                        {cryptoEstimate ? `${cryptoEstimate.toFixed(8)} ${livePricing.asset}` : "Fetching live rate…"}
-                      </span>
-                    </div>
-                  )}
                   <div className="grid grid-cols-4 gap-2">
                     {QUICK_AMOUNTS.map((amt) => (
                       <Button

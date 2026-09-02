@@ -35,10 +35,12 @@ export default function PaymentMethods() {
                   <div>
                     <h3 className="font-semibold text-sm mb-0.5">{method.name}</h3>
                     {method.network && (
-                      <p className="text-xs text-muted-foreground">Network: BNB Smart Chain ({method.network})</p>
-                      {method.depositAddress && (
-                        <p className="mt-1 truncate max-w-[220px] font-mono text-[10px] text-muted-foreground/80">{method.depositAddress}</p>
-                      )}
+                      <>
+                        <p className="text-xs text-muted-foreground">Network: BNB Smart Chain ({method.network})</p>
+                        {method.depositAddress && (
+                          <p className="mt-1 truncate max-w-[220px] font-mono text-[10px] text-muted-foreground/80">{method.depositAddress}</p>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
