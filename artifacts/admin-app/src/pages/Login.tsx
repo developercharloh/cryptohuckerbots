@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Bot, Eye, EyeOff, Lock, User, ShieldCheck, AlertCircle, Mail } from "lucide-react";
-import { API_BASE, fetchWithTimeout } from "@/lib/api-base";
+import { API_BASE, fetchWithTimeout, waitForApiReady } from "@/lib/api-base";
 
 interface LoginProps {
   onLogin: () => void;
@@ -27,6 +27,12 @@ export default function Login({ onLogin }: LoginProps) {
     setLoading(true);
 
     try {
+      const apiReady = await waitForApiReady();
+      if (!apiReady) {
+        triggerShake("The service is still starting. Please try again.");
+        return;
+      }
+
       const res = await fetchWithTimeout(`${API_BASE}/api/admin/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
