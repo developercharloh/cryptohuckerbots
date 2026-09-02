@@ -591,6 +591,12 @@ export const ListTradeSignalsResponseItem = zod.object({
 export const ListTradeSignalsResponse = zod.array(ListTradeSignalsResponseItem)
 
 
+export const getTradeAccessResponseQualifiedReferralsMin = 0;
+
+export const getTradeAccessResponseNextLevelReferralRequirementMin = 0;
+
+
+
 export const GetTradeAccessResponse = zod.object({
   "vipLevel": zod.number(),
   "minimumDeposit": zod.number(),
@@ -603,6 +609,8 @@ export const GetTradeAccessResponse = zod.object({
   "dailyLimit": zod.number(),
   "usedToday": zod.number(),
   "remainingToday": zod.number(),
+  "qualifiedReferrals": zod.number().min(getTradeAccessResponseQualifiedReferralsMin),
+  "nextLevelReferralRequirement": zod.number().min(getTradeAccessResponseNextLevelReferralRequirementMin).nullable(),
   "nextLevel": zod.number().nullable(),
   "nextLevelDeposit": zod.number().nullable(),
   "nextLevelAmountDue": zod.number().nullable(),
@@ -614,10 +622,15 @@ export const GetTradeAccessResponse = zod.object({
 })
 
 
+export const listVipPackagesResponseReferralRequirementMin = 0;
+
+
+
 export const ListVipPackagesResponseItem = zod.object({
   "level": zod.number(),
   "price": zod.number(),
   "dailySignals": zod.number(),
+  "referralRequirement": zod.number().min(listVipPackagesResponseReferralRequirementMin),
   "isActive": zod.boolean(),
   "isUpgrade": zod.boolean(),
   "isAvailable": zod.boolean(),
@@ -626,7 +639,7 @@ export const ListVipPackagesResponseItem = zod.object({
 export const ListVipPackagesResponse = zod.array(ListVipPackagesResponseItem)
 
 
-export const purchaseVipPackagePathLevelMax = 7;
+export const purchaseVipPackagePathLevelMax = 10;
 
 
 
@@ -782,7 +795,7 @@ export const GetProfileResponse = zod.object({
 
 
 export const getReferralSummaryResponseReferralsItemCurrentVipLevelMin = 0;
-export const getReferralSummaryResponseReferralsItemCurrentVipLevelMax = 7;
+export const getReferralSummaryResponseReferralsItemCurrentVipLevelMax = 10;
 
 
 
@@ -1411,7 +1424,7 @@ export const AdminListTransactionsResponse = zod.array(AdminListTransactionsResp
 
 
 export const adminListReferralsResponseCurrentVipLevelMin = 0;
-export const adminListReferralsResponseCurrentVipLevelMax = 7;
+export const adminListReferralsResponseCurrentVipLevelMax = 10;
 
 
 

@@ -710,7 +710,7 @@ paths:
           schema:
             type: integer
             minimum: 1
-            maximum: 7
+            maximum: 10
       responses:
         "201":
           description: VIP package purchased
@@ -1888,6 +1888,13 @@ components:
           type: integer
         remainingToday:
           type: integer
+        qualifiedReferrals:
+          type: integer
+          minimum: 0
+        nextLevelReferralRequirement:
+          type: integer
+          minimum: 0
+          nullable: true
         nextLevel:
           type: integer
           nullable: true
@@ -1911,7 +1918,7 @@ components:
           nullable: true
         cooldownActive:
           type: boolean
-      required: [vipLevel, minimumDeposit, totalDeposited, hasPackage, packagePrice, vaultCapital, lockedInvestmentCapital, canExecute, dailyLimit, usedToday, remainingToday, timezone, nextLevel, nextLevelDeposit, nextLevelAmountDue, nextSignalAt, signalAmount, cooldownUntil, cooldownActive]
+      required: [vipLevel, minimumDeposit, totalDeposited, hasPackage, packagePrice, vaultCapital, lockedInvestmentCapital, canExecute, dailyLimit, usedToday, remainingToday, qualifiedReferrals, nextLevelReferralRequirement, timezone, nextLevel, nextLevelDeposit, nextLevelAmountDue, nextSignalAt, signalAmount, cooldownUntil, cooldownActive]
 
     VipPackage:
       type: object
@@ -1922,6 +1929,9 @@ components:
           type: number
         dailySignals:
           type: integer
+        referralRequirement:
+          type: integer
+          minimum: 0
         isActive:
           type: boolean
         isUpgrade:
@@ -1930,7 +1940,7 @@ components:
           type: boolean
         amountDue:
           type: number
-      required: [level, price, dailySignals, isActive, isUpgrade, isAvailable, amountDue]
+      required: [level, price, dailySignals, referralRequirement, isActive, isUpgrade, isAvailable, amountDue]
 
     VipPackagePurchaseResponse:
       type: object
@@ -2484,7 +2494,7 @@ components:
         referredName: { type: string }
         referredPhone: { type: ["string", "null"] }
         referredCountry: { type: ["string", "null"] }
-        currentVipLevel: { type: integer, minimum: 0, maximum: 7 }
+        currentVipLevel: { type: integer, minimum: 0, maximum: 10 }
         activityStatus: { type: string, enum: [active, inactive] }
         status: { type: string, enum: [pending, credited] }
         bonusAmount: { type: number }
@@ -2512,7 +2522,7 @@ components:
         referredName: { type: string }
         referredPhone: { type: ["string", "null"] }
         referredCountry: { type: ["string", "null"] }
-        currentVipLevel: { type: integer, minimum: 0, maximum: 7 }
+        currentVipLevel: { type: integer, minimum: 0, maximum: 10 }
         activityStatus: { type: string, enum: [active, inactive] }
         status: { type: string, enum: [pending, credited] }
         bonusAmount: { type: number }

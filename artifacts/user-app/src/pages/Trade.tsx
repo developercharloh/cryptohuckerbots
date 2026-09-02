@@ -80,13 +80,16 @@ function generateChartData(pair: string, count = 60) {
 }
 
 const VIP_LEVELS = [
-  { level: 1, dailySignals: 3 },
-  { level: 2, dailySignals: 4 },
-  { level: 3, dailySignals: 5 },
-  { level: 4, dailySignals: 6 },
-  { level: 5, dailySignals: 7 },
-  { level: 6, dailySignals: 8 },
-  { level: 7, dailySignals: 9 },
+  { level: 1, dailySignals: 2 },
+  { level: 2, dailySignals: 3 },
+  { level: 3, dailySignals: 4 },
+  { level: 4, dailySignals: 5 },
+  { level: 5, dailySignals: 6 },
+  { level: 6, dailySignals: 7 },
+  { level: 7, dailySignals: 8 },
+  { level: 8, dailySignals: 9 },
+  { level: 9, dailySignals: 10 },
+  { level: 10, dailySignals: 11 },
 ] as const;
 
 function AIWave() {
@@ -379,7 +382,7 @@ export default function Trade() {
   };
 
   const vaultCapital = summary?.vaultCapital ?? summary?.lockedInvestmentCapital ?? 0;
-  const signalAmount = vipAccess?.signalAmount ?? 2.5;
+  const signalAmount = vipAccess?.signalAmount ?? 2.25;
 
   const handleRefreshSignals = useCallback(async () => {
     if (refreshingSignals) return;
@@ -446,7 +449,7 @@ export default function Trade() {
       consentRef.current?.focus();
       return;
     }
-    const signalAmount = vipAccess?.signalAmount ?? 2.5;
+    const signalAmount = vipAccess?.signalAmount ?? 2.25;
     if (signalAmount > vaultCapital) {
       toast({ title: "Insufficient Vault Capital", description: `Your Vault Capital is $${vaultCapital.toFixed(2)}. Activate or upgrade VIP and try again.`, variant: "destructive" });
       return;
@@ -842,16 +845,18 @@ export default function Trade() {
                         {vipAccess.remainingToday} of {vipAccess.dailyLimit} left
                       </p>
                       <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 3 }}>
-                        {vipAccess.hasPackage
-                          ? `$${(vipAccess.packagePrice ?? 0).toLocaleString()} package purchased`
-                          : "Purchase a package to unlock signals"}
+                         {vipAccess.hasPackage
+                           ? vipAccess.vipLevel === 1
+                             ? "$350 VIP 1 activation completed"
+                             : "Referral upgrade active"
+                           : "Activate VIP 1 to unlock signals"}
                       </p>
                     </div>
                   </div>
                   {vipAccess.vipLevel === 0 ? (
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 10 }}>
                       <p style={{ fontSize: 11, color: "#FCD34D", lineHeight: 1.5 }}>
-                        Buy VIP 1 or higher to unlock AI Signals.
+                         Activate VIP 1 to unlock AI Signals.
                       </p>
                       <button onClick={() => setLocation("/vip-packages")} style={{ flexShrink: 0, border: "none", borderRadius: 9, padding: "8px 10px", background: "linear-gradient(135deg, #F5B942, #2563EB)", color: "#fff", fontSize: 10, fontWeight: 800, cursor: "pointer" }}>
                         Buy VIP Package
@@ -860,8 +865,10 @@ export default function Trade() {
                   ) : (
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 10 }}>
                       <p style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.5 }}>
-                        {vipAccess.nextLevel
-                          ? `Upgrade to VIP ${vipAccess.nextLevel} with ${vipAccess.nextLevelAmountDue?.toLocaleString()} due today (${vipAccess.nextLevelDeposit?.toLocaleString()} total capital).`
+                         {vipAccess.nextLevel
+                           ? vipAccess.nextLevelReferralRequirement
+                             ? `${vipAccess.qualifiedReferrals} of ${vipAccess.nextLevelReferralRequirement} active referrals needed for VIP ${vipAccess.nextLevel}. No payment required.`
+                             : `Activate VIP ${vipAccess.nextLevel} with $${vipAccess.nextLevelAmountDue?.toLocaleString()} from your Main Wallet.`
                           : "You are at the highest available VIP level."}
                         {" "}Timezone: {vipAccess.timezone}.
                       </p>
@@ -1371,7 +1378,7 @@ export default function Trade() {
                     +${totalReward.toFixed(2)}
                   </p>
                   <p style={{ fontSize: 13, color: "#6B7280", marginTop: 6 }}>
-                    $2.50 × {bulkResultPositions.length} signal{bulkResultPositions.length === 1 ? "" : "s"} added to Main Wallet
+                     ${signalAmount.toFixed(2)} × {bulkResultPositions.length} signal{bulkResultPositions.length === 1 ? "" : "s"} added to Main Wallet
                   </p>
                 </div>
                 <div style={{
@@ -1380,14 +1387,14 @@ export default function Trade() {
                 }}>
                   <p style={{ fontSize: 13, fontWeight: 850, color: "#fff" }}>AI-selected pairs completed successfully</p>
                   <p style={{ fontSize: 11, lineHeight: 1.5, color: "#CBD5E1", marginTop: 4 }}>
-                    The fixed $2.50 reward for each settled signal has been recorded in your Main Wallet and is reflected in your Portfolio Wallet.
+                     The fixed ${signalAmount.toFixed(2)} reward for each settled signal has been recorded in your Main Wallet and is reflected in your Portfolio Wallet.
                   </p>
                 </div>
                 <div style={{ width: "100%", background: "rgba(255,255,255,0.04)", borderRadius: 18, padding: "14px 16px", border: "1px solid rgba(255,255,255,0.07)" }}>
                   {bulkResultPositions.map((position) => (
                     <div key={position.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
                       <span style={{ fontSize: 12, color: "#6B7280" }}>{position.pair} · {position.direction}</span>
-                      <span style={{ fontSize: 12, fontWeight: 800, color: "#4ade80" }}>+$2.50</span>
+                       <span style={{ fontSize: 12, fontWeight: 800, color: "#4ade80" }}>+${signalAmount.toFixed(2)}</span>
                     </div>
                   ))}
                 </div>
@@ -1421,7 +1428,7 @@ export default function Trade() {
                     {win ? "+" : "−"}${Math.abs(result.pnl).toFixed(2)}
                   </p>
                   <p style={{ fontSize: 13, color: "#6B7280", marginTop: 4 }}>{roi > 0 ? "+" : ""}{roi.toFixed(1)}% outcome on ${result.stake.toFixed(2)} signal</p>
-                   <p style={{ fontSize: 11, color: "#FFD86B", marginTop: 8 }}>Disclosed signal outcome: +$2.50 to Main Wallet · reflected in Portfolio Wallet</p>
+                    <p style={{ fontSize: 11, color: "#FFD86B", marginTop: 8 }}>Disclosed signal outcome: +${signalAmount.toFixed(2)} to Main Wallet · reflected in Portfolio Wallet</p>
                 </div>
 
                  <div style={{
@@ -1436,7 +1443,7 @@ export default function Trade() {
                        {win ? "Congratulations — signal complete!" : "Signal complete — outcome recorded"}
                      </p>
                      <p style={{ fontSize: 11, lineHeight: 1.5, color: "#CBD5E1", marginTop: 4 }}>
-                        "Your position settled successfully at the disclosed +$2.50 signal outcome. The amount was added to Main Wallet."
+                         `Your position settled successfully at the disclosed +$${signalAmount.toFixed(2)} signal outcome. The amount was added to Main Wallet.`
                      </p>
                    </div>
                  </div>

@@ -8,7 +8,7 @@ process.env.ADMIN_JWT_SECRET = "vip-package-test-jwt-secret";
 
 const { default: app } = await import("../src/app.ts");
 const database = await import("@workspace/db");
-const { db, pool, sql, eq, asc, transactionsTable, vipPackagePurchasesTable, vipInvestmentCapitalTable, signalClaimsTable, signalOpportunitiesTable, positionsTable, usersTable, sessionsTable, authRateLimitsTable } = {
+const { db, pool, sql, eq, asc, transactionsTable, vipPackagePurchasesTable, vipInvestmentCapitalTable, signalClaimsTable, signalOpportunitiesTable, positionsTable, usersTable, sessionsTable, authRateLimitsTable, referralsTable } = {
   ...database,
   ...(await import("drizzle-orm")),
 };
@@ -17,6 +17,7 @@ const origin = "https://vixus.trade";
 const userEmail = `vip-package-${Date.now()}-${process.pid}@example.test`;
 const noBalanceEmail = `vip-package-empty-${Date.now()}-${process.pid}@example.test`;
 const userPassword = "VipPackageTestPassword1!";
+const referralUserSeed = 2_000_000 + process.pid * 100 + (Date.now() % 100);
 
 class CookieJar {
   private readonly cookies = new Map<string, string>();
@@ -77,14 +78,14 @@ before(async () => {
   await db.delete(authRateLimitsTable);
   const registration = await request<{ user: { id: number } }>("/api/auth/register", {
     method: "POST",
-    body: { fullName: "VIP Package Test User", email: userEmail, password: userPassword, country: "Kenya" },
+    body: { fullName: "VIP Package Test User", email: userEmail, password: userPassword, country: "Kenya", phone: `+254700${String(process.pid).padStart(4, "0")}` },
   });
   assert.equal(registration.response.status, 201);
   userId = registration.body.user.id;
   const emptyRegistration = await request<{ user: { id: number } }>("/api/auth/register", {
     method: "POST",
     cookieJar: noBalanceJar,
-    body: { fullName: "VIP Empty Wallet User", email: noBalanceEmail, password: userPassword, country: "Kenya" },
+    body: { fullName: "VIP Empty Wallet User", email: noBalanceEmail, password: userPassword, country: "Kenya", phone: `+254701${String(process.pid).padStart(4, "0")}` },
   });
   assert.equal(emptyRegistration.response.status, 201);
   noBalanceUserId = emptyRegistration.body.user.id;
@@ -96,6 +97,13 @@ before(async () => {
     paymentMethod: "test",
     description: "VIP package regression funding",
   });
+  await db.insert(referralsTable).values(Array.from({ length: 35 }, (_, index) => ({
+    referrerUserId: userId,
+    referredUserId: referralUserSeed + index,
+    status: "credited",
+    bonusAmount: "20.00",
+    reservedAmount: "10.00",
+  })));
   databaseAvailable = true;
 });
 
@@ -106,6 +114,7 @@ after(async () => {
     await db.delete(signalClaimsTable).where(eq(signalClaimsTable.userId, userId));
     await db.delete(positionsTable).where(eq(positionsTable.userId, userId));
     await db.delete(transactionsTable).where(eq(transactionsTable.userId, userId));
+    await db.delete(referralsTable).where(eq(referralsTable.referrerUserId, userId));
     await db.delete(sessionsTable).where(eq(sessionsTable.userId, userId));
     await db.delete(usersTable).where(eq(usersTable.id, userId));
   }
@@ -115,6 +124,7 @@ after(async () => {
     await db.delete(signalClaimsTable).where(eq(signalClaimsTable.userId, noBalanceUserId));
     await db.delete(positionsTable).where(eq(positionsTable.userId, noBalanceUserId));
     await db.delete(transactionsTable).where(eq(transactionsTable.userId, noBalanceUserId));
+    await db.delete(referralsTable).where(eq(referralsTable.referrerUserId, noBalanceUserId));
     await db.delete(sessionsTable).where(eq(sessionsTable.userId, noBalanceUserId));
     await db.delete(usersTable).where(eq(usersTable.id, noBalanceUserId));
   }
@@ -147,12 +157,12 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
     cookieJar: noBalanceJar,
   });
   assert.equal(insufficient.response.status, 400);
-  assert.equal(insufficient.body.code, "INSUFFICIENT_BALANCE");
+   assert.equal(insufficient.body.code, "MINIMUM_DEPOSIT_REQUIRED");
 
   await db.insert(transactionsTable).values({
     userId: noBalanceUserId,
     type: "deposit",
-    amount: "500.00",
+     amount: "500.00",
     status: "completed",
     paymentMethod: "test",
     description: "VIP upgrade shortfall regression funding",
@@ -162,26 +172,25 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
     cookieJar: noBalanceJar,
   });
   assert.equal(noBalanceFirst.response.status, 201);
-  assert.equal(noBalanceFirst.body.amountPaid, 500);
-  assert.equal(noBalanceFirst.body.mainWalletBalance, 0);
+   assert.equal(noBalanceFirst.body.amountPaid, 350);
+   assert.equal(noBalanceFirst.body.mainWalletBalance, 150);
   const insufficientUpgrade = await request<{ code: string; error: string }>("/api/trade/vip-packages/2/purchase", {
     method: "POST",
     cookieJar: noBalanceJar,
   });
   assert.equal(insufficientUpgrade.response.status, 400);
-  assert.equal(insufficientUpgrade.body.code, "INSUFFICIENT_BALANCE");
-  assert.match(insufficientUpgrade.body.error, /Amount required: \$500\.00/);
-  assert.match(insufficientUpgrade.body.error, /Available balance: \$0\.00/);
+   assert.equal(insufficientUpgrade.body.code, "REFERRAL_REQUIREMENT_NOT_MET");
+   assert.match(insufficientUpgrade.body.error, /requires 5 active VIP 1 referrals/);
 
   const noBalanceSignals = await request<Array<{ opportunityId: number }>>("/api/trade/signals", { cookieJar: noBalanceJar });
   assert.equal(noBalanceSignals.response.status, 200);
-  await db.insert(signalClaimsTable).values(noBalanceSignals.body.slice(0, 3).map((signal) => ({
+   await db.insert(signalClaimsTable).values(noBalanceSignals.body.slice(0, 2).map((signal) => ({
     userId: noBalanceUserId,
     opportunityId: signal.opportunityId,
     consentAt: new Date(),
   })));
   const exhaustedVipOne = await request<{ vipLevel: number; remainingToday: number; cooldownActive: boolean; cooldownUntil: string | null }>("/api/trade/access", { cookieJar: noBalanceJar });
-  assert.equal(exhaustedVipOne.body.vipLevel, 1);
+   assert.equal(exhaustedVipOne.body.vipLevel, 1);
   assert.equal(exhaustedVipOne.body.remainingToday, 0);
   assert.equal(exhaustedVipOne.body.cooldownActive, true);
   assert.ok(exhaustedVipOne.body.cooldownUntil);
@@ -194,6 +203,13 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
     paymentMethod: "test",
     description: "VIP cooldown upgrade regression funding",
   });
+  await db.insert(referralsTable).values(Array.from({ length: 5 }, (_, index) => ({
+    referrerUserId: noBalanceUserId,
+    referredUserId: referralUserSeed + 1_000 + index,
+    status: "credited",
+    bonusAmount: "20.00",
+    reservedAmount: "10.00",
+  })));
   const upgradedNoBalance = await request<{ package: { level: number } }>("/api/trade/vip-packages/2/purchase", {
     method: "POST",
     cookieJar: noBalanceJar,
@@ -202,28 +218,30 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
   assert.equal(upgradedNoBalance.body.package.level, 2);
   const upgradedNoBalanceAccess = await request<{ vipLevel: number; dailyLimit: number; usedToday: number; remainingToday: number; cooldownActive: boolean }>("/api/trade/access", { cookieJar: noBalanceJar });
   assert.equal(upgradedNoBalanceAccess.body.vipLevel, 2);
-  assert.equal(upgradedNoBalanceAccess.body.dailyLimit, 4);
-  assert.equal(upgradedNoBalanceAccess.body.usedToday, 3);
+   assert.equal(upgradedNoBalanceAccess.body.dailyLimit, 3);
+   assert.equal(upgradedNoBalanceAccess.body.usedToday, 2);
   assert.equal(upgradedNoBalanceAccess.body.remainingToday, 1);
   assert.equal(upgradedNoBalanceAccess.body.cooldownActive, false);
 
   const first = await request<{ package: { level: number }; amountPaid: number; lockedInvestmentCapital: number; mainWalletBalance: number }>("/api/trade/vip-packages/1/purchase", { method: "POST" });
   assert.equal(first.response.status, 201);
   assert.equal(first.body.package.level, 1);
-  assert.equal(first.body.amountPaid, 500);
-  assert.equal(first.body.lockedInvestmentCapital, 500);
-  assert.equal(first.body.mainWalletBalance, 49500);
+   assert.equal(first.body.amountPaid, 350);
+   assert.equal(first.body.lockedInvestmentCapital, 350);
+   assert.equal(first.body.mainWalletBalance, 49650);
 
   const active = await request<{ vipLevel: number; hasPackage: boolean; canExecute: boolean; lockedInvestmentCapital: number }>("/api/trade/access");
   assert.equal(active.body.vipLevel, 1);
   assert.equal(active.body.hasPackage, true);
   assert.equal(active.body.canExecute, true);
-  assert.equal(active.body.lockedInvestmentCapital, 500);
+   assert.equal(active.body.lockedInvestmentCapital, 350);
 
   const packages = await request<Array<{ level: number; amountDue: number }>>("/api/trade/vip-packages");
   assert.equal(packages.response.status, 200);
-  assert.equal(packages.body.find((pkg) => pkg.level === 2)?.amountDue, 500);
-  assert.equal(packages.body.find((pkg) => pkg.level === 3)?.amountDue, 1500);
+   assert.equal(packages.body.find((pkg) => pkg.level === 2)?.amountDue, 0);
+   assert.equal(packages.body.find((pkg) => pkg.level === 2)?.isAvailable, true);
+   assert.equal(packages.body.find((pkg) => pkg.level === 3)?.amountDue, 0);
+   assert.equal(packages.body.find((pkg) => pkg.level === 10)?.dailySignals, 11);
 
   const duplicate = await request<{ code: string }>("/api/trade/vip-packages/1/purchase", { method: "POST" });
   assert.equal(duplicate.response.status, 409);
@@ -232,14 +250,14 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
   const upgrade = await request<{ package: { level: number }; amountPaid: number; lockedInvestmentCapital: number; mainWalletBalance: number }>("/api/trade/vip-packages/2/purchase", { method: "POST" });
   assert.equal(upgrade.response.status, 201);
   assert.equal(upgrade.body.package.level, 2);
-  assert.equal(upgrade.body.amountPaid, 500);
-  assert.equal(upgrade.body.lockedInvestmentCapital, 1000);
-  assert.equal(upgrade.body.mainWalletBalance, 49000);
+   assert.equal(upgrade.body.amountPaid, 0);
+   assert.equal(upgrade.body.lockedInvestmentCapital, 350);
+   assert.equal(upgrade.body.mainWalletBalance, 49650);
 
   const upgradedAccess = await request<{ vipLevel: number; dailyLimit: number; remainingToday: number }>("/api/trade/access");
   assert.equal(upgradedAccess.body.vipLevel, 2);
-  assert.equal(upgradedAccess.body.dailyLimit, 4);
-  assert.equal(upgradedAccess.body.remainingToday, 4);
+   assert.equal(upgradedAccess.body.dailyLimit, 3);
+   assert.equal(upgradedAccess.body.remainingToday, 3);
 
   const concurrent = await Promise.all([
     request("/api/trade/vip-packages/5/purchase", { method: "POST" }),
@@ -247,8 +265,8 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
   ]);
   assert.deepEqual(concurrent.map((result) => result.response.status).sort(), [201, 409]);
   const successfulConcurrentUpgrade = concurrent.find((result) => result.response.status === 201);
-  assert.equal(successfulConcurrentUpgrade?.body.amountPaid, 7000);
-  assert.equal(successfulConcurrentUpgrade?.body.mainWalletBalance, 42000);
+   assert.equal(successfulConcurrentUpgrade?.body.amountPaid, 0);
+   assert.equal(successfulConcurrentUpgrade?.body.mainWalletBalance, 49650);
 
   const lowerTier = await request<{ code: string }>("/api/trade/vip-packages/3/purchase", { method: "POST" });
   assert.equal(lowerTier.response.status, 409);
@@ -256,15 +274,15 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
 
   const finalAccess = await request<{ vipLevel: number; remainingToday: number }>("/api/trade/access");
   assert.equal(finalAccess.body.vipLevel, 5);
-  assert.equal(finalAccess.body.remainingToday, 7);
+   assert.equal(finalAccess.body.remainingToday, 6);
   const capitalRows = await db.select({
     level: vipInvestmentCapitalTable.vipLevel,
     amount: vipInvestmentCapitalTable.amount,
     status: vipInvestmentCapitalTable.status,
   }).from(vipInvestmentCapitalTable).where(eq(vipInvestmentCapitalTable.userId, userId));
   assert.equal(capitalRows.filter((row) => row.status === "locked").length, 1);
-  assert.equal(capitalRows.find((row) => row.status === "locked")?.level, 5);
-  assert.equal(capitalRows.find((row) => row.status === "locked")?.amount, "8000.00");
+   assert.equal(capitalRows.find((row) => row.status === "locked")?.level, 1);
+   assert.equal(capitalRows.find((row) => row.status === "locked")?.amount, "350.00");
   const vipTransactions = await db.select({
     type: transactionsTable.type,
     amount: transactionsTable.amount,
@@ -274,12 +292,12 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
       .filter((row) => row.type === "vip_package_purchase")
       .map((row) => row.amount)
       .sort(),
-    ["500.00", "500.00", "7000.00"],
+     ["350.00"],
   );
 
   const beforeTrade = await request<{ mainWalletBalance: number; vaultCapital: number; portfolioBalance: number; totalProfit: number }>("/api/dashboard/summary");
-  assert.equal(beforeTrade.body.mainWalletBalance, 42000);
-  assert.equal(beforeTrade.body.vaultCapital, 8000);
+   assert.equal(beforeTrade.body.mainWalletBalance, 49650);
+   assert.equal(beforeTrade.body.vaultCapital, 350);
   assert.equal(beforeTrade.body.portfolioBalance, 50000);
   assert.equal(beforeTrade.body.totalProfit, 0);
 
@@ -295,9 +313,9 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
   assert.equal(opened.response.status, 200);
 
   const afterOpen = await request<{ mainWalletBalance: number; vaultCapital: number; portfolioBalance: number }>("/api/dashboard/summary");
-  assert.equal(afterOpen.body.mainWalletBalance, 42000);
-  assert.equal(afterOpen.body.vaultCapital, 7997.5);
-  assert.equal(afterOpen.body.portfolioBalance, 49997.5);
+   assert.equal(afterOpen.body.mainWalletBalance, 49650);
+   assert.equal(afterOpen.body.vaultCapital, 347.75);
+   assert.equal(afterOpen.body.portfolioBalance, 49997.75);
 
   // Simulate the user closing the app before settlement. The next server
   // read must settle the AI Signal independently of the browser timer.
@@ -307,14 +325,14 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
   const restored = await request<Array<{ id: number; pnl: number; status: string }>>("/api/trade/positions");
   const settled = restored.body.find((position) => position.id === opened.body.id);
   assert.ok(settled);
-  assert.equal(settled.pnl, 2.5);
+   assert.equal(settled.pnl, 2.25);
   assert.equal(settled.status, "tp_hit");
 
   const afterClose = await request<{ mainWalletBalance: number; vaultCapital: number; portfolioBalance: number; totalProfit: number }>("/api/dashboard/summary");
-  assert.equal(afterClose.body.mainWalletBalance, 42002.5);
-  assert.equal(afterClose.body.vaultCapital, 8000);
-  assert.equal(afterClose.body.portfolioBalance, 50002.5);
-  assert.equal(afterClose.body.totalProfit, 2.5);
+   assert.equal(afterClose.body.mainWalletBalance, 49652.25);
+   assert.equal(afterClose.body.vaultCapital, 350);
+   assert.equal(afterClose.body.portfolioBalance, 50002.25);
+   assert.equal(afterClose.body.totalProfit, 2.25);
 
   const signalRewards = await db.select({
     type: transactionsTable.type,
@@ -322,7 +340,7 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
   }).from(transactionsTable).where(eq(transactionsTable.userId, userId));
   assert.deepEqual(
     signalRewards.filter((row) => row.type === "signal_reward").map((row) => row.amount),
-    ["2.50"],
+     ["2.25"],
   );
 
    // A fresh signal window for the same pair is a separate opportunity, so
@@ -343,10 +361,10 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
      .where(eq(positionsTable.id, repeatedOpened.body.id));
    await request<Array<{ id: number; pnl: number; status: string }>>("/api/trade/positions");
    const afterRepeatedClose = await request<{ mainWalletBalance: number; vaultCapital: number; portfolioBalance: number; totalProfit: number }>("/api/dashboard/summary");
-   assert.equal(afterRepeatedClose.body.mainWalletBalance, 42005);
-   assert.equal(afterRepeatedClose.body.vaultCapital, 8000);
-   assert.equal(afterRepeatedClose.body.portfolioBalance, 50005);
-   assert.equal(afterRepeatedClose.body.totalProfit, 5);
+    assert.equal(afterRepeatedClose.body.mainWalletBalance, 49654.5);
+    assert.equal(afterRepeatedClose.body.vaultCapital, 350);
+    assert.equal(afterRepeatedClose.body.portfolioBalance, 50004.5);
+    assert.equal(afterRepeatedClose.body.totalProfit, 4.5);
 
    const repeatedSignalRewards = await db.select({
      type: transactionsTable.type,
@@ -354,7 +372,7 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
    }).from(transactionsTable).where(eq(transactionsTable.userId, userId));
    assert.deepEqual(
      repeatedSignalRewards.filter((row) => row.type === "signal_reward").map((row) => row.amount),
-     ["2.50", "2.50"],
+      ["2.25", "2.25"],
    );
 
   const opportunities = await db.select({ id: signalOpportunitiesTable.id })
@@ -372,7 +390,7 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
     consentAt: new Date(),
   })));
   const exhaustedAccess = await request<{ vipLevel: number; remainingToday: number; canExecute: boolean; cooldownActive: boolean; cooldownUntil: string | null }>("/api/trade/access");
-  assert.equal(exhaustedAccess.body.vipLevel, 5);
+   assert.equal(exhaustedAccess.body.vipLevel, 5);
   assert.equal(exhaustedAccess.body.remainingToday, 0);
   assert.equal(exhaustedAccess.body.canExecute, false);
   assert.equal(exhaustedAccess.body.cooldownActive, true);
@@ -394,15 +412,15 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
   const expiredAt = new Date(Date.now() - 24 * 60 * 60_000 - 1000);
   await db.update(signalClaimsTable).set({ createdAt: expiredAt, consentAt: expiredAt }).where(eq(signalClaimsTable.userId, userId));
   const afterCooldown = await request<{ remainingToday: number; cooldownActive: boolean; cooldownUntil: string | null }>("/api/trade/access");
-  assert.equal(afterCooldown.body.remainingToday, 7);
+   assert.equal(afterCooldown.body.remainingToday, 6);
   assert.equal(afterCooldown.body.cooldownActive, false);
   assert.equal(afterCooldown.body.cooldownUntil, null);
 
   const retryClose = await request<{ pnl: number }>(`/api/trade/positions/${opened.body.id}/close`, { method: "POST" });
   assert.equal(retryClose.response.status, 200);
-  assert.equal(retryClose.body.pnl, 2.5);
+   assert.equal(retryClose.body.pnl, 2.25);
   const afterRetry = await request<{ mainWalletBalance: number; portfolioBalance: number; totalProfit: number }>("/api/dashboard/summary");
-   assert.equal(afterRetry.body.mainWalletBalance, 42005);
-   assert.equal(afterRetry.body.portfolioBalance, 50005);
-   assert.equal(afterRetry.body.totalProfit, 5);
+    assert.equal(afterRetry.body.mainWalletBalance, 49654.5);
+    assert.equal(afterRetry.body.portfolioBalance, 50004.5);
+    assert.equal(afterRetry.body.totalProfit, 4.5);
 });

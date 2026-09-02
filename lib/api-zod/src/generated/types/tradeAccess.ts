@@ -18,6 +18,10 @@ export interface TradeAccess {
   dailyLimit: number;
   usedToday: number;
   remainingToday: number;
+  /** @minimum 0 */
+  qualifiedReferrals: number;
+  /** @minimum 0 */
+  nextLevelReferralRequirement: number | null;
   nextLevel: number | null;
   nextLevelDeposit: number | null;
   nextLevelAmountDue: number | null;

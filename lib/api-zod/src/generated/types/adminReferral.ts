@@ -19,7 +19,7 @@ export interface AdminReferral {
   referredCountry: string | null;
   /**
      * @minimum 0
-     * @maximum 7
+     * @maximum 10
      */
   currentVipLevel: number;
   activityStatus: AdminReferralActivityStatus;

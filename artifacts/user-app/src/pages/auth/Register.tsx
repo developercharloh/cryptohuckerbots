@@ -174,7 +174,7 @@ export default function Register() {
                 <FormMessage />
                 {field.value && (
                   <p style={{ fontSize: 10, color: "#FFD86B", marginTop: 1 }}>
-                    You were invited by a VIXUS member. The $25 reward unlocks after VIP 1 activation.
+                     You were invited by a VIXUS member. The $20 reward unlocks after VIP 1 activation.
                   </p>
                 )}
               </FormItem>

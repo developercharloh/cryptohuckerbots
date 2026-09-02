@@ -257,7 +257,7 @@ export default function Settings() {
           <Card className="rounded-2xl border-amber-500/30">
             <CardHeader className="px-4 pt-4 pb-2">
               <CardTitle className="text-sm">AI Signals schedule</CardTitle>
-              <CardDescription className="text-xs">Server-owned opportunities; missed windows never execute automatically. VIP access is granted by completed package purchases.</CardDescription>
+              <CardDescription className="text-xs">Server-owned opportunities; missed windows never execute automatically. VIP 1 is paid, while higher VIP levels unlock through active referrals.</CardDescription>
             </CardHeader>
             <CardContent className="px-4 pb-4 space-y-3">
               <FormField control={form.control} name="signalsEnabled" render={({ field }) => (
@@ -294,8 +294,8 @@ export default function Settings() {
               <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
                 <p className="text-xs font-semibold">VIP signal policy</p>
                 <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                  Completed wallet purchases determine access: VIP 1 starts at $500, then each level doubles through VIP 7 at $32,000. Deposits fund the wallet but do not activate VIP access.
-                  Daily allowances are 3, 4, 5, 6, 7, 8, and 9 signals. VIP status changes signal access only and never guarantees returns or restricts withdrawals.
+                   VIP 1 requires a $350 Main Wallet activation and unlocks 2 daily signals. VIP 2–10 require active VIP 1 referrals only: 5, 10, 20, 35, 55, 80, 110, 145, and 185 referrals respectively.
+                   Daily allowances run from 2 through 11 signals, each with a disclosed $2.25 reward. VIP status changes signal access only and never guarantees returns or restricts withdrawals.
                 </p>
               </div>
               <div className="rounded-xl border border-border/60 bg-secondary/10 p-3">

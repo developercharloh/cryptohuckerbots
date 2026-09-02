@@ -21,13 +21,16 @@ const formatUSD = (value: number) =>
   `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const VIP_LEVELS = [
-  { level: 1, price: 500, dailySignals: 3 },
-  { level: 2, price: 1000, dailySignals: 4 },
-  { level: 3, price: 2000, dailySignals: 5 },
-  { level: 4, price: 4000, dailySignals: 6 },
-  { level: 5, price: 8000, dailySignals: 7 },
-  { level: 6, price: 16000, dailySignals: 8 },
-  { level: 7, price: 32000, dailySignals: 9 },
+  { level: 1, price: 350, dailySignals: 2, referralRequirement: 0 },
+  { level: 2, price: 0, dailySignals: 3, referralRequirement: 5 },
+  { level: 3, price: 0, dailySignals: 4, referralRequirement: 10 },
+  { level: 4, price: 0, dailySignals: 5, referralRequirement: 20 },
+  { level: 5, price: 0, dailySignals: 6, referralRequirement: 35 },
+  { level: 6, price: 0, dailySignals: 7, referralRequirement: 55 },
+  { level: 7, price: 0, dailySignals: 8, referralRequirement: 80 },
+  { level: 8, price: 0, dailySignals: 9, referralRequirement: 110 },
+  { level: 9, price: 0, dailySignals: 10, referralRequirement: 145 },
+  { level: 10, price: 0, dailySignals: 11, referralRequirement: 185 },
 ] as const;
 
 export default function VipPackages({ showBack = true }: { showBack?: boolean }) {
@@ -69,12 +72,14 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
             ...pkg,
             isActive: pkg.level === activeLevel,
             isUpgrade: pkg.level > activeLevel,
-            isAvailable: pkg.level > activeLevel,
-            amountDue: pkg.level > activeLevel
-              ? pkg.price - (VIP_LEVELS.find((candidate) => candidate.level === activeLevel)?.price ?? 0)
-              : 0,
+            referralRequirement: pkg.referralRequirement,
+            isAvailable: pkg.level > activeLevel &&
+              (pkg.level === 1
+                ? activeLevel === 0
+                : activeLevel > 0 && (access?.qualifiedReferrals ?? 0) >= pkg.referralRequirement),
+            amountDue: pkg.level === 1 && activeLevel === 0 ? pkg.price : 0,
           })),
-    [activeLevel, serverPackages],
+     [access?.qualifiedReferrals, activeLevel, serverPackages],
   );
   const selected = useMemo(
     () => (selectedLevel === null ? null : packageOptions.find((pkg) => pkg.level === selectedLevel) ?? null),
@@ -85,7 +90,10 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
   const pendingOutflow = summary?.pendingOutflow ?? 0;
   const amountDue = selected?.amountDue ?? 0;
   const shortfall = Math.max(0, amountDue - purchaseBalance);
-  const canPurchase = Boolean(access && selected) && selected!.level > activeLevel && purchaseBalance >= amountDue;
+  const referralRequirement = selected?.referralRequirement ?? 0;
+  const qualifiedReferrals = access?.qualifiedReferrals ?? 0;
+  const referralsShort = Math.max(0, referralRequirement - qualifiedReferrals);
+  const canPurchase = Boolean(access && selected?.isAvailable) && purchaseBalance >= amountDue;
   const accessUnauthorized = (accessQueryError as { status?: number } | undefined)?.status === 401;
    const walletDisplay = summaryLoading
      ? "Loading…"
@@ -160,8 +168,8 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
                   <Crown className="h-4 w-4" /> VIP Levels
                 </p>
                 <h1 className="text-2xl font-black tracking-tight">Choose Your VIP Level</h1>
-                  <p className="mt-2 max-w-xl text-xs leading-5 text-gray-400">
-                   Select a VIP level and activate it once from your Main Wallet. Your highest activated tier stays active permanently and unlocks its daily signal allowance.
+                   <p className="mt-2 max-w-xl text-xs leading-5 text-gray-400">
+                    VIP 1 starts with a $350 Main Wallet activation. VIP 2–10 are free referral upgrades that permanently unlock higher daily signal allowances.
                 </p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-2 text-right">
@@ -178,7 +186,7 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
             </div>
             {access?.vipLevel ? (
               <div className="mt-4 flex items-center gap-2 rounded-xl border border-amber-300/15 bg-amber-300/5 px-3 py-2 text-xs text-amber-200">
-                <Check className="h-4 w-4" /> VIP {access.vipLevel} is active. Choose a higher tier to upgrade.
+                 <Check className="h-4 w-4" /> VIP {access.vipLevel} is active. Refer active VIP 1 users to unlock the next level.
               </div>
             ) : (
               <div className="mt-4 flex items-center gap-2 rounded-xl border border-blue-300/15 bg-blue-300/5 px-3 py-2 text-xs text-blue-200">
@@ -212,10 +220,13 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-sm font-black text-amber-200">VIP {pkg.level}</p>
-                      <p className="mt-1 text-2xl font-black text-white">{formatUSD(pkg.price)}</p>
-                      {pkg.level > activeLevel && (
-                        <p className="mt-1 text-[10px] font-bold text-blue-200">Due today: {formatUSD(pkg.amountDue)}</p>
-                      )}
+                       <p className="mt-1 text-2xl font-black text-white">{pkg.level === 1 ? formatUSD(pkg.price) : "Referral only"}</p>
+                       {pkg.level > 1 && (
+                         <p className="mt-1 text-[10px] font-bold text-blue-200">{pkg.referralRequirement} active referrals required</p>
+                       )}
+                       {pkg.level === 1 && pkg.level > activeLevel && (
+                         <p className="mt-1 text-[10px] font-bold text-blue-200">Deposit minimum: {formatUSD(pkg.amountDue)}</p>
+                       )}
                     </div>
                     {active ? (
                       <span className="rounded-full bg-green-400/15 px-2 py-1 text-[9px] font-bold uppercase text-green-300">Active</span>
@@ -240,11 +251,11 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
                 <WalletCards className="h-5 w-5 text-amber-300" />
                 <div className="flex-1">
                    <p className="text-sm font-bold">Activate VIP {selected.level}</p>
-                  <p className="mt-1 text-xs text-gray-400">
-                       {activeLevel > 0
-                         ? `${formatUSD(selected.amountDue)} due today to upgrade to VIP ${selected.level} · ${formatUSD(selected.price)} total Vault Capital`
-                         : `${formatUSD(selected.amountDue)} will move from your Main Wallet into Vault Capital`}
-                       {" "}· {selected.dailySignals} AI Signals per day
+                   <p className="mt-1 text-xs text-gray-400">
+                        {selected.level === 1
+                          ? `${formatUSD(selected.amountDue)} will move from your Main Wallet into Vault Capital`
+                          : `${qualifiedReferrals} of ${referralRequirement} active referrals · no payment required`}
+                        {" "}· {selected.dailySignals} AI Signals per day at $2.25 each
                   </p>
                 </div>
                 <button
@@ -262,22 +273,24 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
                         ? "Retry wallet"
                      : !access
                        ? "Sign in required"
-                    : selected.level === activeLevel
+                     : selected.level === activeLevel
                       ? "Already active"
                       : selected.level < activeLevel
                         ? "Below active tier"
+                           : !selected.isAvailable && referralsShort > 0
+                           ? `Need ${referralsShort} more referral${referralsShort === 1 ? "" : "s"}`
                            : purchaseBalance < selected.amountDue
                           ? `Insufficient balance — need ${formatUSD(shortfall)} more`
-                          : "Activate VIP package"}
+                           : selected.level === 1 ? "Activate VIP 1" : "Unlock VIP level"}
                 </button>
               </div>
-              {!canPurchase && selected.level > activeLevel && purchaseBalance < selected.amountDue && (
+              {!canPurchase && selected.level > activeLevel && selected.level === 1 && purchaseBalance < selected.amountDue && (
                 <p role="alert" className="mt-3 rounded-xl border border-red-300/20 bg-red-400/10 px-3 py-2 text-[11px] leading-5 text-red-200">
                    Insufficient Main Wallet balance to purchase VIP {selected.level}. You need {formatUSD(selected.amountDue)}, but your Main Wallet is {formatUSD(purchaseBalance)}. Top up your wallet or use accumulated profits; you are short by {formatUSD(shortfall)}.
                 </p>
               )}
-               <p className="mt-3 text-[10px] leading-4 text-gray-500">
-                   Your Main Wallet decreases by the amount due today. The target tier’s capital becomes Vault Capital, while signal profits and permitted returns accumulate in your Main Wallet.
+                <p className="mt-3 text-[10px] leading-4 text-gray-500">
+                    VIP 1 uses $350 from your Main Wallet as Vault Capital. VIP 2–10 require active referrals only and do not charge your wallet or add paid capital.
               </p>
             </div>
           )}

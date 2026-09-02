@@ -191,7 +191,7 @@ export default function Profile() {
                   Referral Rewards
                 </p>
                 <p style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.5 }}>
-                  Invite friends and earn $25 when they activate VIP 1.
+                   Invite friends and earn $20 when they activate VIP 1.
                 </p>
               </div>
               <div style={{ textAlign: "right", flexShrink: 0 }}>

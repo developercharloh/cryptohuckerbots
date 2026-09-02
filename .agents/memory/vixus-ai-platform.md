@@ -10,7 +10,7 @@ description: FX trading bot admin panel — architecture, credentials, seeding, 
 - Account UID prefix: `VAI`
 - Browser sessions use server-set HttpOnly cookies; bearer session tokens are not stored in browser storage.
 - User sessions are persistent across reloads and browser restarts; the cross-origin API renews the HttpOnly cookie when `/api/auth/me` confirms it, and explicit logout or security revocation ends access.
-- AI Signal settlement is a disclosed fixed +$2.50 positive outcome across all supported pairs and directions; the server finalizes it even when the app is closed, while non-signal bot trades retain simulated outcomes.
+- AI Signal settlement is a disclosed fixed +$2.25 positive outcome across all supported pairs and directions; the server finalizes it even when the app is closed, while non-signal bot trades retain simulated outcomes.
 - Theme localStorage key: `vixus_theme`
 - Admin login endpoint: `POST /api/admin/login` — checks the configured panel password (not the DB password hash)
 - Admin credentials: email `admin@vixus.ai`, username `admin.vixus-ai`, password defaults to `Admin@VIXUS2027!` and can be overridden with `ADMIN_PANEL_PASSWORD`
@@ -35,3 +35,12 @@ description: FX trading bot admin panel — architecture, credentials, seeding, 
 **Why:** The product explicitly chose a transparent fixed AI Signal outcome after users were shown a negative signal result despite the disclosed +$2.50 credit.
 
 **How to apply:** Keep signal settlement server-controlled and idempotent; do not apply this fixed outcome to unrelated bot positions.
+
+## Current VIP economics
+
+- VIP 1 requires $350 in completed deposits and a $350 wallet activation; VIP 2–10 are free referral upgrades requiring 5, 10, 20, 35, 55, 80, 110, 145, and 185 credited referrals.
+- New referral bonuses are $20 when the referred user activates VIP 1; already-credited historical payouts remain unchanged, while pending legacy referrals are normalized to $20.
+
+**Why:** The product changed from paid doubling tiers and $25 referral bonuses to a $350 entry tier with referral-only progression and a $20 referral reward.
+
+**How to apply:** Treat credited referrals as the qualification source, preserve historical paid ledger amounts, and use the current tier ladder for new upgrades.

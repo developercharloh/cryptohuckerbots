@@ -13,6 +13,8 @@ import {
 } from "@workspace/db";
 import { and, eq, isNull, lt } from "drizzle-orm";
 import crypto from "node:crypto";
+
+const REFERRAL_BONUS_AMOUNT = "20";
 import { verifySync } from "otplib";
 import { notifyUserLogin } from "../lib/loginAlarm";
 import { sendPushToAllAdmins } from "../lib/webPush";
@@ -206,8 +208,8 @@ router.post("/auth/register", async (req, res) => {
       referrerUserId: referrer.id,
       referredUserId: user.id,
       status: "pending",
-      bonusAmount: "25",
-      reservedAmount: "5",
+      bonusAmount: REFERRAL_BONUS_AMOUNT,
+      reservedAmount: "10",
     });
   }
 

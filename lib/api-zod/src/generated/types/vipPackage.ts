@@ -10,6 +10,8 @@ export interface VipPackage {
   level: number;
   price: number;
   dailySignals: number;
+  /** @minimum 0 */
+  referralRequirement: number;
   isActive: boolean;
   isUpgrade: boolean;
   isAvailable: boolean;

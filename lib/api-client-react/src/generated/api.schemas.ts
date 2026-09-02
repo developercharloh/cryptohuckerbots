@@ -76,6 +76,10 @@ export interface TradeAccess {
   dailyLimit: number;
   usedToday: number;
   remainingToday: number;
+  /** @minimum 0 */
+  qualifiedReferrals: number;
+  /** @minimum 0 */
+  nextLevelReferralRequirement: number | null;
   nextLevel: number | null;
   nextLevelDeposit: number | null;
   nextLevelAmountDue: number | null;
@@ -90,6 +94,8 @@ export interface VipPackage {
   level: number;
   price: number;
   dailySignals: number;
+  /** @minimum 0 */
+  referralRequirement: number;
   isActive: boolean;
   isUpgrade: boolean;
   isAvailable: boolean;
@@ -444,7 +450,7 @@ export interface Referral {
   referredCountry: string | null;
   /**
      * @minimum 0
-     * @maximum 7
+     * @maximum 10
      */
   currentVipLevel: number;
   activityStatus: ReferralActivityStatus;
@@ -489,7 +495,7 @@ export interface AdminReferral {
   referredCountry: string | null;
   /**
      * @minimum 0
-     * @maximum 7
+     * @maximum 10
      */
   currentVipLevel: number;
   activityStatus: AdminReferralActivityStatus;

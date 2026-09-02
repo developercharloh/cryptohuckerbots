@@ -6,20 +6,24 @@ import { getRequestToken, getUserForSession } from "../lib/session";
 import { calculateVaultCapital, calculateWalletBalance, getAvailableBalance, getVaultCapitalSnapshot, getWalletSnapshot } from "../utils/balance.js";
 
 const router = Router();
-const SIGNAL_EXECUTION_AMOUNT = 2.5;
-const SIGNAL_REWARD_AMOUNT = 2.5;
+const VIP1_MINIMUM_DEPOSIT = 350;
+const SIGNAL_EXECUTION_AMOUNT = 2.25;
+const SIGNAL_REWARD_AMOUNT = 2.25;
 const SIGNAL_COOLDOWN_MS = 24 * 60 * 60_000;
 const MANUAL_SIGNAL_PREFIX = "manual-signal";
 const DEFAULT_SIGNAL_TIMES = ["07:00", "09:00", "11:00", "13:00", "15:00", "17:00", "19:00", "21:00", "23:00"];
 const LEGACY_DEFAULT_SIGNAL_TIMES = ["19:00", "21:00", "23:00"];
 const VIP_TIERS = [
-  { level: 1, price: 500, dailySignals: 3 },
-  { level: 2, price: 1_000, dailySignals: 4 },
-  { level: 3, price: 2_000, dailySignals: 5 },
-  { level: 4, price: 4_000, dailySignals: 6 },
-  { level: 5, price: 8_000, dailySignals: 7 },
-  { level: 6, price: 16_000, dailySignals: 8 },
-  { level: 7, price: 32_000, dailySignals: 9 },
+  { level: 1, price: VIP1_MINIMUM_DEPOSIT, dailySignals: 2, referralRequirement: 0 },
+  { level: 2, price: 0, dailySignals: 3, referralRequirement: 5 },
+  { level: 3, price: 0, dailySignals: 4, referralRequirement: 10 },
+  { level: 4, price: 0, dailySignals: 5, referralRequirement: 20 },
+  { level: 5, price: 0, dailySignals: 6, referralRequirement: 35 },
+  { level: 6, price: 0, dailySignals: 7, referralRequirement: 55 },
+  { level: 7, price: 0, dailySignals: 8, referralRequirement: 80 },
+  { level: 8, price: 0, dailySignals: 9, referralRequirement: 110 },
+  { level: 9, price: 0, dailySignals: 10, referralRequirement: 145 },
+  { level: 10, price: 0, dailySignals: 11, referralRequirement: 185 },
 ] as const;
 
 async function getUserFromToken(token: string | undefined) {
@@ -85,6 +89,8 @@ type VipAccess = {
   dailyLimit: number;
   usedToday: number;
   remainingToday: number;
+  qualifiedReferrals: number;
+  nextLevelReferralRequirement: number | null;
   signalAmount: number;
   nextLevel: number | null;
   nextLevelDeposit: number | null;
@@ -95,9 +101,8 @@ type VipAccess = {
   cooldownUntil: Date | null;
 };
 
-function getVipAmountDue(activeLevel: number, targetPrice: number): number {
-  const activeTier = VIP_TIERS.find((candidate) => candidate.level === activeLevel);
-  return Math.max(0, targetPrice - (activeTier?.price ?? 0));
+function getVipAmountDue(activeLevel: number, targetLevel: number): number {
+  return activeLevel === 0 && targetLevel === 1 ? VIP1_MINIMUM_DEPOSIT : 0;
 }
 
 async function getVipAccess(userId: number, config: ReturnType<typeof getSignalSettings>): Promise<VipAccess> {
@@ -109,6 +114,13 @@ async function getVipAccess(userId: number, config: ReturnType<typeof getSignalS
     eq(transactionsTable.status, "completed"),
   ));
   const totalDeposited = Number(depositTotal?.total ?? 0);
+  const [referralTotal] = await db.select({
+    total: sql<string>`count(*)`,
+  }).from(referralsTable).where(and(
+    eq(referralsTable.referrerUserId, userId),
+    eq(referralsTable.status, "credited"),
+  ));
+  const qualifiedReferrals = Number(referralTotal?.total ?? 0);
   const [purchase] = await db.select().from(vipPackagePurchasesTable).where(and(
     eq(vipPackagePurchasesTable.userId, userId),
     eq(vipPackagePurchasesTable.status, "completed"),
@@ -152,18 +164,20 @@ async function getVipAccess(userId: number, config: ReturnType<typeof getSignalS
   const nextTier = VIP_TIERS.find((candidate) => candidate.level === (tier?.level ?? 0) + 1);
   return {
     level: tier?.level ?? 0,
-    minimumDeposit: tier?.price ?? 0,
+    minimumDeposit: VIP1_MINIMUM_DEPOSIT,
     totalDeposited: Math.round(totalDeposited * 100) / 100,
     hasPackage: Boolean(purchase),
-    packagePrice: tier?.price ?? null,
+    packagePrice: tier ? tier.level === 1 ? tier.price : 0 : null,
     vaultCapital: capital.vaultCapital,
     dailyLimit,
     usedToday: claims.length,
     remainingToday: cooldownActive ? 0 : Math.max(0, dailyLimit - claims.length),
+    qualifiedReferrals,
+    nextLevelReferralRequirement: nextTier?.referralRequirement ?? null,
     signalAmount: SIGNAL_EXECUTION_AMOUNT,
     nextLevel: nextTier?.level ?? null,
-    nextLevelDeposit: nextTier?.price ?? null,
-    nextLevelAmountDue: nextTier ? getVipAmountDue(tier?.level ?? 0, nextTier.price) : null,
+    nextLevelDeposit: nextTier?.level === 1 ? VIP1_MINIMUM_DEPOSIT : 0,
+    nextLevelAmountDue: nextTier ? getVipAmountDue(tier?.level ?? 0, nextTier.level) : null,
     timezone: config.timezone,
     dayStart,
     nextDayStart,
@@ -376,7 +390,7 @@ async function closePosition(
     }
 
     // Stake was reserved from Vault Capital on open. Return the principal
-    // portion to the vault. Signal outcomes are fixed at +$2.50 and credited
+    // portion to the vault. Signal outcomes are fixed at +$2.25 and credited
     // through the one-time signal reward below.
     const stake = parseFloat(p.stake);
     const vaultReturn = Math.max(0, stake + Math.min(realized, 0));
@@ -591,6 +605,8 @@ router.get("/trade/access", async (req, res) => {
     dailyLimit: access.dailyLimit,
     usedToday: access.usedToday,
     remainingToday: access.remainingToday,
+    qualifiedReferrals: access.qualifiedReferrals,
+    nextLevelReferralRequirement: access.nextLevelReferralRequirement,
     signalAmount: access.signalAmount,
     nextLevel: access.nextLevel,
     nextLevelDeposit: access.nextLevelDeposit,
@@ -612,10 +628,14 @@ router.get("/trade/vip-packages", async (req, res) => {
     level: tier.level,
     price: tier.price,
     dailySignals: tier.dailySignals,
+    referralRequirement: tier.referralRequirement,
     isActive: tier.level === access.level,
     isUpgrade: tier.level > access.level,
-    isAvailable: tier.level > access.level,
-    amountDue: tier.level > access.level ? getVipAmountDue(access.level, tier.price) : 0,
+    isAvailable: tier.level > access.level &&
+      (tier.level === 1
+        ? access.level === 0
+        : access.level > 0 && access.qualifiedReferrals >= tier.referralRequirement),
+    amountDue: tier.level > access.level ? getVipAmountDue(access.level, tier.level) : 0,
   })));
 });
 
@@ -648,7 +668,41 @@ router.post("/trade/vip-packages/:level/purchase", async (req, res) => {
         );
       }
 
-      const amountDue = getVipAmountDue(active?.vipLevel ?? 0, tier.price);
+      const [referralTotal] = await tx.select({
+        total: sql<string>`count(*)`,
+      }).from(referralsTable).where(and(
+        eq(referralsTable.referrerUserId, user.id),
+        eq(referralsTable.status, "credited"),
+      ));
+      const qualifiedReferrals = Number(referralTotal?.total ?? 0);
+      if (tier.level > 1 && !active) {
+        throw new VipPurchaseError(
+          "VIP1_REQUIRED",
+          "Activate VIP 1 before upgrading through referrals.",
+        );
+      }
+      if (tier.level > 1 && qualifiedReferrals < tier.referralRequirement) {
+        throw new VipPurchaseError(
+          "REFERRAL_REQUIREMENT_NOT_MET",
+          `VIP ${tier.level} requires ${tier.referralRequirement} active VIP 1 referrals. You currently have ${qualifiedReferrals}.`,
+        );
+      }
+
+      const [depositTotal] = await tx.select({
+        total: sql<string>`coalesce(sum(${transactionsTable.amount}), 0)`,
+      }).from(transactionsTable).where(and(
+        eq(transactionsTable.userId, user.id),
+        eq(transactionsTable.type, "deposit"),
+        eq(transactionsTable.status, "completed"),
+      ));
+      if (tier.level === 1 && Number(depositTotal?.total ?? 0) < VIP1_MINIMUM_DEPOSIT) {
+        throw new VipPurchaseError(
+          "MINIMUM_DEPOSIT_REQUIRED",
+          `VIP 1 requires at least $${VIP1_MINIMUM_DEPOSIT.toFixed(2)} in completed deposits before activation.`,
+        );
+      }
+
+      const amountDue = getVipAmountDue(active?.vipLevel ?? 0, tier.level);
       const ledger = await tx.select({
         type: transactionsTable.type,
         amount: transactionsTable.amount,
@@ -666,12 +720,14 @@ router.post("/trade/vip-packages/:level/purchase", async (req, res) => {
       }
 
       const now = new Date();
-      await tx.update(vipInvestmentCapitalTable)
-        .set({ status: "replaced", replacedAt: now })
-        .where(and(
-          eq(vipInvestmentCapitalTable.userId, user.id),
-          eq(vipInvestmentCapitalTable.status, "locked"),
-        ));
+      if (tier.level === 1) {
+        await tx.update(vipInvestmentCapitalTable)
+          .set({ status: "replaced", replacedAt: now })
+          .where(and(
+            eq(vipInvestmentCapitalTable.userId, user.id),
+            eq(vipInvestmentCapitalTable.status, "locked"),
+          ));
+      }
 
       const [created] = await tx.insert(vipPackagePurchasesTable).values({
         userId: user.id,
@@ -679,23 +735,25 @@ router.post("/trade/vip-packages/:level/purchase", async (req, res) => {
         amount: amountDue.toFixed(2),
         status: "completed",
       }).returning();
-      await tx.insert(transactionsTable).values({
-        userId: user.id,
-        type: "vip_package_purchase",
-        amount: amountDue.toFixed(2),
-        status: "completed",
-        paymentMethod: "balance",
-        description: active
-          ? `VIP ${tier.level} Upgrade ($${amountDue.toFixed(2)} difference)`
-          : `VIP ${tier.level} Package Purchase`,
-      });
-      await tx.insert(vipInvestmentCapitalTable).values({
-        userId: user.id,
-        vipLevel: tier.level,
-        amount: tier.price.toFixed(2),
-        status: "locked",
-        activatedAt: now,
-      });
+      if (amountDue > 0) {
+        await tx.insert(transactionsTable).values({
+          userId: user.id,
+          type: "vip_package_purchase",
+          amount: amountDue.toFixed(2),
+          status: "completed",
+          paymentMethod: "balance",
+          description: `VIP ${tier.level} Package Purchase`,
+        });
+      }
+      if (tier.level === 1) {
+        await tx.insert(vipInvestmentCapitalTable).values({
+          userId: user.id,
+          vipLevel: tier.level,
+          amount: tier.price.toFixed(2),
+          status: "locked",
+          activatedAt: now,
+        });
+      }
 
       if (tier.level === 1 && !active) {
         const [referral] = await tx.select().from(referralsTable).where(and(
@@ -737,7 +795,9 @@ router.post("/trade/vip-packages/:level/purchase", async (req, res) => {
     ]);
     return res.status(201).json({
       message: purchaseResult.isUpgrade
-        ? `VIP ${tier.level} activated with a $${purchaseResult.amountDue.toFixed(2)} upgrade payment.`
+        ? purchaseResult.amountDue > 0
+          ? `VIP ${tier.level} activated with a $${purchaseResult.amountDue.toFixed(2)} upgrade payment.`
+          : `VIP ${tier.level} unlocked through active referrals with no payment required.`
         : `VIP ${tier.level} activated with a $${purchaseResult.amountDue.toFixed(2)} package payment.`,
       package: {
         level: tier.level,
@@ -777,7 +837,7 @@ router.post("/trade/execute", async (req, res) => {
   if (access.level === 0) {
     return res.status(403).json({
       code: "VIP_REQUIRED",
-      error: "Purchase a VIP package to access AI Signals.",
+      error: "Activate VIP 1 with a $350 completed deposit to access AI Signals.",
       minimumDeposit: VIP_TIERS[0].price,
       totalDeposited: access.totalDeposited,
     });
@@ -932,7 +992,7 @@ router.post("/trade/execute-all", async (req, res) => {
   if (access.level === 0) {
     return res.status(403).json({
       code: "VIP_REQUIRED",
-      error: "Purchase a VIP package to access AI Signals.",
+       error: "Activate VIP 1 with a $350 completed deposit to access AI Signals.",
       minimumDeposit: VIP_TIERS[0].price,
       totalDeposited: access.totalDeposited,
     });

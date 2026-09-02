@@ -64,6 +64,20 @@
       "when": 1788260000000,
       "tag": "0008_referrals",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788261000000,
+      "tag": "0009_referral_bonus_twenty",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788262000000,
+      "tag": "0010_reserved_referral_bonus_ten",
+      "breakpoints": true
     }
   ]
 }
