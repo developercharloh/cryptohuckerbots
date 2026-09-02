@@ -4,9 +4,6 @@ export const API_BASE =
   configuredApiUrl || (import.meta.env.DEV ? "" : "https://api.vixus.trade");
 
 const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
-const READY_WAIT_MS = 25_000;
-const READY_POLL_MS = 1_000;
-const READY_REQUEST_TIMEOUT_MS = 5_000;
 
 export async function fetchWithTimeout(
   input: RequestInfo | URL,
@@ -37,29 +34,4 @@ export async function fetchWithTimeout(
   } finally {
     clearTimeout(timeoutId);
   }
-}
-
-export async function waitForApiReady(maxWaitMs = READY_WAIT_MS): Promise<boolean> {
-  const deadline = Date.now() + maxWaitMs;
-
-  while (Date.now() < deadline) {
-    const remaining = deadline - Date.now();
-    try {
-      const response = await fetchWithTimeout(
-        `${API_BASE}/api/readyz`,
-        { credentials: "include" },
-        Math.min(READY_REQUEST_TIMEOUT_MS, remaining),
-      );
-      if (response.ok) return true;
-    } catch {
-      // Retry while the serverless instance is waking up.
-    }
-
-    const waitMs = Math.min(READY_POLL_MS, Math.max(0, deadline - Date.now()));
-    if (waitMs > 0) {
-      await new Promise((resolve) => setTimeout(resolve, waitMs));
-    }
-  }
-
-  return false;
 }

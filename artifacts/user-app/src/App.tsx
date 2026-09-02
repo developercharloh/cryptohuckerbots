@@ -29,7 +29,7 @@ async function recoverFromStaleClient(force = false): Promise<void> {
       const cacheNames = await caches.keys();
       await Promise.all(
         cacheNames
-          .filter((name) => name.startsWith("vixus-ai-shell-"))
+          .filter((name) => name.startsWith("vixus-ai-shell-") || name.startsWith("vixus-shell-"))
           .map((name) => caches.delete(name)),
       );
     }

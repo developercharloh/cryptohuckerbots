@@ -10,7 +10,10 @@ export type AuthTokenGetter = () => Promise<string | null> | string | null;
 
 const NO_BODY_STATUS = new Set([204, 205, 304]);
 const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
-const DEFAULT_REQUEST_TIMEOUT_MS = 60_000;
+// Auth and dashboard requests should fail promptly when the API is unreachable.
+// The API server itself waits for startup readiness before handling requests,
+// so a long client-side timeout only leaves users staring at a spinner.
+const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
 
 // ---------------------------------------------------------------------------
 // Module-level configuration

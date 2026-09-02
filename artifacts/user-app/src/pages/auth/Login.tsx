@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,7 +11,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, Loader2, ShieldCheck, ChevronLeft, Lock, Mail } from "lucide-react";
 import { VixusLogo } from "@/components/VixusLogo";
 import { API_BASE, fetchWithTimeout } from "@/lib/api-base";
-import { waitForApiReady } from "@/lib/api-readiness";
 import { reportTechnicalError } from "@/lib/technical-errors";
 
 const loginSchema = z.object({
@@ -30,8 +29,6 @@ export default function Login() {
   const { setAuth } = useAuth();
   const { toast } = useToast();
   const loginMutation = useLogin();
-  const apiWarmupRef = useRef<Promise<boolean> | null>(null);
-  const [warmingApi, setWarmingApi] = useState(false);
   const [connectionMessage, setConnectionMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const search = useSearch();
@@ -46,42 +43,12 @@ export default function Login() {
   const verifyLoginOtpMutation = useVerifyLoginOtp();
   const resendLoginOtpMutation = useResendLoginOtp();
 
-  const warmApi = () => {
-    if (!apiWarmupRef.current) {
-      apiWarmupRef.current = waitForApiReady();
-    }
-    return apiWarmupRef.current;
-  };
-
-  // Warm the serverless API while the user fills in the form. Login also
-  // awaits this same request, so a cold database/serverless instance cannot
-  // race the credential request and look like a network failure.
-  useEffect(() => {
-    void warmApi();
-  }, []);
-
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: prefilledEmail, password: "" },
   });
 
-  const onSubmit = async (values: z.infer<typeof loginSchema>) => {
-    setWarmingApi(true);
-    const apiReady = await warmApi();
-    setWarmingApi(false);
-
-    if (!apiReady) {
-      apiWarmupRef.current = null;
-      reportTechnicalError({
-        source: "health",
-        event: "readiness_check_failed",
-        route: "/api/readyz",
-        message: "The login readiness check did not complete.",
-      });
-      setConnectionMessage("Please try again in a moment.");
-      return;
-    }
-
+  const onSubmit = (values: z.infer<typeof loginSchema>) => {
     setConnectionMessage("");
     loginMutation.mutate({ data: { email: values.email, password: values.password } }, {
       onSuccess: (res: any) => {
@@ -366,17 +333,17 @@ export default function Login() {
 
             <button
               type="submit"
-              disabled={loginMutation.isPending || warmingApi}
+              disabled={loginMutation.isPending}
               style={{
                 width: "100%", height: 54, borderRadius: 14, fontSize: 16, fontWeight: 700,
                  background: "linear-gradient(135deg, #F5B942, #D99B18)",
                 color: "#fff", border: "none", cursor: "pointer",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                  boxShadow: "0 8px 28px rgba(245,185,66,0.3)",
-                opacity: loginMutation.isPending || warmingApi ? 0.8 : 1,
+                opacity: loginMutation.isPending ? 0.8 : 1,
               }}
             >
-              {loginMutation.isPending || warmingApi ? <Loader2 size={20} style={{ animation: "spin 1s linear infinite" }} /> : "Login"}
+              {loginMutation.isPending ? <Loader2 size={20} style={{ animation: "spin 1s linear infinite" }} /> : "Login"}
             </button>
             {connectionMessage && (
               <p style={{ margin: "0 4px", textAlign: "center", fontSize: 12, color: "#94A3B8" }}>
