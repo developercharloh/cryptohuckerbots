@@ -47,14 +47,14 @@ content_type = "image/svg+xml"
 id = "f6QU3PtR7A3079wIe4TJ-"
 uri = "file://attached_assets/generated_images/vixus_exchange_poster.png"
 type = "image"
-title = "VIXUS Exchange promotional poster"
-description = "A premium portrait poster promoting VIXUS Exchange automated signals, 24/7 monitoring, data-led insights, and a curiosity-driven call to action."
+title = "VIXUS Exchange poster with app logo"
+description = "Updated high-resolution promotional poster with the VIXUS app logo prominently displayed and no app domain included."
 logical_id = "53e2addd-cbc8-4c93-b121-b54499ad30ab"
-content_hash = "sha256:5eef26191ad1bcae03dcbed7cb9a6cd6c6c56f81c20f7c7c2e7d2941e95a7159"
-size = 7487676
-mtime_ms = 1788372859001
-storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:1997a695-0b65-471a-a76b-eb09e4da2719/53e2addd-cbc8-4c93-b121-b54499ad30ab/9db6e0b7-eb3d-44c8-a12e-cd2e3cdce713"
-storage_version_token = "1788373536317989"
+content_hash = "sha256:c0e48cca445c90db6e6161f115e63d5e95ee8817b60a0c127002436a3e41b109"
+size = 7439367
+mtime_ms = 1788373906185
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:1997a695-0b65-471a-a76b-eb09e4da2719/53e2addd-cbc8-4c93-b121-b54499ad30ab/8398c131-412b-4e21-8f31-59c38d5881d2"
+storage_version_token = "1788373929802477"
 content_type = "image/png"
 
 [[outputs]]
