@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, Loader2, ShieldCheck, ChevronLeft, Lock, Mail } from "lucide-react";
 import { VixusLogo } from "@/components/VixusLogo";
 import { API_BASE, fetchWithTimeout } from "@/lib/api-base";
+import { waitForApiReady } from "@/lib/api-readiness";
 import { reportTechnicalError } from "@/lib/technical-errors";
 
 const loginSchema = z.object({
@@ -47,13 +48,7 @@ export default function Login() {
 
   const warmApi = () => {
     if (!apiWarmupRef.current) {
-      apiWarmupRef.current = fetchWithTimeout(
-        `${API_BASE}/api/readyz`,
-        { credentials: "include" },
-        25_000,
-      )
-        .then((response) => response.ok)
-        .catch(() => false);
+      apiWarmupRef.current = waitForApiReady();
     }
     return apiWarmupRef.current;
   };

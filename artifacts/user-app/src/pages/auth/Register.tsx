@@ -10,6 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, Loader2, User, Mail, Lock, MapPin, Phone } from "lucide-react";
 import { VixusLogo } from "@/components/VixusLogo";
 import { COUNTRIES } from "@/pages/profile/PersonalInfo";
+import { waitForApiReady } from "@/lib/api-readiness";
+import { reportTechnicalError } from "@/lib/technical-errors";
 
 const registerSchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
@@ -43,6 +45,7 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const [warmingApi, setWarmingApi] = useState(false);
   const referralCode = new URLSearchParams(window.location.search).get("ref")?.trim().toUpperCase() ?? "";
 
   const form = useForm<z.infer<typeof registerSchema>>({
@@ -50,7 +53,22 @@ export default function Register() {
     defaultValues: { fullName: "", email: "", phone: "", password: "", country: "🇰🇪 Kenya", referralCode, confirmPassword: "", terms: false },
   });
 
-  const onSubmit = (values: z.infer<typeof registerSchema>) => {
+  const onSubmit = async (values: z.infer<typeof registerSchema>) => {
+    setWarmingApi(true);
+    const apiReady = await waitForApiReady();
+    setWarmingApi(false);
+
+    if (!apiReady) {
+      reportTechnicalError({
+        source: "health",
+        event: "readiness_check_failed",
+        route: "/api/readyz",
+        message: "The registration readiness check did not complete.",
+      });
+      toast({ title: "Please try again", description: "Please try again in a moment." });
+      return;
+    }
+
     const { terms, confirmPassword, referralCode: enteredReferralCode, ...data } = values;
     const selectedCountry = COUNTRIES.find((country) => country.name === values.country) ?? COUNTRIES[0];
     const payload = {
@@ -64,6 +82,18 @@ export default function Register() {
         setLocation(`/verify-email?email=${encodeURIComponent(data.email)}`);
       },
       onError: (err: any) => {
+        const isTechnicalFailure = err?.status >= 500 || !Number.isInteger(err?.status);
+        if (isTechnicalFailure) {
+          reportTechnicalError({
+            source: "api",
+            event: "registration_request_failed",
+            route: "/api/auth/register",
+            message: err?.message || "Registration request failed.",
+            statusCode: Number.isInteger(err?.status) ? err.status : undefined,
+          });
+          toast({ title: "Please try again", description: "Please try again in a moment." });
+          return;
+        }
         toast({ title: "Registration failed", description: err.message || "An error occurred", variant: "destructive" });
       },
     });
@@ -241,18 +271,18 @@ export default function Register() {
 
             <button
               type="submit"
-              disabled={registerMutation.isPending}
+              disabled={registerMutation.isPending || warmingApi}
               style={{
                 width: "100%", height: 54, borderRadius: 14, fontSize: 16, fontWeight: 700,
                  background: "linear-gradient(135deg, #F5B942, #D99B18)",
                 color: "#fff", border: "none", cursor: "pointer",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                  boxShadow: "0 8px 28px rgba(245,185,66,0.3)",
-                opacity: registerMutation.isPending ? 0.8 : 1,
+                opacity: registerMutation.isPending || warmingApi ? 0.8 : 1,
                 marginTop: 4,
               }}
             >
-              {registerMutation.isPending ? <Loader2 size={20} style={{ animation: "spin 1s linear infinite" }} /> : "Create Account"}
+              {registerMutation.isPending || warmingApi ? <Loader2 size={20} style={{ animation: "spin 1s linear infinite" }} /> : "Create Account"}
             </button>
           </form>
         </Form>
