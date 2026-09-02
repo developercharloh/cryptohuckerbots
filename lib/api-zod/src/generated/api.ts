@@ -1186,6 +1186,16 @@ export const AdminResetUserPasswordResponse = zod.object({
 })
 
 
+export const AdminResetUserHistoryParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AdminResetUserHistoryResponse = zod.object({
+  "userId": zod.number(),
+  "message": zod.string()
+})
+
+
 export const AdminAdjustBalanceParams = zod.object({
   "id": zod.coerce.number()
 })

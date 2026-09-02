@@ -18,6 +18,9 @@ import {
   broadcastsTable,
   adminLoginNotificationsTable,
   sessionsTable,
+  positionsTable,
+  signalClaimsTable,
+  earningsTable,
   vipInvestmentCapitalTable,
   vipPackagePurchasesTable,
   referralsTable,
@@ -584,6 +587,48 @@ router.post("/admin/users/:id/reset-password", async (req, res) => {
   await revokeUserSessions(id);
   await recordSecurityEvent(req, "admin_password_reset", id);
   return res.json({ tempPassword });
+});
+
+router.post("/admin/users/:id/reset-history", async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) {
+    res.status(400).json({ error: "Invalid id" });
+    return;
+  }
+
+  const [user] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.id, id)).limit(1);
+  if (!user) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  await db.transaction(async (tx) => {
+    // Clear user-owned financial and activity records while preserving the
+    // account, credentials, profile details, support history, and audit trail.
+    await tx.delete(signalClaimsTable).where(eq(signalClaimsTable.userId, id));
+    await tx.delete(positionsTable).where(eq(positionsTable.userId, id));
+    await tx.delete(userBotsTable).where(eq(userBotsTable.userId, id));
+    await tx.delete(transactionsTable).where(eq(transactionsTable.userId, id));
+    await tx.delete(earningsTable).where(eq(earningsTable.userId, id));
+    await tx.delete(vipPackagePurchasesTable).where(eq(vipPackagePurchasesTable.userId, id));
+    await tx.delete(vipInvestmentCapitalTable).where(eq(vipInvestmentCapitalTable.userId, id));
+    await tx.delete(depositSessionsTable).where(eq(depositSessionsTable.userId, id));
+    await tx.delete(notificationsTable).where(eq(notificationsTable.userId, id));
+    await tx.delete(referralsTable).where(or(
+      eq(referralsTable.referrerUserId, id),
+      eq(referralsTable.referredUserId, id),
+    ));
+    await tx.delete(kycTable).where(eq(kycTable.userId, id));
+    await tx.update(usersTable)
+      .set({ kycStatus: "not_verified", updatedAt: new Date() })
+      .where(eq(usersTable.id, id));
+  });
+
+  await recordSecurityEvent(req, "admin_user_history_reset", id);
+  res.json({
+    userId: id,
+    message: "User history reset. Account, profile, support, and security records were preserved.",
+  });
 });
 
 router.post("/admin/users/:id/adjust-balance", async (req, res) => {

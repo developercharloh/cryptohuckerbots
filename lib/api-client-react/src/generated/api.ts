@@ -41,6 +41,7 @@ import type {
   AdminReferral,
   AdminRefundByUidInput,
   AdminResetPasswordResult,
+  AdminResetUserHistoryResult,
   AdminReviewDepositInput,
   AdminSettings,
   AdminSettingsInput,
@@ -4519,6 +4520,70 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getAdminResetUserPasswordMutationOptions(options));
+    }
+
+export const getAdminResetUserHistoryUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/users/${id}/reset-history`
+}
+
+export const adminResetUserHistory = async (id: number, options?: RequestInit): Promise<AdminResetUserHistoryResult> => {
+
+  return customFetch<AdminResetUserHistoryResult>(getAdminResetUserHistoryUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getAdminResetUserHistoryMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminResetUserHistory>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminResetUserHistory>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['adminResetUserHistory'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminResetUserHistory>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  adminResetUserHistory(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminResetUserHistoryMutationResult = NonNullable<Awaited<ReturnType<typeof adminResetUserHistory>>>
+
+    export type AdminResetUserHistoryMutationError = ErrorType<unknown>
+
+    export const useAdminResetUserHistory = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminResetUserHistory>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminResetUserHistory>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getAdminResetUserHistoryMutationOptions(options));
     }
 
 export const getAdminAdjustBalanceUrl = (id: number,) => {

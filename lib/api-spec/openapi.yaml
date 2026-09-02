@@ -1245,6 +1245,24 @@ paths:
               schema:
                 $ref: "#/components/schemas/AdminResetPasswordResult"
 
+  /admin/users/{id}/reset-history:
+    post:
+      operationId: adminResetUserHistory
+      tags: [admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User history reset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminResetUserHistoryResult"
+
   /admin/users/{id}/adjust-balance:
     post:
       operationId: adminAdjustBalance
@@ -2843,6 +2861,13 @@ components:
       properties:
         tempPassword: { type: string }
       required: [tempPassword]
+
+    AdminResetUserHistoryResult:
+      type: object
+      properties:
+        userId: { type: integer }
+        message: { type: string }
+      required: [userId, message]
 
     AdminBalanceAdjustInput:
       type: object
