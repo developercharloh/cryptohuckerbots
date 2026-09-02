@@ -127,6 +127,7 @@ import { AuthGuard } from "@/components/AuthGuard";
 import { InstallAppPrompt } from "@/components/InstallAppPrompt";
 import { ProfileCompletionPrompt } from "@/components/ProfileCompletionPrompt";
 import { reportTechnicalError } from "@/lib/technical-errors";
+import { WelcomeLoader } from "@/components/WelcomeLoader";
 
 // Keep the entry chunk small. Pages load only when their route is visited so
 // login does not download charts, cashier forms, support, and bot analytics.
@@ -315,6 +316,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
+        <WelcomeLoader />
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
             <AuthProvider>
             <ErrorBoundary>
