@@ -197,6 +197,31 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
 
   await db.insert(transactionsTable).values({
     userId: noBalanceUserId,
+    type: "withdrawal",
+    amount: "180.00",
+    status: "completed",
+    paymentMethod: "test",
+    description: "Signal withdrawal gate regression",
+  });
+  const withdrawalGatedAccess = await request<{
+    vipLevel: number;
+    totalWithdrawn: number;
+    withdrawalGateActive: boolean;
+    canExecute: boolean;
+  }>("/api/trade/access", { cookieJar: noBalanceJar });
+  assert.equal(withdrawalGatedAccess.body.totalWithdrawn, 180);
+  assert.equal(withdrawalGatedAccess.body.withdrawalGateActive, true);
+  assert.equal(withdrawalGatedAccess.body.canExecute, false);
+  const withdrawalGatedExecution = await request<{ code: string }>("/api/trade/execute", {
+    method: "POST",
+    cookieJar: noBalanceJar,
+    body: { signalId: "forged-signal", opportunityId: 1, consent: true },
+  });
+  assert.equal(withdrawalGatedExecution.response.status, 403);
+  assert.equal(withdrawalGatedExecution.body.code, "WITHDRAWAL_REFERRAL_GATE");
+
+  await db.insert(transactionsTable).values({
+    userId: noBalanceUserId,
     type: "deposit",
     amount: "500.00",
     status: "completed",
@@ -216,12 +241,14 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
   });
   assert.equal(upgradedNoBalance.response.status, 201);
   assert.equal(upgradedNoBalance.body.package.level, 2);
-  const upgradedNoBalanceAccess = await request<{ vipLevel: number; dailyLimit: number; usedToday: number; remainingToday: number; cooldownActive: boolean }>("/api/trade/access", { cookieJar: noBalanceJar });
+  const upgradedNoBalanceAccess = await request<{ vipLevel: number; dailyLimit: number; usedToday: number; remainingToday: number; cooldownActive: boolean; withdrawalGateActive: boolean; canExecute: boolean }>("/api/trade/access", { cookieJar: noBalanceJar });
   assert.equal(upgradedNoBalanceAccess.body.vipLevel, 2);
    assert.equal(upgradedNoBalanceAccess.body.dailyLimit, 3);
    assert.equal(upgradedNoBalanceAccess.body.usedToday, 2);
   assert.equal(upgradedNoBalanceAccess.body.remainingToday, 1);
   assert.equal(upgradedNoBalanceAccess.body.cooldownActive, false);
+  assert.equal(upgradedNoBalanceAccess.body.withdrawalGateActive, false);
+  assert.equal(upgradedNoBalanceAccess.body.canExecute, true);
 
   const first = await request<{ package: { level: number }; amountPaid: number; lockedInvestmentCapital: number; mainWalletBalance: number }>("/api/trade/vip-packages/1/purchase", { method: "POST" });
   assert.equal(first.response.status, 201);
@@ -235,6 +262,23 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
   assert.equal(active.body.hasPackage, true);
   assert.equal(active.body.canExecute, true);
    assert.equal(active.body.lockedInvestmentCapital, 350);
+
+  await db.insert(transactionsTable).values({
+    userId,
+    type: "withdrawal",
+    amount: "180.00",
+    status: "completed",
+    paymentMethod: "test",
+    description: "Referral-cleared withdrawal gate regression",
+  });
+  const referralClearedAccess = await request<{
+    totalWithdrawn: number;
+    withdrawalGateActive: boolean;
+    canExecute: boolean;
+  }>("/api/trade/access");
+  assert.equal(referralClearedAccess.body.totalWithdrawn, 180);
+  assert.equal(referralClearedAccess.body.withdrawalGateActive, false);
+  assert.equal(referralClearedAccess.body.canExecute, true);
 
   const packages = await request<Array<{ level: number; amountDue: number }>>("/api/trade/vip-packages");
   assert.equal(packages.response.status, 200);
@@ -252,7 +296,7 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
   assert.equal(upgrade.body.package.level, 2);
    assert.equal(upgrade.body.amountPaid, 0);
    assert.equal(upgrade.body.lockedInvestmentCapital, 350);
-   assert.equal(upgrade.body.mainWalletBalance, 49650);
+   assert.equal(upgrade.body.mainWalletBalance, 49470);
 
   const upgradedAccess = await request<{ vipLevel: number; dailyLimit: number; remainingToday: number }>("/api/trade/access");
   assert.equal(upgradedAccess.body.vipLevel, 2);
@@ -266,7 +310,7 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
   assert.deepEqual(concurrent.map((result) => result.response.status).sort(), [201, 409]);
   const successfulConcurrentUpgrade = concurrent.find((result) => result.response.status === 201);
    assert.equal(successfulConcurrentUpgrade?.body.amountPaid, 0);
-   assert.equal(successfulConcurrentUpgrade?.body.mainWalletBalance, 49650);
+   assert.equal(successfulConcurrentUpgrade?.body.mainWalletBalance, 49470);
 
   const lowerTier = await request<{ code: string }>("/api/trade/vip-packages/3/purchase", { method: "POST" });
   assert.equal(lowerTier.response.status, 409);
@@ -296,9 +340,9 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
   );
 
   const beforeTrade = await request<{ mainWalletBalance: number; vaultCapital: number; portfolioBalance: number; totalProfit: number }>("/api/dashboard/summary");
-   assert.equal(beforeTrade.body.mainWalletBalance, 49650);
+   assert.equal(beforeTrade.body.mainWalletBalance, 49470);
    assert.equal(beforeTrade.body.vaultCapital, 350);
-  assert.equal(beforeTrade.body.portfolioBalance, 50000);
+   assert.equal(beforeTrade.body.portfolioBalance, 49820);
   assert.equal(beforeTrade.body.totalProfit, 0);
 
   const availableSignals = await request<Array<{ id: string; opportunityId: number }>>("/api/trade/signals");
@@ -313,9 +357,9 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
   assert.equal(opened.response.status, 200);
 
   const afterOpen = await request<{ mainWalletBalance: number; vaultCapital: number; portfolioBalance: number }>("/api/dashboard/summary");
-   assert.equal(afterOpen.body.mainWalletBalance, 49650);
+   assert.equal(afterOpen.body.mainWalletBalance, 49470);
    assert.equal(afterOpen.body.vaultCapital, 347.75);
-   assert.equal(afterOpen.body.portfolioBalance, 49997.75);
+   assert.equal(afterOpen.body.portfolioBalance, 49817.75);
 
   // Simulate the user closing the app before settlement. The next server
   // read must settle the AI Signal independently of the browser timer.
@@ -329,9 +373,9 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
   assert.equal(settled.status, "tp_hit");
 
   const afterClose = await request<{ mainWalletBalance: number; vaultCapital: number; portfolioBalance: number; totalProfit: number }>("/api/dashboard/summary");
-   assert.equal(afterClose.body.mainWalletBalance, 49652.25);
+   assert.equal(afterClose.body.mainWalletBalance, 49472.25);
    assert.equal(afterClose.body.vaultCapital, 350);
-   assert.equal(afterClose.body.portfolioBalance, 50002.25);
+   assert.equal(afterClose.body.portfolioBalance, 49822.25);
    assert.equal(afterClose.body.totalProfit, 2.25);
 
   const signalRewards = await db.select({
@@ -361,9 +405,9 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
      .where(eq(positionsTable.id, repeatedOpened.body.id));
    await request<Array<{ id: number; pnl: number; status: string }>>("/api/trade/positions");
    const afterRepeatedClose = await request<{ mainWalletBalance: number; vaultCapital: number; portfolioBalance: number; totalProfit: number }>("/api/dashboard/summary");
-    assert.equal(afterRepeatedClose.body.mainWalletBalance, 49654.5);
+    assert.equal(afterRepeatedClose.body.mainWalletBalance, 49474.5);
     assert.equal(afterRepeatedClose.body.vaultCapital, 350);
-    assert.equal(afterRepeatedClose.body.portfolioBalance, 50004.5);
+    assert.equal(afterRepeatedClose.body.portfolioBalance, 49824.5);
     assert.equal(afterRepeatedClose.body.totalProfit, 4.5);
 
    const repeatedSignalRewards = await db.select({
@@ -420,7 +464,7 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
   assert.equal(retryClose.response.status, 200);
    assert.equal(retryClose.body.pnl, 2.25);
   const afterRetry = await request<{ mainWalletBalance: number; portfolioBalance: number; totalProfit: number }>("/api/dashboard/summary");
-    assert.equal(afterRetry.body.mainWalletBalance, 49654.5);
-    assert.equal(afterRetry.body.portfolioBalance, 50004.5);
+    assert.equal(afterRetry.body.mainWalletBalance, 49474.5);
+    assert.equal(afterRetry.body.portfolioBalance, 49824.5);
     assert.equal(afterRetry.body.totalProfit, 4.5);
 });

@@ -1891,6 +1891,17 @@ components:
         qualifiedReferrals:
           type: integer
           minimum: 0
+        totalWithdrawn:
+          type: number
+          minimum: 0
+        withdrawalSignalThreshold:
+          type: number
+          minimum: 0
+        withdrawalReferralRequirement:
+          type: integer
+          minimum: 0
+        withdrawalGateActive:
+          type: boolean
         nextLevelReferralRequirement:
           type: integer
           minimum: 0
@@ -1918,7 +1929,7 @@ components:
           nullable: true
         cooldownActive:
           type: boolean
-      required: [vipLevel, minimumDeposit, totalDeposited, hasPackage, packagePrice, vaultCapital, lockedInvestmentCapital, canExecute, dailyLimit, usedToday, remainingToday, qualifiedReferrals, nextLevelReferralRequirement, timezone, nextLevel, nextLevelDeposit, nextLevelAmountDue, nextSignalAt, signalAmount, cooldownUntil, cooldownActive]
+      required: [vipLevel, minimumDeposit, totalDeposited, hasPackage, packagePrice, vaultCapital, lockedInvestmentCapital, canExecute, dailyLimit, usedToday, remainingToday, qualifiedReferrals, totalWithdrawn, withdrawalSignalThreshold, withdrawalReferralRequirement, withdrawalGateActive, nextLevelReferralRequirement, timezone, nextLevel, nextLevelDeposit, nextLevelAmountDue, nextSignalAt, signalAmount, cooldownUntil, cooldownActive]
 
     VipPackage:
       type: object

@@ -593,6 +593,12 @@ export const ListTradeSignalsResponse = zod.array(ListTradeSignalsResponseItem)
 
 export const getTradeAccessResponseQualifiedReferralsMin = 0;
 
+export const getTradeAccessResponseTotalWithdrawnMin = 0;
+
+export const getTradeAccessResponseWithdrawalSignalThresholdMin = 0;
+
+export const getTradeAccessResponseWithdrawalReferralRequirementMin = 0;
+
 export const getTradeAccessResponseNextLevelReferralRequirementMin = 0;
 
 
@@ -610,6 +616,10 @@ export const GetTradeAccessResponse = zod.object({
   "usedToday": zod.number(),
   "remainingToday": zod.number(),
   "qualifiedReferrals": zod.number().min(getTradeAccessResponseQualifiedReferralsMin),
+  "totalWithdrawn": zod.number().min(getTradeAccessResponseTotalWithdrawnMin),
+  "withdrawalSignalThreshold": zod.number().min(getTradeAccessResponseWithdrawalSignalThresholdMin),
+  "withdrawalReferralRequirement": zod.number().min(getTradeAccessResponseWithdrawalReferralRequirementMin),
+  "withdrawalGateActive": zod.boolean(),
   "nextLevelReferralRequirement": zod.number().min(getTradeAccessResponseNextLevelReferralRequirementMin).nullable(),
   "nextLevel": zod.number().nullable(),
   "nextLevelDeposit": zod.number().nullable(),

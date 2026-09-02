@@ -79,6 +79,13 @@ export interface TradeAccess {
   /** @minimum 0 */
   qualifiedReferrals: number;
   /** @minimum 0 */
+  totalWithdrawn: number;
+  /** @minimum 0 */
+  withdrawalSignalThreshold: number;
+  /** @minimum 0 */
+  withdrawalReferralRequirement: number;
+  withdrawalGateActive: boolean;
+  /** @minimum 0 */
   nextLevelReferralRequirement: number | null;
   nextLevel: number | null;
   nextLevelDeposit: number | null;

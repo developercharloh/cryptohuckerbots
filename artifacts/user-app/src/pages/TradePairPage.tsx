@@ -388,13 +388,15 @@ export default function TradePairPage() {
               <div style={{ borderRadius: 10, padding: "9px 10px", marginBottom: 12, background: vipAccess.vipLevel > 0 ? "rgba(245,185,66,0.08)" : "rgba(239,68,68,0.08)", border: `1px solid ${vipAccess.vipLevel > 0 ? "rgba(245,185,66,0.18)" : "rgba(239,68,68,0.18)"}` }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                   <p style={{ fontSize: 10, color: vipAccess.vipLevel > 0 ? "#FFD86B" : "#FCA5A5", fontWeight: 700 }}>
-                    {vipAccess.vipLevel > 0
-                      ? `VIP ${vipAccess.vipLevel} · ${vipAccess.remainingToday} signal${vipAccess.remainingToday === 1 ? "" : "s"} remaining today`
+                    {vipAccess.withdrawalGateActive
+                      ? `Signal access paused · refer ${vipAccess.withdrawalReferralRequirement} users or upgrade to VIP 2`
+                      : vipAccess.vipLevel > 0
+                        ? `VIP ${vipAccess.vipLevel} · ${vipAccess.remainingToday} signal${vipAccess.remainingToday === 1 ? "" : "s"} remaining today`
                       : "VIP 1 access required before signal execution"}
                   </p>
-                  {vipAccess.vipLevel > 0 && vipAccess.nextLevel && (
+                  {vipAccess.vipLevel > 0 && (vipAccess.nextLevel || vipAccess.withdrawalGateActive) && (
                     <button onClick={() => setLocation("/vip-packages")} style={{ flexShrink: 0, border: "none", background: "transparent", color: "#FFD86B", fontSize: 10, fontWeight: 800, cursor: "pointer" }}>
-                      Upgrade
+                      {vipAccess.withdrawalGateActive ? "Unlock VIP 2" : "Upgrade"}
                     </button>
                   )}
                 </div>
@@ -405,7 +407,7 @@ export default function TradePairPage() {
               border: "none", cursor: "pointer", fontSize: 14, fontWeight: 900, color: "#fff",
               background: "linear-gradient(135deg, #F5B942, #2563EB)",
             }}>
-              {vipAccess?.vipLevel === 0 ? "BUY VIP PACKAGE" : "REVIEW AI SIGNAL"} <ArrowRight size={16} />
+              {vipAccess?.vipLevel === 0 ? "BUY VIP PACKAGE" : vipAccess?.withdrawalGateActive ? "UNLOCK VIP 2" : "REVIEW AI SIGNAL"} <ArrowRight size={16} />
             </button>
           </div>
 

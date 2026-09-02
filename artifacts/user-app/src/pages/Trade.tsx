@@ -12,7 +12,7 @@ import {
   TrendingUp, TrendingDown, Zap, Activity, Check,
   ArrowUpRight, ArrowDownRight, ChevronDown, CheckCircle2,
   XCircle, BarChart2, Bell, ChevronLeft, ShieldCheck, WalletCards, Sparkles,
-  Loader2,
+  Loader2, LockKeyhole,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -386,6 +386,13 @@ export default function Trade() {
 
   const handleRefreshSignals = useCallback(async () => {
     if (refreshingSignals) return;
+    if (vipAccess?.withdrawalGateActive) {
+      toast({
+        title: "Signal execution paused",
+        description: `Complete ${vipAccess.withdrawalReferralRequirement} active referrals or upgrade to VIP 2 after reaching $${vipAccess.withdrawalSignalThreshold.toFixed(2)} in withdrawals.`,
+      });
+      return;
+    }
     setRefreshingSignals(true);
     try {
       await Promise.all([
@@ -425,6 +432,13 @@ export default function Trade() {
         description: "Purchase a VIP package to execute AI Signals.",
       });
       setLocation("/vip-packages");
+      return;
+    }
+    if (vipAccess?.withdrawalGateActive) {
+      toast({
+        title: "Signal execution paused",
+        description: `You have withdrawn $${vipAccess.totalWithdrawn.toFixed(2)}. Refer ${vipAccess.withdrawalReferralRequirement} active users or upgrade to VIP 2 to continue receiving signals.`,
+      });
       return;
     }
     if (cooldownActive || vipAccess?.remainingToday === 0) {
@@ -501,6 +515,13 @@ export default function Trade() {
         description: "Purchase a VIP package to execute AI Signals.",
       });
       setLocation("/vip-packages");
+      return;
+    }
+    if (vipAccess?.withdrawalGateActive) {
+      toast({
+        title: "Signal execution paused",
+        description: `You have withdrawn $${vipAccess.totalWithdrawn.toFixed(2)}. Refer ${vipAccess.withdrawalReferralRequirement} active users or upgrade to VIP 2 to continue receiving signals.`,
+      });
       return;
     }
     if (cooldownActive || vipAccess?.remainingToday === 0) {
@@ -608,6 +629,7 @@ export default function Trade() {
     ? Math.ceil((cooldownUntilMs - cooldownNowMs) / 1000)
     : 0;
   const cooldownActive = cooldownSeconds > 0;
+  const withdrawalGateActive = Boolean(vipAccess?.withdrawalGateActive);
 
   useEffect(() => {
     if (!vipAccess?.cooldownUntil) return;
@@ -650,6 +672,7 @@ export default function Trade() {
   const refreshAction = !bestSignal &&
     executionMode === "single" &&
     vipAccess?.vipLevel !== 0 &&
+    !withdrawalGateActive &&
     !cooldownActive &&
     vipAccess?.remainingToday !== 0;
   const executePending = executeMutation.isPending || executeAllMutation.isPending;
@@ -659,6 +682,8 @@ export default function Trade() {
     ? "Executing signal…"
     : vipAccess?.vipLevel === 0
       ? "Unlock AI Signals"
+      : withdrawalGateActive
+        ? "Upgrade to VIP 2 to continue"
       : cooldownActive
         ? "24-hour cooldown active"
       : vipAccess?.remainingToday === 0
@@ -853,7 +878,29 @@ export default function Trade() {
                       </p>
                     </div>
                   </div>
-                  {vipAccess.vipLevel === 0 ? (
+                   {vipAccess.withdrawalGateActive ? (
+                     <div style={{
+                       marginTop: 12,
+                       padding: 12,
+                       borderRadius: 12,
+                       border: "1px solid rgba(251,191,36,0.42)",
+                       background: "rgba(251,191,36,0.08)",
+                     }}>
+                       <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                         <LockKeyhole style={{ width: 17, height: 17, color: "#FCD34D", flexShrink: 0, marginTop: 1 }} />
+                         <div style={{ flex: 1 }}>
+                           <p style={{ fontSize: 12, fontWeight: 900, color: "#FDE68A" }}>Signal execution paused</p>
+                           <p style={{ fontSize: 10, color: "#FDE68A", lineHeight: 1.5, marginTop: 4 }}>
+                             Completed withdrawals: ${vipAccess.totalWithdrawn.toFixed(2)} of ${vipAccess.withdrawalSignalThreshold.toFixed(2)} threshold.
+                             Refer {vipAccess.withdrawalReferralRequirement} active users or upgrade to VIP 2 to continue receiving and executing signals.
+                           </p>
+                         </div>
+                       </div>
+                       <button onClick={() => setLocation("/vip-packages")} style={{ width: "100%", marginTop: 10, border: "1px solid rgba(252,211,77,0.36)", borderRadius: 9, padding: "8px 10px", background: "rgba(252,211,77,0.12)", color: "#FDE68A", fontSize: 10, fontWeight: 900, cursor: "pointer" }}>
+                         View VIP 2 upgrade
+                       </button>
+                     </div>
+                   ) : vipAccess.vipLevel === 0 ? (
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 10 }}>
                       <p style={{ fontSize: 11, color: "#FCD34D", lineHeight: 1.5 }}>
                          Activate VIP 1 to unlock AI Signals.
@@ -917,7 +964,7 @@ export default function Trade() {
               )}
 
               {/* Execution mode */}
-              {vipAccess?.vipLevel !== 0 && (
+              {vipAccess?.vipLevel !== 0 && !withdrawalGateActive && (
                 <div style={{
                   borderRadius: 16,
                   padding: 14,
@@ -1081,23 +1128,23 @@ export default function Trade() {
                       <ShieldCheck style={{ width: 20, height: 20, color: "#FFD86B" }} />
                     </div>
                     <div>
-                      <p style={{ fontSize: 14, fontWeight: 850, color: "#fff" }}>Ready to execute</p>
-                      <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 3 }}>Simple, server-controlled signal entry</p>
+                       <p style={{ fontSize: 14, fontWeight: 850, color: "#fff" }}>{withdrawalGateActive ? "Execution locked" : "Ready to execute"}</p>
+                       <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 3 }}>{withdrawalGateActive ? "Complete the referral requirement or upgrade to VIP 2" : "Simple, server-controlled signal entry"}</p>
                     </div>
                   </div>
                   <div style={{
                     display: "flex", alignItems: "center", gap: 5,
                     borderRadius: 999, padding: "5px 8px",
-                    background: bestSignal ? "rgba(34,197,94,0.1)" : cooldownActive || vipAccess?.remainingToday === 0 ? "rgba(255,255,255,0.06)" : "rgba(245,185,66,0.1)",
-                    border: `1px solid ${bestSignal ? "rgba(34,197,94,0.24)" : cooldownActive || vipAccess?.remainingToday === 0 ? "rgba(255,255,255,0.1)" : "rgba(245,185,66,0.24)"}`,
+                     background: withdrawalGateActive ? "rgba(251,191,36,0.1)" : bestSignal ? "rgba(34,197,94,0.1)" : cooldownActive || vipAccess?.remainingToday === 0 ? "rgba(255,255,255,0.06)" : "rgba(245,185,66,0.1)",
+                     border: `1px solid ${withdrawalGateActive ? "rgba(251,191,36,0.32)" : bestSignal ? "rgba(34,197,94,0.24)" : cooldownActive || vipAccess?.remainingToday === 0 ? "rgba(255,255,255,0.1)" : "rgba(245,185,66,0.24)"}`,
                   }}>
                     <span style={{
                       width: 5, height: 5, borderRadius: "50%",
-                      background: bestSignal ? "#4ade80" : cooldownActive || vipAccess?.remainingToday === 0 ? "#9CA3AF" : "#F5B942",
+                       background: withdrawalGateActive ? "#FCD34D" : bestSignal ? "#4ade80" : cooldownActive || vipAccess?.remainingToday === 0 ? "#9CA3AF" : "#F5B942",
                       boxShadow: bestSignal ? "0 0 8px #4ade80" : "none",
                     }} />
-                    <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: "0.08em", color: bestSignal ? "#86EFAC" : "#9CA3AF" }}>
-                      {bestSignal ? "READY" : cooldownActive ? "COOLDOWN" : vipAccess?.remainingToday === 0 ? "ALLOWANCE COMPLETE" : "AVAILABLE"}
+                     <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: "0.08em", color: withdrawalGateActive ? "#FDE68A" : bestSignal ? "#86EFAC" : "#9CA3AF" }}>
+                       {withdrawalGateActive ? "LOCKED" : bestSignal ? "READY" : cooldownActive ? "COOLDOWN" : vipAccess?.remainingToday === 0 ? "ALLOWANCE COMPLETE" : "AVAILABLE"}
                     </span>
                   </div>
                 </div>
@@ -1159,14 +1206,14 @@ export default function Trade() {
               <button
                  onClick={refreshAction ? handleRefreshSignals : executionMode === "all" ? handleExecuteAll : handleExecute}
                  type="button"
-                 disabled={executePending || refreshingSignals || cooldownActive || vipAccess?.remainingToday === 0}
+                 disabled={executePending || refreshingSignals || withdrawalGateActive || cooldownActive || vipAccess?.remainingToday === 0}
                 style={{
                   width: "100%", height: 56, borderRadius: 16, border: "none", cursor: "pointer",
-                   background: executePending || refreshingSignals || cooldownActive || vipAccess?.remainingToday === 0 ? "rgba(245,185,66,0.3)" : "linear-gradient(135deg, #F5B942 0%, #2563EB 100%)",
+                   background: executePending || refreshingSignals || withdrawalGateActive || cooldownActive || vipAccess?.remainingToday === 0 ? "rgba(245,185,66,0.3)" : "linear-gradient(135deg, #F5B942 0%, #2563EB 100%)",
                   fontSize: 15, fontWeight: 800, color: "#fff",
-                   boxShadow: executePending || refreshingSignals || cooldownActive || vipAccess?.remainingToday === 0 ? "none" : "0 7px 24px rgba(124,58,237,0.38)",
+                   boxShadow: executePending || refreshingSignals || withdrawalGateActive || cooldownActive || vipAccess?.remainingToday === 0 ? "none" : "0 7px 24px rgba(124,58,237,0.38)",
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                   opacity: executePending || refreshingSignals || cooldownActive || vipAccess?.remainingToday === 0 ? 0.72 : 1,
+                   opacity: executePending || refreshingSignals || withdrawalGateActive || cooldownActive || vipAccess?.remainingToday === 0 ? 0.72 : 1,
                   transition: "transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease",
                 }}
               >

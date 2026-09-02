@@ -9,6 +9,8 @@ const router = Router();
 const VIP1_MINIMUM_DEPOSIT = 350;
 const SIGNAL_EXECUTION_AMOUNT = 2.25;
 const SIGNAL_REWARD_AMOUNT = 2.25;
+const SIGNAL_WITHDRAWAL_THRESHOLD = 180;
+const SIGNAL_WITHDRAWAL_REFERRAL_REQUIREMENT = 5;
 const SIGNAL_COOLDOWN_MS = 24 * 60 * 60_000;
 const MANUAL_SIGNAL_PREFIX = "manual-signal";
 const DEFAULT_SIGNAL_TIMES = ["07:00", "09:00", "11:00", "13:00", "15:00", "17:00", "19:00", "21:00", "23:00"];
@@ -90,6 +92,10 @@ type VipAccess = {
   usedToday: number;
   remainingToday: number;
   qualifiedReferrals: number;
+  totalWithdrawn: number;
+  withdrawalSignalThreshold: number;
+  withdrawalReferralRequirement: number;
+  withdrawalGateActive: boolean;
   nextLevelReferralRequirement: number | null;
   signalAmount: number;
   nextLevel: number | null;
@@ -121,6 +127,14 @@ async function getVipAccess(userId: number, config: ReturnType<typeof getSignalS
     eq(referralsTable.status, "credited"),
   ));
   const qualifiedReferrals = Number(referralTotal?.total ?? 0);
+  const [withdrawalTotal] = await db.select({
+    total: sql<string>`coalesce(sum(${transactionsTable.amount}), 0)`,
+  }).from(transactionsTable).where(and(
+    eq(transactionsTable.userId, userId),
+    eq(transactionsTable.type, "withdrawal"),
+    eq(transactionsTable.status, "completed"),
+  ));
+  const totalWithdrawn = Number(withdrawalTotal?.total ?? 0);
   const [purchase] = await db.select().from(vipPackagePurchasesTable).where(and(
     eq(vipPackagePurchasesTable.userId, userId),
     eq(vipPackagePurchasesTable.status, "completed"),
@@ -161,6 +175,10 @@ async function getVipAccess(userId: number, config: ReturnType<typeof getSignalS
     }
   }
   const cooldownActive = cooldownUntil !== null;
+  const withdrawalGateActive = totalWithdrawn >= SIGNAL_WITHDRAWAL_THRESHOLD &&
+    tier?.level !== undefined &&
+    tier.level < 2 &&
+    qualifiedReferrals < SIGNAL_WITHDRAWAL_REFERRAL_REQUIREMENT;
   const nextTier = VIP_TIERS.find((candidate) => candidate.level === (tier?.level ?? 0) + 1);
   return {
     level: tier?.level ?? 0,
@@ -171,8 +189,12 @@ async function getVipAccess(userId: number, config: ReturnType<typeof getSignalS
     vaultCapital: capital.vaultCapital,
     dailyLimit,
     usedToday: claims.length,
-    remainingToday: cooldownActive ? 0 : Math.max(0, dailyLimit - claims.length),
+    remainingToday: withdrawalGateActive || cooldownActive ? 0 : Math.max(0, dailyLimit - claims.length),
     qualifiedReferrals,
+    totalWithdrawn: Math.round(totalWithdrawn * 100) / 100,
+    withdrawalSignalThreshold: SIGNAL_WITHDRAWAL_THRESHOLD,
+    withdrawalReferralRequirement: SIGNAL_WITHDRAWAL_REFERRAL_REQUIREMENT,
+    withdrawalGateActive,
     nextLevelReferralRequirement: nextTier?.referralRequirement ?? null,
     signalAmount: SIGNAL_EXECUTION_AMOUNT,
     nextLevel: nextTier?.level ?? null,
@@ -190,6 +212,7 @@ function getVipEligibleOpportunities(
   access: VipAccess,
 ) {
   if (access.level === 0) return [];
+  if (access.withdrawalGateActive) return [];
   if (access.cooldownUntil) return [];
   if (access.remainingToday <= 0) return [];
   return opportunities.filter((opportunity) => opportunity.status === "available");
@@ -601,11 +624,15 @@ router.get("/trade/access", async (req, res) => {
     packagePrice: access.packagePrice,
     vaultCapital: access.vaultCapital,
     lockedInvestmentCapital: access.vaultCapital,
-    canExecute: access.level > 0 && !access.cooldownUntil,
+    canExecute: access.level > 0 && !access.cooldownUntil && !access.withdrawalGateActive,
     dailyLimit: access.dailyLimit,
     usedToday: access.usedToday,
     remainingToday: access.remainingToday,
     qualifiedReferrals: access.qualifiedReferrals,
+    totalWithdrawn: access.totalWithdrawn,
+    withdrawalSignalThreshold: access.withdrawalSignalThreshold,
+    withdrawalReferralRequirement: access.withdrawalReferralRequirement,
+    withdrawalGateActive: access.withdrawalGateActive,
     nextLevelReferralRequirement: access.nextLevelReferralRequirement,
     signalAmount: access.signalAmount,
     nextLevel: access.nextLevel,
@@ -842,6 +869,17 @@ router.post("/trade/execute", async (req, res) => {
       totalDeposited: access.totalDeposited,
     });
   }
+  if (access.withdrawalGateActive) {
+    return res.status(403).json({
+      code: "WITHDRAWAL_REFERRAL_GATE",
+      error: `Signal execution is paused after $${access.withdrawalSignalThreshold.toFixed(2)} in completed withdrawals. Reach ${access.withdrawalReferralRequirement} active VIP 1 referrals or upgrade to VIP 2 to continue receiving and executing signals.`,
+      totalWithdrawn: access.totalWithdrawn,
+      withdrawalSignalThreshold: access.withdrawalSignalThreshold,
+      qualifiedReferrals: access.qualifiedReferrals,
+      withdrawalReferralRequirement: access.withdrawalReferralRequirement,
+      vipLevel: access.level,
+    });
+  }
   if (access.cooldownUntil) {
     return res.status(429).json({
       code: "SIGNAL_COOLDOWN",
@@ -995,6 +1033,17 @@ router.post("/trade/execute-all", async (req, res) => {
        error: "Activate VIP 1 with a $350 completed deposit to access AI Signals.",
       minimumDeposit: VIP_TIERS[0].price,
       totalDeposited: access.totalDeposited,
+    });
+  }
+  if (access.withdrawalGateActive) {
+    return res.status(403).json({
+      code: "WITHDRAWAL_REFERRAL_GATE",
+      error: `Signal execution is paused after $${access.withdrawalSignalThreshold.toFixed(2)} in completed withdrawals. Reach ${access.withdrawalReferralRequirement} active VIP 1 referrals or upgrade to VIP 2 to continue receiving and executing signals.`,
+      totalWithdrawn: access.totalWithdrawn,
+      withdrawalSignalThreshold: access.withdrawalSignalThreshold,
+      qualifiedReferrals: access.qualifiedReferrals,
+      withdrawalReferralRequirement: access.withdrawalReferralRequirement,
+      vipLevel: access.level,
     });
   }
   if (access.cooldownUntil) {
