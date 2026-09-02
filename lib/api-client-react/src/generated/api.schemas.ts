@@ -451,6 +451,8 @@ export const ReferralStatus = {
 export interface Referral {
   id: number;
   referredName: string;
+  referredAccountUid: string;
+  referredEmail: string;
   /** @nullable */
   referredPhone: string | null;
   /** @nullable */

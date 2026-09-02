@@ -93,6 +93,8 @@ router.get("/profile/referrals", async (req, res) => {
       activityStatus: (vipLevelByUser.get(referred.id) ?? 0) >= 1 ? "active" : "inactive",
       id: referral.id,
       referredName: referred.fullName,
+      referredAccountUid: referred.accountUid,
+      referredEmail: referred.email,
       referredPhone: profile?.phone ?? null,
       referredCountry: profile?.country ?? null,
       status: referral.status,

@@ -816,6 +816,8 @@ export const GetReferralSummaryResponse = zod.object({
   "referrals": zod.array(zod.object({
   "id": zod.number(),
   "referredName": zod.string(),
+  "referredAccountUid": zod.string(),
+  "referredEmail": zod.string(),
   "referredPhone": zod.string().nullable(),
   "referredCountry": zod.string().nullable(),
   "currentVipLevel": zod.number().min(getReferralSummaryResponseReferralsItemCurrentVipLevelMin).max(getReferralSummaryResponseReferralsItemCurrentVipLevelMax),

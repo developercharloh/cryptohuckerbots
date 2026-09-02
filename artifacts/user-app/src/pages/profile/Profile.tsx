@@ -8,6 +8,7 @@ import {
   User as UserIcon, Shield, FileCheck, Bell, HelpCircle, LogOut,
   ChevronRight, Copy, Check, CreditCard, Settings,
   History, MessageSquare, BadgeCheck, Pencil, BarChart2, Users, Share2,
+  Mail, Phone, MapPin, CircleCheck, CircleX,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -227,6 +228,96 @@ export default function Profile() {
                 {referralCopied ? <Check style={{ width: 14, height: 14 }} /> : <Share2 style={{ width: 14, height: 14 }} />}
                 {referralCopied ? "Copied" : "Share"}
               </button>
+            </div>
+
+            <div style={{ marginTop: 16, borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10 }}>
+                <div>
+                  <p style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>Referral Details</p>
+                  <p style={{ fontSize: 10, color: "#6B7280", marginTop: 3 }}>
+                    Contact and account details for your referred users
+                  </p>
+                </div>
+                {!referralsLoading && referralSummary?.referrals.length ? (
+                  <span style={{ fontSize: 10, color: "#9CA3AF", whiteSpace: "nowrap" }}>
+                    {referralSummary.referrals.length} total
+                  </span>
+                ) : null}
+              </div>
+
+              {referralsLoading ? (
+                <div style={{ display: "grid", gap: 8 }}>
+                  {[1, 2].map((item) => (
+                    <div key={item} style={{ height: 70, borderRadius: 12, background: "rgba(255,255,255,0.04)" }} />
+                  ))}
+                </div>
+              ) : referralSummary?.referrals.length ? (
+                <div style={{ overflowX: "auto", margin: "0 -4px", padding: "0 4px 4px" }}>
+                  <table style={{ width: "100%", minWidth: 760, borderCollapse: "separate", borderSpacing: "0 6px", fontSize: 10 }}>
+                    <thead>
+                      <tr style={{ color: "#6B7280", textAlign: "left" }}>
+                        <th style={{ padding: "0 8px 3px", fontWeight: 700 }}>REFERRED USER</th>
+                        <th style={{ padding: "0 8px 3px", fontWeight: 700 }}>ACCOUNT DETAILS</th>
+                        <th style={{ padding: "0 8px 3px", fontWeight: 700 }}>PHONE</th>
+                        <th style={{ padding: "0 8px 3px", fontWeight: 700 }}>VIP</th>
+                        <th style={{ padding: "0 8px 3px", fontWeight: 700 }}>ACTIVITY</th>
+                        <th style={{ padding: "0 8px 3px", fontWeight: 700, textAlign: "right" }}>BONUS</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {referralSummary.referrals.map((referral) => {
+                        const isActive = referral.activityStatus === "active";
+                        return (
+                          <tr key={referral.id} style={{ background: "rgba(0,0,0,0.2)" }}>
+                            <td style={{ padding: "10px 8px", borderRadius: "10px 0 0 10px", verticalAlign: "top" }}>
+                              <div style={{ display: "flex", alignItems: "flex-start", gap: 7 }}>
+                                <div style={{ width: 26, height: 26, borderRadius: 8, background: "rgba(245,185,66,0.12)", color: "#FFD86B", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                  <Users style={{ width: 13, height: 13 }} />
+                                </div>
+                                <div>
+                                  <p style={{ color: "#F3F4F6", fontWeight: 700, fontSize: 11 }}>{referral.referredName}</p>
+                                  <p style={{ color: "#6B7280", marginTop: 3, display: "flex", alignItems: "center", gap: 4 }}>
+                                    <MapPin style={{ width: 10, height: 10 }} /> {referral.referredCountry ?? "Country unavailable"}
+                                  </p>
+                                </div>
+                              </div>
+                            </td>
+                            <td style={{ padding: "10px 8px", verticalAlign: "top" }}>
+                              <p style={{ color: "#FFD86B", fontFamily: "monospace", fontWeight: 700, fontSize: 10 }}>{referral.referredAccountUid}</p>
+                              <p style={{ color: "#9CA3AF", marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
+                                <Mail style={{ width: 10, height: 10 }} /> {referral.referredEmail}
+                              </p>
+                            </td>
+                            <td style={{ padding: "10px 8px", color: "#D1D5DB", verticalAlign: "top", whiteSpace: "nowrap" }}>
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                                <Phone style={{ width: 10, height: 10, color: "#60A5FA" }} />
+                                {referral.referredPhone ?? "Not provided"}
+                              </span>
+                            </td>
+                            <td style={{ padding: "10px 8px", color: "#93C5FD", fontWeight: 700, verticalAlign: "top", whiteSpace: "nowrap" }}>
+                              VIP {referral.currentVipLevel}
+                            </td>
+                            <td style={{ padding: "10px 8px", verticalAlign: "top", whiteSpace: "nowrap" }}>
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, color: isActive ? "#4ADE80" : "#9CA3AF", background: isActive ? "rgba(34,197,94,0.1)" : "rgba(156,163,175,0.1)", border: `1px solid ${isActive ? "rgba(34,197,94,0.2)" : "rgba(156,163,175,0.18)"}`, borderRadius: 999, padding: "4px 7px", fontWeight: 700 }}>
+                                {isActive ? <CircleCheck style={{ width: 11, height: 11 }} /> : <CircleX style={{ width: 11, height: 11 }} />}
+                                {isActive ? "Active" : "Inactive"}
+                              </span>
+                            </td>
+                            <td style={{ padding: "10px 8px", borderRadius: "0 10px 10px 0", color: referral.status === "credited" ? "#FFD86B" : "#EAB308", fontWeight: 800, textAlign: "right", verticalAlign: "top", whiteSpace: "nowrap" }}>
+                              ${referral.bonusAmount.toFixed(2)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div style={{ borderRadius: 12, border: "1px dashed rgba(255,255,255,0.12)", padding: "18px 12px", textAlign: "center" }}>
+                  <Users style={{ width: 18, height: 18, color: "#6B7280", margin: "0 auto 7px" }} />
+                  <p style={{ fontSize: 11, color: "#9CA3AF" }}>No referrals yet</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
