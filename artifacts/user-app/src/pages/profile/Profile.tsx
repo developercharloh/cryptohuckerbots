@@ -59,7 +59,9 @@ export default function Profile() {
 
   const joinedDate = profile?.createdAt ? format(new Date(profile.createdAt), "MMM d, yyyy") : "—";
   const kycColors  = getKycColor(profile?.kycStatus ?? "unverified");
-  const successfulReferralCount = referralSummary?.referrals.filter((referral) => referral.status === "credited").length ?? 0;
+  const successfulReferralCount = referralSummary?.referrals.filter((referral) =>
+    referral.status === "credited" && referral.activityStatus === "active"
+  ).length ?? 0;
 
   const QUICK_TILES = [
     { label: "History",     icon: History,  href: "/cashier/transactions",iconBg: "linear-gradient(135deg,#3B82F6,#06B6D4)", color: "#fff" },
