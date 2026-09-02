@@ -14,3 +14,31 @@ mtime_ms = 1788092602826
 storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:1997a695-0b65-471a-a76b-eb09e4da2719/8fa04413-8ee6-45cf-b194-5c92eedb5da9/faeb92ba-fded-4658-888a-3dbb437890f4"
 storage_version_token = "1788092608907757"
 content_type = "image/jpeg"
+
+[[outputs]]
+id = "gaEM-7YFx17EWJx_Slaqy"
+uri = "file://attached_assets/generated_images/vixus-referral-programme.png"
+type = "image"
+title = "VIXUS Referral Programme"
+description = "Downloadable corrected VIXUS VIP 1–10 referral programme infographic with the approved app logo, referral requirements, cumulative bonus totals, and daily signal allowances."
+logical_id = "35fdf941-8a01-444a-afd3-b63f0705208a"
+content_hash = "sha256:5128d6a727c3492369249ba3f2e4bd1c7c4c0c34d77e3af169a34a6f2ce22b82"
+size = 322484
+mtime_ms = 1788337811512
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:1997a695-0b65-471a-a76b-eb09e4da2719/35fdf941-8a01-444a-afd3-b63f0705208a/4ca0b661-d24e-4ec6-b46e-7a10e6eaae19"
+storage_version_token = "1788337811888199"
+content_type = "image/png"
+
+[[outputs]]
+id = "_-pyusPnNSRCCOLFKaN99"
+uri = "file://attached_assets/generated_images/vixus-referral-programme.svg"
+type = "image"
+title = "VIXUS Referral Programme — SVG"
+description = "Scalable downloadable SVG version of the VIXUS referral programme infographic."
+logical_id = "6d966e69-2b8a-4a98-b294-d2088e3c68d9"
+content_hash = "sha256:85db97e7f32e6c4f4f7e2a6f146545a9f241ab920976382c3b24d80667565ade"
+size = 94367
+mtime_ms = 1788337790000
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:1997a695-0b65-471a-a76b-eb09e4da2719/6d966e69-2b8a-4a98-b294-d2088e3c68d9/68b84274-cd69-456f-8fb6-dabc4d54f330"
+storage_version_token = "1788337792021752"
+content_type = "image/svg+xml"
