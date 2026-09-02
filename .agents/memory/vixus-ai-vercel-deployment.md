@@ -56,3 +56,9 @@ The linked GitHub push can fail with an invalid-credential error using the defau
 **Why:** The referral release could not use the default Git remote credential, while the secured workspace token successfully triggered the user, admin, and API production builds.
 
 **How to apply:** Never print or persist the token. Confirm each project reaches READY, then check the user signup chunk, admin referral bundle, API `/api/healthz`, and protected endpoints separately.
+
+Fresh linked Vercel builds can select a different pnpm major than the workspace lockfile expects. Pin the exact workspace pnpm version in the root package manifest before relying on `--frozen-lockfile`; a mismatched major can either reject the lockfile configuration or block approved native build scripts.
+
+**Why:** A cold admin build selected pnpm 11 and blocked esbuild, while pinning pnpm 9 then exposed a lockfile override mismatch. Pinning the workspace's pnpm 10 version restored clean builds for all three linked projects.
+
+**How to apply:** Check the local pnpm version and lockfile generation before a source-triggered publish, set `packageManager` to that exact version, and verify every artifact reaches `READY` for the pushed commit.
