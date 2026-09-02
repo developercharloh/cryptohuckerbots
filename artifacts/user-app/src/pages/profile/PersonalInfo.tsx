@@ -175,15 +175,17 @@ export default function PersonalInfo() {
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-xl font-bold tracking-tight flex-1">Personal Information</h1>
+          <h1 className="text-xl font-bold tracking-tight flex-1 min-w-0">Personal Information</h1>
           {!isLoading && (
             <button
               type="button"
               onClick={() => editing ? handleCancel() : setEditing(true)}
-              className="w-10 h-10 flex items-center justify-center rounded-xl bg-card transition-colors hover:bg-primary/10"
+              className="shrink-0 h-10 rounded-xl bg-primary px-3 flex items-center justify-center gap-1.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
               title={editing ? "Cancel editing" : "Edit personal details"}
+              aria-label={editing ? "Cancel editing" : "Edit personal details"}
             >
-              {editing ? <X className="w-4.5 h-4.5 text-muted-foreground" /> : <Pencil className="w-4 h-4 text-primary" />}
+              {editing ? <X className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
+              {editing ? "Cancel" : "Edit"}
             </button>
           )}
         </div>
