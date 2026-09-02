@@ -358,8 +358,8 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
 
   const afterOpen = await request<{ mainWalletBalance: number; vaultCapital: number; portfolioBalance: number }>("/api/dashboard/summary");
    assert.equal(afterOpen.body.mainWalletBalance, 49470);
-   assert.equal(afterOpen.body.vaultCapital, 347.75);
-   assert.equal(afterOpen.body.portfolioBalance, 49817.75);
+    assert.equal(afterOpen.body.vaultCapital, 348.5);
+    assert.equal(afterOpen.body.portfolioBalance, 49818.5);
 
   // Simulate the user closing the app before settlement. The next server
   // read must settle the AI Signal independently of the browser timer.
@@ -369,14 +369,14 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
   const restored = await request<Array<{ id: number; pnl: number; status: string }>>("/api/trade/positions");
   const settled = restored.body.find((position) => position.id === opened.body.id);
   assert.ok(settled);
-   assert.equal(settled.pnl, 2.25);
+    assert.equal(settled.pnl, 1.5);
   assert.equal(settled.status, "tp_hit");
 
   const afterClose = await request<{ mainWalletBalance: number; vaultCapital: number; portfolioBalance: number; totalProfit: number }>("/api/dashboard/summary");
-   assert.equal(afterClose.body.mainWalletBalance, 49472.25);
+    assert.equal(afterClose.body.mainWalletBalance, 49471.5);
    assert.equal(afterClose.body.vaultCapital, 350);
-   assert.equal(afterClose.body.portfolioBalance, 49822.25);
-   assert.equal(afterClose.body.totalProfit, 2.25);
+    assert.equal(afterClose.body.portfolioBalance, 49821.5);
+    assert.equal(afterClose.body.totalProfit, 1.5);
 
   const signalRewards = await db.select({
     type: transactionsTable.type,
@@ -384,7 +384,7 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
   }).from(transactionsTable).where(eq(transactionsTable.userId, userId));
   assert.deepEqual(
     signalRewards.filter((row) => row.type === "signal_reward").map((row) => row.amount),
-     ["2.25"],
+     ["1.50"],
   );
 
    // A fresh signal window for the same pair is a separate opportunity, so
@@ -405,10 +405,10 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
      .where(eq(positionsTable.id, repeatedOpened.body.id));
    await request<Array<{ id: number; pnl: number; status: string }>>("/api/trade/positions");
    const afterRepeatedClose = await request<{ mainWalletBalance: number; vaultCapital: number; portfolioBalance: number; totalProfit: number }>("/api/dashboard/summary");
-    assert.equal(afterRepeatedClose.body.mainWalletBalance, 49474.5);
+     assert.equal(afterRepeatedClose.body.mainWalletBalance, 49473);
     assert.equal(afterRepeatedClose.body.vaultCapital, 350);
-    assert.equal(afterRepeatedClose.body.portfolioBalance, 49824.5);
-    assert.equal(afterRepeatedClose.body.totalProfit, 4.5);
+     assert.equal(afterRepeatedClose.body.portfolioBalance, 49823);
+     assert.equal(afterRepeatedClose.body.totalProfit, 3);
 
    const repeatedSignalRewards = await db.select({
      type: transactionsTable.type,
@@ -416,7 +416,7 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
    }).from(transactionsTable).where(eq(transactionsTable.userId, userId));
    assert.deepEqual(
      repeatedSignalRewards.filter((row) => row.type === "signal_reward").map((row) => row.amount),
-      ["2.25", "2.25"],
+       ["1.50", "1.50"],
    );
 
   const opportunities = await db.select({ id: signalOpportunitiesTable.id })
@@ -462,9 +462,9 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
 
   const retryClose = await request<{ pnl: number }>(`/api/trade/positions/${opened.body.id}/close`, { method: "POST" });
   assert.equal(retryClose.response.status, 200);
-   assert.equal(retryClose.body.pnl, 2.25);
+    assert.equal(retryClose.body.pnl, 1.5);
   const afterRetry = await request<{ mainWalletBalance: number; portfolioBalance: number; totalProfit: number }>("/api/dashboard/summary");
-    assert.equal(afterRetry.body.mainWalletBalance, 49474.5);
-    assert.equal(afterRetry.body.portfolioBalance, 49824.5);
-    assert.equal(afterRetry.body.totalProfit, 4.5);
+     assert.equal(afterRetry.body.mainWalletBalance, 49473);
+     assert.equal(afterRetry.body.portfolioBalance, 49823);
+     assert.equal(afterRetry.body.totalProfit, 3);
 });

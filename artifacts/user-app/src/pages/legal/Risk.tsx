@@ -25,7 +25,7 @@ export default function Risk() {
       <section>
         <h2>Signal rewards</h2>
         <p>
-          Eligible completed signals receive a fixed $2.25 Signal Reward
+          Eligible completed signals receive a fixed $1.50 Signal Reward
           credited to the Main Wallet and reflected in the Portfolio Wallet total.
           This is a disclosed program credit and is recorded separately from
           trading P&amp;L; it is not a statement of market performance or a

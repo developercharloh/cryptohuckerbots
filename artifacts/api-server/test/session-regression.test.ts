@@ -185,6 +185,7 @@ before(async () => {
       email: userEmail,
       password: userPassword,
       country: "Kenya",
+      phone: `+254700${String(process.pid).padStart(4, "0")}`,
     },
   });
   assert.equal(registration.response.status, 201);

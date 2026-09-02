@@ -382,7 +382,7 @@ export default function Trade() {
   };
 
   const vaultCapital = summary?.vaultCapital ?? summary?.lockedInvestmentCapital ?? 0;
-  const signalAmount = vipAccess?.signalAmount ?? 2.25;
+  const signalAmount = vipAccess?.signalAmount ?? 1.5;
 
   const handleRefreshSignals = useCallback(async () => {
     if (refreshingSignals) return;
@@ -463,7 +463,7 @@ export default function Trade() {
       consentRef.current?.focus();
       return;
     }
-    const signalAmount = vipAccess?.signalAmount ?? 2.25;
+    const signalAmount = vipAccess?.signalAmount ?? 1.5;
     if (signalAmount > vaultCapital) {
       toast({ title: "Insufficient Vault Capital", description: `Your Vault Capital is $${vaultCapital.toFixed(2)}. Activate or upgrade VIP and try again.`, variant: "destructive" });
       return;

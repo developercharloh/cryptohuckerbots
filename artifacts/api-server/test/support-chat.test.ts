@@ -93,7 +93,7 @@ before(async () => {
 
   const adminRegistration = await request<{ user: { id: number } }>("/api/auth/register", {
     method: "POST",
-    body: { fullName: "Support Chat Admin", email: adminEmail, password, country: "Kenya" },
+    body: { fullName: "Support Chat Admin", email: adminEmail, password, country: "Kenya", phone: `+254701${String(process.pid).padStart(4, "0")}` },
     cookieJar: adminJar,
   });
   assert.equal(adminRegistration.response.status, 201);
@@ -102,7 +102,7 @@ before(async () => {
 
   const userRegistration = await request<{ user: { id: number } }>("/api/auth/register", {
     method: "POST",
-    body: { fullName: "Support Chat User", email: userEmail, password, country: "Kenya" },
+    body: { fullName: "Support Chat User", email: userEmail, password, country: "Kenya", phone: `+254702${String(process.pid).padStart(4, "0")}` },
     cookieJar: userJar,
   });
   assert.equal(userRegistration.response.status, 201);

@@ -104,12 +104,12 @@ before(async () => {
 
   const registrationA = await request<{ user: { id: number } }>("/api/auth/register", {
     method: "POST",
-    body: { fullName: "Cross Account A", email: userAEmail, password, country: "Kenya" },
+    body: { fullName: "Cross Account A", email: userAEmail, password, country: "Kenya", phone: `+254705${String(process.pid).padStart(4, "0")}` },
     cookieJar: jarA,
   });
   const registrationB = await request<{ user: { id: number } }>("/api/auth/register", {
     method: "POST",
-    body: { fullName: "Cross Account B", email: userBEmail, password, country: "Kenya" },
+    body: { fullName: "Cross Account B", email: userBEmail, password, country: "Kenya", phone: `+254706${String(process.pid).padStart(4, "0")}` },
     cookieJar: jarB,
   });
   assert.equal(registrationA.response.status, 201);

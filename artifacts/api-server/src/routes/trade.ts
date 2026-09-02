@@ -7,8 +7,8 @@ import { calculateVaultCapital, calculateWalletBalance, getAvailableBalance, get
 
 const router = Router();
 const VIP1_MINIMUM_DEPOSIT = 350;
-const SIGNAL_EXECUTION_AMOUNT = 2.25;
-const SIGNAL_REWARD_AMOUNT = 2.25;
+const SIGNAL_EXECUTION_AMOUNT = 1.5;
+const SIGNAL_REWARD_AMOUNT = 1.5;
 const SIGNAL_WITHDRAWAL_THRESHOLD = 180;
 const SIGNAL_WITHDRAWAL_REFERRAL_REQUIREMENT = 5;
 const SIGNAL_COOLDOWN_MS = 24 * 60 * 60_000;
@@ -413,7 +413,7 @@ async function closePosition(
     }
 
     // Stake was reserved from Vault Capital on open. Return the principal
-    // portion to the vault. Signal outcomes are fixed at +$2.25 and credited
+    // portion to the vault. Signal outcomes are fixed at +$1.50 and credited
     // through the one-time signal reward below.
     const stake = parseFloat(p.stake);
     const vaultReturn = Math.max(0, stake + Math.min(realized, 0));

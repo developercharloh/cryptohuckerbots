@@ -255,7 +255,7 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
                         {selected.level === 1
                           ? `${formatUSD(selected.amountDue)} will move from your Main Wallet into Vault Capital`
                           : `${qualifiedReferrals} of ${referralRequirement} active referrals · no payment required`}
-                        {" "}· {selected.dailySignals} AI Signals per day at $2.25 each
+                         {" "}· {selected.dailySignals} AI Signals per day at $1.50 each
                   </p>
                 </div>
                 <button
