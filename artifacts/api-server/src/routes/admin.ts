@@ -883,16 +883,28 @@ router.get("/admin/referrals", async (_req, res) => {
   const referrals = await db.select().from(referralsTable).orderBy(desc(referralsTable.createdAt));
   const userIds = Array.from(new Set(referrals.flatMap((referral) => [referral.referrerUserId, referral.referredUserId])));
   if (userIds.length === 0) return res.json([]);
-  const [users, profiles] = await Promise.all([
+  const [users, profiles, vipPurchases] = await Promise.all([
     db.select().from(usersTable).where(inArray(usersTable.id, userIds)),
     db.select().from(userProfilesTable).where(inArray(userProfilesTable.userId, userIds)),
+    db.select({
+      userId: vipPackagePurchasesTable.userId,
+      vipLevel: vipPackagePurchasesTable.vipLevel,
+    }).from(vipPackagePurchasesTable).where(and(
+      inArray(vipPackagePurchasesTable.userId, userIds),
+      eq(vipPackagePurchasesTable.status, "completed"),
+    )).orderBy(desc(vipPackagePurchasesTable.vipLevel)),
   ]);
   const userMap = new Map(users.map((user) => [user.id, user]));
   const profileMap = new Map(profiles.map((profile) => [profile.userId, profile]));
+  const vipLevelMap = new Map<number, number>();
+  for (const purchase of vipPurchases) {
+    if (!vipLevelMap.has(purchase.userId)) vipLevelMap.set(purchase.userId, purchase.vipLevel);
+  }
   return res.json(referrals.map((referral) => {
     const referrer = userMap.get(referral.referrerUserId);
     const referred = userMap.get(referral.referredUserId);
     const referredProfile = profileMap.get(referral.referredUserId);
+    const currentVipLevel = vipLevelMap.get(referral.referredUserId) ?? 0;
     return {
     id: referral.id,
     referrerName: referrer?.fullName ?? "Unknown",
@@ -900,6 +912,8 @@ router.get("/admin/referrals", async (_req, res) => {
     referredName: referred?.fullName ?? "Unknown",
     referredPhone: referredProfile?.phone ?? null,
     referredCountry: referredProfile?.country ?? null,
+    currentVipLevel,
+    activityStatus: currentVipLevel >= 1 ? "active" : "inactive",
     status: referral.status,
     bonusAmount: Number(referral.bonusAmount),
     reservedAmount: Number(referral.reservedAmount),

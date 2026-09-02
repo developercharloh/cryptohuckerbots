@@ -5,6 +5,7 @@
  * Quantum FX Bot API
  * OpenAPI spec version: 0.1.0
  */
+import type { ReferralActivityStatus } from './referralActivityStatus';
 import type { ReferralStatus } from './referralStatus';
 
 export interface Referral {
@@ -14,6 +15,12 @@ export interface Referral {
   referredPhone: string | null;
   /** @nullable */
   referredCountry: string | null;
+  /**
+     * @minimum 0
+     * @maximum 7
+     */
+  currentVipLevel: number;
+  activityStatus: ReferralActivityStatus;
   status: ReferralStatus;
   bonusAmount: number;
   createdAt: string;

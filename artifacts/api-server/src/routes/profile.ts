@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db, usersTable, sessionsTable, kycTable, notificationSettingsTable, userProfilesTable, referralsTable } from "@workspace/db";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { db, usersTable, sessionsTable, kycTable, notificationSettingsTable, userProfilesTable, referralsTable, vipPackagePurchasesTable } from "@workspace/db";
+import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { generateSecret, generateURI, verifySync } from "otplib";
 import QRCode from "qrcode";
 import {
@@ -61,6 +61,24 @@ router.get("/profile/referrals", async (req, res) => {
     .where(eq(referralsTable.referrerUserId, user.id))
     .orderBy(desc(referralsTable.createdAt));
 
+  const referredUserIds = rows.map(({ referred }) => referred.id);
+  const vipPurchases = referredUserIds.length > 0
+    ? await db.select({
+        userId: vipPackagePurchasesTable.userId,
+        vipLevel: vipPackagePurchasesTable.vipLevel,
+      })
+        .from(vipPackagePurchasesTable)
+        .where(and(
+          inArray(vipPackagePurchasesTable.userId, referredUserIds),
+          eq(vipPackagePurchasesTable.status, "completed"),
+        ))
+        .orderBy(desc(vipPackagePurchasesTable.vipLevel))
+    : [];
+  const vipLevelByUser = new Map<number, number>();
+  for (const purchase of vipPurchases) {
+    if (!vipLevelByUser.has(purchase.userId)) vipLevelByUser.set(purchase.userId, purchase.vipLevel);
+  }
+
   const [totals] = await db.select({
     totalEarned: sql<string>`coalesce(sum(case when ${referralsTable.status} = 'credited' then ${referralsTable.bonusAmount} else 0 end), 0)`,
     pendingCount: sql<number>`count(*) filter (where ${referralsTable.status} = 'pending')`,
@@ -71,6 +89,8 @@ router.get("/profile/referrals", async (req, res) => {
     totalEarned: Number(totals?.totalEarned ?? 0),
     pendingCount: Number(totals?.pendingCount ?? 0),
     referrals: rows.map(({ referral, referred, profile }) => ({
+      currentVipLevel: vipLevelByUser.get(referred.id) ?? 0,
+      activityStatus: (vipLevelByUser.get(referred.id) ?? 0) >= 1 ? "active" : "inactive",
       id: referral.id,
       referredName: referred.fullName,
       referredPhone: profile?.phone ?? null,

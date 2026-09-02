@@ -394,7 +394,9 @@ function ReferralsTab() {
                   <p className="text-[11px] text-muted-foreground">{referral.referredPhone ?? "Phone pending"} · {referral.referredCountry ?? "Country pending"}</p>
                 </div>
                 <div className="text-right shrink-0 space-y-1">
-                  <Badge variant={referral.status === "credited" ? "default" : "secondary"} className="text-[10px]">{referral.status === "credited" ? "VIP 1 qualified" : "Pending VIP 1"}</Badge>
+                  <Badge variant={referral.activityStatus === "active" ? "default" : "secondary"} className="text-[10px]">
+                    {referral.activityStatus === "active" ? `Active · VIP ${referral.currentVipLevel}` : "Inactive · No VIP package"}
+                  </Badge>
                   <p className="text-xs text-emerald-400">Paid ${referral.status === "credited" ? referral.bonusAmount.toFixed(2) : "0.00"}</p>
                   <p className="text-xs text-amber-400">Reserved ${referral.reservedAmount.toFixed(2)}</p>
                 </div>

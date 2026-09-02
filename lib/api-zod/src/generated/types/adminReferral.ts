@@ -5,6 +5,7 @@
  * Quantum FX Bot API
  * OpenAPI spec version: 0.1.0
  */
+import type { AdminReferralActivityStatus } from './adminReferralActivityStatus';
 import type { AdminReferralStatus } from './adminReferralStatus';
 
 export interface AdminReferral {
@@ -16,6 +17,12 @@ export interface AdminReferral {
   referredPhone: string | null;
   /** @nullable */
   referredCountry: string | null;
+  /**
+     * @minimum 0
+     * @maximum 7
+     */
+  currentVipLevel: number;
+  activityStatus: AdminReferralActivityStatus;
   status: AdminReferralStatus;
   bonusAmount: number;
   reservedAmount: number;

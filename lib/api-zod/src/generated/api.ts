@@ -781,6 +781,11 @@ export const GetProfileResponse = zod.object({
 })
 
 
+export const getReferralSummaryResponseReferralsItemCurrentVipLevelMin = 0;
+export const getReferralSummaryResponseReferralsItemCurrentVipLevelMax = 7;
+
+
+
 export const GetReferralSummaryResponse = zod.object({
   "referralCode": zod.string(),
   "totalEarned": zod.number(),
@@ -790,6 +795,8 @@ export const GetReferralSummaryResponse = zod.object({
   "referredName": zod.string(),
   "referredPhone": zod.string().nullable(),
   "referredCountry": zod.string().nullable(),
+  "currentVipLevel": zod.number().min(getReferralSummaryResponseReferralsItemCurrentVipLevelMin).max(getReferralSummaryResponseReferralsItemCurrentVipLevelMax),
+  "activityStatus": zod.enum(['active', 'inactive']),
   "status": zod.enum(['pending', 'credited']),
   "bonusAmount": zod.number(),
   "createdAt": zod.string(),
@@ -1403,6 +1410,11 @@ export const AdminListTransactionsResponseItem = zod.object({
 export const AdminListTransactionsResponse = zod.array(AdminListTransactionsResponseItem)
 
 
+export const adminListReferralsResponseCurrentVipLevelMin = 0;
+export const adminListReferralsResponseCurrentVipLevelMax = 7;
+
+
+
 export const AdminListReferralsResponseItem = zod.object({
   "id": zod.number(),
   "referrerName": zod.string(),
@@ -1410,6 +1422,8 @@ export const AdminListReferralsResponseItem = zod.object({
   "referredName": zod.string(),
   "referredPhone": zod.string().nullable(),
   "referredCountry": zod.string().nullable(),
+  "currentVipLevel": zod.number().min(adminListReferralsResponseCurrentVipLevelMin).max(adminListReferralsResponseCurrentVipLevelMax),
+  "activityStatus": zod.enum(['active', 'inactive']),
   "status": zod.enum(['pending', 'credited']),
   "bonusAmount": zod.number(),
   "reservedAmount": zod.number(),

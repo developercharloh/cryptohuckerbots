@@ -17,6 +17,7 @@ const registerSchema = z.object({
   phone: z.string().min(5, "Phone number is required").regex(/^\d+$/, "Use digits only"),
   password: z.string().min(12, "Password must be at least 12 characters"),
   country: z.string().min(2, "Country of residence is required"),
+  referralCode: z.string().max(15, "Referral code is too long").optional(),
   confirmPassword: z.string(),
   terms: z.boolean().refine(val => val, "You must accept the terms"),
 }).refine(data => data.password === data.confirmPassword, {
@@ -46,16 +47,16 @@ export default function Register() {
 
   const form = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { fullName: "", email: "", phone: "", password: "", country: "🇰🇪 Kenya", confirmPassword: "", terms: false },
+    defaultValues: { fullName: "", email: "", phone: "", password: "", country: "🇰🇪 Kenya", referralCode, confirmPassword: "", terms: false },
   });
 
   const onSubmit = (values: z.infer<typeof registerSchema>) => {
-    const { terms, confirmPassword, ...data } = values;
+    const { terms, confirmPassword, referralCode: enteredReferralCode, ...data } = values;
     const selectedCountry = COUNTRIES.find((country) => country.name === values.country) ?? COUNTRIES[0];
     const payload = {
       ...data,
       phone: `${selectedCountry.dial.replace(/-/g, "")}${values.phone}`,
-      ...(referralCode ? { referralCode } : {}),
+      ...(enteredReferralCode?.trim() ? { referralCode: enteredReferralCode.trim().toUpperCase() } : {}),
     };
     registerMutation.mutate({ data: payload }, {
       onSuccess: () => {
@@ -164,11 +165,20 @@ export default function Register() {
               );
             }} />
 
-            {referralCode && (
-              <div style={{ borderRadius: 12, padding: "10px 12px", background: "rgba(245,185,66,0.08)", border: "1px solid rgba(245,185,66,0.18)", color: "#FFD86B", fontSize: 12 }}>
-                You were invited by a VIXUS member. Your $25 referral reward unlocks after VIP 1 activation.
-              </div>
-            )}
+            <FormField control={form.control} name="referralCode" render={({ field }) => (
+              <FormItem style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.03em" }}>Referral Code <span style={{ color: "#475569", fontWeight: 500 }}>(Optional)</span></label>
+                <FormControl>
+                  <Input placeholder="Enter referral code if you have one" style={fieldStyle} {...field} />
+                </FormControl>
+                <FormMessage />
+                {field.value && (
+                  <p style={{ fontSize: 10, color: "#FFD86B", marginTop: 1 }}>
+                    You were invited by a VIXUS member. The $25 reward unlocks after VIP 1 activation.
+                  </p>
+                )}
+              </FormItem>
+            )} />
 
             <FormField control={form.control} name="password" render={({ field }) => (
               <FormItem style={{ display: "flex", flexDirection: "column", gap: 5 }}>

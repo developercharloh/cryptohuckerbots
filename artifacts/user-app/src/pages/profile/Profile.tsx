@@ -211,9 +211,9 @@ export default function Profile() {
                 {referralCopied ? "Copied" : "Share"}
               </button>
             </div>
-            {(referralSummary?.pendingCount ?? 0) > 0 && (
+             {(referralSummary?.pendingCount ?? 0) > 0 && (
               <p style={{ fontSize: 10, color: "#FACC15", marginTop: 10 }}>
-                {referralSummary?.pendingCount} referral{referralSummary?.pendingCount === 1 ? "" : "s"} waiting for VIP 1 activation.
+                 {referralSummary?.pendingCount} inactive referral{referralSummary?.pendingCount === 1 ? "" : "s"} waiting for a VIP package purchase.
               </p>
             )}
             {referralSummary?.referrals?.length ? (
@@ -228,8 +228,12 @@ export default function Profile() {
                           {referral.referredPhone ?? "Phone pending"} · {referral.referredCountry ?? "Country pending"}
                         </p>
                       </div>
-                      <span style={{ fontSize: 10, color: referral.status === "credited" ? "#4ADE80" : "#FACC15", fontWeight: 700, whiteSpace: "nowrap" }}>
-                        {referral.status === "credited" ? `+$${referral.bonusAmount.toFixed(2)}` : "Pending VIP 1"}
+                       <span style={{ fontSize: 10, color: referral.activityStatus === "active" ? "#4ADE80" : "#FACC15", fontWeight: 700, whiteSpace: "nowrap", textAlign: "right" }}>
+                         <span style={{ display: "block" }}>{referral.activityStatus === "active" ? "Active" : "Inactive"}</span>
+                         <span style={{ display: "block", fontSize: 9, color: "#9CA3AF", marginTop: 2 }}>
+                           {referral.currentVipLevel > 0 ? `VIP ${referral.currentVipLevel}` : "No VIP package"}
+                         </span>
+                         {referral.status === "credited" && <span style={{ display: "block", marginTop: 2 }}>+${referral.bonusAmount.toFixed(2)}</span>}
                       </span>
                     </div>
                   ))}

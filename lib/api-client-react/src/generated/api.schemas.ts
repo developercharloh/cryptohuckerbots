@@ -419,6 +419,14 @@ export interface Profile {
   createdAt: string;
 }
 
+export type ReferralActivityStatus = typeof ReferralActivityStatus[keyof typeof ReferralActivityStatus];
+
+
+export const ReferralActivityStatus = {
+  active: 'active',
+  inactive: 'inactive',
+} as const;
+
 export type ReferralStatus = typeof ReferralStatus[keyof typeof ReferralStatus];
 
 
@@ -434,6 +442,12 @@ export interface Referral {
   referredPhone: string | null;
   /** @nullable */
   referredCountry: string | null;
+  /**
+     * @minimum 0
+     * @maximum 7
+     */
+  currentVipLevel: number;
+  activityStatus: ReferralActivityStatus;
   status: ReferralStatus;
   bonusAmount: number;
   createdAt: string;
@@ -447,6 +461,14 @@ export interface ReferralSummary {
   pendingCount: number;
   referrals: Referral[];
 }
+
+export type AdminReferralActivityStatus = typeof AdminReferralActivityStatus[keyof typeof AdminReferralActivityStatus];
+
+
+export const AdminReferralActivityStatus = {
+  active: 'active',
+  inactive: 'inactive',
+} as const;
 
 export type AdminReferralStatus = typeof AdminReferralStatus[keyof typeof AdminReferralStatus];
 
@@ -465,6 +487,12 @@ export interface AdminReferral {
   referredPhone: string | null;
   /** @nullable */
   referredCountry: string | null;
+  /**
+     * @minimum 0
+     * @maximum 7
+     */
+  currentVipLevel: number;
+  activityStatus: AdminReferralActivityStatus;
   status: AdminReferralStatus;
   bonusAmount: number;
   reservedAmount: number;

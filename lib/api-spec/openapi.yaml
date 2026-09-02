@@ -2484,11 +2484,13 @@ components:
         referredName: { type: string }
         referredPhone: { type: ["string", "null"] }
         referredCountry: { type: ["string", "null"] }
+        currentVipLevel: { type: integer, minimum: 0, maximum: 7 }
+        activityStatus: { type: string, enum: [active, inactive] }
         status: { type: string, enum: [pending, credited] }
         bonusAmount: { type: number }
         createdAt: { type: string }
         creditedAt: { type: ["string", "null"] }
-      required: [id, referredName, referredPhone, referredCountry, status, bonusAmount, createdAt, creditedAt]
+      required: [id, referredName, referredPhone, referredCountry, currentVipLevel, activityStatus, status, bonusAmount, createdAt, creditedAt]
 
     ReferralSummary:
       type: object
@@ -2510,12 +2512,14 @@ components:
         referredName: { type: string }
         referredPhone: { type: ["string", "null"] }
         referredCountry: { type: ["string", "null"] }
+        currentVipLevel: { type: integer, minimum: 0, maximum: 7 }
+        activityStatus: { type: string, enum: [active, inactive] }
         status: { type: string, enum: [pending, credited] }
         bonusAmount: { type: number }
         reservedAmount: { type: number }
         createdAt: { type: string }
         creditedAt: { type: ["string", "null"] }
-      required: [id, referrerName, referrerEmail, referredName, referredPhone, referredCountry, status, bonusAmount, reservedAmount, createdAt, creditedAt]
+      required: [id, referrerName, referrerEmail, referredName, referredPhone, referredCountry, currentVipLevel, activityStatus, status, bonusAmount, reservedAmount, createdAt, creditedAt]
 
     ProfileUpdate:
       type: object
