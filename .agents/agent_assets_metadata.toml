@@ -42,3 +42,31 @@ mtime_ms = 1788337790000
 storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:1997a695-0b65-471a-a76b-eb09e4da2719/6d966e69-2b8a-4a98-b294-d2088e3c68d9/68b84274-cd69-456f-8fb6-dabc4d54f330"
 storage_version_token = "1788337792021752"
 content_type = "image/svg+xml"
+
+[[outputs]]
+id = "f6QU3PtR7A3079wIe4TJ-"
+uri = "file://attached_assets/generated_images/vixus_exchange_poster.png"
+type = "image"
+title = "VIXUS Exchange promotional poster"
+description = "A premium portrait poster promoting VIXUS Exchange automated signals, 24/7 monitoring, data-led insights, and a curiosity-driven call to action."
+logical_id = "53e2addd-cbc8-4c93-b121-b54499ad30ab"
+content_hash = "sha256:5eef26191ad1bcae03dcbed7cb9a6cd6c6c56f81c20f7c7c2e7d2941e95a7159"
+size = 7487676
+mtime_ms = 1788372859001
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:1997a695-0b65-471a-a76b-eb09e4da2719/53e2addd-cbc8-4c93-b121-b54499ad30ab/9db6e0b7-eb3d-44c8-a12e-cd2e3cdce713"
+storage_version_token = "1788373536317989"
+content_type = "image/png"
+
+[[outputs]]
+id = "TyJfCqQj3-cNlPI7HapWD"
+uri = "file://attached_assets/generated_images/vixus_exchange_poster.svg"
+type = "image"
+title = "VIXUS Exchange editable poster"
+description = "Editable SVG source for the VIXUS Exchange promotional poster with exact typography and layout."
+logical_id = "cf7666fe-1613-4c51-bcda-27a89a0341ff"
+content_hash = "sha256:682671c7bc3ec415bb3c241e6c32d51ad38cf8eb948e13c763565ee9efb955e2"
+size = 6561
+mtime_ms = 1788372847657
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:1997a695-0b65-471a-a76b-eb09e4da2719/cf7666fe-1613-4c51-bcda-27a89a0341ff/ef6067b3-a085-4d48-bb96-1ebb7ede72c9"
+storage_version_token = "1788373536909971"
+content_type = "image/svg+xml"
