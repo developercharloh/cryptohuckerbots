@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useListPaymentMethods, useCreateDepositSession } from "@workspace/api-client-react";
 import { Layout } from "@/components/Layout";
@@ -14,6 +14,7 @@ const QUICK_AMOUNTS = [100, 250, 500, 1000];
 const MIN_DEPOSIT = 10;
 
 const NETWORK_INFO: Record<string, { time: string; confirmations: number; fullName: string; asset: string }> = {
+  "BEP-20":          { time: "1 – 3 minutes",   confirmations: 15, fullName: "BNB Smart Chain (BEP-20)", asset: "USDT" },
   TRC20:            { time: "1 – 5 minutes",   confirmations: 20, fullName: "TRC20",            asset: "USDT" },
   ERC20:            { time: "3 – 10 minutes",  confirmations: 12, fullName: "ERC20",            asset: "USDT" },
   Bitcoin:          { time: "10 – 60 minutes", confirmations: 6,  fullName: "Bitcoin",          asset: "BTC"  },
@@ -90,6 +91,12 @@ export default function Deposit() {
   const liveRate       = livePair?.price ?? null;
   const estimatedUsd   = isLivePriced && liveRate ? cryptoAmount * liveRate : amount;
 
+  useEffect(() => {
+    if (!selectedMethodId && paymentMethods?.length === 1) {
+      setSelectedMethodId(paymentMethods[0].id);
+    }
+  }, [paymentMethods, selectedMethodId]);
+
   const handleContinue = () => {
     if (!selectedMethodId) { toast({ title: "Select a payment method", variant: "destructive" }); return; }
     if (isLivePriced) {
@@ -153,14 +160,14 @@ export default function Deposit() {
           {/* Deposit address preview */}
           {activeMethod?.depositAddress && (
             <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">Send your deposit to this {activeMethod.network} address</p>
+              <p className="text-xs text-muted-foreground">Send USDT to this BNB Smart Chain (BEP-20) address</p>
               <div className="flex items-center gap-2 rounded-xl bg-card p-3">
                 <code className="flex-1 truncate text-xs font-mono">{activeMethod.depositAddress}</code>
               </div>
               <div className="flex gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
                 <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
                 <p className="text-[11px] leading-relaxed text-amber-200/90">
-                  <span className="font-bold">Deposit via {activeMethod.network} only.</span> Sending from any other network will result in permanent, irreversible loss of funds.
+                   <span className="font-bold">Use BNB Smart Chain (BEP-20) only.</span> Sending from any other network will result in permanent, irreversible loss of funds.
                 </p>
               </div>
             </div>
@@ -269,7 +276,7 @@ export default function Deposit() {
         <div className="flex gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5">
           <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
           <p className="text-[11px] leading-relaxed text-amber-200/90">
-            <span className="font-bold">Deposit via {activeMethod?.network} only.</span> Sending from any other network will result in permanent, irreversible loss of funds.
+             <span className="font-bold">Use BNB Smart Chain (BEP-20) only.</span> Sending from any other network will result in permanent, irreversible loss of funds.
           </p>
         </div>
 

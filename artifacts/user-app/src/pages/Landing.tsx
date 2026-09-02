@@ -49,7 +49,7 @@ const FEATURES = [
 ];
 
 const STEPS = [
-  { n: "01", tag: "Instant funding",   title: "Fund your account",  desc: "Deposit via bank transfer, card, or crypto. Funds reflect in under two minutes." },
+  { n: "01", tag: "Instant funding",   title: "Fund your account",  desc: "Deposit USDT on BNB Smart Chain (BEP-20). Funds reflect after network confirmation." },
   { n: "02", tag: "11 bots available", title: "Choose your bot",    desc: "Browse AI strategies by risk profile, asset class, and verified track record." },
   { n: "03", tag: "24/7 automation",   title: "Let it trade",       desc: "The bot runs 24/7. You get real-time P&L, full trade logs, and one-click withdrawals." },
 ];

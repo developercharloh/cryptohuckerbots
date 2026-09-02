@@ -4,10 +4,10 @@ import { logger } from "./logger";
 import { hashPassword } from "./password";
 
 const FAQ_ENTRIES = [
-  { question: "How do I deposit funds?", answer: "Go to Wallet > Deposit, choose your preferred method (USDT TRC20/ERC20, BTC, or card), and follow the on-screen instructions. Your balance updates once the transaction is confirmed.", category: "Deposits" },
+  { question: "How do I deposit funds?", answer: "Go to Wallet > Deposit and send USDT using only BNB Smart Chain (BEP-20) to the address shown. Your balance updates once the transaction is confirmed.", category: "Deposits" },
   { question: "How do I start a trading bot?", answer: "Go to Bots > Marketplace, select a bot, and tap Buy Bot. Once purchased, the bot activates automatically and begins trading on your behalf.", category: "Bots" },
   { question: "When are profits paid out?", answer: "Profits are credited to your Available Balance in real-time as each trade closes. You can withdraw anytime once your balance meets the minimum threshold.", category: "Earnings" },
-  { question: "What is the minimum withdrawal amount?", answer: "The minimum withdrawal is $10 USD equivalent. Withdrawals are processed within 24 hours to your verified payment method.", category: "Withdrawals" },
+  { question: "What is the minimum withdrawal amount?", answer: "The minimum withdrawal is $10 USD equivalent. Withdrawals are processed within 24 hours to your verified BNB Smart Chain (BEP-20) wallet address.", category: "Withdrawals" },
   { question: "Is KYC verification required?", answer: "KYC is required to enable withdrawals and unlock higher deposit limits. Go to Profile > KYC Verification and upload a valid government-issued ID.", category: "Security" },
   { question: "How secure is my account?", answer: "We use industry-standard encryption, two-factor authentication (2FA), and session management. Enable 2FA in Profile > Security for maximum protection.", category: "Security" },
   { question: "What if I forget my password?", answer: "Tap Forgot Password on the login screen and enter your registered email. You will receive a reset link within a few minutes. Check your spam folder if it does not arrive.", category: "Account" },
@@ -69,6 +69,12 @@ export async function seedDemoAndFaq(): Promise<void> {
     await db.insert(faqTable).values(FAQ_ENTRIES);
     logger.info({ count: FAQ_ENTRIES.length }, "FAQ seeded");
   }
+  await db.update(faqTable)
+    .set({ answer: FAQ_ENTRIES[0].answer })
+    .where(eq(faqTable.question, FAQ_ENTRIES[0].question));
+  await db.update(faqTable)
+    .set({ answer: FAQ_ENTRIES[3].answer })
+    .where(eq(faqTable.question, FAQ_ENTRIES[3].question));
 }
 
 type SeedBot = {

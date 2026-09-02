@@ -57,6 +57,7 @@ import {
 } from "../lib/session";
 import { hashPassword, verifyPassword } from "../lib/password";
 import { consumeRateLimit, recordSecurityEvent, rejectRateLimited, requestIp } from "../lib/security";
+import { BSC_PAYMENT_METHOD_SETTINGS } from "../lib/payment-methods";
 
 const router = Router();
 
@@ -1256,8 +1257,27 @@ router.post("/admin/tickets/:id/close", async (req, res) => {
 // ---------------- Settings ----------------
 async function getOrCreateSettings() {
   const rows = await db.select().from(settingsTable).limit(1);
-  if (rows.length > 0) return rows[0];
-  const [created] = await db.insert(settingsTable).values({}).returning();
+  if (rows.length > 0) {
+    const current = rows[0];
+    const methods = current.paymentMethods ?? [];
+    const isCanonical =
+      methods.length === 1 &&
+      methods[0]?.id === BSC_PAYMENT_METHOD_SETTINGS.id &&
+      methods[0]?.name === BSC_PAYMENT_METHOD_SETTINGS.name &&
+      methods[0]?.network === BSC_PAYMENT_METHOD_SETTINGS.network &&
+      methods[0]?.address === BSC_PAYMENT_METHOD_SETTINGS.address &&
+      methods[0]?.enabled === true;
+    if (isCanonical) return current;
+    const [normalized] = await db
+      .update(settingsTable)
+      .set({ paymentMethods: [BSC_PAYMENT_METHOD_SETTINGS], updatedAt: new Date() })
+      .where(eq(settingsTable.id, current.id))
+      .returning();
+    return normalized;
+  }
+  const [created] = await db.insert(settingsTable).values({
+    paymentMethods: [BSC_PAYMENT_METHOD_SETTINGS],
+  }).returning();
   return created;
 }
 
@@ -1271,7 +1291,7 @@ function mapSettings(s: typeof settingsTable.$inferSelect) {
     depositsEnabled: s.depositsEnabled,
     minDeposit: parseFloat(s.minDeposit),
     minWithdrawal: parseFloat(s.minWithdrawal),
-    paymentMethods: s.paymentMethods ?? [],
+     paymentMethods: [BSC_PAYMENT_METHOD_SETTINGS],
     signalsEnabled: s.signalsEnabled,
     signalsEmergencyStop: s.signalsEmergencyStop,
     signalsTimezone: s.signalsTimezone,
@@ -1311,15 +1331,10 @@ router.put("/admin/settings", async (req, res) => {
   if (d.depositsEnabled !== undefined) update.depositsEnabled = d.depositsEnabled;
   if (d.minDeposit !== undefined) update.minDeposit = d.minDeposit.toString();
   if (d.minWithdrawal !== undefined) update.minWithdrawal = d.minWithdrawal.toString();
-  if (d.paymentMethods !== undefined) {
-    update.paymentMethods = d.paymentMethods.map((p): PaymentMethod => ({
-      id: p.id,
-      name: p.name,
-      network: p.network ?? null,
-      address: p.address,
-      enabled: p.enabled,
-    }));
-  }
+  // Deposits and withdrawals are intentionally limited to one settlement
+  // method. Ignore legacy/admin-supplied alternatives and normalize the stored
+  // settings row on every save.
+  update.paymentMethods = [BSC_PAYMENT_METHOD_SETTINGS satisfies PaymentMethod];
   if (d.signalsEnabled !== undefined) update.signalsEnabled = d.signalsEnabled;
   if (d.signalsEmergencyStop !== undefined) update.signalsEmergencyStop = d.signalsEmergencyStop;
   if (d.signalsTimezone !== undefined) {
