@@ -6,126 +6,12 @@ import { CreateWithdrawalBody } from "@workspace/api-zod";
 import { sendPushToAllAdmins } from "../lib/webPush";
 import { notifyAdminTransaction } from "../lib/loginAlarm";
 import { getAvailableBalance } from "../utils/balance.js";
+import { BSC_PAYMENT_METHOD, isBscWalletAddress } from "../lib/payment-methods";
 
 const router = Router();
 
 async function getUserFromToken(token: string | undefined) {
   return getUserForSession(token);
-}
-
-const PAYMENT_METHODS = [
-  {
-    id: "usdt_trc20",
-    name: "USDT (TRC20)",
-    icon: "usdt",
-    type: "crypto",
-    network: "TRC20",
-    depositAddress: process.env.DEPOSIT_USDT_TRC20 ?? "",
-    requiredConfirmations: 20,
-    processingTime: "1–5 minutes",
-  },
-  {
-    id: "usdt_erc20",
-    name: "USDT (ERC20)",
-    icon: "usdt",
-    type: "crypto",
-    network: "ERC20",
-    depositAddress: process.env.DEPOSIT_USDT_ERC20 ?? "",
-    requiredConfirmations: 12,
-    processingTime: "3–10 minutes",
-  },
-  {
-    id: "usdt_bep20",
-    name: "USDT (BEP20)",
-    icon: "usdt",
-    type: "crypto",
-    network: "BEP20",
-    depositAddress: process.env.DEPOSIT_USDT_BEP20 ?? "",
-    requiredConfirmations: 15,
-    processingTime: "1–3 minutes",
-  },
-  {
-    id: "bitcoin",
-    name: "Bitcoin (BTC)",
-    icon: "btc",
-    type: "crypto",
-    network: "Bitcoin Mainnet",
-    depositAddress: process.env.DEPOSIT_BTC_MAINNET ?? process.env.DEPOSIT_BTC_BEP20 ?? "",
-    requiredConfirmations: 3,
-    processingTime: "10–60 minutes",
-  },
-  {
-    id: "eth_erc20",
-    name: "Ethereum (ERC20)",
-    icon: "eth",
-    type: "crypto",
-    network: "ERC20",
-    depositAddress: process.env.DEPOSIT_ETH_ERC20 ?? "",
-    requiredConfirmations: 12,
-    processingTime: "3–10 minutes",
-  },
-];
-
-// Payment methods whose deposit amount must be entered in the coin's own units
-// (not USD) and converted to a USDT-equivalent using a live market rate.
-const BINANCE_SYMBOL_BY_METHOD: Record<string, string> = {
-  bitcoin: "BTCUSDT",
-  eth_erc20: "ETHUSDT",
-};
-
-// CoinGecko/Coinbase identifiers for the same assets, used as fallbacks when
-// Binance's API is unreachable (e.g. blocked from some cloud/serverless IP ranges).
-const COINGECKO_ID_BY_BINANCE_SYMBOL: Record<string, string> = {
-  BTCUSDT: "bitcoin",
-  ETHUSDT: "ethereum",
-};
-const COINBASE_TICKER_BY_BINANCE_SYMBOL: Record<string, string> = {
-  BTCUSDT: "BTC-USD",
-  ETHUSDT: "ETH-USD",
-};
-
-async function fetchBinanceRate(binanceSymbol: string): Promise<number> {
-  const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${binanceSymbol}`);
-  if (!res.ok) throw new Error(`Binance responded ${res.status}`);
-  const data = (await res.json()) as { price?: string };
-  const price = parseFloat(data.price ?? "");
-  if (!price || Number.isNaN(price)) throw new Error("Invalid Binance price");
-  return price;
-}
-
-async function fetchCoinGeckoRate(binanceSymbol: string): Promise<number> {
-  const id = COINGECKO_ID_BY_BINANCE_SYMBOL[binanceSymbol];
-  if (!id) throw new Error("No CoinGecko id mapped");
-  const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd`);
-  if (!res.ok) throw new Error(`CoinGecko responded ${res.status}`);
-  const data = (await res.json()) as Record<string, { usd?: number }>;
-  const price = data[id]?.usd;
-  if (!price || Number.isNaN(price)) throw new Error("Invalid CoinGecko price");
-  return price;
-}
-
-async function fetchCoinbaseRate(binanceSymbol: string): Promise<number> {
-  const ticker = COINBASE_TICKER_BY_BINANCE_SYMBOL[binanceSymbol];
-  if (!ticker) throw new Error("No Coinbase ticker mapped");
-  const res = await fetch(`https://api.coinbase.com/v2/prices/${ticker}/spot`);
-  if (!res.ok) throw new Error(`Coinbase responded ${res.status}`);
-  const data = (await res.json()) as { data?: { amount?: string } };
-  const price = parseFloat(data.data?.amount ?? "");
-  if (!price || Number.isNaN(price)) throw new Error("Invalid Coinbase price");
-  return price;
-}
-
-async function getLiveUsdRate(binanceSymbol: string): Promise<number> {
-  const sources = [fetchBinanceRate, fetchCoinGeckoRate, fetchCoinbaseRate];
-  let lastError: unknown;
-  for (const source of sources) {
-    try {
-      return await source(binanceSymbol);
-    } catch (err) {
-      lastError = err;
-    }
-  }
-  throw lastError instanceof Error ? lastError : new Error("Failed to fetch live rate from any source");
 }
 
 function mapSession(s: typeof depositSessionsTable.$inferSelect) {
@@ -159,40 +45,17 @@ router.post("/cashier/deposit/session", async (req, res) => {
   const { amount, cryptoAmount, paymentMethodId } = req.body as { amount?: unknown; cryptoAmount?: unknown; paymentMethodId?: unknown };
   if (typeof paymentMethodId !== "string") return res.status(400).json({ error: "Payment method is required" });
 
-  const method = PAYMENT_METHODS.find((m) => m.id === paymentMethodId);
+  const method = paymentMethodId === BSC_PAYMENT_METHOD.id ? BSC_PAYMENT_METHOD : undefined;
   if (!method) return res.status(400).json({ error: "Invalid payment method" });
-
-  const binanceSymbol = BINANCE_SYMBOL_BY_METHOD[method.id];
 
   let numAmount: number;
   let cryptoAsset: string | null = null;
   let numCryptoAmount: number | null = null;
   let conversionRate: number | null = null;
 
-  if (binanceSymbol) {
-    // Coin-priced deposit (e.g. BTC, ETH): user enters an amount of the coin,
-    // we lock in a live USDT rate right now and store the converted value.
-    const numCrypto = Number(cryptoAmount);
-    if (!numCrypto || numCrypto <= 0) return res.status(400).json({ error: "Enter the amount of crypto you're sending" });
-
-    let rate: number;
-    try {
-      rate = await getLiveUsdRate(binanceSymbol);
-    } catch {
-      return res.status(502).json({ error: "Unable to fetch live exchange rate. Please try again shortly." });
-    }
-
-    numAmount = numCrypto * rate;
-    if (numAmount < 10) return res.status(400).json({ error: "Minimum deposit is $10 equivalent" });
-
-    cryptoAsset = method.icon.toUpperCase();
-    numCryptoAmount = numCrypto;
-    conversionRate = rate;
-  } else {
-    // Stable-value deposit (USDT): amount entered is already USD-equivalent.
-    numAmount = Number(amount);
-    if (!numAmount || numAmount < 10) return res.status(400).json({ error: "Minimum deposit is $10" });
-  }
+  // USDT is a stable-value deposit: amount entered is already USD-equivalent.
+  numAmount = Number(amount);
+  if (!numAmount || numAmount < 10) return res.status(400).json({ error: "Minimum deposit is $10" });
 
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
@@ -265,16 +128,19 @@ router.post("/cashier/deposit", async (req, res) => {
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
-  const { amount, paymentMethod, walletAddress } = req.body as Record<string, unknown>;
+  const { amount, paymentMethod } = req.body as Record<string, unknown>;
+  if (paymentMethod !== BSC_PAYMENT_METHOD.name && paymentMethod !== BSC_PAYMENT_METHOD.id) {
+    return res.status(400).json({ error: "Only USDT on BNB Smart Chain (BEP-20) is supported" });
+  }
 
   const [txn] = await db.insert(transactionsTable).values({
     userId: user.id,
     type: "deposit",
     amount: String(amount ?? 0),
     status: "pending",
-    paymentMethod: String(paymentMethod ?? ""),
-    walletAddress: typeof walletAddress === "string" ? walletAddress : null,
-    description: `Deposit via ${paymentMethod}`,
+    paymentMethod: BSC_PAYMENT_METHOD.name,
+    walletAddress: BSC_PAYMENT_METHOD.depositAddress,
+    description: `Deposit via ${BSC_PAYMENT_METHOD.name}`,
   }).returning();
 
   // Notify admin via SSE (browser alarm) + Push (background/offline)
@@ -284,12 +150,12 @@ router.post("/cashier/deposit", async (req, res) => {
     email: user.email,
     userId: user.id,
     amount: parseFloat(String(amount ?? 0)).toFixed(2),
-    paymentMethod: String(paymentMethod ?? ""),
+    paymentMethod: BSC_PAYMENT_METHOD.name,
     txId: txn.id,
   });
   void sendPushToAllAdmins({
     title: "💰 Deposit Request",
-    body: `${user.fullName} · $${parseFloat(String(amount ?? 0)).toFixed(2)} via ${paymentMethod}${walletAddress ? ` · ${walletAddress}` : ""}`,
+    body: `${user.fullName} · $${parseFloat(String(amount ?? 0)).toFixed(2)} via ${BSC_PAYMENT_METHOD.name} · ${BSC_PAYMENT_METHOD.depositAddress}`,
     tag: "vixus-deposit",
     data: { type: "deposit", userId: user.id, txId: txn.id },
   }).catch(() => {});
@@ -317,6 +183,12 @@ router.post("/cashier/withdraw", async (req, res) => {
 
   const { amount, paymentMethod, walletAddress, cryptoAmount, cryptoAsset, conversionRate } = parsed.data;
   if (amount <= 0) return res.status(400).json({ error: "Amount must be greater than 0" });
+  if (paymentMethod !== BSC_PAYMENT_METHOD.name && paymentMethod !== BSC_PAYMENT_METHOD.id) {
+    return res.status(400).json({ error: "Only USDT on BNB Smart Chain (BEP-20) is supported" });
+  }
+  if (!isBscWalletAddress(walletAddress)) {
+    return res.status(400).json({ error: "Enter a valid BNB Smart Chain (BEP-20) wallet address" });
+  }
 
   const available = await getAvailableBalance(user.id);
   if (amount > available) {
@@ -328,9 +200,9 @@ router.post("/cashier/withdraw", async (req, res) => {
     type: "withdrawal",
     amount: amount.toString(),
     status: "pending",
-    paymentMethod,
+    paymentMethod: BSC_PAYMENT_METHOD.name,
     walletAddress,
-    description: `Withdrawal via ${paymentMethod}`,
+    description: `Withdrawal via ${BSC_PAYMENT_METHOD.name}`,
     cryptoAmount: cryptoAmount != null ? cryptoAmount.toString() : null,
     cryptoAsset: cryptoAsset ?? null,
     conversionRate: conversionRate != null ? conversionRate.toString() : null,
@@ -340,7 +212,7 @@ router.post("/cashier/withdraw", async (req, res) => {
     userId: user.id,
     type: "withdrawal",
     title: "Withdrawal Requested",
-    message: `Your withdrawal of $${amount.toFixed(2)} via ${paymentMethod} has been submitted and is pending review.`,
+    message: `Your withdrawal of $${amount.toFixed(2)} via ${BSC_PAYMENT_METHOD.name} has been submitted and is pending review.`,
   });
 
   // Notify admin via SSE (browser alarm) + Push (background/offline)
@@ -350,12 +222,12 @@ router.post("/cashier/withdraw", async (req, res) => {
     email: user.email,
     userId: user.id,
     amount: amount.toFixed(2),
-    paymentMethod,
+    paymentMethod: BSC_PAYMENT_METHOD.name,
     txId: txn.id,
   });
   void sendPushToAllAdmins({
     title: "💸 Withdrawal Request",
-    body: `${user.fullName} · $${amount.toFixed(2)} via ${paymentMethod} · ${walletAddress}`,
+    body: `${user.fullName} · $${amount.toFixed(2)} via ${BSC_PAYMENT_METHOD.name} · ${walletAddress}`,
     tag: "vixus-withdrawal",
     data: { type: "withdrawal", userId: user.id, txId: txn.id },
   }).catch(() => {});
@@ -403,7 +275,7 @@ router.get("/cashier/transactions", async (req, res) => {
 });
 
 router.get("/cashier/payment-methods", async (_req, res) => {
-  return res.json(PAYMENT_METHODS);
+  return res.json([BSC_PAYMENT_METHOD]);
 });
 
 export default router;
