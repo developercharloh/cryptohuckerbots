@@ -116,7 +116,7 @@ async function main(): Promise<void> {
   const [method] = methods as Array<Record<string, unknown>>;
   if (
     method.id !== "usdt_bep20" ||
-    method.name !== "USDT (BEP-20)" ||
+    method.name !== "BSC BNB Smart Chain (BEP20)" ||
     method.network !== "BEP-20" ||
     method.depositAddress !== "0x50Ef0c6963Bf42Fd7f9E0Ba7003e036d2E994C6B"
   ) {

@@ -40,7 +40,7 @@ function CoinIcon({ name, network, size = "lg" }: { name: string; network?: stri
   );
 }
 
-function MethodIcon({ name }: { name: string }) {
+function MethodIcon() {
   return (
     <div className="w-9 h-9 rounded-full flex items-center justify-center bg-[#26A17B]/20">
       <SiTether className="w-5 h-5 text-[#26A17B]" />
@@ -110,8 +110,11 @@ export default function Deposit() {
                     onClick={() => setSelectedMethodId(m.id)}
                   >
                     <div className="flex items-center gap-3">
-                      <MethodIcon name={m.name} />
-                      <span className="font-medium text-sm">{m.name} {m.network ? `(${m.network})` : ""}</span>
+                       <MethodIcon />
+                       <div>
+                         <p className="font-medium text-sm">{m.name}</p>
+                         <p className="text-[11px] text-muted-foreground">Min. deposit $10 · Est. arrival 1–3 minutes</p>
+                       </div>
                     </div>
                     <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedMethodId === m.id ? "border-primary" : "border-muted-foreground/30"}`}>
                       {selectedMethodId === m.id && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
@@ -138,7 +141,10 @@ export default function Deposit() {
 
           {/* Amount */}
           <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">Enter Amount</p>
+               <div className="flex items-center justify-between">
+                 <p className="text-sm text-muted-foreground">Enter Amount</p>
+                 <p className="text-xs text-muted-foreground">Minimum deposit $10</p>
+               </div>
               <div className="relative">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-xl font-bold">$</div>
                 <Input

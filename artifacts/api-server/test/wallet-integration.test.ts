@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
 import { after, before, test } from "node:test";
+import { BSC_DEPOSIT_ADDRESS } from "../src/lib/payment-methods.ts";
 
 process.env.NODE_ENV = "test";
 process.env.ADMIN_PANEL_PASSWORD = "wallet-integration-admin-password";
@@ -172,7 +173,7 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
 
   const pendingDeposit = await request<{ id: number }>("/api/cashier/deposit", {
     method: "POST",
-    body: { amount: 250, paymentMethod: "USDT (BEP-20)", walletAddress: "test-wallet" },
+    body: { amount: 250, paymentMethod: "BSC BNB Smart Chain (BEP20)", walletAddress: "test-wallet" },
   });
   assert.equal(pendingDeposit.response.status, 201);
 
@@ -237,6 +238,26 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
   assert.equal(depositSession.body.status, "waiting_payment");
   assert.equal(depositSession.body.amount, 80);
 
+  const submittedTxid = `0x${"ab".repeat(32)}`;
+  const submittedDeposit = await request<{ txid: string; status: string }>(`/api/cashier/deposit/session/${depositSession.body.id}/txid`, {
+    method: "POST",
+    body: { txid: submittedTxid },
+  });
+  assert.equal(submittedDeposit.response.status, 200);
+  assert.equal(submittedDeposit.body.status, "payment_detected");
+  assert.equal(submittedDeposit.body.txid, submittedTxid);
+
+  const adminDepositSessions = await request<Array<{
+    id: number;
+    txid: string | null;
+    depositAddress: string;
+  }>>("/api/admin/deposit-sessions", { cookieJar: adminJar });
+  assert.equal(adminDepositSessions.response.status, 200);
+  const adminDeposit = adminDepositSessions.body.find((entry) => entry.id === depositSession.body.id);
+  assert.ok(adminDeposit);
+  assert.equal(adminDeposit.txid, submittedTxid);
+  assert.equal(adminDeposit.depositAddress, BSC_DEPOSIT_ADDRESS);
+
   const beforeSessionApproval = await request<{ mainWalletBalance: number }>("/api/dashboard/summary");
   assert.equal(beforeSessionApproval.body.mainWalletBalance, 425);
 
@@ -259,7 +280,7 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
     method: "POST",
     body: {
       amount: 100,
-      paymentMethod: "USDT (BEP-20)",
+      paymentMethod: "BSC BNB Smart Chain (BEP20)",
       walletAddress: "0x1234567890abcdef1234567890ABCDEF12345678",
     },
   });
@@ -314,7 +335,7 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
     method: "POST",
     body: {
       amount: 326,
-      paymentMethod: "USDT (BEP-20)",
+      paymentMethod: "BSC BNB Smart Chain (BEP20)",
       walletAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
     },
   });

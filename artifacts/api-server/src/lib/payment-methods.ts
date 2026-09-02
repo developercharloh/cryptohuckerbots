@@ -4,7 +4,7 @@ export const BSC_DEPOSIT_ADDRESS = "0x50Ef0c6963Bf42Fd7f9E0Ba7003e036d2E994C6B";
 
 export const BSC_PAYMENT_METHOD = {
   id: "usdt_bep20",
-  name: "USDT (BEP-20)",
+  name: "BSC BNB Smart Chain (BEP20)",
   icon: "usdt",
   type: "crypto",
   network: BSC_NETWORK,

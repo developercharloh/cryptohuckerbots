@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { useGetDepositSession, useSubmitDepositTxid, useGetDashboardSummary } from "@workspace/api-client-react";
 import { Layout } from "@/components/Layout";
@@ -7,24 +7,17 @@ import { Input } from "@/components/ui/input";
 import QRCode from "react-qr-code";
 import {
   ChevronLeft, Copy, Check, Loader2, AlertTriangle,
-  Clock, Send, Info, CheckCircle2,
+  Clock, Info, CheckCircle2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { SiTether, SiBitcoin } from "react-icons/si";
+import { SiTether } from "react-icons/si";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
-function getAssetSymbol(network: string) {
-  if (network === "BEP-20" || network === "TRC20" || network === "ERC20") return "USDT";
-  if (network === "Bitcoin" || network === "Bitcoin Mainnet") return "BTC";
-  return "CRYPTO";
-}
-
-function CoinQROverlay({ name }: { name: string }) {
-  const isBTC = name.includes("BTC") || name.includes("Bitcoin");
+function CoinQROverlay() {
   return (
-    <div className={`w-9 h-9 rounded-full flex items-center justify-center ${isBTC ? "bg-[#F7931A]" : "bg-[#26A17B]"}`}>
-      {isBTC ? <SiBitcoin className="w-5 h-5 text-white" /> : <SiTether className="w-5 h-5 text-white" />}
+    <div className="w-9 h-9 rounded-full flex items-center justify-center bg-[#26A17B]">
+      <SiTether className="w-5 h-5 text-white" />
     </div>
   );
 }
@@ -132,7 +125,6 @@ export default function DepositStatus() {
   const { toast }    = useToast();
 
   const [hasSent, setHasSent]   = useState(false);
-  const [showTxid, setShowTxid] = useState(false);
   const [txidInput, setTxidInput] = useState("");
 
   const { data: session, isLoading } = useGetDepositSession(Number(id), {
@@ -158,11 +150,22 @@ export default function DepositStatus() {
     submitTxid.mutate(
       { id: Number(id), data: { txid: txidInput.trim() } },
       {
-        onSuccess: () => { toast({ title: "Transaction ID submitted" }); setShowTxid(false); },
+        onSuccess: (updatedSession) => {
+          setTxidInput(updatedSession.txid ?? txidInput.trim());
+          setHasSent(true);
+          toast({ title: "Transaction hash submitted" });
+        },
         onError:   (err: any) => toast({ title: "Failed to submit TXID", description: err.message, variant: "destructive" }),
       }
     );
   };
+
+  useEffect(() => {
+    if (session?.txid && !txidInput) {
+      setTxidInput(session.txid);
+      setHasSent(true);
+    }
+  }, [session?.txid, txidInput]);
 
   // ── Loading ────────────────────────────────────────────────────────────────
   if (isLoading) {
@@ -187,11 +190,10 @@ export default function DepositStatus() {
     );
   }
 
-  const { status, amount, paymentMethodName, network, depositAddress, txid, confirmations, requiredConfirmations, cryptoAsset, cryptoAmount } = session as typeof session & { cryptoAsset?: string | null; cryptoAmount?: number | null };
-  const assetSymbol = cryptoAsset ?? getAssetSymbol(network);
-  // For coin-priced deposits (BTC/ETH), the address/QR/"send" screens must show
-  // the coin quantity the user is sending, not the USDT-equivalent dollar amount.
-  const sendAmount = cryptoAmount != null ? cryptoAmount : amount;
+  const { status, amount, network, depositAddress, txid, confirmations, requiredConfirmations } = session;
+  const assetSymbol = "USDT";
+  const sendAmount = amount;
+  const displayedTxid = txid ?? txidInput.trim();
 
   // ── SCREEN 6: Success ──────────────────────────────────────────────────────
   if (status === "completed") {
@@ -218,7 +220,6 @@ export default function DepositStatus() {
           <div className="w-full rounded-2xl bg-card divide-y divide-border/40">
             {[
               { label: "You sent",   value: `${sendAmount} ${assetSymbol}` },
-              ...(cryptoAmount != null ? [{ label: "Credited", value: `$${amount.toFixed(2)} USDT` }] : []),
               { label: "Network",     value: network === "BEP-20" ? "BNB Smart Chain (BEP-20)" : network },
               ...(newBalance != null ? [{ label: "New Main Wallet Balance", value: `$${Number(newBalance).toFixed(2)}` }] : []),
             ].map(({ label, value }) => (
@@ -300,13 +301,13 @@ export default function DepositStatus() {
             <TStep label="Funds Credited"    done={false} active={false} sub="Waiting..." />
           </div>
 
-          {/* TXID if available */}
-          {txid && (
+          {/* Transaction hash if available */}
+          {displayedTxid && (
             <div className="rounded-xl bg-card p-4 space-y-1.5">
-              <p className="text-xs text-muted-foreground font-medium">Transaction ID</p>
+              <p className="text-xs text-muted-foreground font-medium">Transaction Hash / TX Address</p>
               <div className="flex items-center gap-2">
-                <code className="text-[10px] font-mono break-all flex-1 leading-snug">{txid}</code>
-                <CopyBtn text={txid} />
+                <code className="text-[10px] font-mono break-all flex-1 leading-snug">{displayedTxid}</code>
+                <CopyBtn text={displayedTxid} />
               </div>
             </div>
           )}
@@ -317,7 +318,7 @@ export default function DepositStatus() {
     );
   }
 
-  // ── SCREEN 4: Waiting for payment (after "I've Sent Payment") ───────────────
+  // ── SCREEN 4: Waiting for payment (after "I've Made a Deposit") ─────────────
   if (isWaiting && hasSent) {
     return (
       <Layout>
@@ -346,26 +347,15 @@ export default function DepositStatus() {
             <TStep label="Funds Credited"   done={false} active={false} sub="Waiting..." />
           </div>
 
-          {/* Submit TXID */}
-          {!showTxid ? (
-            <button className="w-full text-sm text-primary underline underline-offset-2 py-1"
-              onClick={() => setShowTxid(true)}>
-              Submit Transaction ID (TXID)
-            </button>
-          ) : (
+          {/* Submitted transaction hash */}
+          {displayedTxid && (
             <div className="rounded-2xl bg-card p-5 space-y-3">
-              <p className="text-sm font-semibold">Submit Transaction ID</p>
-              <Input value={txidInput} onChange={(e) => setTxidInput(e.target.value)}
-                placeholder="Paste transaction hash / TXID"
-                className="bg-background border-none h-12 rounded-xl font-mono text-xs" />
-              <div className="flex gap-2">
-                <Button variant="outline" className="flex-1 h-11 rounded-xl border-border text-sm"
-                  onClick={() => setShowTxid(false)}>Cancel</Button>
-                <Button className="flex-1 h-11 rounded-xl text-sm"
-                  onClick={handleSubmitTxid} disabled={submitTxid.isPending}>
-                  {submitTxid.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Send className="w-3.5 h-3.5 mr-1.5" />Submit</>}
-                </Button>
+              <p className="text-sm font-semibold">Transaction Hash / TX Address</p>
+              <div className="flex items-center gap-2">
+                <code className="text-[10px] font-mono break-all flex-1 leading-snug">{displayedTxid}</code>
+                <CopyBtn text={displayedTxid} />
               </div>
+              <p className="text-xs text-muted-foreground">This hash has been sent to the admin deposit review screen.</p>
             </div>
           )}
 
@@ -402,7 +392,7 @@ export default function DepositStatus() {
             {/* Coin overlay in center */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="bg-white p-1 rounded-full">
-                <CoinQROverlay name={paymentMethodName} />
+                <CoinQROverlay />
               </div>
             </div>
           </div>
@@ -410,6 +400,7 @@ export default function DepositStatus() {
 
         {/* Address */}
         <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">Deposit Address (BEP-20)</p>
           <div className="flex items-center gap-2 rounded-xl bg-card p-4">
             <code className="flex-1 break-all text-xs font-mono leading-relaxed text-foreground">
               {depositAddress}
@@ -426,10 +417,24 @@ export default function DepositStatus() {
         {/* Copy Address button */}
         <CopyBtn text={depositAddress} label="Copy Address" />
 
-        {/* I've Sent Payment */}
+        {/* Transaction hash / TX address */}
+        <div className="rounded-2xl bg-card p-5 space-y-3">
+          <p className="text-sm font-semibold">Transaction Hash / TX Address</p>
+          <Input
+            value={txidInput}
+            onChange={(e) => setTxidInput(e.target.value)}
+            placeholder="Paste your BSC transaction hash"
+            className="bg-background border-none h-12 rounded-xl font-mono text-xs"
+          />
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            Enter the transaction hash before confirming that you have made the deposit. It will be visible to the admin with this deposit address.
+          </p>
+        </div>
+
+        {/* I've Made a Deposit */}
         <Button className="w-full h-13 rounded-xl text-base font-semibold shadow-none" style={{ height: "52px" }}
-          onClick={() => setHasSent(true)}>
-          I've Sent Payment
+          onClick={handleSubmitTxid} disabled={submitTxid.isPending || !txidInput.trim()}>
+          {submitTxid.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : "I've Made a Deposit"}
         </Button>
 
         {/* Warning */}
