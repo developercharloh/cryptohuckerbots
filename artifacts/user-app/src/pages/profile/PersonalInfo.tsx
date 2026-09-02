@@ -8,7 +8,7 @@ import { ChevronLeft, Loader2, Pencil, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const COUNTRIES = [
+export const COUNTRIES = [
   { name: "🇦🇫 Afghanistan", dial: "+93" }, { name: "🇦🇱 Albania", dial: "+355" },
   { name: "🇩🇿 Algeria", dial: "+213" }, { name: "🇦🇩 Andorra", dial: "+376" },
   { name: "🇦🇴 Angola", dial: "+244" }, { name: "🇦🇬 Antigua and Barbuda", dial: "+1-268" },

@@ -597,15 +597,6 @@ export default function Trade() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePositionId]);
 
-  const [journalClearedBefore, setJournalClearedBefore] = useState<number>(() =>
-    parseInt(localStorage.getItem("vixus_cleared_positions_before") ?? "0", 10)
-  );
-  const handleClearJournal = () => {
-    const now = Date.now();
-    localStorage.setItem("vixus_cleared_positions_before", String(now));
-    setJournalClearedBefore(now);
-  };
-
   const [cooldownNowMs, setCooldownNowMs] = useState(() => Date.now());
   const cooldownUntilMs = vipAccess?.cooldownUntil
     ? new Date(vipAccess.cooldownUntil).getTime()
@@ -637,8 +628,7 @@ export default function Trade() {
 
   const history = (positions || [])
     .filter(p => p.status !== "open")
-    .filter(p => !p.closedAt || new Date(p.closedAt).getTime() >= journalClearedBefore)
-    .slice(0, 30);
+    .slice(0, 100);
 
   const bestSignal = useMemo(() => {
      const unclaimed = signals.filter(s => s.status !== "executed");
@@ -1184,7 +1174,7 @@ export default function Trade() {
                 <div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                     <p style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>Trade Journal</p>
-                    <button onClick={handleClearJournal} style={{ fontSize: 10, color: "#6B7280", background: "none", border: "none", cursor: "pointer" }}>Clear</button>
+                    <span style={{ fontSize: 10, color: "#6B7280" }}>Permanent history</span>
                   </div>
                   {JournalRows}
                 </div>

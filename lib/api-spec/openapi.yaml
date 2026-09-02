@@ -859,6 +859,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Profile"
+  /profile/referrals:
+    get:
+      operationId: getReferralSummary
+      tags: [profile]
+      responses:
+        "200":
+          description: Referral summary for the authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralSummary"
     patch:
       operationId: updateProfile
       tags: [profile]
@@ -1456,6 +1467,20 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/AdminTransaction"
+
+  /admin/referrals:
+    get:
+      operationId: adminListReferrals
+      tags: [admin]
+      responses:
+        "200":
+          description: Referral bonus ledger with reserved admin amounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminReferral"
 
   /admin/transactions/{id}/review:
     post:
@@ -2081,9 +2106,14 @@ components:
           type: string
         password:
           type: string
+        phone:
+          type: string
         country:
           type: string
-      required: [fullName, email, password, country]
+        referralCode:
+          type: string
+          maxLength: 15
+      required: [fullName, email, password, phone, country]
 
     LoginInput:
       type: object
@@ -2446,6 +2476,46 @@ components:
         createdAt:
           type: string
       required: [id, accountUid, fullName, email, kycStatus, twoFAEnabled, createdAt]
+
+    Referral:
+      type: object
+      properties:
+        id: { type: integer }
+        referredName: { type: string }
+        referredPhone: { type: ["string", "null"] }
+        referredCountry: { type: ["string", "null"] }
+        status: { type: string, enum: [pending, credited] }
+        bonusAmount: { type: number }
+        createdAt: { type: string }
+        creditedAt: { type: ["string", "null"] }
+      required: [id, referredName, referredPhone, referredCountry, status, bonusAmount, createdAt, creditedAt]
+
+    ReferralSummary:
+      type: object
+      properties:
+        referralCode: { type: string }
+        totalEarned: { type: number }
+        pendingCount: { type: integer }
+        referrals:
+          type: array
+          items: { $ref: "#/components/schemas/Referral" }
+      required: [referralCode, totalEarned, pendingCount, referrals]
+
+    AdminReferral:
+      type: object
+      properties:
+        id: { type: integer }
+        referrerName: { type: string }
+        referrerEmail: { type: string }
+        referredName: { type: string }
+        referredPhone: { type: ["string", "null"] }
+        referredCountry: { type: ["string", "null"] }
+        status: { type: string, enum: [pending, credited] }
+        bonusAmount: { type: number }
+        reservedAmount: { type: number }
+        createdAt: { type: string }
+        creditedAt: { type: ["string", "null"] }
+      required: [id, referrerName, referrerEmail, referredName, referredPhone, referredCountry, status, bonusAmount, reservedAmount, createdAt, creditedAt]
 
     ProfileUpdate:
       type: object

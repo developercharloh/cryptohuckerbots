@@ -20,6 +20,7 @@ import {
   sessionsTable,
   vipInvestmentCapitalTable,
   vipPackagePurchasesTable,
+  referralsTable,
   type PaymentMethod,
 } from "@workspace/db";
 import { eq, and, desc, sql, inArray, ilike, or, gte } from "drizzle-orm";
@@ -876,6 +877,36 @@ router.get("/admin/transactions", async (req, res) => {
   ]);
   res.setHeader("X-Total-Count", String(Number(total ?? 0)));
   return res.json(rows.map((r) => mapTxnRow(r.txn, r.user)));
+});
+
+router.get("/admin/referrals", async (_req, res) => {
+  const referrals = await db.select().from(referralsTable).orderBy(desc(referralsTable.createdAt));
+  const userIds = Array.from(new Set(referrals.flatMap((referral) => [referral.referrerUserId, referral.referredUserId])));
+  if (userIds.length === 0) return res.json([]);
+  const [users, profiles] = await Promise.all([
+    db.select().from(usersTable).where(inArray(usersTable.id, userIds)),
+    db.select().from(userProfilesTable).where(inArray(userProfilesTable.userId, userIds)),
+  ]);
+  const userMap = new Map(users.map((user) => [user.id, user]));
+  const profileMap = new Map(profiles.map((profile) => [profile.userId, profile]));
+  return res.json(referrals.map((referral) => {
+    const referrer = userMap.get(referral.referrerUserId);
+    const referred = userMap.get(referral.referredUserId);
+    const referredProfile = profileMap.get(referral.referredUserId);
+    return {
+    id: referral.id,
+    referrerName: referrer?.fullName ?? "Unknown",
+    referrerEmail: referrer?.email ?? "",
+    referredName: referred?.fullName ?? "Unknown",
+    referredPhone: referredProfile?.phone ?? null,
+    referredCountry: referredProfile?.country ?? null,
+    status: referral.status,
+    bonusAmount: Number(referral.bonusAmount),
+    reservedAmount: Number(referral.reservedAmount),
+    createdAt: referral.createdAt.toISOString(),
+    creditedAt: referral.creditedAt?.toISOString() ?? null,
+    };
+  }));
 });
 
 router.post("/admin/transactions/:id/review", async (req, res) => {

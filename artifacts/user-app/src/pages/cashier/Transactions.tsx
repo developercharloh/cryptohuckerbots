@@ -2,32 +2,16 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { useListTransactions, ListTransactionsType } from "@workspace/api-client-react";
 import { Layout } from "@/components/Layout";
-import { ChevronLeft, ArrowDownRight, ArrowUpRight, Zap, Trash2 } from "lucide-react";
+import { ChevronLeft, ArrowDownRight, ArrowUpRight, Zap } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatUSD } from "@/lib/format";
-
-const CLEAR_KEY = "vixus_cleared_txns_before";
 
 export default function Transactions() {
   const [, setLocation] = useLocation();
   const [filter, setFilter] = useState<ListTransactionsType>("all");
 
-  const [clearedBefore, setClearedBefore] = useState<number>(() =>
-    parseInt(localStorage.getItem(CLEAR_KEY) ?? "0", 10)
-  );
-
   const { data: allTxns = [], isLoading } = useListTransactions({ type: filter });
-
-  const transactions = allTxns.filter(tx => {
-    if (!clearedBefore) return true;
-    return new Date(tx.createdAt).getTime() >= clearedBefore;
-  });
-
-  const handleClear = () => {
-    const now = Date.now();
-    localStorage.setItem(CLEAR_KEY, String(now));
-    setClearedBefore(now);
-  };
+  const transactions = allTxns;
 
   return (
     <Layout>
@@ -37,15 +21,7 @@ export default function Transactions() {
             <ChevronLeft className="w-5 h-5" />
           </button>
           <h1 className="text-xl font-bold tracking-tight flex-1">Transactions</h1>
-          {transactions.length > 0 && (
-            <button
-              onClick={handleClear}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-colors"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              Clear
-            </button>
-          )}
+          <span className="text-[10px] text-muted-foreground">Permanent history</span>
         </div>
 
         <div className="flex bg-card p-1 rounded-xl h-12">
@@ -84,6 +60,7 @@ export default function Transactions() {
                       tx.type === "trade_loss" ? "Contract Opened" :
                       tx.type === "trade_profit" || tx.type === "trade_loss_return" ? "Contract Closed" :
                       tx.type === "signal_reward" ? "Signal Reward" :
+                       tx.type === "referral_bonus" ? "Referral Bonus" :
                        tx.type === "vip_package_purchase" ? "Vault Capital Transfer" :
                        tx.type === "vault_trade_stake" ? "Vault Capital Reserved" :
                        tx.type === "vault_trade_return" ? "Vault Capital Returned" :
@@ -97,10 +74,10 @@ export default function Transactions() {
                 </div>
                 <div className="text-right">
                   <div className={`font-bold text-sm mb-0.5 ${
-                    tx.type === "deposit" || tx.type === "trade_profit" || tx.type === "signal_reward" ? "text-green-500" :
+                     tx.type === "deposit" || tx.type === "trade_profit" || tx.type === "signal_reward" || tx.type === "referral_bonus" ? "text-green-500" :
                     tx.type === "withdrawal" || tx.type === "trade_loss" || tx.type === "trade_loss_return" || tx.type === "vip_package_purchase" ? "text-red-500"   : "text-foreground"
                   }`}>
-                    {tx.type === "deposit" || tx.type === "trade_profit" || tx.type === "signal_reward" ? "+" : tx.type === "withdrawal" || tx.type === "trade_loss" || tx.type === "trade_loss_return" || tx.type === "vip_package_purchase" ? "−" : ""}{formatUSD(tx.amount)}
+                     {tx.type === "deposit" || tx.type === "trade_profit" || tx.type === "signal_reward" || tx.type === "referral_bonus" ? "+" : tx.type === "withdrawal" || tx.type === "trade_loss" || tx.type === "trade_loss_return" || tx.type === "vip_package_purchase" ? "−" : ""}{formatUSD(tx.amount)}
                   </div>
                   <div className={`text-[10px] px-2 py-0.5 rounded-full inline-block ${
                     tx.status === "Completed" ? "bg-green-500/10 text-green-500" :

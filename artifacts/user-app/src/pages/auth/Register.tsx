@@ -7,12 +7,14 @@ import { useRegister } from "@workspace/api-client-react";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Loader2, User, Mail, Lock, MapPin } from "lucide-react";
+import { Eye, EyeOff, Loader2, User, Mail, Lock, MapPin, Phone } from "lucide-react";
 import { VixusLogo } from "@/components/VixusLogo";
+import { COUNTRIES } from "@/pages/profile/PersonalInfo";
 
 const registerSchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
   email: z.string().email("Invalid email address"),
+  phone: z.string().min(5, "Phone number is required").regex(/^\d+$/, "Use digits only"),
   password: z.string().min(12, "Password must be at least 12 characters"),
   country: z.string().min(2, "Country of residence is required"),
   confirmPassword: z.string(),
@@ -40,15 +42,22 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const referralCode = new URLSearchParams(window.location.search).get("ref")?.trim().toUpperCase() ?? "";
 
   const form = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { fullName: "", email: "", password: "", country: "", confirmPassword: "", terms: false },
+    defaultValues: { fullName: "", email: "", phone: "", password: "", country: "🇰🇪 Kenya", confirmPassword: "", terms: false },
   });
 
   const onSubmit = (values: z.infer<typeof registerSchema>) => {
     const { terms, confirmPassword, ...data } = values;
-    registerMutation.mutate({ data }, {
+    const selectedCountry = COUNTRIES.find((country) => country.name === values.country) ?? COUNTRIES[0];
+    const payload = {
+      ...data,
+      phone: `${selectedCountry.dial.replace(/-/g, "")}${values.phone}`,
+      ...(referralCode ? { referralCode } : {}),
+    };
+    registerMutation.mutate({ data: payload }, {
       onSuccess: () => {
         toast({ title: "Check your email", description: "We sent a verification link to your email address." });
         setLocation(`/verify-email?email=${encodeURIComponent(data.email)}`);
@@ -116,12 +125,50 @@ export default function Register() {
                 <FormControl>
                   <div style={{ position: "relative" }}>
                     <MapPin size={15} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "#475569" }} />
-                    <Input placeholder="e.g. Kenya" style={{ ...fieldStyle, paddingLeft: 38 }} {...field} />
+                    <select
+                      value={field.value}
+                      onChange={field.onChange}
+                      style={{ ...fieldStyle, width: "100%", paddingLeft: 38, outline: "none" }}
+                    >
+                      {COUNTRIES.map((country) => (
+                        <option key={country.name} value={country.name} style={{ background: "#15120B", color: "#F1F5F9" }}>
+                          {country.name} ({country.dial})
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )} />
+
+            <FormField control={form.control} name="phone" render={({ field }) => {
+              const selectedCountry = COUNTRIES.find((country) => country.name === form.getValues("country")) ?? COUNTRIES[0];
+              return (
+              <FormItem style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.03em" }}>Phone Number</label>
+                <FormControl>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <div style={{ ...fieldStyle, minWidth: 92, padding: "0 10px", display: "flex", alignItems: "center", gap: 5, fontSize: 13, fontWeight: 700 }}>
+                      <span aria-hidden="true">{selectedCountry.name.split(" ")[0]}</span>
+                      <span>{selectedCountry.dial}</span>
+                    </div>
+                    <div style={{ position: "relative", flex: 1 }}>
+                      <Phone size={15} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "#475569" }} />
+                      <Input placeholder="712345678" inputMode="numeric" style={{ ...fieldStyle, width: "100%", paddingLeft: 38 }} {...field} />
+                    </div>
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+              );
+            }} />
+
+            {referralCode && (
+              <div style={{ borderRadius: 12, padding: "10px 12px", background: "rgba(245,185,66,0.08)", border: "1px solid rgba(245,185,66,0.18)", color: "#FFD86B", fontSize: 12 }}>
+                You were invited by a VIXUS member. Your $25 referral reward unlocks after VIP 1 activation.
+              </div>
+            )}
 
             <FormField control={form.control} name="password" render={({ field }) => (
               <FormItem style={{ display: "flex", flexDirection: "column", gap: 5 }}>

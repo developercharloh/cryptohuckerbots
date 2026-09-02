@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, usersTable, sessionsTable, userBotsTable, botsTable, transactionsTable, vipPackagePurchasesTable, vipInvestmentCapitalTable, earningsTable, notificationsTable, positionsTable, settingsTable, signalOpportunitiesTable, signalClaimsTable } from "@workspace/db";
+import { db, usersTable, sessionsTable, userBotsTable, botsTable, transactionsTable, vipPackagePurchasesTable, vipInvestmentCapitalTable, earningsTable, notificationsTable, positionsTable, settingsTable, signalOpportunitiesTable, signalClaimsTable, referralsTable } from "@workspace/db";
 import { eq, and, desc, asc, gte, lt, inArray, sql } from "drizzle-orm";
 import { ExecuteAllTradeSignalsBody, ExecuteTradeBody } from "@workspace/api-zod";
 import { getRequestToken, getUserForSession } from "../lib/session";
@@ -696,6 +696,34 @@ router.post("/trade/vip-packages/:level/purchase", async (req, res) => {
         status: "locked",
         activatedAt: now,
       });
+
+      if (tier.level === 1 && !active) {
+        const [referral] = await tx.select().from(referralsTable).where(and(
+          eq(referralsTable.referredUserId, user.id),
+          eq(referralsTable.status, "pending"),
+        )).limit(1);
+        if (referral) {
+          await tx.insert(transactionsTable).values({
+            userId: referral.referrerUserId,
+            type: "referral_bonus",
+            amount: referral.bonusAmount,
+            status: "completed",
+            paymentMethod: "referral",
+            description: "Referral bonus",
+          });
+          await tx.update(referralsTable).set({
+            status: "credited",
+            vip1PurchaseId: created.id,
+            creditedAt: now,
+          }).where(eq(referralsTable.id, referral.id));
+          await tx.insert(notificationsTable).values({
+            userId: referral.referrerUserId,
+            type: "referral",
+            title: "Referral bonus credited",
+            message: `Your $${Number(referral.bonusAmount).toFixed(2)} referral bonus is now available in your Main Wallet.`,
+          });
+        }
+      }
       return {
         purchase: created,
         amountDue,

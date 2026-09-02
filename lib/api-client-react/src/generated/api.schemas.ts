@@ -188,7 +188,10 @@ export interface RegisterInput {
   fullName: string;
   email: string;
   password: string;
+  phone: string;
   country: string;
+  /** @maxLength 15 */
+  referralCode?: string;
 }
 
 export interface LoginInput {
@@ -414,6 +417,60 @@ export interface Profile {
   kycStatus: string;
   twoFAEnabled: boolean;
   createdAt: string;
+}
+
+export type ReferralStatus = typeof ReferralStatus[keyof typeof ReferralStatus];
+
+
+export const ReferralStatus = {
+  pending: 'pending',
+  credited: 'credited',
+} as const;
+
+export interface Referral {
+  id: number;
+  referredName: string;
+  /** @nullable */
+  referredPhone: string | null;
+  /** @nullable */
+  referredCountry: string | null;
+  status: ReferralStatus;
+  bonusAmount: number;
+  createdAt: string;
+  /** @nullable */
+  creditedAt: string | null;
+}
+
+export interface ReferralSummary {
+  referralCode: string;
+  totalEarned: number;
+  pendingCount: number;
+  referrals: Referral[];
+}
+
+export type AdminReferralStatus = typeof AdminReferralStatus[keyof typeof AdminReferralStatus];
+
+
+export const AdminReferralStatus = {
+  pending: 'pending',
+  credited: 'credited',
+} as const;
+
+export interface AdminReferral {
+  id: number;
+  referrerName: string;
+  referrerEmail: string;
+  referredName: string;
+  /** @nullable */
+  referredPhone: string | null;
+  /** @nullable */
+  referredCountry: string | null;
+  status: AdminReferralStatus;
+  bonusAmount: number;
+  reservedAmount: number;
+  createdAt: string;
+  /** @nullable */
+  creditedAt: string | null;
 }
 
 export interface ProfileUpdate {

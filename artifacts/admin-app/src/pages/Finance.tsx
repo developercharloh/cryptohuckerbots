@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   useAdminListTransactions,
   useAdminReviewTransaction,
+  useAdminListReferrals,
   useAdminListDepositSessions,
   useAdminReviewDepositSession,
   getAdminListTransactionsQueryKey,
@@ -59,7 +60,7 @@ function statusColor(status: string) {
 const DEPOSIT_STATUSES = ["all", "waiting_payment", "payment_detected", "confirming", "completed", "failed"];
 
 // ── Transactions tab ─────────────────────────────────────────────────────────
-const typeOptions = ["all", "deposit", "withdrawal"] as const;
+const typeOptions = ["all", "deposit", "withdrawal", "referral_bonus"] as const;
 const txStatusOptions = ["all", "pending", "completed", "rejected"] as const;
 
 function TransactionsTab() {
@@ -123,7 +124,7 @@ function TransactionsTab() {
                         {txn.status === "pending" && <Clock className="w-2.5 h-2.5 mr-1 inline" />}
                         {txn.status}
                       </Badge>
-                       <span className="text-[10px] text-muted-foreground capitalize">{txn.type === "trade_loss" ? "Contract Opened" : txn.type === "trade_profit" || txn.type === "trade_loss_return" ? "Contract Closed" : txn.type === "vault_trade_stake" ? "Vault Capital Reserved" : txn.type === "vault_trade_return" ? "Vault Capital Returned" : txn.type === "vault_trade_fee" ? "Vault Capital Trading Fee" : txn.type.replace("_", " ")}</span>
+                       <span className="text-[10px] text-muted-foreground capitalize">{txn.type === "trade_loss" ? "Contract Opened" : txn.type === "trade_profit" || txn.type === "trade_loss_return" ? "Contract Closed" : txn.type === "referral_bonus" ? "Referral Bonus" : txn.type === "vault_trade_stake" ? "Vault Capital Reserved" : txn.type === "vault_trade_return" ? "Vault Capital Returned" : txn.type === "vault_trade_fee" ? "Vault Capital Trading Fee" : txn.type.replace("_", " ")}</span>
                     </div>
                     <p className="text-sm font-semibold truncate">{txn.userName}</p>
                     <p className="text-[11px] text-muted-foreground truncate">{txn.userEmail}</p>
@@ -152,8 +153,8 @@ function TransactionsTab() {
                     <p className="text-[10px] text-muted-foreground/60 mt-0.5">{format(new Date(txn.createdAt), "PP · p")}</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <div className={`text-lg font-bold ${txn.type === "deposit" || txn.type === "trade_profit" || txn.type === "vault_trade_return" ? "text-emerald-400" : txn.type === "withdrawal" || txn.type === "trade_loss" || txn.type === "trade_loss_return" || txn.type === "vip_package_purchase" || txn.type === "vault_trade_stake" || txn.type === "vault_trade_fee" ? "text-red-400" : "text-foreground"}`}>
-                      {txn.type === "deposit" || txn.type === "trade_profit" || txn.type === "vault_trade_return" ? "+" : txn.type === "withdrawal" || txn.type === "trade_loss" || txn.type === "trade_loss_return" || txn.type === "vip_package_purchase" || txn.type === "vault_trade_stake" || txn.type === "vault_trade_fee" ? "−" : ""}${txn.amount.toFixed(2)}
+                    <div className={`text-lg font-bold ${txn.type === "deposit" || txn.type === "trade_profit" || txn.type === "referral_bonus" || txn.type === "vault_trade_return" ? "text-emerald-400" : txn.type === "withdrawal" || txn.type === "trade_loss" || txn.type === "trade_loss_return" || txn.type === "vip_package_purchase" || txn.type === "vault_trade_stake" || txn.type === "vault_trade_fee" ? "text-red-400" : "text-foreground"}`}>
+                      {txn.type === "deposit" || txn.type === "trade_profit" || txn.type === "referral_bonus" || txn.type === "vault_trade_return" ? "+" : txn.type === "withdrawal" || txn.type === "trade_loss" || txn.type === "trade_loss_return" || txn.type === "vip_package_purchase" || txn.type === "vault_trade_stake" || txn.type === "vault_trade_fee" ? "−" : ""}${txn.amount.toFixed(2)}
                     </div>
                   </div>
                 </div>
@@ -363,9 +364,52 @@ function DepositSessionsTab() {
   );
 }
 
+function ReferralsTab() {
+  const { data: referrals, isLoading } = useAdminListReferrals();
+  const reservedTotal = referrals?.reduce((sum, referral) => sum + referral.reservedAmount, 0) ?? 0;
+  const creditedTotal = referrals?.filter((referral) => referral.status === "credited")
+    .reduce((sum, referral) => sum + referral.bonusAmount, 0) ?? 0;
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <Card className="rounded-2xl border-border/60"><CardContent className="p-4">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Reserved referral amount</p>
+          <p className="text-xl font-bold text-amber-400 mt-1">${reservedTotal.toFixed(2)}</p>
+        </CardContent></Card>
+        <Card className="rounded-2xl border-border/60"><CardContent className="p-4">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Paid to users</p>
+          <p className="text-xl font-bold text-emerald-400 mt-1">${creditedTotal.toFixed(2)}</p>
+        </CardContent></Card>
+      </div>
+      {isLoading ? Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-2xl" />) :
+        referrals?.length ? referrals.map((referral) => (
+          <Card key={referral.id} className="rounded-2xl border-border/60">
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold truncate">{referral.referrerName}</p>
+                  <p className="text-[11px] text-muted-foreground truncate">{referral.referrerEmail}</p>
+                  <p className="text-xs mt-2">Referred: <span className="font-semibold">{referral.referredName}</span></p>
+                  <p className="text-[11px] text-muted-foreground">{referral.referredPhone ?? "Phone pending"} · {referral.referredCountry ?? "Country pending"}</p>
+                </div>
+                <div className="text-right shrink-0 space-y-1">
+                  <Badge variant={referral.status === "credited" ? "default" : "secondary"} className="text-[10px]">{referral.status === "credited" ? "VIP 1 qualified" : "Pending VIP 1"}</Badge>
+                  <p className="text-xs text-emerald-400">Paid ${referral.status === "credited" ? referral.bonusAmount.toFixed(2) : "0.00"}</p>
+                  <p className="text-xs text-amber-400">Reserved ${referral.reservedAmount.toFixed(2)}</p>
+                </div>
+              </div>
+              <p className="text-[10px] text-muted-foreground/60 mt-2">{format(new Date(referral.createdAt), "PP · p")}</p>
+            </CardContent>
+          </Card>
+        )) : <div className="text-center py-12 text-sm text-muted-foreground border border-dashed border-border rounded-2xl">No referrals found</div>}
+    </div>
+  );
+}
+
 // ── Main Finance page ─────────────────────────────────────────────────────────
 export default function Finance() {
-  const [tab, setTab] = useState<"deposits" | "transactions">("deposits");
+  const [tab, setTab] = useState<"deposits" | "transactions" | "referrals">("deposits");
 
   return (
     <div className="admin-page p-4 space-y-4 pb-8">
@@ -377,9 +421,10 @@ export default function Finance() {
       <div className="flex gap-2">
         <FilterChip value="Deposits" active={tab === "deposits"} onClick={() => setTab("deposits")} />
         <FilterChip value="Transactions" active={tab === "transactions"} onClick={() => setTab("transactions")} />
+        <FilterChip value="Referrals" active={tab === "referrals"} onClick={() => setTab("referrals")} />
       </div>
 
-      {tab === "deposits" ? <DepositSessionsTab /> : <TransactionsTab />}
+      {tab === "deposits" ? <DepositSessionsTab /> : tab === "transactions" ? <TransactionsTab /> : <ReferralsTab />}
     </div>
   );
 }

@@ -10,5 +10,8 @@ export interface RegisterInput {
   fullName: string;
   email: string;
   password: string;
+  phone: string;
   country: string;
+  /** @maxLength 15 */
+  referralCode?: string;
 }

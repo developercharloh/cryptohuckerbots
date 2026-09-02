@@ -7,10 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { API_BASE } from "@/lib/api-base";
 import {
   ChevronLeft, CheckCircle2, Clock, Zap,
-  ArrowUpRight, ArrowDownRight, Activity, Trash2, XCircle, Target,
+  ArrowUpRight, ArrowDownRight, Activity, XCircle, Target,
 } from "lucide-react";
-
-const CLEAR_KEY = "vixus_cleared_positions_before";
 
 /* ── Duration formatters ──────────────────────────────── */
 function fmtDuration(ms: number): string {
@@ -126,17 +124,6 @@ export default function Orders() {
     query: { refetchInterval: 4000 } as any,
   });
 
-  // Clear-history timestamp
-  const [clearedBefore, setClearedBefore] = useState<number>(() => {
-    return parseInt(localStorage.getItem(CLEAR_KEY) ?? "0", 10);
-  });
-
-  const handleClearHistory = () => {
-    const now = Date.now();
-    localStorage.setItem(CLEAR_KEY, String(now));
-    setClearedBefore(now);
-  };
-
   const handleClose = useCallback(() => {
     setTimeout(() => refetch(), 800);
   }, [refetch]);
@@ -144,11 +131,8 @@ export default function Orders() {
   // All open positions
   const open = positions.filter(p => p.status === "open");
 
-  // Closed positions after clearedBefore (both wins and losses)
-  const closed = positions.filter(p =>
-    p.status !== "open" &&
-    (!p.closedAt || new Date(p.closedAt).getTime() >= clearedBefore)
-  );
+  // Closed positions are permanent and always remain visible.
+  const closed = positions.filter(p => p.status !== "open");
 
   const totalPnl = closed.reduce((acc, p) => acc + p.pnl, 0);
 
@@ -216,13 +200,7 @@ export default function Orders() {
                   <span className={`ml-auto text-[11px] font-bold ${totalPnl >= 0 ? "text-green-400" : "text-red-400"}`}>
                     {totalPnl >= 0 ? "+" : "−"}${Math.abs(totalPnl).toFixed(2)}
                   </span>
-                  <button
-                    onClick={handleClearHistory}
-                    className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-destructive transition-colors"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                    Clear
-                  </button>
+                  <span className="text-[10px] text-muted-foreground">Permanent history</span>
                 </>
               )}
             </div>

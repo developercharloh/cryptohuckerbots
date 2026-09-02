@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
-import { useGetProfile } from "@workspace/api-client-react";
+import { useGetProfile, useGetReferralSummary } from "@workspace/api-client-react";
 import { Layout } from "@/components/Layout";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   User as UserIcon, Shield, FileCheck, Bell, HelpCircle, LogOut,
   ChevronRight, Copy, Check, CreditCard, Settings, Bot,
-  History, MessageSquare, BadgeCheck, Pencil, BarChart2,
+  History, MessageSquare, BadgeCheck, Pencil, BarChart2, Users, Share2,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -16,7 +16,9 @@ export default function Profile() {
   const [, setLocation] = useLocation();
   const { user, logout } = useAuth();
   const { data: profile, isLoading } = useGetProfile();
+  const { data: referralSummary, isLoading: referralsLoading } = useGetReferralSummary();
   const [copied, setCopied] = useState(false);
+  const [referralCopied, setReferralCopied] = useState(false);
   const queryClient = useQueryClient();
 
   const handleCopyUid = async () => {
@@ -25,6 +27,16 @@ export default function Profile() {
     await navigator.clipboard.writeText(uid);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const referralLink = referralSummary?.referralCode
+    ? `${window.location.origin}${import.meta.env.BASE_URL}register?ref=${encodeURIComponent(referralSummary.referralCode)}`
+    : "";
+  const handleCopyReferral = async () => {
+    if (!referralLink) return;
+    await navigator.clipboard.writeText(referralLink);
+    setReferralCopied(true);
+    setTimeout(() => setReferralCopied(false), 2000);
   };
 
   const handleLogout = () => {
@@ -166,6 +178,64 @@ export default function Profile() {
                 </button>
               );
             })}
+          </div>
+        </div>
+
+        {/* ── Referral Program ── */}
+        <div style={{ padding: "8px 16px" }}>
+          <div style={{ borderRadius: 20, border: "1px solid rgba(245,185,66,0.2)", background: "linear-gradient(135deg, rgba(245,185,66,0.1), rgba(59,130,246,0.05))", padding: 16 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+              <div>
+                <p style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 14, fontWeight: 800, color: "#fff", marginBottom: 4 }}>
+                  <Users style={{ width: 17, height: 17, color: "#FFD86B" }} />
+                  Referral Rewards
+                </p>
+                <p style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.5 }}>
+                  Invite friends and earn $25 when they activate VIP 1.
+                </p>
+              </div>
+              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                <p style={{ fontSize: 9, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em" }}>Earned</p>
+                <p style={{ fontSize: 19, fontWeight: 800, color: "#4ADE80" }}>${(referralSummary?.totalEarned ?? 0).toFixed(2)}</p>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+              <div style={{ flex: 1, background: "rgba(0,0,0,0.18)", borderRadius: 10, padding: "8px 10px", minWidth: 0 }}>
+                <p style={{ fontSize: 9, color: "#6B7280", marginBottom: 3 }}>YOUR CODE</p>
+                <p style={{ fontSize: 12, color: "#FFD86B", fontFamily: "monospace", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {referralsLoading ? "Loading..." : referralSummary?.referralCode ?? "—"}
+                </p>
+              </div>
+              <button onClick={handleCopyReferral} disabled={!referralLink} style={{ display: "inline-flex", alignItems: "center", gap: 6, border: "1px solid rgba(245,185,66,0.25)", borderRadius: 10, padding: "0 12px", background: "rgba(245,185,66,0.1)", color: "#FFD86B", cursor: referralLink ? "pointer" : "default", fontSize: 11, fontWeight: 700 }}>
+                {referralCopied ? <Check style={{ width: 14, height: 14 }} /> : <Share2 style={{ width: 14, height: 14 }} />}
+                {referralCopied ? "Copied" : "Share"}
+              </button>
+            </div>
+            {(referralSummary?.pendingCount ?? 0) > 0 && (
+              <p style={{ fontSize: 10, color: "#FACC15", marginTop: 10 }}>
+                {referralSummary?.pendingCount} referral{referralSummary?.pendingCount === 1 ? "" : "s"} waiting for VIP 1 activation.
+              </p>
+            )}
+            {referralSummary?.referrals?.length ? (
+              <div style={{ marginTop: 14, borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 10 }}>
+                <p style={{ fontSize: 10, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Your referrals</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {referralSummary.referrals.map((referral) => (
+                    <div key={referral.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                      <div style={{ minWidth: 0 }}>
+                        <p style={{ fontSize: 12, color: "#E5E7EB", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{referral.referredName}</p>
+                        <p style={{ fontSize: 10, color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {referral.referredPhone ?? "Phone pending"} · {referral.referredCountry ?? "Country pending"}
+                        </p>
+                      </div>
+                      <span style={{ fontSize: 10, color: referral.status === "credited" ? "#4ADE80" : "#FACC15", fontWeight: 700, whiteSpace: "nowrap" }}>
+                        {referral.status === "credited" ? `+$${referral.bonusAmount.toFixed(2)}` : "Pending VIP 1"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
 

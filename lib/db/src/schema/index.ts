@@ -27,6 +27,25 @@ export const insertUserSchema = createInsertSchema(usersTable).omit({ id: true, 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof usersTable.$inferSelect;
 
+// Referral relationships are created at signup and become payable only when
+// the referred user activates VIP 1. The reserved amount is admin-only.
+export const referralsTable = pgTable("referrals", {
+  id: serial("id").primaryKey(),
+  referrerUserId: integer("referrer_user_id").notNull(),
+  referredUserId: integer("referred_user_id").notNull().unique(),
+  status: varchar("status", { length: 20 }).notNull().default("pending"),
+  bonusAmount: numeric("bonus_amount", { precision: 12, scale: 2 }).notNull().default("25"),
+  reservedAmount: numeric("reserved_amount", { precision: 12, scale: 2 }).notNull().default("5"),
+  vip1PurchaseId: integer("vip1_purchase_id"),
+  creditedAt: timestamp("credited_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  index("referrals_referrer_created_at_idx").on(table.referrerUserId, table.createdAt),
+  index("referrals_status_created_at_idx").on(table.status, table.createdAt),
+]);
+
+export type Referral = typeof referralsTable.$inferSelect;
+
 // Sessions
 export const sessionsTable = pgTable("sessions", {
   id: serial("id").primaryKey(),

@@ -9,6 +9,7 @@ import {
   passwordResetTokensTable,
   emailVerificationTokensTable,
   loginOtpChallengesTable,
+  referralsTable,
 } from "@workspace/db";
 import { and, eq, isNull, lt } from "drizzle-orm";
 import crypto from "node:crypto";
@@ -156,11 +157,27 @@ router.post("/auth/register", async (req, res) => {
     return res.status(400).json({ error: "Invalid input" });
   }
   const { fullName, password, country } = parsed.data;
+  const phone = parsed.data.phone.trim();
+  const referralCode = parsed.data.referralCode?.trim().toUpperCase();
   const email = normalizeEmail(parsed.data.email);
+
+  if (!/^\+\d{7,15}$/.test(phone)) {
+    return res.status(400).json({ error: "Enter a valid phone number with country code." });
+  }
 
   const existing = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
   if (existing.length > 0) {
     return res.status(400).json({ error: "Email already registered" });
+  }
+
+  const [referrer] = referralCode
+    ? await db.select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.accountUid, referralCode))
+      .limit(1)
+    : [undefined];
+  if (referralCode && !referrer) {
+    return res.status(400).json({ error: "That referral code is invalid." });
   }
 
   const passwordHash = await hashPassword(password);
@@ -181,8 +198,18 @@ router.post("/auth/register", async (req, res) => {
     depositWithdrawal: true,
     promotions: false,
   });
-  await db.insert(userProfilesTable).values({ userId: user.id, country });
+  await db.insert(userProfilesTable).values({ userId: user.id, phone, country });
   await db.insert(kycTable).values({ userId: user.id, status: "not_submitted" });
+
+  if (referrer) {
+    await db.insert(referralsTable).values({
+      referrerUserId: referrer.id,
+      referredUserId: user.id,
+      status: "pending",
+      bonusAmount: "25",
+      reservedAmount: "5",
+    });
+  }
 
   // Existing route tests establish a session during registration so they can
   // exercise unrelated authenticated resources. This path is test-only and

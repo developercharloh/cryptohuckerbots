@@ -38,6 +38,7 @@ import type {
   AdminListTransactionsParams,
   AdminListUsersParams,
   AdminOverview,
+  AdminReferral,
   AdminRefundByUidInput,
   AdminResetPasswordResult,
   AdminReviewDepositInput,
@@ -85,6 +86,7 @@ import type {
   PaymentMethod,
   Profile,
   ProfileUpdate,
+  ReferralSummary,
   RegisterInput,
   ResendLoginOtpInput,
   ResetPasswordInput,
@@ -2898,12 +2900,83 @@ export function useGetProfile<TData = Awaited<ReturnType<typeof getProfile>>, TE
 
 
 
+export const getGetReferralSummaryUrl = () => {
+
+
+
+
+  return `/api/profile/referrals`
+}
+
+export const getReferralSummary = async ( options?: RequestInit): Promise<ReferralSummary> => {
+
+  return customFetch<ReferralSummary>(getGetReferralSummaryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetReferralSummaryQueryKey = () => {
+    return [
+    `/api/profile/referrals`
+    ] as const;
+    }
+
+
+export const getGetReferralSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getReferralSummary>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReferralSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetReferralSummaryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getReferralSummary>>> = ({ signal }) => getReferralSummary({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getReferralSummary>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetReferralSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getReferralSummary>>>
+export type GetReferralSummaryQueryError = ErrorType<unknown>
+
+
+
+export function useGetReferralSummary<TData = Awaited<ReturnType<typeof getReferralSummary>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReferralSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetReferralSummaryQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getUpdateProfileUrl = () => {
 
 
 
 
-  return `/api/profile`
+  return `/api/profile/referrals`
 }
 
 export const updateProfile = async (profileUpdate: ProfileUpdate, options?: RequestInit): Promise<Profile> => {
@@ -5179,6 +5252,77 @@ export function useAdminListTransactions<TData = Awaited<ReturnType<typeof admin
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getAdminListTransactionsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAdminListReferralsUrl = () => {
+
+
+
+
+  return `/api/admin/referrals`
+}
+
+export const adminListReferrals = async ( options?: RequestInit): Promise<AdminReferral[]> => {
+
+  return customFetch<AdminReferral[]>(getAdminListReferralsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminListReferralsQueryKey = () => {
+    return [
+    `/api/admin/referrals`
+    ] as const;
+    }
+
+
+export const getAdminListReferralsQueryOptions = <TData = Awaited<ReturnType<typeof adminListReferrals>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListReferrals>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminListReferralsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminListReferrals>>> = ({ signal }) => adminListReferrals({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminListReferrals>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminListReferralsQueryResult = NonNullable<Awaited<ReturnType<typeof adminListReferrals>>>
+export type AdminListReferralsQueryError = ErrorType<unknown>
+
+
+
+export function useAdminListReferrals<TData = Awaited<ReturnType<typeof adminListReferrals>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListReferrals>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminListReferralsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db, usersTable, sessionsTable, kycTable, notificationSettingsTable, userProfilesTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { db, usersTable, sessionsTable, kycTable, notificationSettingsTable, userProfilesTable, referralsTable } from "@workspace/db";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { generateSecret, generateURI, verifySync } from "otplib";
 import QRCode from "qrcode";
 import {
@@ -41,6 +41,45 @@ router.get("/profile", async (req, res) => {
     kycStatus: user.kycStatus,
     twoFAEnabled: user.twoFAEnabled,
     createdAt: user.createdAt.toISOString(),
+  });
+});
+
+router.get("/profile/referrals", async (req, res) => {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  const { user } = await getUserFromToken(token);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+  const rows = await db
+    .select({
+      referral: referralsTable,
+      referred: usersTable,
+      profile: userProfilesTable,
+    })
+    .from(referralsTable)
+    .innerJoin(usersTable, eq(referralsTable.referredUserId, usersTable.id))
+    .leftJoin(userProfilesTable, eq(referralsTable.referredUserId, userProfilesTable.userId))
+    .where(eq(referralsTable.referrerUserId, user.id))
+    .orderBy(desc(referralsTable.createdAt));
+
+  const [totals] = await db.select({
+    totalEarned: sql<string>`coalesce(sum(case when ${referralsTable.status} = 'credited' then ${referralsTable.bonusAmount} else 0 end), 0)`,
+    pendingCount: sql<number>`count(*) filter (where ${referralsTable.status} = 'pending')`,
+  }).from(referralsTable).where(eq(referralsTable.referrerUserId, user.id));
+
+  return res.json({
+    referralCode: user.accountUid,
+    totalEarned: Number(totals?.totalEarned ?? 0),
+    pendingCount: Number(totals?.pendingCount ?? 0),
+    referrals: rows.map(({ referral, referred, profile }) => ({
+      id: referral.id,
+      referredName: referred.fullName,
+      referredPhone: profile?.phone ?? null,
+      referredCountry: profile?.country ?? null,
+      status: referral.status,
+      bonusAmount: referral.status === "credited" ? Number(referral.bonusAmount) : 0,
+      createdAt: referral.createdAt.toISOString(),
+      creditedAt: referral.creditedAt?.toISOString() ?? null,
+    })),
   });
 });
 

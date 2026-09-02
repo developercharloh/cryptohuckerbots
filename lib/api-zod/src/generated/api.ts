@@ -33,11 +33,17 @@ export const ListMarketNewsResponse = zod.object({
 })
 
 
+export const registerBodyReferralCodeMax = 15;
+
+
+
 export const RegisterBody = zod.object({
   "fullName": zod.string(),
   "email": zod.string(),
   "password": zod.string(),
-  "country": zod.string()
+  "phone": zod.string(),
+  "country": zod.string(),
+  "referralCode": zod.string().max(registerBodyReferralCodeMax).optional()
 })
 
 export const RegisterResponse = zod.object({
@@ -775,6 +781,23 @@ export const GetProfileResponse = zod.object({
 })
 
 
+export const GetReferralSummaryResponse = zod.object({
+  "referralCode": zod.string(),
+  "totalEarned": zod.number(),
+  "pendingCount": zod.number(),
+  "referrals": zod.array(zod.object({
+  "id": zod.number(),
+  "referredName": zod.string(),
+  "referredPhone": zod.string().nullable(),
+  "referredCountry": zod.string().nullable(),
+  "status": zod.enum(['pending', 'credited']),
+  "bonusAmount": zod.number(),
+  "createdAt": zod.string(),
+  "creditedAt": zod.string().nullable()
+}))
+})
+
+
 export const UpdateProfileBody = zod.object({
   "fullName": zod.string().optional(),
   "phone": zod.string().optional(),
@@ -1378,6 +1401,22 @@ export const AdminListTransactionsResponseItem = zod.object({
   "conversionRate": zod.number().nullish()
 })
 export const AdminListTransactionsResponse = zod.array(AdminListTransactionsResponseItem)
+
+
+export const AdminListReferralsResponseItem = zod.object({
+  "id": zod.number(),
+  "referrerName": zod.string(),
+  "referrerEmail": zod.string(),
+  "referredName": zod.string(),
+  "referredPhone": zod.string().nullable(),
+  "referredCountry": zod.string().nullable(),
+  "status": zod.enum(['pending', 'credited']),
+  "bonusAmount": zod.number(),
+  "reservedAmount": zod.number(),
+  "createdAt": zod.string(),
+  "creditedAt": zod.string().nullable()
+})
+export const AdminListReferralsResponse = zod.array(AdminListReferralsResponseItem)
 
 
 export const AdminReviewTransactionParams = zod.object({
