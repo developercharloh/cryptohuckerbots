@@ -859,17 +859,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Profile"
-  /profile/referrals:
-    get:
-      operationId: getReferralSummary
-      tags: [profile]
-      responses:
-        "200":
-          description: Referral summary for the authenticated user
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ReferralSummary"
     patch:
       operationId: updateProfile
       tags: [profile]
@@ -886,6 +875,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Profile"
+  /profile/referrals:
+    get:
+      operationId: getReferralSummary
+      tags: [profile]
+      responses:
+        "200":
+          description: Referral summary for the authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralSummary"
 
   /profile/change-password:
     post:
