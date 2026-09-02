@@ -56,3 +56,9 @@ The linked GitHub push can fail with an invalid-credential error using the defau
 **Why:** The referral release could not use the default Git remote credential, while the secured workspace token successfully triggered the user, admin, and API production builds.
 
 **How to apply:** Never print or persist the token. Confirm each project reaches READY, then check the user signup chunk, admin referral bundle, API `/api/healthz`, and protected endpoints separately.
+
+The encrypted `NEON_DATABASE_URL` stored on a linked Vercel API project can point to a different Neon database than the workspace secret with the same name. A direct production-database edit is not live until an authenticated production API response confirms it.
+
+**Why:** A legacy referral reconciliation appeared correct through `psql` but the deployed admin API still returned zero records until the Vercel project secret was corrected and the API was rebuilt.
+
+**How to apply:** When live data disagrees with the workspace database, verify the authenticated production API first, compare the Vercel project environment configuration, correct the project-scoped secret without exposing it, redeploy the API, and recheck the same protected endpoint.
