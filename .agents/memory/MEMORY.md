@@ -12,6 +12,7 @@
 - [Vercel serverless initialization](vixus-vercel-serverless-init.md) — background database migrations and seeds can be frozen after a fast health response; await readiness or initialize explicitly.
 - [VIXUS AI support inbox](vixus-ai-support-inbox.md) — system chat markers preserve full history while defining closed threads and pending admin replies.
 - [VIXUS AI notification inbox](vixus-ai-notification-inbox.md) — show unread-only notifications, exact counts through 9, then +10, and remove read items immediately.
+- [VIXUS AI email auth](vixus-ai-email-auth.md) — password login must not restore stale browser sessions or issue a session until email verification and OTP are complete.
 - [VIXUS AI deployment verification](vixus-ai-vercel-deployment.md) — match Vercel deployment state to the pushed commit before trusting a live bundle; “latest production” can briefly show the prior ready build.
 - [VIXUS AI social previews](vixus-ai-social-preview-cache.md) — live crawler HTML can be clean while WhatsApp still shows an older cached Open Graph preview for the same URL.
 - [VIXUS AI video audio fallback](vixus-ai-video-audio.md) — if hosted voice/music generation is unavailable, use local FFmpeg Flite narration and composite delayed scene audio.
