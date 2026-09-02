@@ -172,7 +172,7 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
 
   const pendingDeposit = await request<{ id: number }>("/api/cashier/deposit", {
     method: "POST",
-    body: { amount: 250, paymentMethod: "USDT (TRC20)", walletAddress: "test-wallet" },
+    body: { amount: 250, paymentMethod: "USDT (BEP-20)", walletAddress: "test-wallet" },
   });
   assert.equal(pendingDeposit.response.status, 201);
 
