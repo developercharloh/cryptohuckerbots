@@ -402,6 +402,30 @@ export const adminLoginNotificationsTable = pgTable("admin_login_notifications",
 
 export type AdminLoginNotification = typeof adminLoginNotificationsTable.$inferSelect;
 
+// Sanitized technical incidents aggregated by fingerprint for the admin health
+// workspace. These records never contain passwords, tokens, request bodies, or
+// user-entered form values.
+export const technicalIncidentsTable = pgTable("technical_incidents", {
+  id: serial("id").primaryKey(),
+  fingerprint: varchar("fingerprint", { length: 128 }).notNull().unique(),
+  source: varchar("source", { length: 20 }).notNull().default("client"),
+  event: varchar("event", { length: 100 }).notNull(),
+  route: varchar("route", { length: 255 }).notNull().default("unknown"),
+  message: text("message").notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("active"),
+  occurrences: integer("occurrences").notNull().default(1),
+  lastStatusCode: integer("last_status_code"),
+  firstSeenAt: timestamp("first_seen_at").notNull().defaultNow(),
+  lastSeenAt: timestamp("last_seen_at").notNull().defaultNow(),
+  resolvedAt: timestamp("resolved_at"),
+  resolvedBy: integer("resolved_by"),
+}, (table) => [
+  index("technical_incidents_status_last_seen_idx").on(table.status, table.lastSeenAt),
+  index("technical_incidents_last_seen_idx").on(table.lastSeenAt),
+]);
+
+export type TechnicalIncident = typeof technicalIncidentsTable.$inferSelect;
+
 export const settingsTable = pgTable("settings", {
   id: serial("id").primaryKey(),
   appName: text("app_name").notNull().default("VIXUS"),

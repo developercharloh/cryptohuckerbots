@@ -98,6 +98,9 @@ import type {
   SuccessResponse,
   SupportTicket,
   SupportTicketInput,
+  TechnicalErrorInput,
+  TechnicalHealthResponse,
+  TechnicalIncident,
   TradeAccess,
   TradePosition,
   TradeSignal,
@@ -216,6 +219,76 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 
 
 
+
+export const getReportTechnicalErrorUrl = () => {
+
+
+
+
+  return `/api/technical-errors`
+}
+
+/**
+ * @summary Record a sanitized client technical incident
+ */
+export const reportTechnicalError = async (technicalErrorInput: TechnicalErrorInput, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getReportTechnicalErrorUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(technicalErrorInput)
+  }
+);}
+
+
+
+
+export const getReportTechnicalErrorMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reportTechnicalError>>, TError,{data: BodyType<TechnicalErrorInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reportTechnicalError>>, TError,{data: BodyType<TechnicalErrorInput>}, TContext> => {
+
+const mutationKey = ['reportTechnicalError'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reportTechnicalError>>, {data: BodyType<TechnicalErrorInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  reportTechnicalError(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReportTechnicalErrorMutationResult = NonNullable<Awaited<ReturnType<typeof reportTechnicalError>>>
+    export type ReportTechnicalErrorMutationBody = BodyType<TechnicalErrorInput>
+    export type ReportTechnicalErrorMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Record a sanitized client technical incident
+ */
+export const useReportTechnicalError = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reportTechnicalError>>, TError,{data: BodyType<TechnicalErrorInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reportTechnicalError>>,
+        TError,
+        {data: BodyType<TechnicalErrorInput>},
+        TContext
+      > => {
+      return useMutation(getReportTechnicalErrorMutationOptions(options));
+    }
 
 export const getListMarketNewsUrl = () => {
 
@@ -4243,6 +4316,211 @@ export function useAdminGetOverview<TData = Awaited<ReturnType<typeof adminGetOv
 
 
 
+
+export const getAdminGetTechnicalHealthUrl = () => {
+
+
+
+
+  return `/api/admin/technical-health`
+}
+
+/**
+ * @summary Private technical health dashboard
+ */
+export const adminGetTechnicalHealth = async ( options?: RequestInit): Promise<TechnicalHealthResponse> => {
+
+  return customFetch<TechnicalHealthResponse>(getAdminGetTechnicalHealthUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminGetTechnicalHealthQueryKey = () => {
+    return [
+    `/api/admin/technical-health`
+    ] as const;
+    }
+
+
+export const getAdminGetTechnicalHealthQueryOptions = <TData = Awaited<ReturnType<typeof adminGetTechnicalHealth>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetTechnicalHealth>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminGetTechnicalHealthQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminGetTechnicalHealth>>> = ({ signal }) => adminGetTechnicalHealth({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminGetTechnicalHealth>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminGetTechnicalHealthQueryResult = NonNullable<Awaited<ReturnType<typeof adminGetTechnicalHealth>>>
+export type AdminGetTechnicalHealthQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Private technical health dashboard
+ */
+
+export function useAdminGetTechnicalHealth<TData = Awaited<ReturnType<typeof adminGetTechnicalHealth>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetTechnicalHealth>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminGetTechnicalHealthQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAdminResolveTechnicalIncidentUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/technical-incidents/${id}/resolve`
+}
+
+export const adminResolveTechnicalIncident = async (id: number, options?: RequestInit): Promise<TechnicalIncident> => {
+
+  return customFetch<TechnicalIncident>(getAdminResolveTechnicalIncidentUrl(id),
+  {
+    ...options,
+    method: 'PATCH'
+
+
+  }
+);}
+
+
+
+
+export const getAdminResolveTechnicalIncidentMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminResolveTechnicalIncident>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminResolveTechnicalIncident>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['adminResolveTechnicalIncident'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminResolveTechnicalIncident>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  adminResolveTechnicalIncident(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminResolveTechnicalIncidentMutationResult = NonNullable<Awaited<ReturnType<typeof adminResolveTechnicalIncident>>>
+
+    export type AdminResolveTechnicalIncidentMutationError = ErrorType<unknown>
+
+    export const useAdminResolveTechnicalIncident = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminResolveTechnicalIncident>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminResolveTechnicalIncident>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getAdminResolveTechnicalIncidentMutationOptions(options));
+    }
+
+export const getAdminReopenTechnicalIncidentUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/technical-incidents/${id}/reopen`
+}
+
+export const adminReopenTechnicalIncident = async (id: number, options?: RequestInit): Promise<TechnicalIncident> => {
+
+  return customFetch<TechnicalIncident>(getAdminReopenTechnicalIncidentUrl(id),
+  {
+    ...options,
+    method: 'PATCH'
+
+
+  }
+);}
+
+
+
+
+export const getAdminReopenTechnicalIncidentMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminReopenTechnicalIncident>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminReopenTechnicalIncident>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['adminReopenTechnicalIncident'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminReopenTechnicalIncident>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  adminReopenTechnicalIncident(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminReopenTechnicalIncidentMutationResult = NonNullable<Awaited<ReturnType<typeof adminReopenTechnicalIncident>>>
+
+    export type AdminReopenTechnicalIncidentMutationError = ErrorType<unknown>
+
+    export const useAdminReopenTechnicalIncident = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminReopenTechnicalIncident>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminReopenTechnicalIncident>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getAdminReopenTechnicalIncidentMutationOptions(options));
+    }
 
 export const getAdminListUsersUrl = (params?: AdminListUsersParams,) => {
   const normalizedParams = new URLSearchParams();

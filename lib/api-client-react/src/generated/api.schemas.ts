@@ -9,6 +9,84 @@ export interface HealthStatus {
   status: string;
 }
 
+export type TechnicalErrorInputSource = typeof TechnicalErrorInputSource[keyof typeof TechnicalErrorInputSource];
+
+
+export const TechnicalErrorInputSource = {
+  client: 'client',
+  api: 'api',
+  health: 'health',
+} as const;
+
+export interface TechnicalErrorInput {
+  source?: TechnicalErrorInputSource;
+  event: string;
+  route?: string;
+  message?: string;
+  statusCode?: number;
+}
+
+export type TechnicalIncidentStatus = typeof TechnicalIncidentStatus[keyof typeof TechnicalIncidentStatus];
+
+
+export const TechnicalIncidentStatus = {
+  active: 'active',
+  resolved: 'resolved',
+} as const;
+
+export interface TechnicalIncident {
+  id: number;
+  fingerprint: string;
+  source: string;
+  event: string;
+  route: string;
+  message: string;
+  status: TechnicalIncidentStatus;
+  occurrences: number;
+  /** @nullable */
+  lastStatusCode: number | null;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  /** @nullable */
+  resolvedAt: string | null;
+  /** @nullable */
+  resolvedBy: number | null;
+}
+
+export type TechnicalHealthCheckStatus = typeof TechnicalHealthCheckStatus[keyof typeof TechnicalHealthCheckStatus];
+
+
+export const TechnicalHealthCheckStatus = {
+  healthy: 'healthy',
+  warning: 'warning',
+  critical: 'critical',
+} as const;
+
+export interface TechnicalHealthCheck {
+  key: string;
+  label: string;
+  status: TechnicalHealthCheckStatus;
+  message: string;
+}
+
+export type TechnicalHealthResponseStatus = typeof TechnicalHealthResponseStatus[keyof typeof TechnicalHealthResponseStatus];
+
+
+export const TechnicalHealthResponseStatus = {
+  healthy: 'healthy',
+  warning: 'warning',
+  critical: 'critical',
+} as const;
+
+export interface TechnicalHealthResponse {
+  checkedAt: string;
+  status: TechnicalHealthResponseStatus;
+  activeCount: number;
+  criticalCount: number;
+  checks: TechnicalHealthCheck[];
+  incidents: TechnicalIncident[];
+}
+
 export type MarketNewsArticleCategory = typeof MarketNewsArticleCategory[keyof typeof MarketNewsArticleCategory];
 
 

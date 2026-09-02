@@ -241,13 +241,7 @@ export class ApiNetworkError extends Error {
   readonly cause: unknown;
 
   constructor(cause: unknown, requestInfo: { method: string; url: string }) {
-    const offline =
-      typeof navigator !== "undefined" && navigator.onLine === false;
-    super(
-      offline
-        ? "You appear to be offline. Check your connection and try again."
-        : "Unable to reach the VIXUS API. Check your connection and try again.",
-    );
+    super("Please try again in a moment.");
     Object.setPrototypeOf(this, new.target.prototype);
     this.method = requestInfo.method;
     this.url = requestInfo.url;
@@ -344,6 +338,16 @@ async function parseSuccessBody(
   }
 }
 
+function emitTechnicalApiFailure(detail: {
+  event: string;
+  route: string;
+  message: string;
+  statusCode?: number;
+}): void {
+  if (typeof window === "undefined" || typeof window.dispatchEvent !== "function") return;
+  window.dispatchEvent(new CustomEvent("vixus-api-error", { detail }));
+}
+
 export async function customFetch<T = unknown>(
   input: RequestInfo | URL,
   options: CustomFetchOptions = {},
@@ -413,10 +417,20 @@ export async function customFetch<T = unknown>(
       "name" in error &&
       (error as { name?: unknown }).name === "AbortError"
     ) {
+      emitTechnicalApiFailure({
+        event: "api_timeout",
+        route: requestInfo.url,
+        message: "The API request timed out.",
+      });
       throw new Error(
-        "The connection timed out before the server responded. Please check your connection and try again.",
+        "Please try again in a moment.",
       );
     }
+    emitTechnicalApiFailure({
+      event: "api_network_failure",
+      route: requestInfo.url,
+      message: "The API request could not reach the server.",
+    });
     throw new ApiNetworkError(error, requestInfo);
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
@@ -424,6 +438,14 @@ export async function customFetch<T = unknown>(
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);
+    if (response.status >= 500) {
+      emitTechnicalApiFailure({
+        event: "api_server_failure",
+        route: requestInfo.url,
+        message: "The API returned a server error.",
+        statusCode: response.status,
+      });
+    }
     throw new ApiError(response, errorData, requestInfo);
   }
 

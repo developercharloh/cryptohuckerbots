@@ -32,6 +32,21 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
 
+  /technical-errors:
+    post:
+      operationId: reportTechnicalError
+      tags: [health]
+      summary: Record a sanitized client technical incident
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TechnicalErrorInput"
+      responses:
+        "202":
+          description: Incident accepted for private monitoring
+
   /news:
     get:
       operationId: listMarketNews
@@ -1165,6 +1180,53 @@ paths:
               schema:
                 $ref: "#/components/schemas/AdminOverview"
 
+  /admin/technical-health:
+    get:
+      operationId: adminGetTechnicalHealth
+      tags: [admin]
+      summary: Private technical health dashboard
+      responses:
+        "200":
+          description: Current service checks and technical incidents
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TechnicalHealthResponse"
+
+  /admin/technical-incidents/{id}/resolve:
+    patch:
+      operationId: adminResolveTechnicalIncident
+      tags: [admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Resolved technical incident
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TechnicalIncident"
+
+  /admin/technical-incidents/{id}/reopen:
+    patch:
+      operationId: adminReopenTechnicalIncident
+      tags: [admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Reopened technical incident
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TechnicalIncident"
+
   /admin/users:
     get:
       operationId: adminListUsers
@@ -1790,6 +1852,58 @@ components:
         status:
           type: string
       required: [status]
+
+    TechnicalErrorInput:
+      type: object
+      properties:
+        source: { type: string, enum: [client, api, health] }
+        event: { type: string }
+        route: { type: string }
+        message: { type: string }
+        statusCode: { type: integer }
+      required: [event]
+
+    TechnicalIncident:
+      type: object
+      properties:
+        id: { type: integer }
+        fingerprint: { type: string }
+        source: { type: string }
+        event: { type: string }
+        route: { type: string }
+        message: { type: string }
+        status: { type: string, enum: [active, resolved] }
+        occurrences: { type: integer }
+        lastStatusCode: { type: ["integer", "null"] }
+        firstSeenAt: { type: string, format: date-time }
+        lastSeenAt: { type: string, format: date-time }
+        resolvedAt: { type: ["string", "null"], format: date-time }
+        resolvedBy: { type: ["integer", "null"] }
+      required: [id, fingerprint, source, event, route, message, status, occurrences, lastStatusCode, firstSeenAt, lastSeenAt, resolvedAt, resolvedBy]
+
+    TechnicalHealthCheck:
+      type: object
+      properties:
+        key: { type: string }
+        label: { type: string }
+        status: { type: string, enum: [healthy, warning, critical] }
+        message: { type: string }
+      required: [key, label, status, message]
+
+    TechnicalHealthResponse:
+      type: object
+      properties:
+        checkedAt: { type: string, format: date-time }
+        status: { type: string, enum: [healthy, warning, critical] }
+        activeCount: { type: integer }
+        criticalCount: { type: integer }
+        checks:
+          type: array
+          items: { $ref: "#/components/schemas/TechnicalHealthCheck" }
+        incidents:
+          type: array
+          items: { $ref: "#/components/schemas/TechnicalIncident" }
+      required: [checkedAt, status, activeCount, criticalCount, checks, incidents]
 
     MarketNewsResponse:
       type: object

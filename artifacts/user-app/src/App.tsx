@@ -43,10 +43,37 @@ async function recoverFromStaleClient(force = false): Promise<void> {
 function watchForChunkFailures() {
   if (typeof window === "undefined") return;
   const recover = (error: unknown) => {
-    if (isChunkLoadError(error)) void recoverFromStaleClient();
+    if (isChunkLoadError(error)) {
+      reportTechnicalError({
+        event: "chunk_load_failed",
+        message: "A page resource failed to load.",
+      });
+      void recoverFromStaleClient();
+      return;
+    }
+    reportTechnicalError({
+      event: "browser_error",
+      message: error instanceof Error ? error.message : String(error || "Browser error"),
+    });
   };
   window.addEventListener("error", (event) => recover(event.error ?? event.message));
-  window.addEventListener("unhandledrejection", (event) => recover(event.reason));
+  window.addEventListener("unhandledrejection", (event) => {
+    reportTechnicalError({
+      event: "unhandled_promise_rejection",
+      message: event.reason instanceof Error ? event.reason.message : String(event.reason || "Unhandled promise rejection"),
+    });
+    recover(event.reason);
+  });
+  window.addEventListener("vixus-api-error", ((event: CustomEvent) => {
+    const detail = event.detail && typeof event.detail === "object" ? event.detail : {};
+    reportTechnicalError({
+      source: "api",
+      event: typeof detail.event === "string" ? detail.event : "api_request_failed",
+      route: typeof detail.route === "string" ? detail.route : window.location.pathname,
+      message: typeof detail.message === "string" ? detail.message : "The API request failed.",
+      statusCode: typeof detail.statusCode === "number" ? detail.statusCode : undefined,
+    });
+  }) as EventListener);
 }
 
 if (typeof window !== "undefined") {
@@ -67,6 +94,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
     return { hasError: true };
   }
   componentDidCatch(err: Error) {
+    reportTechnicalError({ event: "react_render_error", message: err.message });
     if (isChunkLoadError(err)) {
       void recoverFromStaleClient();
     }
@@ -98,6 +126,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { AuthGuard } from "@/components/AuthGuard";
 import { InstallAppPrompt } from "@/components/InstallAppPrompt";
 import { ProfileCompletionPrompt } from "@/components/ProfileCompletionPrompt";
+import { reportTechnicalError } from "@/lib/technical-errors";
 
 // Keep the entry chunk small. Pages load only when their route is visited so
 // login does not download charts, cashier forms, support, and bot analytics.

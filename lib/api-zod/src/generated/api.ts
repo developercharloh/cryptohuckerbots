@@ -17,6 +17,20 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
+ * @summary Record a sanitized client technical incident
+ */
+export const ReportTechnicalErrorBody = zod.object({
+  "source": zod.enum(['client', 'api', 'health']).optional(),
+  "event": zod.string(),
+  "route": zod.string().optional(),
+  "message": zod.string().optional(),
+  "statusCode": zod.number().optional()
+})
+
+export const ReportTechnicalErrorResponse = zod.void()
+
+
+/**
  * @summary Live global trading and markets news
  */
 export const ListMarketNewsResponse = zod.object({
@@ -1068,6 +1082,80 @@ export const AdminGetOverviewResponse = zod.object({
   "cryptoAsset": zod.string().nullish(),
   "conversionRate": zod.number().nullish()
 }))
+})
+
+
+/**
+ * @summary Private technical health dashboard
+ */
+export const AdminGetTechnicalHealthResponse = zod.object({
+  "checkedAt": zod.coerce.date(),
+  "status": zod.enum(['healthy', 'warning', 'critical']),
+  "activeCount": zod.number(),
+  "criticalCount": zod.number(),
+  "checks": zod.array(zod.object({
+  "key": zod.string(),
+  "label": zod.string(),
+  "status": zod.enum(['healthy', 'warning', 'critical']),
+  "message": zod.string()
+})),
+  "incidents": zod.array(zod.object({
+  "id": zod.number(),
+  "fingerprint": zod.string(),
+  "source": zod.string(),
+  "event": zod.string(),
+  "route": zod.string(),
+  "message": zod.string(),
+  "status": zod.enum(['active', 'resolved']),
+  "occurrences": zod.number(),
+  "lastStatusCode": zod.number().nullable(),
+  "firstSeenAt": zod.coerce.date(),
+  "lastSeenAt": zod.coerce.date(),
+  "resolvedAt": zod.coerce.date().nullable(),
+  "resolvedBy": zod.number().nullable()
+}))
+})
+
+
+export const AdminResolveTechnicalIncidentParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AdminResolveTechnicalIncidentResponse = zod.object({
+  "id": zod.number(),
+  "fingerprint": zod.string(),
+  "source": zod.string(),
+  "event": zod.string(),
+  "route": zod.string(),
+  "message": zod.string(),
+  "status": zod.enum(['active', 'resolved']),
+  "occurrences": zod.number(),
+  "lastStatusCode": zod.number().nullable(),
+  "firstSeenAt": zod.coerce.date(),
+  "lastSeenAt": zod.coerce.date(),
+  "resolvedAt": zod.coerce.date().nullable(),
+  "resolvedBy": zod.number().nullable()
+})
+
+
+export const AdminReopenTechnicalIncidentParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AdminReopenTechnicalIncidentResponse = zod.object({
+  "id": zod.number(),
+  "fingerprint": zod.string(),
+  "source": zod.string(),
+  "event": zod.string(),
+  "route": zod.string(),
+  "message": zod.string(),
+  "status": zod.enum(['active', 'resolved']),
+  "occurrences": zod.number(),
+  "lastStatusCode": zod.number().nullable(),
+  "firstSeenAt": zod.coerce.date(),
+  "lastSeenAt": zod.coerce.date(),
+  "resolvedAt": zod.coerce.date().nullable(),
+  "resolvedBy": zod.number().nullable()
 })
 
 

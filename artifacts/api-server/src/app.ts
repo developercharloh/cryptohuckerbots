@@ -11,6 +11,7 @@ import {
   USER_SESSION_COOKIE,
 } from "./lib/session";
 import { consumeRateLimit, rejectRateLimited, requestIp } from "./lib/security";
+import { recordTechnicalIncident } from "./lib/technical";
 
 const app: Express = express();
 app.disable("x-powered-by");
@@ -337,7 +338,7 @@ if (process.env.SERVE_ADMIN === "true") {
 // input) fail the same predictable, debuggable way instead of relying on
 // each individual route to anticipate it.
 app.use(
-  (
+  async (
     err: unknown,
     req: express.Request,
     res: express.Response,
@@ -362,6 +363,13 @@ app.use(
     }
 
     req.log?.error({ err }, "Unhandled error");
+    await recordTechnicalIncident({
+      source: "api",
+      event: "unhandled_api_error",
+      route: req.path,
+      message: error?.message || "Unhandled API error",
+      statusCode: status >= 400 && status < 600 ? status : 500,
+    });
     res.status(status >= 400 && status < 600 ? status : 500).json({
       error: "An unexpected error occurred. Please try again later.",
     });

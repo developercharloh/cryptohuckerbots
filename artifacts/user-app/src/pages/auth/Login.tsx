@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, Loader2, ShieldCheck, ChevronLeft, Lock, Mail } from "lucide-react";
 import { VixusLogo } from "@/components/VixusLogo";
 import { API_BASE, fetchWithTimeout } from "@/lib/api-base";
+import { reportTechnicalError } from "@/lib/technical-errors";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -30,6 +31,7 @@ export default function Login() {
   const loginMutation = useLogin();
   const apiWarmupRef = useRef<Promise<boolean> | null>(null);
   const [warmingApi, setWarmingApi] = useState(false);
+  const [connectionMessage, setConnectionMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const search = useSearch();
   const prefilledEmail = new URLSearchParams(search).get("email") ?? "";
@@ -75,14 +77,17 @@ export default function Login() {
 
     if (!apiReady) {
       apiWarmupRef.current = null;
-      toast({
-        title: "VIXUS is still waking up",
-        description: "The secure login service did not respond. Please tap Login again in a moment.",
-        variant: "destructive",
+      reportTechnicalError({
+        source: "health",
+        event: "readiness_check_failed",
+        route: "/api/readyz",
+        message: "The login readiness check did not complete.",
       });
+      setConnectionMessage("Please try again in a moment.");
       return;
     }
 
+    setConnectionMessage("");
     loginMutation.mutate({ data: { email: values.email, password: values.password } }, {
       onSuccess: (res: any) => {
         if (res.requiresEmailOtp) {
@@ -100,12 +105,24 @@ export default function Login() {
         }
       },
       onError: (err: any) => {
+        const isTechnicalFailure = err?.status >= 500 || !Number.isInteger(err?.status);
+        if (isTechnicalFailure) {
+          reportTechnicalError({
+            source: "api",
+            event: "login_request_failed",
+            route: "/api/auth/login",
+            message: err?.message || "Login request failed.",
+            statusCode: Number.isInteger(err?.status) ? err.status : undefined,
+          });
+          setConnectionMessage("Please try again in a moment.");
+          return;
+        }
         if (err.status === 403 && err.data?.code === "EMAIL_NOT_VERIFIED") {
           toast({ title: "Verify your email first", description: "Open the verification email we sent you, then return to log in." });
           setLocation(`/verify-email?email=${encodeURIComponent(values.email)}`);
           return;
         }
-        toast({ title: "Login failed", description: err.message || "Unable to sign in. Please try again.", variant: "destructive" });
+        toast({ title: "Login failed", description: "Unable to sign in. Please check your details and try again.", variant: "destructive" });
       },
     });
   };
@@ -366,6 +383,11 @@ export default function Login() {
             >
               {loginMutation.isPending || warmingApi ? <Loader2 size={20} style={{ animation: "spin 1s linear infinite" }} /> : "Login"}
             </button>
+            {connectionMessage && (
+              <p style={{ margin: "0 4px", textAlign: "center", fontSize: 12, color: "#94A3B8" }}>
+                {connectionMessage}
+              </p>
+            )}
           </form>
         </Form>
       </div>

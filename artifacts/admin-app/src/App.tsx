@@ -19,6 +19,7 @@ import Finance from "@/pages/Finance";
 import Support from "@/pages/Support";
 import Settings from "@/pages/Settings";
 import Broadcast from "@/pages/Broadcast";
+import TechnicalHealth from "@/pages/TechnicalHealth";
 import NotFound from "@/pages/not-found";
 
 setBaseUrl(API_BASE || null);
@@ -66,6 +67,7 @@ function Router({ onLogout, adminSession }: { onLogout: () => void; adminSession
         <Route path="/support" component={Support} />
         <Route path="/settings" component={Settings} />
         <Route path="/broadcast" component={Broadcast} />
+        <Route path="/health" component={TechnicalHealth} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

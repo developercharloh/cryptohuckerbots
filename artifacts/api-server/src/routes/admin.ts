@@ -24,6 +24,7 @@ import {
   vipInvestmentCapitalTable,
   vipPackagePurchasesTable,
   referralsTable,
+  technicalIncidentsTable,
   type PaymentMethod,
 } from "@workspace/db";
 import { eq, and, desc, sql, inArray, ilike, or, gte } from "drizzle-orm";
@@ -238,6 +239,99 @@ router.delete("/admin/login-notifications/:id", async (req, res) => {
     .delete(adminLoginNotificationsTable)
     .where(eq(adminLoginNotificationsTable.id, id));
   return res.json({ ok: true });
+});
+
+// ─── Technical Health ─────────────────────────────────────────────────────────
+router.get("/admin/technical-health", async (req, res) => {
+  const checkedAt = new Date().toISOString();
+  let databaseStatus: "healthy" | "critical" = "healthy";
+  let databaseMessage = "Database query completed successfully.";
+
+  try {
+    await db.execute(sql`select 1`);
+  } catch (error) {
+    databaseStatus = "critical";
+    databaseMessage = "Database check failed.";
+    req.log?.error({ err: error }, "Technical health database check failed");
+  }
+
+  const incidents = await db
+    .select()
+    .from(technicalIncidentsTable)
+    .orderBy(desc(technicalIncidentsTable.lastSeenAt))
+    .limit(100);
+  const activeIncidents = incidents.filter((incident) => incident.status === "active");
+  const criticalIncidentCount = activeIncidents.filter((incident) =>
+    incident.lastStatusCode !== null && incident.lastStatusCode >= 500
+  ).length;
+  const startupReady = req.app.locals.startupReady === true;
+  const overallStatus = databaseStatus === "critical" || !startupReady || criticalIncidentCount > 0
+    ? "critical"
+    : activeIncidents.length > 0
+      ? "warning"
+      : "healthy";
+
+  return res.json({
+    checkedAt,
+    status: overallStatus,
+    activeCount: activeIncidents.length,
+    criticalCount: criticalIncidentCount,
+    checks: [
+      {
+        key: "api",
+        label: "API service",
+        status: "healthy",
+        message: "Admin health endpoint responded successfully.",
+      },
+      {
+        key: "database",
+        label: "Database",
+        status: databaseStatus,
+        message: databaseMessage,
+      },
+      {
+        key: "startup",
+        label: "Application readiness",
+        status: startupReady ? "healthy" : "critical",
+        message: startupReady ? "Startup checks are complete." : "Startup checks are still running.",
+      },
+    ],
+    incidents,
+  });
+});
+
+router.patch("/admin/technical-incidents/:id/resolve", async (req, res) => {
+  const id = Number.parseInt(req.params.id, 10);
+  if (!Number.isInteger(id)) return res.status(400).json({ error: "Invalid incident id." });
+
+  const token = getRequestToken(req, ADMIN_SESSION_COOKIE);
+  const payload = parseAdminToken(token);
+  const [incident] = await db
+    .update(technicalIncidentsTable)
+    .set({
+      status: "resolved",
+      resolvedAt: new Date(),
+      resolvedBy: payload?.userId ?? null,
+    })
+    .where(eq(technicalIncidentsTable.id, id))
+    .returning();
+
+  if (!incident) return res.status(404).json({ error: "Technical incident not found." });
+  return res.json(incident);
+});
+
+router.patch("/admin/technical-incidents/:id/reopen", async (req, res) => {
+  const id = Number.parseInt(req.params.id, 10);
+  if (!Number.isInteger(id)) return res.status(400).json({ error: "Invalid incident id." });
+
+  const [incident] = await db
+    .update(technicalIncidentsTable)
+    .set({ status: "active", resolvedAt: null, resolvedBy: null, lastSeenAt: new Date() })
+    .where(eq(technicalIncidentsTable.id, id))
+    .returning();
+
+  if (!incident) return res.status(404).json({ error: "Technical incident not found." });
+  return res.json(incident);
 });
 
 const KYC_PENDING = ["pending", "submitted", "under_review"];
