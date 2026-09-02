@@ -103,6 +103,26 @@ async function main(): Promise<void> {
   const ready = await expectStatus("api readiness", `${API_URL}/api/readyz`, 200, MAX_READY_MS);
   if (!ready.body.includes('"status":"ready"')) fail("api readiness: unexpected response body");
 
+  const paymentMethods = await expectStatus("cashier payment methods", `${API_URL}/api/cashier/payment-methods`, 200, MAX_API_MS);
+  let methods: unknown;
+  try {
+    methods = JSON.parse(paymentMethods.body);
+  } catch {
+    fail("cashier payment methods: response was not valid JSON");
+  }
+  if (!Array.isArray(methods) || methods.length !== 1) {
+    fail("cashier payment methods: expected exactly one supported method");
+  }
+  const [method] = methods as Array<Record<string, unknown>>;
+  if (
+    method.id !== "usdt_bep20" ||
+    method.name !== "USDT (BEP-20)" ||
+    method.network !== "BEP-20" ||
+    method.depositAddress !== "0x50Ef0c6963Bf42Fd7f9E0Ba7003e036d2E994C6B"
+  ) {
+    fail("cashier payment methods: canonical BSC/BEP-20 method was not returned");
+  }
+
   for (const route of ["/api/auth/me", "/api/dashboard/summary", "/api/trade/vip-packages"]) {
     await expectStatus(`protected ${route}`, `${API_URL}${route}`, 401, MAX_API_MS);
   }

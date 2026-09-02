@@ -24,3 +24,13 @@ export const BSC_PAYMENT_METHOD_SETTINGS = {
 export function isBscWalletAddress(value: string): boolean {
   return /^0x[a-fA-F0-9]{40}$/.test(value.trim());
 }
+
+export function validateBscWithdrawal(paymentMethod: string, walletAddress: string): string | null {
+  if (paymentMethod !== BSC_PAYMENT_METHOD.name && paymentMethod !== BSC_PAYMENT_METHOD.id) {
+    return "Only USDT on BNB Smart Chain (BEP-20) is supported";
+  }
+  if (!isBscWalletAddress(walletAddress)) {
+    return "Enter a valid BNB Smart Chain (BEP-20) wallet address";
+  }
+  return null;
+}

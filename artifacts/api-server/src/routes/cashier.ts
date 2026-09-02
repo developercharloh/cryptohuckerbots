@@ -6,7 +6,7 @@ import { CreateWithdrawalBody } from "@workspace/api-zod";
 import { sendPushToAllAdmins } from "../lib/webPush";
 import { notifyAdminTransaction } from "../lib/loginAlarm";
 import { getAvailableBalance } from "../utils/balance.js";
-import { BSC_PAYMENT_METHOD, isBscWalletAddress } from "../lib/payment-methods";
+import { BSC_PAYMENT_METHOD, validateBscWithdrawal } from "../lib/payment-methods";
 
 const router = Router();
 
@@ -179,12 +179,8 @@ router.post("/cashier/withdraw", async (req, res) => {
 
   const { amount, paymentMethod, walletAddress, cryptoAmount, cryptoAsset, conversionRate } = parsed.data;
   if (amount <= 0) return res.status(400).json({ error: "Amount must be greater than 0" });
-  if (paymentMethod !== BSC_PAYMENT_METHOD.name && paymentMethod !== BSC_PAYMENT_METHOD.id) {
-    return res.status(400).json({ error: "Only USDT on BNB Smart Chain (BEP-20) is supported" });
-  }
-  if (!isBscWalletAddress(walletAddress)) {
-    return res.status(400).json({ error: "Enter a valid BNB Smart Chain (BEP-20) wallet address" });
-  }
+  const policyError = validateBscWithdrawal(paymentMethod, walletAddress);
+  if (policyError) return res.status(400).json({ error: policyError });
 
   const available = await getAvailableBalance(user.id);
   if (amount > available) {
