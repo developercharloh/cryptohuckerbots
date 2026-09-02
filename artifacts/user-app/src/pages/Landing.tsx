@@ -10,6 +10,7 @@ import {
   Cpu, Clock, Newspaper, ExternalLink, RefreshCw,
 } from "lucide-react";
 import { createChart, ColorType, CrosshairMode, CandlestickSeries } from "lightweight-charts";
+import { WelcomeLoader } from "@/components/WelcomeLoader";
 
 /* ─── Design tokens (extracted from Base44 bundle) ────────────── */
 const PURPLE    = "#F5B942";
@@ -475,6 +476,7 @@ export default function Landing() {
 
   return (
     <div style={{ background: "#fff", color: "#111827", fontFamily: "'Inter Tight', Inter, system-ui, sans-serif", minHeight: "100dvh", overflowX: "hidden" }}>
+      <WelcomeLoader />
 
       {/* ── GOOGLE FONTS ──────────────────────────────────────── */}
       <link rel="preconnect" href="https://fonts.googleapis.com" />
