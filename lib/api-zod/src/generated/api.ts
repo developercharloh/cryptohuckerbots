@@ -804,6 +804,26 @@ export const GetProfileResponse = zod.object({
 })
 
 
+export const UpdateProfileBody = zod.object({
+  "fullName": zod.string().optional(),
+  "phone": zod.string().optional(),
+  "country": zod.string().optional()
+})
+
+export const UpdateProfileResponse = zod.object({
+  "id": zod.number(),
+  "accountUid": zod.string(),
+  "fullName": zod.string(),
+  "email": zod.string(),
+  "phone": zod.string().nullish(),
+  "country": zod.string().nullish(),
+  "avatarUrl": zod.string().nullish(),
+  "kycStatus": zod.string(),
+  "twoFAEnabled": zod.boolean(),
+  "createdAt": zod.string()
+})
+
+
 export const getReferralSummaryResponseReferralsItemCurrentVipLevelMin = 0;
 export const getReferralSummaryResponseReferralsItemCurrentVipLevelMax = 10;
 
@@ -827,26 +847,6 @@ export const GetReferralSummaryResponse = zod.object({
   "createdAt": zod.string(),
   "creditedAt": zod.string().nullable()
 }))
-})
-
-
-export const UpdateProfileBody = zod.object({
-  "fullName": zod.string().optional(),
-  "phone": zod.string().optional(),
-  "country": zod.string().optional()
-})
-
-export const UpdateProfileResponse = zod.object({
-  "id": zod.number(),
-  "accountUid": zod.string(),
-  "fullName": zod.string(),
-  "email": zod.string(),
-  "phone": zod.string().nullish(),
-  "country": zod.string().nullish(),
-  "avatarUrl": zod.string().nullish(),
-  "kycStatus": zod.string(),
-  "twoFAEnabled": zod.boolean(),
-  "createdAt": zod.string()
 })
 
 
@@ -1183,6 +1183,16 @@ export const AdminResetUserPasswordParams = zod.object({
 
 export const AdminResetUserPasswordResponse = zod.object({
   "tempPassword": zod.string()
+})
+
+
+export const AdminResetUserHistoryParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AdminResetUserHistoryResponse = zod.object({
+  "userId": zod.number(),
+  "message": zod.string()
 })
 
 

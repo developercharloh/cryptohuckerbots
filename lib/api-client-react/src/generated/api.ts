@@ -41,6 +41,7 @@ import type {
   AdminReferral,
   AdminRefundByUidInput,
   AdminResetPasswordResult,
+  AdminResetUserHistoryResult,
   AdminReviewDepositInput,
   AdminSettings,
   AdminSettingsInput,
@@ -2900,6 +2901,70 @@ export function useGetProfile<TData = Awaited<ReturnType<typeof getProfile>>, TE
 
 
 
+export const getUpdateProfileUrl = () => {
+
+
+
+
+  return `/api/profile`
+}
+
+export const updateProfile = async (profileUpdate: ProfileUpdate, options?: RequestInit): Promise<Profile> => {
+
+  return customFetch<Profile>(getUpdateProfileUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(profileUpdate)
+  }
+);}
+
+
+
+
+export const getUpdateProfileMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProfile>>, TError,{data: BodyType<ProfileUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateProfile>>, TError,{data: BodyType<ProfileUpdate>}, TContext> => {
+
+const mutationKey = ['updateProfile'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateProfile>>, {data: BodyType<ProfileUpdate>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateProfile(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateProfileMutationResult = NonNullable<Awaited<ReturnType<typeof updateProfile>>>
+    export type UpdateProfileMutationBody = BodyType<ProfileUpdate>
+    export type UpdateProfileMutationError = ErrorType<unknown>
+
+    export const useUpdateProfile = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProfile>>, TError,{data: BodyType<ProfileUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateProfile>>,
+        TError,
+        {data: BodyType<ProfileUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateProfileMutationOptions(options));
+    }
+
 export const getGetReferralSummaryUrl = () => {
 
 
@@ -2970,70 +3035,6 @@ export function useGetReferralSummary<TData = Awaited<ReturnType<typeof getRefer
 
 
 
-
-export const getUpdateProfileUrl = () => {
-
-
-
-
-  return `/api/profile/referrals`
-}
-
-export const updateProfile = async (profileUpdate: ProfileUpdate, options?: RequestInit): Promise<Profile> => {
-
-  return customFetch<Profile>(getUpdateProfileUrl(),
-  {
-    ...options,
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(profileUpdate)
-  }
-);}
-
-
-
-
-export const getUpdateProfileMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProfile>>, TError,{data: BodyType<ProfileUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof updateProfile>>, TError,{data: BodyType<ProfileUpdate>}, TContext> => {
-
-const mutationKey = ['updateProfile'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateProfile>>, {data: BodyType<ProfileUpdate>}> = (props) => {
-          const {data} = props ?? {};
-
-          return  updateProfile(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type UpdateProfileMutationResult = NonNullable<Awaited<ReturnType<typeof updateProfile>>>
-    export type UpdateProfileMutationBody = BodyType<ProfileUpdate>
-    export type UpdateProfileMutationError = ErrorType<unknown>
-
-    export const useUpdateProfile = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProfile>>, TError,{data: BodyType<ProfileUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof updateProfile>>,
-        TError,
-        {data: BodyType<ProfileUpdate>},
-        TContext
-      > => {
-      return useMutation(getUpdateProfileMutationOptions(options));
-    }
 
 export const getChangePasswordUrl = () => {
 
@@ -4519,6 +4520,70 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getAdminResetUserPasswordMutationOptions(options));
+    }
+
+export const getAdminResetUserHistoryUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/users/${id}/reset-history`
+}
+
+export const adminResetUserHistory = async (id: number, options?: RequestInit): Promise<AdminResetUserHistoryResult> => {
+
+  return customFetch<AdminResetUserHistoryResult>(getAdminResetUserHistoryUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getAdminResetUserHistoryMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminResetUserHistory>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminResetUserHistory>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['adminResetUserHistory'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminResetUserHistory>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  adminResetUserHistory(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminResetUserHistoryMutationResult = NonNullable<Awaited<ReturnType<typeof adminResetUserHistory>>>
+
+    export type AdminResetUserHistoryMutationError = ErrorType<unknown>
+
+    export const useAdminResetUserHistory = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminResetUserHistory>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminResetUserHistory>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getAdminResetUserHistoryMutationOptions(options));
     }
 
 export const getAdminAdjustBalanceUrl = (id: number,) => {

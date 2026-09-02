@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, usersTable, sessionsTable, kycTable, notificationSettingsTable, userProfilesTable, referralsTable, vipPackagePurchasesTable } from "@workspace/db";
-import { eq, and, desc, sql, inArray } from "drizzle-orm";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import { generateSecret, generateURI, verifySync } from "otplib";
 import QRCode from "qrcode";
 import {
@@ -79,18 +79,14 @@ router.get("/profile/referrals", async (req, res) => {
     if (!vipLevelByUser.has(purchase.userId)) vipLevelByUser.set(purchase.userId, purchase.vipLevel);
   }
 
-  const [totals] = await db.select({
-    totalEarned: sql<string>`coalesce(sum(case when ${referralsTable.status} = 'credited' then ${referralsTable.bonusAmount} else 0 end), 0)`,
-    pendingCount: sql<number>`count(*) filter (where ${referralsTable.status} = 'pending')`,
-  }).from(referralsTable).where(eq(referralsTable.referrerUserId, user.id));
+  const referrals = rows.map(({ referral, referred, profile }) => {
+    const currentVipLevel = vipLevelByUser.get(referred.id) ?? 0;
+    const activityStatus = currentVipLevel >= 1 ? "active" : "inactive";
+    const isQualified = activityStatus === "active" && referral.status === "credited";
 
-  return res.json({
-    referralCode: user.accountUid,
-    totalEarned: Number(totals?.totalEarned ?? 0),
-    pendingCount: Number(totals?.pendingCount ?? 0),
-    referrals: rows.map(({ referral, referred, profile }) => ({
-      currentVipLevel: vipLevelByUser.get(referred.id) ?? 0,
-      activityStatus: (vipLevelByUser.get(referred.id) ?? 0) >= 1 ? "active" : "inactive",
+    return {
+      currentVipLevel,
+      activityStatus,
       id: referral.id,
       referredName: referred.fullName,
       referredAccountUid: referred.accountUid,
@@ -98,10 +94,19 @@ router.get("/profile/referrals", async (req, res) => {
       referredPhone: profile?.phone ?? null,
       referredCountry: profile?.country ?? null,
       status: referral.status,
-      bonusAmount: referral.status === "credited" ? Number(referral.bonusAmount) : 0,
+      bonusAmount: isQualified ? Number(referral.bonusAmount) : 0,
       createdAt: referral.createdAt.toISOString(),
       creditedAt: referral.creditedAt?.toISOString() ?? null,
-    })),
+    };
+  });
+
+  const qualifiedReferrals = referrals.filter((referral) => referral.activityStatus === "active" && referral.status === "credited");
+
+  return res.json({
+    referralCode: user.accountUid,
+    totalEarned: qualifiedReferrals.reduce((total, referral) => total + referral.bonusAmount, 0),
+    pendingCount: referrals.filter((referral) => referral.status === "pending").length,
+    referrals,
   });
 });
 

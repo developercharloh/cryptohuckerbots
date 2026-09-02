@@ -83,11 +83,17 @@ export function InstallAppPrompt() {
       }
       return;
     }
-    await deferredPrompt.prompt();
-    const choice = await deferredPrompt.userChoice;
-    if (choice.outcome === "accepted") {
-      rememberInstallPrompt(user.id);
-      setOpen(false);
+    try {
+      await deferredPrompt.prompt();
+      const choice = await deferredPrompt.userChoice;
+      if (choice.outcome === "accepted") {
+        rememberInstallPrompt(user.id);
+        setOpen(false);
+      }
+    } catch {
+      // Some embedded browsers expose beforeinstallprompt but reject the
+      // native dialog. Fall back to the browser-menu instructions.
+      setShowSteps(true);
     }
     setDeferredPrompt(null);
   };

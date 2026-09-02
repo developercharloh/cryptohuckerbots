@@ -4,6 +4,7 @@ import {
   useAdminGetUser, 
   useAdminSetUserStatus,
   useAdminResetUserPassword,
+  useAdminResetUserHistory,
   useAdminAdjustBalance,
   useAdminSendChatMessage,
   useAdminListChats,
@@ -14,7 +15,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { ArrowLeft, Ban, CheckCircle, KeyRound, Plus, Minus, CreditCard, Copy, Check, ShieldCheck, ShieldOff, MessageSquare, Loader2, Send } from "lucide-react";
+import { ArrowLeft, Ban, CheckCircle, KeyRound, Plus, Minus, CreditCard, Copy, Check, ShieldCheck, ShieldOff, MessageSquare, Loader2, Send, RotateCcw } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -69,6 +70,7 @@ export default function UserDetail() {
 
   const statusMutation = useAdminSetUserStatus();
   const passwordMutation = useAdminResetUserPassword();
+  const historyMutation = useAdminResetUserHistory();
   const balanceMutation = useAdminAdjustBalance();
   const messageMutation = useAdminSendChatMessage();
 
@@ -110,6 +112,26 @@ export default function UserDetail() {
           toast({ title: "Failed to reset password", description: err.message, variant: "destructive" });
         }
       }
+    );
+  };
+
+  const handleResetHistory = () => {
+    if (!confirm(
+      `Reset ${user?.fullName ?? "this user"} as a fresh account? This clears balances, transactions, bots, VIP records, referrals, notifications, and KYC data while preserving the account, profile, support, and security records.`,
+    )) return;
+
+    historyMutation.mutate(
+      { id: userId },
+      {
+        onSuccess: (data) => {
+          toast({ title: "User history reset", description: data.message });
+          queryClient.invalidateQueries({ queryKey: getAdminGetUserQueryKey(userId) });
+          queryClient.invalidateQueries({ queryKey: getAdminListUsersQueryKey() });
+        },
+        onError: (err) => {
+          toast({ title: "Failed to reset user history", description: err.message, variant: "destructive" });
+        },
+      },
     );
   };
 
@@ -278,6 +300,16 @@ export default function UserDetail() {
                     data-testid="btn-reset-password"
                   >
                     <KeyRound className="w-4 h-4 mr-2" /> Reset Password
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleResetHistory}
+                    disabled={historyMutation.isPending}
+                    className="border-destructive/40 text-destructive hover:bg-destructive/10"
+                    data-testid="btn-reset-user-history"
+                  >
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    {historyMutation.isPending ? "Resetting History..." : "Reset User History"}
                   </Button>
                   <Button
                     variant="outline"

@@ -32,6 +32,7 @@ export * from './adminReferralActivityStatus';
 export * from './adminReferralStatus';
 export * from './adminRefundByUidInput';
 export * from './adminResetPasswordResult';
+export * from './adminResetUserHistoryResult';
 export * from './adminReviewDepositInput';
 export * from './adminSettings';
 export * from './adminSettingsInput';

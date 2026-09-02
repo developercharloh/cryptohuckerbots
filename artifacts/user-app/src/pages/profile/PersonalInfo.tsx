@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { useGetProfile, useUpdateProfile } from "@workspace/api-client-react";
+import { getGetProfileQueryKey, useGetProfile, useUpdateProfile } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -115,6 +116,7 @@ export default function PersonalInfo() {
 
   const { data: profile, isLoading } = useGetProfile();
   const updateMutation = useUpdateProfile();
+  const queryClient = useQueryClient();
 
   const [editing, setEditing] = useState(false);
   const [fullName, setFullName] = useState("");
@@ -154,6 +156,7 @@ export default function PersonalInfo() {
       {
         onSuccess: () => {
           toast({ title: "Profile updated successfully" });
+          queryClient.invalidateQueries({ queryKey: getGetProfileQueryKey() });
           setEditing(false);
         },
         onError: (err: any) => toast({ title: "Update failed", description: err?.message, variant: "destructive" }),

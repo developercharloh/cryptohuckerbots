@@ -752,6 +752,11 @@ export interface AdminResetPasswordResult {
   tempPassword: string;
 }
 
+export interface AdminResetUserHistoryResult {
+  userId: number;
+  message: string;
+}
+
 export interface AdminBalanceAdjustInput {
   amount: number;
   note?: string;

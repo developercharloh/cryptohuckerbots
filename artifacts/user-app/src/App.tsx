@@ -34,9 +34,9 @@ async function recoverFromStaleClient(force = false): Promise<void> {
       );
     }
   } finally {
-    const url = new URL(window.location.href);
-    url.searchParams.set("vixus_refresh", String(Date.now()));
-    window.location.replace(url.toString());
+    // Reload the current route without exposing a cache-busting query string
+    // or an internal recovery URL to the user.
+    window.location.reload();
   }
 }
 
@@ -58,13 +58,13 @@ if (typeof window !== "undefined") {
   watchForChunkFailures();
 }
 
-class ErrorBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
+class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   constructor(props: { children: ReactNode }) {
     super(props);
-    this.state = { error: null };
+    this.state = { hasError: false };
   }
   static getDerivedStateFromError(err: Error) {
-    return { error: err?.message ?? "Unknown error" };
+    return { hasError: true };
   }
   componentDidCatch(err: Error) {
     if (isChunkLoadError(err)) {
@@ -72,11 +72,13 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: string |
     }
   }
   render() {
-    if (this.state.error) {
+    if (this.state.hasError) {
       return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground p-6 gap-4">
-          <p className="text-destructive font-semibold text-center">Something went wrong</p>
-          <p className="text-xs text-muted-foreground text-center break-all">{this.state.error}</p>
+          <p className="text-destructive font-semibold text-center">VIXUS is refreshing</p>
+          <p className="text-sm text-muted-foreground text-center max-w-sm">
+            We’re refreshing the app so you can continue securely.
+          </p>
            <button
              className="mt-2 px-4 py-2 rounded-lg bg-primary text-white text-sm"
              onClick={() => void recoverFromStaleClient(true)}
@@ -95,6 +97,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AuthGuard } from "@/components/AuthGuard";
 import { InstallAppPrompt } from "@/components/InstallAppPrompt";
+import { ProfileCompletionPrompt } from "@/components/ProfileCompletionPrompt";
 
 // Keep the entry chunk small. Pages load only when their route is visited so
 // login does not download charts, cashier forms, support, and bot analytics.
@@ -293,6 +296,7 @@ function App() {
               </Suspense>
             </ErrorBoundary>
             <InstallAppPrompt />
+            <ProfileCompletionPrompt />
             </AuthProvider>
           </WouterRouter>
         <Toaster />

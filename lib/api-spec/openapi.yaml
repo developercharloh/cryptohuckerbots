@@ -859,17 +859,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Profile"
-  /profile/referrals:
-    get:
-      operationId: getReferralSummary
-      tags: [profile]
-      responses:
-        "200":
-          description: Referral summary for the authenticated user
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ReferralSummary"
     patch:
       operationId: updateProfile
       tags: [profile]
@@ -886,6 +875,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Profile"
+  /profile/referrals:
+    get:
+      operationId: getReferralSummary
+      tags: [profile]
+      responses:
+        "200":
+          description: Referral summary for the authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralSummary"
 
   /profile/change-password:
     post:
@@ -1244,6 +1244,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdminResetPasswordResult"
+
+  /admin/users/{id}/reset-history:
+    post:
+      operationId: adminResetUserHistory
+      tags: [admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User history reset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminResetUserHistoryResult"
 
   /admin/users/{id}/adjust-balance:
     post:
@@ -2843,6 +2861,13 @@ components:
       properties:
         tempPassword: { type: string }
       required: [tempPassword]
+
+    AdminResetUserHistoryResult:
+      type: object
+      properties:
+        userId: { type: integer }
+        message: { type: string }
+      required: [userId, message]
 
     AdminBalanceAdjustInput:
       type: object
