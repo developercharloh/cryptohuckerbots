@@ -231,7 +231,7 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
 
   const depositSession = await request<{ id: number; status: string; amount: number }>("/api/cashier/deposit/session", {
     method: "POST",
-    body: { amount: 80, paymentMethodId: "usdt_trc20" },
+    body: { amount: 80, paymentMethodId: "usdt_bep20" },
   });
   assert.equal(depositSession.response.status, 201);
   assert.equal(depositSession.body.status, "waiting_payment");
