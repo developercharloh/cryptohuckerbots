@@ -151,7 +151,7 @@ export default function KYC() {
                   <Clock className="w-10 h-10 text-yellow-500 shrink-0 animate-pulse" />
                   <div>
                    <p className="font-bold text-yellow-500">Pending Admin Approval</p>
-                   <p className="text-xs text-muted-foreground mt-0.5">Your Didit submission is complete and is waiting for VIXUS AI Support to review and approve it.</p>
+                   <p className="text-xs text-muted-foreground mt-0.5">Your Didit submission is complete and is waiting for VIXUS Support to review and approve it.</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-2 text-xs text-muted-foreground bg-card/60 rounded-xl p-3">

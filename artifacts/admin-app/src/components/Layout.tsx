@@ -60,7 +60,7 @@ export default function Layout({ children, onLogout }: LayoutProps) {
             <Bot className="w-4 h-4 text-primary-foreground" />
           </div>
           <div>
-            <p className="text-sm font-bold leading-none tracking-tight">VIXUS AI</p>
+            <p className="text-sm font-bold leading-none tracking-tight">VIXUS</p>
             <p className="text-[10px] text-muted-foreground leading-none mt-0.5">Admin Panel</p>
           </div>
         </div>
@@ -93,7 +93,7 @@ export default function Layout({ children, onLogout }: LayoutProps) {
             <Bot className="h-5 w-5 text-primary-foreground" />
           </div>
           <div>
-            <p className="text-sm font-extrabold tracking-tight">VIXUS AI</p>
+            <p className="text-sm font-extrabold tracking-tight">VIXUS</p>
             <p className="text-[10px] text-muted-foreground">Admin workspace</p>
           </div>
         </div>

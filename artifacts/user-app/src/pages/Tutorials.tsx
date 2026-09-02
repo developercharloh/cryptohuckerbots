@@ -32,7 +32,7 @@ const TUTORIALS: Tutorial[] = [
     id: "getting-started",
     label: "Start here",
     title: "Set up your trading workspace",
-    description: "Complete your profile, review account protection, and understand the main areas of your VIXUS AI workspace.",
+    description: "Complete your profile, review account protection, and understand the main areas of your VIXUS workspace.",
     icon: BookOpen,
     accent: "#60A5FA",
     steps: [
@@ -182,7 +182,7 @@ export default function Tutorials() {
             <div className="relative max-w-2xl">
               <div className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-primary">
                 <BookOpen className="h-4 w-4" />
-                VIXUS AI learning center
+                VIXUS learning center
               </div>
               <h1 className="text-3xl font-black tracking-tight text-foreground sm:text-4xl">
                 Trade with a clearer view.
@@ -210,10 +210,10 @@ export default function Tutorials() {
                   Featured tutorial
                 </p>
                 <h2 className="mt-2 text-2xl font-black tracking-tight text-white sm:text-3xl">
-                  What is VIXUS AI?
+                  What is VIXUS?
                 </h2>
                 <p className="mt-3 max-w-xl text-sm leading-6 text-slate-300">
-                  Watch the short narrated walkthrough to see how VIXUS AI connects market context, pair comparison, candlestick setups, signal confidence, and position follow-through.
+                  Watch the short narrated walkthrough to see how VIXUS connects market context, pair comparison, candlestick setups, signal confidence, and position follow-through.
                 </p>
                 <div className="mt-5 flex flex-wrap gap-2 text-[11px] font-semibold text-slate-200">
                   <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1.5">4:5 portrait</span>
@@ -223,7 +223,7 @@ export default function Tutorials() {
               </div>
               <div className="order-1 overflow-hidden rounded-2xl border border-white/10 bg-black lg:order-2">
                 <iframe
-                  title="What is VIXUS AI? video tutorial"
+                  title="What is VIXUS? video tutorial"
                   src="/vixus-ai-tutorial/"
                   className="aspect-[4/5] w-full"
                   allow="autoplay"

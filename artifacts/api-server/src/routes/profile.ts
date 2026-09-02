@@ -123,7 +123,7 @@ router.post("/profile/2fa/setup", async (req, res) => {
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
   const secret = generateSecret();
-  const otpauthUrl = generateURI({ issuer: "VIXUS AI", label: user.email, secret });
+  const otpauthUrl = generateURI({ issuer: "VIXUS", label: user.email, secret });
   const qrCode = await QRCode.toDataURL(otpauthUrl);
 
   // Save secret to DB (not enabled yet)

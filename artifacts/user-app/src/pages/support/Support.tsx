@@ -19,7 +19,7 @@ export default function Support() {
           </button>
           <div className="flex items-center gap-2">
             <VixusLogo className="h-9 w-9 rounded-xl border border-amber-300/30 object-cover shadow-lg shadow-blue-950/40" />
-            <h1 className="text-xl font-bold tracking-tight">VIXUS AI Support</h1>
+            <h1 className="text-xl font-bold tracking-tight">VIXUS Support</h1>
           </div>
         </div>
 
@@ -35,7 +35,7 @@ export default function Support() {
                   <MessageSquare className="w-6 h-6 text-blue-500" />
                 </div>
                 <div>
-                   <h3 className="font-semibold text-sm">VIXUS AI Support</h3>
+                   <h3 className="font-semibold text-sm">VIXUS Support</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">Private chat with VIXUS Support</p>
                 </div>
               </div>

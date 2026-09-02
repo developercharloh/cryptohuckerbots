@@ -86,7 +86,7 @@ export default function VerifyEmail() {
         <div style={{ width: 44, height: 44, borderRadius: 14, background: "linear-gradient(135deg, rgba(245,185,66,0.25), rgba(59,130,246,0.12))", border: "1px solid rgba(245,185,66,0.35)", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <VixusLogo className="w-7 h-7" />
         </div>
-        <span style={{ fontSize: 18, fontWeight: 800, color: "#F1F5F9" }}>VIXUS<span style={{ color: LIGHT }}> AI</span></span>
+        <span style={{ fontSize: 18, fontWeight: 800, color: "#F1F5F9" }}>VIXUS</span>
       </div>
 
       <div style={{ width: "100%", maxWidth: 420, background: CARD, border: `1px solid ${BORDER}`, borderRadius: 24, padding: "32px 24px", textAlign: "center", position: "relative", zIndex: 1 }}>

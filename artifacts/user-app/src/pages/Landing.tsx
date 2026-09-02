@@ -395,7 +395,7 @@ function DashboardCard({ pairs }: { pairs: PriceData[] }) {
           <div style={{ width: 20, height: 20, borderRadius: 6, background: HERO_GRAD, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <span style={{ fontSize: 8, fontWeight: 900, color: "#fff" }}>V</span>
           </div>
-          <span style={{ fontSize: 11, fontWeight: 700, color: "#374151" }}>VIXUS AI — Dashboard</span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#374151" }}>VIXUS — Dashboard</span>
         </div>
         <div style={{ display: "flex", gap: 4 }}>
           <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#EF4444" }} />
@@ -502,7 +502,7 @@ export default function Landing() {
               <span style={{ fontSize: 13, fontWeight: 900, color: "#fff" }}>V</span>
             </div>
             <span style={{ fontWeight: 800, fontSize: 16, color: "#111827", fontFamily: "'Inter Tight', sans-serif" }}>
-              VIXUS <span style={{ color: PURPLE }}>AI</span>
+              VIXUS
             </span>
           </div>
 
@@ -627,7 +627,7 @@ export default function Landing() {
             <span style={{ color: PURPLE }}>on any device.</span>
           </h2>
           <p style={{ fontSize: 16, color: "#6B7280", maxWidth: 520, margin: "0 auto" }}>
-            Whether you're at your desk, on the go, or running automated bots — Vixus AI keeps you in control.
+            Whether you're at your desk, on the go, or running automated bots — VIXUS keeps you in control.
           </p>
         </div>
 
@@ -668,7 +668,7 @@ export default function Landing() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }} className="photo-grid">
           {/* img4 — woman smiling at desk with trading laptop — 1 col */}
           <div style={{ borderRadius: 16, overflow: "hidden", height: 288, position: "relative" }}>
-            <img src={`${ASSET_BASE}images/img4.png`} alt="Trader using Vixus AI platform"
+            <img src={`${ASSET_BASE}images/img4.png`} alt="Trader using VIXUS platform"
               loading="lazy" decoding="async"
               style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.7s" }}
               onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.05)")}
@@ -704,7 +704,7 @@ export default function Landing() {
           <span style={{ fontSize: 12, fontWeight: 600, color: PURPLE, textTransform: "uppercase", letterSpacing: "0.1em", background: "#F3F0FF", padding: "6px 16px", borderRadius: 100, display: "inline-block" }}>Real-Time Signals</span>
           <h2 style={{ fontSize: "clamp(24px,3vw,40px)", fontWeight: 800, color: "#111827", marginTop: 12, marginBottom: 8, fontFamily: "'Inter Tight', sans-serif" }}>Live Market Data</h2>
           <p style={{ fontSize: 16, color: "#6B7280", maxWidth: 560, margin: "0 auto" }}>
-            Forex, crypto, commodities, and indices — all tracked and signalled by the Vixus AI neural engine.
+            Forex, crypto, commodities, and indices — all tracked and signalled by the VIXUS neural engine.
           </p>
         </div>
 
@@ -1009,7 +1009,7 @@ export default function Landing() {
                 <div style={{ width: 32, height: 32, borderRadius: 8, background: HERO_GRAD, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <span style={{ fontSize: 13, fontWeight: 900, color: "#fff" }}>V</span>
                 </div>
-                <span style={{ fontWeight: 800, fontSize: 16, color: "#fff", fontFamily: "'Inter Tight', sans-serif" }}>VIXUS <span style={{ color: "#F5B942" }}>AI</span></span>
+                <span style={{ fontWeight: 800, fontSize: 16, color: "#fff", fontFamily: "'Inter Tight', sans-serif" }}>VIXUS</span>
               </div>
               <p style={{ fontSize: 13, color: "#6B7280", lineHeight: 1.7, maxWidth: 240, marginBottom: 20 }}>
                 Institutional-grade AI trading for everyone. Automate your strategy across 11+ markets.
@@ -1069,7 +1069,7 @@ export default function Landing() {
           </div>
 
           <div style={{ borderTop: "1px solid #1E2235", padding: "20px 0 28px", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-            <p style={{ fontSize: 12, color: "#374151" }}>© 2026 VIXUS AI. All rights reserved.</p>
+            <p style={{ fontSize: 12, color: "#374151" }}>© 2026 VIXUS. All rights reserved.</p>
             <p style={{ fontSize: 11, color: "#2D3148", maxWidth: 500, lineHeight: 1.6, textAlign: "right" }}>Trading involves significant risk. Past performance is not indicative of future results. Capital at risk.</p>
           </div>
         </div>

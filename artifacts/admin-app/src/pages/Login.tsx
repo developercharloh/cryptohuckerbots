@@ -78,7 +78,7 @@ export default function Login({ onLogin }: LoginProps) {
               <Bot className="w-8 h-8 text-white" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">VIXUS AI</h1>
+          <h1 className="text-2xl font-bold text-white tracking-tight">VIXUS</h1>
           <p className="text-[11px] text-purple-300/80 mt-1 font-medium tracking-widest uppercase">
             Admin Portal
           </p>
@@ -194,7 +194,7 @@ export default function Login({ onLogin }: LoginProps) {
         </div>
 
         <p className="text-center text-[11px] text-slate-600 mt-6">
-          VIXUS AI · Admin Portal · Internal Use Only
+          VIXUS · Admin Portal · Internal Use Only
         </p>
       </div>
 

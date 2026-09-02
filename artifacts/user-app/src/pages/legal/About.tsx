@@ -7,7 +7,7 @@ export default function About() {
     <LegalLayout title="About Us">
       <div className="flex flex-col items-center text-center py-2">
         <VixusLogo className="w-16 h-16 mb-4" />
-        <h2 className="text-lg font-bold text-foreground">VIXUS AI</h2>
+        <h2 className="text-lg font-bold text-foreground">VIXUS</h2>
         <p className="text-muted-foreground mt-2 max-w-[300px]">
           We make automated trading accessible to everyone — not just Wall
           Street.
@@ -17,7 +17,7 @@ export default function About() {
       <section>
         <h2>Our mission</h2>
         <p>
-          VIXUS AI was founded in 2023 with a simple goal: give everyday
+          VIXUS was founded in 2023 with a simple goal: give everyday
           investors access to the kind of algorithmic trading tools that were
           once reserved for institutions. We believe transparency, security, and
           ease of use should be the standard, not the exception.

@@ -1,4 +1,4 @@
-const CACHE_NAME = "vixus-ai-shell-v5";
+const CACHE_NAME = "vixus-shell-v6";
 
 self.addEventListener("install", () => {
   self.skipWaiting();
@@ -9,7 +9,7 @@ self.addEventListener("activate", (event) => {
     caches.keys().then((keys) =>
       Promise.all(
         keys
-          .filter((key) => key.startsWith("vixus-ai-shell-") && key !== CACHE_NAME)
+          .filter((key) => (key.startsWith("vixus-ai-shell-") || key.startsWith("vixus-shell-")) && key !== CACHE_NAME)
           .map((key) => caches.delete(key)),
       ),
     ).then(() => self.clients.claim()),

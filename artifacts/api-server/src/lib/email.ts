@@ -54,7 +54,7 @@ export async function sendTransactionalEmail(input: SendEmailInput): Promise<voi
 
   const from = (
     process.env.AUTH_EMAIL_FROM ??
-    "VIXUS AI <no-reply@vixus.trade>"
+    "VIXUS <no-reply@vixus.trade>"
   ).trim();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), EMAIL_TIMEOUT_MS);

@@ -1,4 +1,4 @@
-# VIXUS AI
+# VIXUS
 
 A full-stack FX trading bot platform with an admin panel for managing users, bots, finance, support, and platform settings.
 
@@ -71,9 +71,9 @@ Each app is a **separate Vercel project** pointing at the same GitHub repo (`dev
 
 | Vercel project | Root Directory | Framework |
 |---|---|---|
-| VIXUS AI (user app) | `artifacts/user-app` | Other (no framework) |
-| VIXUS AI Admin | `artifacts/admin-app` | Other (no framework) |
-| VIXUS AI API | `artifacts/api-server` | Other (no framework) |
+| VIXUS (user app) | `artifacts/user-app` | Other (no framework) |
+| VIXUS Admin | `artifacts/admin-app` | Other (no framework) |
+| VIXUS API | `artifacts/api-server` | Other (no framework) |
 
 **Canonical admin production URL:** https://cryptohuckerbots-admin-app-three.vercel.app/
 

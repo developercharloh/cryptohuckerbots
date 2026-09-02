@@ -88,7 +88,7 @@ router.post("/webhooks/didit", async (req, res) => {
     return res.json({ ok: true });
   }
 
-  // Didit verifies the submitted identity documents, but VIXUS AI retains
+  // Didit verifies the submitted identity documents, but VIXUS retains
   // the final account decision. Never let a provider callback bypass the
   // admin review action, and never let a late callback undo that decision.
   const adminHasReviewed = kyc.status === "verified" || kyc.status === "rejected";

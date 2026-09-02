@@ -59,7 +59,7 @@ export function Layout({ children, showNav = false }: LayoutProps) {
           <div className="mx-auto flex w-full max-w-[1440px] items-center gap-10 pr-20">
             <Link href="/dashboard" className="flex shrink-0 items-center gap-2 text-foreground no-underline">
               <VixusLogo className="h-9 w-9 rounded-xl border border-amber-300/30 object-cover shadow-lg shadow-blue-950/40" />
-              <span className="text-sm font-extrabold tracking-tight">VIXUS <span className="text-primary">AI</span></span>
+              <span className="text-sm font-extrabold tracking-tight">VIXUS</span>
             </Link>
             <div className="flex min-w-0 flex-1 items-center gap-1">
               {DESKTOP_NAV.map((item) => {

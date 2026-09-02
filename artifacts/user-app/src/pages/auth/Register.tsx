@@ -72,11 +72,11 @@ export default function Register() {
             <VixusLogo className="w-6 h-6" />
           </div>
           <span style={{ fontSize: 17, fontWeight: 800, color: "#F1F5F9" }}>
-            VIXUS<span style={{ color: LIGHT }}> AI</span>
+            VIXUS
           </span>
         </div>
         <h1 style={{ fontSize: 26, fontWeight: 800, color: "#F1F5F9", marginBottom: 6, letterSpacing: "-0.02em" }}>Create Account</h1>
-        <p style={{ fontSize: 13, color: "#64748B" }}>Join thousands of traders on VIXUS AI</p>
+        <p style={{ fontSize: 13, color: "#64748B" }}>Join thousands of traders on VIXUS</p>
       </div>
 
       {/* Form */}

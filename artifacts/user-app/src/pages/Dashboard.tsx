@@ -76,7 +76,7 @@ export default function Dashboard() {
         <div className="user-dashboard-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 16px 12px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
              <VixusLogo className="h-8 w-8 rounded-[10px] border border-amber-300/30 object-cover shadow-[0_0_18px_rgba(37,99,235,0.25)]" />
-            <span style={{ fontSize: 16, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em" }}>VIXUS AI</span>
+            <span style={{ fontSize: 16, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em" }}>VIXUS</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <Link href="/profile/notifications">

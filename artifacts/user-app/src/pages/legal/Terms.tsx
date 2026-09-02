@@ -6,7 +6,7 @@ export default function Terms() {
       <section>
         <h2>1. Acceptance of terms</h2>
         <p>
-          By creating an account or using VIXUS AI (the "Service"), you
+          By creating an account or using VIXUS (the "Service"), you
           agree to these Terms of Service. If you do not agree, do not use the
           Service.
         </p>
@@ -61,7 +61,7 @@ export default function Terms() {
       <section>
         <h2>7. Limitation of liability</h2>
         <p>
-          To the maximum extent permitted by law, VIXUS AI is not liable
+          To the maximum extent permitted by law, VIXUS is not liable
           for any indirect, incidental, or consequential damages arising from
           your use of the Service.
         </p>

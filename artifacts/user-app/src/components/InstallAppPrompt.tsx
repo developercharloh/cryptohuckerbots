@@ -115,14 +115,14 @@ export function InstallAppPrompt() {
           <div className="flex items-center gap-4">
             <img
               src={`${baseUrl}icons/vixus-ai-192.png`}
-              alt="VIXUS AI"
+              alt="VIXUS"
               className="h-16 w-16 rounded-2xl border border-amber-300/30 object-cover shadow-[0_0_28px_rgba(37,99,235,0.3)]"
             />
             <div>
               <p className="mb-1 flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.16em] text-amber-300">
                 <Smartphone className="h-3.5 w-3.5" /> Your trading companion
               </p>
-              <h2 id="install-app-title" className="text-2xl font-black tracking-tight">Install VIXUS AI</h2>
+              <h2 id="install-app-title" className="text-2xl font-black tracking-tight">Install VIXUS</h2>
               <p className="mt-1 text-sm text-slate-400">Faster access. Full-screen focus. Same secure account.</p>
             </div>
           </div>
@@ -157,7 +157,7 @@ export function InstallAppPrompt() {
 
           {!showSteps && (
             <p className="mt-5 flex items-center justify-center gap-2 text-center text-[11px] text-slate-500">
-              <Zap className="h-3.5 w-3.5 text-amber-300" /> The VIXUS AI logo will appear on your home screen.
+              <Zap className="h-3.5 w-3.5 text-amber-300" /> The VIXUS logo will appear on your home screen.
             </p>
           )}
 

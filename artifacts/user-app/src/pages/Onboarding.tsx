@@ -14,7 +14,7 @@ const SLIDES = [
   {
     icon: TrendingUp,
     gradient: "linear-gradient(135deg, #D99B18, #F5B942)",
-    title: "Welcome to\nVIXUS AI",
+    title: "Welcome to\nVIXUS",
     description: "Your all-in-one trading platform for Forex, Crypto, Commodities & Indices.",
     accent: "#3B82F6",
     visual: "chart",

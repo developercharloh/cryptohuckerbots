@@ -59,7 +59,7 @@ export default function LiveChat() {
           </button>
           <VixusLogo className="h-10 w-10 rounded-xl border border-amber-300/30 object-cover shadow-lg shadow-blue-950/40" />
           <div>
-            <h1 className="text-base font-bold tracking-tight">VIXUS AI Support</h1>
+            <h1 className="text-base font-bold tracking-tight">VIXUS Support</h1>
             <div className="flex items-center gap-1.5">
               <p className="text-[11px] text-muted-foreground">
                 {isClosed ? "Conversation closed" : "Private conversation with VIXUS Support"}

@@ -316,7 +316,7 @@ export default function VideoWithControls() {
             ? 'border-[#f1c76c]/60 bg-[#101829]/90 text-[#f1c76c] hover:scale-[1.02] hover:bg-[#172238]'
             : 'border-[#8bd8ce]/45 bg-[#101829]/75 text-[#8bd8ce] hover:scale-[1.02] hover:bg-[#172238]'
         }`}
-        aria-label={muted ? 'Unmute VIXUS AI narration' : 'Mute VIXUS AI narration'}
+        aria-label={muted ? 'Unmute VIXUS narration' : 'Mute VIXUS narration'}
         aria-pressed={muted}
       >
         {muted ? (

@@ -131,7 +131,7 @@ export function SceneIntro() {
       >
         <div className="eyebrow mb-[3.5vmin] text-gold">A visual briefing</div>
         <h1 className="display-font max-w-[86%] text-[13vmin] font-semibold leading-[.86] tracking-[-.075em]">
-          What is<br /><span className="text-gold">VIXUS AI?</span>
+          What is<br /><span className="text-gold">VIXUS?</span>
         </h1>
         <p className="mt-[5vmin] max-w-[76%] text-[2.6vmin] leading-[1.45] text-[#b7c1d2]">
           A calmer way to read the market — from raw price movement to a decision you can explain.
@@ -175,11 +175,11 @@ export function ScenePresenter() {
         <div className="absolute left-[10%] right-[10%] top-[6%] h-px bg-gradient-to-r from-transparent via-teal/60 to-transparent" />
         <img
           src={`${base}presenter-card.png`}
-          alt="VIXUS AI market educator explaining a signal"
+          alt="VIXUS market educator explaining a signal"
           className="relative z-10 h-full w-full rounded-[5.5vmin] object-cover object-center drop-shadow-[0_2vmin_2vmin_rgba(0,0,0,.45)]"
         />
         <div className="panel absolute bottom-[4%] right-[5%] z-20 w-[78%] px-[2vmin] py-[1.4vmin]">
-          <div className="mono-font text-[1.35vmin] tracking-[.14em] text-teal">VIXUS AI / MARKET EDUCATOR</div>
+          <div className="mono-font text-[1.35vmin] tracking-[.14em] text-teal">VIXUS / MARKET EDUCATOR</div>
           <div className="mt-[.65vmin] text-[1.55vmin] text-[#f7f1e7]">Explaining the signal, not selling the outcome.</div>
         </div>
       </motion.div>
@@ -197,7 +197,7 @@ export function ScenePresenter() {
           Markets are<br /><span className="text-teal">too noisy</span><br />to eyeball.
         </h2>
         <p className="mt-[4vmin] max-w-[92%] text-[2.3vmin] leading-[1.5] text-[#b7c1d2]">
-          VIXUS AI turns thousands of price changes into one readable story: context, setup, confidence.
+          VIXUS turns thousands of price changes into one readable story: context, setup, confidence.
         </p>
       </motion.div>
       <motion.div
@@ -391,7 +391,7 @@ export function SceneOutro() {
       <motion.div className="absolute left-[7%] top-[17%] right-[7%]" initial={{ scale: .92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: .2, duration: .85, ease }}>
         <div className="eyebrow mb-[3vmin] text-gold">The short version</div>
         <h2 className="display-font text-[10vmin] font-semibold leading-[.86] tracking-[-.08em]">See the<br /><span className="text-gold">signal.</span><br />Know why.</h2>
-        <p className="mt-[5vmin] max-w-[76%] text-[2.4vmin] leading-[1.45] text-[#b7c1d2]">VIXUS AI builds a transparent path from market noise to a measured decision.</p>
+        <p className="mt-[5vmin] max-w-[76%] text-[2.4vmin] leading-[1.45] text-[#b7c1d2]">VIXUS builds a transparent path from market noise to a measured decision.</p>
       </motion.div>
       <motion.div className="absolute bottom-[11%] left-[7%] right-[7%] flex items-center justify-between" initial={{ y: 22, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 1, duration: .6, ease }}>
         <div className="flex items-center gap-[1.8vmin]">
@@ -399,7 +399,7 @@ export function SceneOutro() {
             <span className="display-font text-[3.4vmin] font-bold text-gold">V</span>
           </div>
           <div>
-            <div className="display-font text-[3.3vmin] font-semibold tracking-[-.05em]">VIXUS AI</div>
+            <div className="display-font text-[3.3vmin] font-semibold tracking-[-.05em]">VIXUS</div>
             <div className="eyebrow mt-[.5vmin] text-[#6f7d98]">market intelligence</div>
           </div>
         </div>
@@ -417,7 +417,7 @@ export function SceneBridge({ currentScene = 0 }: SceneProps) {
   return (
     <motion.div className="pointer-events-none absolute bottom-[4%] left-[7%] right-[7%] z-20" animate={{ opacity: currentScene === 0 ? .9 : .55 }} transition={{ duration: .7 }}>
       <div className="flex items-center justify-between mono-font text-[1.35vmin] tracking-[.16em] text-[#6f7d98]">
-        <span>VIXUS AI</span>
+        <span>VIXUS</span>
         <span>{String(currentScene + 1).padStart(2, '0')} / 07</span>
       </div>
       <div className="mt-[1.4vmin] h-[.25vmin] w-full bg-[#b7c1d2]/10">

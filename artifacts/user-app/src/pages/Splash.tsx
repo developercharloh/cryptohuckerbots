@@ -88,7 +88,7 @@ export default function Splash() {
 
         <div style={{ textAlign: "center" }}>
              <h1 style={{ fontSize: 40, fontWeight: 900, letterSpacing: "-0.03em", color: "#F1F5F9", margin: 0, lineHeight: 1.1 }}>
-             VIXUS<span style={{ background: "linear-gradient(135deg, #FFD86B, #F5B942)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}> AI</span>
+             VIXUS
           </h1>
           <p style={{ color: "#64748B", fontSize: 13, marginTop: 10, letterSpacing: "0.02em" }}>
             Trade Smarter. Automate the Rest.

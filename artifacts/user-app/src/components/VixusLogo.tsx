@@ -8,7 +8,7 @@ export function VixusLogo({ className }: VixusLogoProps) {
       src={`${import.meta.env.BASE_URL}icons/vixus-ai-192.png`}
       className={className}
       role="img"
-      alt="VIXUS AI logo"
+      alt="Vixus logo"
     />
   );
 }

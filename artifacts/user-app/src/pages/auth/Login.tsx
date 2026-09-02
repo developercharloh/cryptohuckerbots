@@ -206,7 +206,7 @@ export default function Login() {
             </div>
             <h1 style={{ fontSize: 26, fontWeight: 800, color: "#F1F5F9", marginBottom: 10, letterSpacing: "-0.02em" }}>Two-Factor Auth</h1>
             <p style={{ fontSize: 13, color: "#64748B", lineHeight: 1.6, maxWidth: 280 }}>
-              Open <strong style={{ color: "#F1F5F9" }}>Google Authenticator</strong> and enter the 6-digit code for <strong style={{ color: LIGHT }}>VIXUS AI</strong>.
+              Open <strong style={{ color: "#F1F5F9" }}>Google Authenticator</strong> and enter the 6-digit code for <strong style={{ color: LIGHT }}>VIXUS</strong>.
             </p>
           </div>
           <input
@@ -257,7 +257,7 @@ export default function Login() {
             <VixusLogo className="w-7 h-7" />
           </div>
           <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: "-0.01em", color: "#F1F5F9" }}>
-            VIXUS<span style={{ color: LIGHT }}> AI</span>
+            VIXUS
           </span>
         </div>
         <div style={{ textAlign: "center", marginTop: 24 }}>

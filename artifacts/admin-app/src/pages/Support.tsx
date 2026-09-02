@@ -272,9 +272,9 @@ function ChatThread({
         </button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <img src={vixusLogo} alt="VIXUS AI logo" className="h-7 w-7 rounded-lg border border-primary/30 object-cover" />
+            <img src={vixusLogo} alt="VIXUS logo" className="h-7 w-7 rounded-lg border border-primary/30 object-cover" />
             <div className="min-w-0">
-              <p className="text-sm font-semibold">VIXUS AI Support</p>
+              <p className="text-sm font-semibold">VIXUS Support</p>
               <p className="text-[10px] text-muted-foreground truncate">Conversation with {userName}</p>
             </div>
           </div>
@@ -481,9 +481,9 @@ export default function Support() {
     <div className="admin-page p-4 space-y-4 pb-2">
       <div className="pt-1">
         <div className="flex items-center gap-3">
-          <img src={vixusLogo} alt="VIXUS AI logo" className="h-10 w-10 rounded-xl border border-primary/30 object-cover shadow-lg shadow-primary/10" />
+          <img src={vixusLogo} alt="VIXUS logo" className="h-10 w-10 rounded-xl border border-primary/30 object-cover shadow-lg shadow-primary/10" />
           <div>
-            <h1 className="text-xl font-bold tracking-tight">VIXUS AI Support</h1>
+            <h1 className="text-xl font-bold tracking-tight">VIXUS Support</h1>
             <p className="text-xs text-muted-foreground">Tickets & private support inbox</p>
           </div>
         </div>

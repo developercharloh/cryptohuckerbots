@@ -1,7 +1,7 @@
 {
-  "name": "VIXUS AI",
-  "short_name": "VIXUS AI",
-  "description": "AI-powered trading signals, market intelligence, and portfolio tools.",
+  "name": "VIXUS",
+  "short_name": "VIXUS",
+  "description": "Trading signals, market intelligence, and portfolio tools.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",

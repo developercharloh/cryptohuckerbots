@@ -385,7 +385,7 @@ export type AdminLoginNotification = typeof adminLoginNotificationsTable.$inferS
 
 export const settingsTable = pgTable("settings", {
   id: serial("id").primaryKey(),
-  appName: text("app_name").notNull().default("VIXUS AI"),
+  appName: text("app_name").notNull().default("VIXUS"),
   supportEmail: text("support_email").notNull().default("support@vixus.ai"),
   logoUrl: text("logo_url"),
   maintenanceMode: boolean("maintenance_mode").notNull().default(false),
