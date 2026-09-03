@@ -4,7 +4,7 @@ import { useListPaymentMethods, useCreateDepositSession } from "@workspace/api-c
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronLeft, Loader2, AlertTriangle, Shield } from "lucide-react";
+import { ChevronLeft, Loader2, AlertTriangle, Shield, Copy, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SiTether } from "react-icons/si";
@@ -60,6 +60,7 @@ export default function Deposit() {
   const [selectedMethodId, setSelectedMethodId] = useState("");
   const [amount, setAmount]               = useState(100);
   const [amountInput, setAmountInput]     = useState("100");
+  const [addressCopied, setAddressCopied] = useState(false);
 
   const activeMethod = paymentMethods?.find((m) => m.id === selectedMethodId);
   const netInfo      = activeMethod?.network ? NETWORK_INFO[activeMethod.network] ?? null : null;
@@ -79,6 +80,19 @@ export default function Deposit() {
     if (!selectedMethodId) { toast({ title: "Select a payment method", variant: "destructive" }); return; }
     if (!amount || amount < MIN_DEPOSIT) { toast({ title: `Minimum deposit is $${MIN_DEPOSIT}`, variant: "destructive" }); return; }
     setStep("review");
+  };
+
+  const handleCopyAddress = async () => {
+    const address = activeMethod?.depositAddress;
+    if (!address) return;
+    try {
+      await navigator.clipboard.writeText(address);
+      setAddressCopied(true);
+      toast({ title: "Deposit address copied" });
+      window.setTimeout(() => setAddressCopied(false), 1800);
+    } catch {
+      toast({ title: "Copy failed — please copy manually", variant: "destructive" });
+    }
   };
 
   const handleConfirm = () => {
@@ -151,6 +165,15 @@ export default function Deposit() {
               <p className="text-xs text-muted-foreground">Send USDT to this BNB Smart Chain (BEP-20) address</p>
               <div className="flex items-center gap-2 rounded-xl bg-card p-3">
                 <code className="flex-1 truncate text-xs font-mono">{activeMethod.depositAddress}</code>
+                <button
+                  type="button"
+                  onClick={() => void handleCopyAddress()}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-background/70 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  aria-label={addressCopied ? "Deposit address copied" : "Copy deposit address"}
+                  title={addressCopied ? "Copied" : "Copy address"}
+                >
+                  {addressCopied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+                </button>
               </div>
               <div className="flex gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
                 <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
