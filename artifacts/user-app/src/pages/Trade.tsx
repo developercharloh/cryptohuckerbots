@@ -1086,7 +1086,7 @@ export default function Trade() {
                       </p>
                       <p style={{ fontSize: 19, fontWeight: 900, color: "#fff" }}>{bulkSignalCount} pairs selected automatically</p>
                       <p style={{ fontSize: 10, color: "#9CA3AF", lineHeight: 1.45, marginTop: 5 }}>
-                        The server will choose the highest-confidence unclaimed pairs and open them together.
+                        The server selects the highest-confidence unclaimed signals and executes them simultaneously.
                       </p>
                     </div>
                     <Sparkles style={{ width: 25, height: 25, color: "#86EFAC", flexShrink: 0 }} />
