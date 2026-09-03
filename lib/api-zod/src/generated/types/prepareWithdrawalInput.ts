@@ -6,10 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface DepositInput {
+export interface PrepareWithdrawalInput {
   amount: number;
   paymentMethod: string;
-  /** @nullable */
-  walletAddress?: string | null;
-  txid: string;
+  walletAddress: string;
 }

@@ -64,6 +64,8 @@ import type {
   CreateDepositSessionInput,
   DashboardSummary,
   DepositInput,
+  DepositReconciliation,
+  DepositReconciliationLookupInput,
   DepositSession,
   ErrorResponse,
   ExecuteAllTradeSignalsInput,
@@ -85,6 +87,7 @@ import type {
   NotificationSettings,
   NotificationSettingsUpdate,
   PaymentMethod,
+  PrepareWithdrawalInput,
   Profile,
   ProfileUpdate,
   ReferralSummary,
@@ -113,7 +116,8 @@ import type {
   VerifyLoginOtpInput,
   VipPackage,
   VipPackagePurchaseResponse,
-  WithdrawInput
+  WithdrawInput,
+  WithdrawalConfirmation
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -2150,6 +2154,70 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getAdminReviewDepositSessionMutationOptions(options));
     }
 
+export const getLookupDepositReconciliationUrl = () => {
+
+
+
+
+  return `/api/admin/deposit-reconciliation/lookup`
+}
+
+export const lookupDepositReconciliation = async (depositReconciliationLookupInput: DepositReconciliationLookupInput, options?: RequestInit): Promise<DepositReconciliation> => {
+
+  return customFetch<DepositReconciliation>(getLookupDepositReconciliationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(depositReconciliationLookupInput)
+  }
+);}
+
+
+
+
+export const getLookupDepositReconciliationMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof lookupDepositReconciliation>>, TError,{data: BodyType<DepositReconciliationLookupInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof lookupDepositReconciliation>>, TError,{data: BodyType<DepositReconciliationLookupInput>}, TContext> => {
+
+const mutationKey = ['lookupDepositReconciliation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof lookupDepositReconciliation>>, {data: BodyType<DepositReconciliationLookupInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  lookupDepositReconciliation(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LookupDepositReconciliationMutationResult = NonNullable<Awaited<ReturnType<typeof lookupDepositReconciliation>>>
+    export type LookupDepositReconciliationMutationBody = BodyType<DepositReconciliationLookupInput>
+    export type LookupDepositReconciliationMutationError = ErrorType<ErrorResponse>
+
+    export const useLookupDepositReconciliation = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof lookupDepositReconciliation>>, TError,{data: BodyType<DepositReconciliationLookupInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof lookupDepositReconciliation>>,
+        TError,
+        {data: BodyType<DepositReconciliationLookupInput>},
+        TContext
+      > => {
+      return useMutation(getLookupDepositReconciliationMutationOptions(options));
+    }
+
 export const getCreateWithdrawalUrl = () => {
 
 
@@ -2212,6 +2280,70 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getCreateWithdrawalMutationOptions(options));
+    }
+
+export const getPrepareWithdrawalUrl = () => {
+
+
+
+
+  return `/api/cashier/withdraw/prepare`
+}
+
+export const prepareWithdrawal = async (prepareWithdrawalInput: PrepareWithdrawalInput, options?: RequestInit): Promise<WithdrawalConfirmation> => {
+
+  return customFetch<WithdrawalConfirmation>(getPrepareWithdrawalUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(prepareWithdrawalInput)
+  }
+);}
+
+
+
+
+export const getPrepareWithdrawalMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof prepareWithdrawal>>, TError,{data: BodyType<PrepareWithdrawalInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof prepareWithdrawal>>, TError,{data: BodyType<PrepareWithdrawalInput>}, TContext> => {
+
+const mutationKey = ['prepareWithdrawal'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof prepareWithdrawal>>, {data: BodyType<PrepareWithdrawalInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  prepareWithdrawal(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PrepareWithdrawalMutationResult = NonNullable<Awaited<ReturnType<typeof prepareWithdrawal>>>
+    export type PrepareWithdrawalMutationBody = BodyType<PrepareWithdrawalInput>
+    export type PrepareWithdrawalMutationError = ErrorType<ErrorResponse>
+
+    export const usePrepareWithdrawal = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof prepareWithdrawal>>, TError,{data: BodyType<PrepareWithdrawalInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof prepareWithdrawal>>,
+        TError,
+        {data: BodyType<PrepareWithdrawalInput>},
+        TContext
+      > => {
+      return useMutation(getPrepareWithdrawalMutationOptions(options));
     }
 
 export const getListTransactionsUrl = (params?: ListTransactionsParams,) => {

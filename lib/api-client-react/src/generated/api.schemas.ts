@@ -452,6 +452,7 @@ export interface DepositInput {
   paymentMethod: string;
   /** @nullable */
   walletAddress?: string | null;
+  txid: string;
 }
 
 export interface WithdrawInput {
@@ -464,6 +465,18 @@ export interface WithdrawInput {
   cryptoAsset?: string | null;
   /** @nullable */
   conversionRate?: number | null;
+  confirmationToken?: string;
+}
+
+export interface PrepareWithdrawalInput {
+  amount: number;
+  paymentMethod: string;
+  walletAddress: string;
+}
+
+export interface WithdrawalConfirmation {
+  confirmationToken: string;
+  expiresAt: string;
 }
 
 export interface Transaction {
@@ -481,6 +494,8 @@ export interface Transaction {
   cryptoAsset?: string | null;
   /** @nullable */
   conversionRate?: number | null;
+  /** @nullable */
+  txid?: string | null;
 }
 
 export interface PaymentMethod {
@@ -1043,6 +1058,7 @@ export interface AdminDepositSession {
   userId: number;
   userName: string;
   userEmail: string;
+  accountUid: string;
   status: string;
   amount: number;
   paymentMethodId: string;
@@ -1067,6 +1083,27 @@ export interface AdminDepositSession {
 export interface AdminReviewDepositInput {
   action: string;
   confirmations?: number;
+  txid?: string;
+}
+
+export interface DepositReconciliationLookupInput {
+  txid: string;
+}
+
+export interface DepositReconciliation {
+  sessionId: number;
+  userId: number;
+  accountUid: string;
+  realName: string;
+  email: string;
+  amount: number;
+  txid: string;
+  status: string;
+  alreadyReconciled: boolean;
+  /** @nullable */
+  reconciledAt: string | null;
+  depositAddress: string;
+  network: string;
 }
 
 export type ChatMessageSender = typeof ChatMessageSender[keyof typeof ChatMessageSender];

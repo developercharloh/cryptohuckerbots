@@ -6,8 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface AdminReviewDepositInput {
-  action: string;
-  confirmations?: number;
-  txid?: string;
+export interface WithdrawalConfirmation {
+  confirmationToken: string;
+  expiresAt: string;
 }

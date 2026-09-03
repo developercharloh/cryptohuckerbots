@@ -374,7 +374,8 @@ export const PurchaseBotResponse = zod.object({
 export const CreateDepositBody = zod.object({
   "amount": zod.number(),
   "paymentMethod": zod.string(),
-  "walletAddress": zod.string().nullish()
+  "walletAddress": zod.string().nullish(),
+  "txid": zod.string()
 })
 
 export const CreateDepositResponse = zod.object({
@@ -387,7 +388,8 @@ export const CreateDepositResponse = zod.object({
   "walletAddress": zod.string().nullish(),
   "cryptoAmount": zod.number().nullish(),
   "cryptoAsset": zod.string().nullish(),
-  "conversionRate": zod.number().nullish()
+  "conversionRate": zod.number().nullish(),
+  "txid": zod.string().nullish()
 })
 
 
@@ -478,6 +480,7 @@ export const AdminListDepositSessionsResponseItem = zod.object({
   "userId": zod.number(),
   "userName": zod.string(),
   "userEmail": zod.string(),
+  "accountUid": zod.string(),
   "status": zod.string(),
   "amount": zod.number(),
   "paymentMethodId": zod.string(),
@@ -503,7 +506,8 @@ export const AdminReviewDepositSessionParams = zod.object({
 
 export const AdminReviewDepositSessionBody = zod.object({
   "action": zod.string(),
-  "confirmations": zod.number().optional()
+  "confirmations": zod.number().optional(),
+  "txid": zod.string().optional()
 })
 
 export const AdminReviewDepositSessionResponse = zod.object({
@@ -511,6 +515,7 @@ export const AdminReviewDepositSessionResponse = zod.object({
   "userId": zod.number(),
   "userName": zod.string(),
   "userEmail": zod.string(),
+  "accountUid": zod.string(),
   "status": zod.string(),
   "amount": zod.number(),
   "paymentMethodId": zod.string(),
@@ -529,13 +534,34 @@ export const AdminReviewDepositSessionResponse = zod.object({
 })
 
 
+export const LookupDepositReconciliationBody = zod.object({
+  "txid": zod.string()
+})
+
+export const LookupDepositReconciliationResponse = zod.object({
+  "sessionId": zod.number(),
+  "userId": zod.number(),
+  "accountUid": zod.string(),
+  "realName": zod.string(),
+  "email": zod.string(),
+  "amount": zod.number(),
+  "txid": zod.string(),
+  "status": zod.string(),
+  "alreadyReconciled": zod.boolean(),
+  "reconciledAt": zod.string().nullable(),
+  "depositAddress": zod.string(),
+  "network": zod.string()
+})
+
+
 export const CreateWithdrawalBody = zod.object({
   "amount": zod.number(),
   "paymentMethod": zod.string(),
   "walletAddress": zod.string(),
   "cryptoAmount": zod.number().nullish(),
   "cryptoAsset": zod.string().nullish(),
-  "conversionRate": zod.number().nullish()
+  "conversionRate": zod.number().nullish(),
+  "confirmationToken": zod.string().optional()
 })
 
 export const CreateWithdrawalResponse = zod.object({
@@ -548,7 +574,20 @@ export const CreateWithdrawalResponse = zod.object({
   "walletAddress": zod.string().nullish(),
   "cryptoAmount": zod.number().nullish(),
   "cryptoAsset": zod.string().nullish(),
-  "conversionRate": zod.number().nullish()
+  "conversionRate": zod.number().nullish(),
+  "txid": zod.string().nullish()
+})
+
+
+export const PrepareWithdrawalBody = zod.object({
+  "amount": zod.number(),
+  "paymentMethod": zod.string(),
+  "walletAddress": zod.string()
+})
+
+export const PrepareWithdrawalResponse = zod.object({
+  "confirmationToken": zod.string(),
+  "expiresAt": zod.string()
 })
 
 
@@ -566,7 +605,8 @@ export const ListTransactionsResponseItem = zod.object({
   "walletAddress": zod.string().nullish(),
   "cryptoAmount": zod.number().nullish(),
   "cryptoAsset": zod.string().nullish(),
-  "conversionRate": zod.number().nullish()
+  "conversionRate": zod.number().nullish(),
+  "txid": zod.string().nullish()
 })
 export const ListTransactionsResponse = zod.array(ListTransactionsResponseItem)
 

@@ -21,4 +21,6 @@ export interface Transaction {
   cryptoAsset?: string | null;
   /** @nullable */
   conversionRate?: number | null;
+  /** @nullable */
+  txid?: string | null;
 }

@@ -6,10 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface DepositInput {
-  amount: number;
-  paymentMethod: string;
-  /** @nullable */
-  walletAddress?: string | null;
+export interface DepositReconciliationLookupInput {
   txid: string;
 }

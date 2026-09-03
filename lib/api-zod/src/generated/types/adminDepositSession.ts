@@ -11,6 +11,7 @@ export interface AdminDepositSession {
   userId: number;
   userName: string;
   userEmail: string;
+  accountUid: string;
   status: string;
   amount: number;
   paymentMethodId: string;
