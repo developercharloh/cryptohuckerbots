@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useRegister } from "@workspace/api-client-react";
@@ -48,8 +48,9 @@ export default function Register() {
 
   const form = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { fullName: "", email: "", phone: "", password: "", country: "🇰🇪 Kenya", referralCode, confirmPassword: "", terms: false },
+    defaultValues: { fullName: "", email: "", phone: "", password: "", country: "🇺🇸 United States", referralCode, confirmPassword: "", terms: false },
   });
+  const selectedCountryName = useWatch({ control: form.control, name: "country" });
 
   const onSubmit = (values: z.infer<typeof registerSchema>) => {
     const { terms, confirmPassword, referralCode: enteredReferralCode, ...data } = values;
@@ -99,7 +100,7 @@ export default function Register() {
           </span>
         </div>
         <h1 style={{ fontSize: 26, fontWeight: 800, color: "#F1F5F9", marginBottom: 6, letterSpacing: "-0.02em" }}>Create Account</h1>
-        <p style={{ fontSize: 13, color: "#64748B" }}>Join thousands of traders on VIXUS</p>
+        <p style={{ fontSize: 13, color: "#64748B" }}>Join millions of traders on VIXUS</p>
       </div>
 
       {/* Form */}
@@ -157,7 +158,7 @@ export default function Register() {
             )} />
 
             <FormField control={form.control} name="phone" render={({ field }) => {
-              const selectedCountry = COUNTRIES.find((country) => country.name === form.getValues("country")) ?? COUNTRIES[0];
+              const selectedCountry = COUNTRIES.find((country) => country.name === selectedCountryName) ?? COUNTRIES[0];
               return (
               <FormItem style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                 <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.03em" }}>Phone Number</label>
