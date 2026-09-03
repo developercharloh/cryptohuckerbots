@@ -7,7 +7,10 @@
  */
 
 export interface DepositReconciliation {
-  sessionId: number;
+  /** @nullable */
+  sessionId: number | null;
+  /** @nullable */
+  transactionId: number | null;
   userId: number;
   accountUid: string;
   realName: string;

@@ -8,4 +8,5 @@
 
 export interface AdminTxnReviewInput {
   action: string;
+  txid?: string;
 }

@@ -1,9 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useListPaymentMethods, useCreateWithdrawal, useGetDashboardSummary } from "@workspace/api-client-react";
+import { useListPaymentMethods, useCreateWithdrawal, usePrepareWithdrawal, useGetDashboardSummary } from "@workspace/api-client-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,7 +43,14 @@ export default function Withdraw() {
     query: { refetchInterval: 5000, refetchOnWindowFocus: true } as any,
   });
   const { data: paymentMethods, isLoading: loadingMethods } = useListPaymentMethods();
+  const prepareMutation = usePrepareWithdrawal();
   const withdrawMutation = useCreateWithdrawal();
+  const [pendingConfirmation, setPendingConfirmation] = useState<{
+    values: z.infer<typeof withdrawSchema>;
+    methodName: string;
+    confirmationToken: string;
+    expiresAt: string;
+  } | null>(null);
 
   const form = useForm<z.infer<typeof withdrawSchema>>({
     resolver: zodResolver(withdrawSchema),
@@ -73,11 +80,44 @@ export default function Withdraw() {
     }
     // Send the canonical method name so admin records show the network.
     const methodName = activeMethod?.name ?? values.paymentMethod;
+    prepareMutation.mutate(
+      {
+        data: {
+          amount: values.amount,
+          paymentMethod: methodName,
+          walletAddress: values.walletAddress.trim(),
+        },
+      },
+      {
+        onSuccess: (confirmation) => {
+          setPendingConfirmation({
+            values,
+            methodName,
+            confirmationToken: confirmation.confirmationToken,
+            expiresAt: confirmation.expiresAt,
+          });
+          toast({
+            title: "Review your withdrawal",
+            description: "Please verify the amount and destination before confirming.",
+          });
+        },
+        onError: (err: unknown) => {
+          const msg = err instanceof Error ? err.message : "Something went wrong";
+          toast({ title: "Withdrawal failed", description: msg, variant: "destructive" });
+        },
+      }
+    );
+  };
+
+  const confirmWithdrawal = () => {
+    if (!pendingConfirmation) return;
     withdrawMutation.mutate(
       {
         data: {
-          ...values,
-          paymentMethod: methodName,
+          ...pendingConfirmation.values,
+          paymentMethod: pendingConfirmation.methodName,
+          walletAddress: pendingConfirmation.values.walletAddress.trim(),
+          confirmationToken: pendingConfirmation.confirmationToken,
         },
       },
       {
@@ -92,7 +132,7 @@ export default function Withdraw() {
           const msg = err instanceof Error ? err.message : "Something went wrong";
           toast({ title: "Withdrawal failed", description: msg, variant: "destructive" });
         },
-      }
+      },
     );
   };
 
@@ -110,6 +150,43 @@ export default function Withdraw() {
           <h1 className="text-xl font-bold tracking-tight">Withdraw</h1>
         </div>
 
+        {pendingConfirmation ? (
+          <div className="space-y-5">
+            <div className="rounded-2xl border border-primary/30 bg-primary/5 p-5 space-y-4">
+              <div>
+                <p className="text-lg font-bold">Confirm withdrawal</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Check these details carefully. Crypto transfers cannot be reversed.
+                </p>
+              </div>
+              <div className="rounded-xl bg-card p-4 space-y-3">
+                <div className="flex justify-between gap-4 text-sm">
+                  <span className="text-muted-foreground">Amount</span>
+                  <span className="font-bold">{formatUSD(pendingConfirmation.values.amount)}</span>
+                </div>
+                <div className="flex justify-between gap-4 text-sm">
+                  <span className="text-muted-foreground">Network</span>
+                  <span className="font-semibold text-right">{pendingConfirmation.methodName}</span>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-sm text-muted-foreground">Destination wallet</span>
+                  <p className="font-mono text-xs break-all">{pendingConfirmation.values.walletAddress}</p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                This confirmation expires in a few minutes. Return to edit the request if anything is incorrect.
+              </p>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" className="flex-1 h-12 rounded-xl" onClick={() => setPendingConfirmation(null)} disabled={withdrawMutation.isPending}>
+                  Edit details
+                </Button>
+                <Button type="button" className="flex-1 h-12 rounded-xl font-bold" onClick={confirmWithdrawal} disabled={withdrawMutation.isPending}>
+                  {withdrawMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : "Confirm withdrawal"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : (
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
 
@@ -280,17 +357,18 @@ export default function Withdraw() {
 
             <Button
               type="submit"
-              disabled={loadingSummary || withdrawMutation.isPending}
+              disabled={loadingSummary || prepareMutation.isPending}
               className="w-full h-14 rounded-xl text-base font-bold shadow-none bg-gradient-to-r from-[#F5B942] to-[#2563EB] hover:opacity-90 transition-opacity"
             >
-              {withdrawMutation.isPending ? (
+              {prepareMutation.isPending ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
-                `Request Withdrawal${activeMethod ? ` via ${activeMethod.network ?? activeMethod.name}` : ""}`
+                `Review Withdrawal${activeMethod ? ` via ${activeMethod.network ?? activeMethod.name}` : ""}`
               )}
             </Button>
           </form>
         </Form>
+        )}
       </div>
     </Layout>
   );

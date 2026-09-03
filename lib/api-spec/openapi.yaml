@@ -3163,6 +3163,7 @@ components:
       type: object
       properties:
         action: { type: string }
+        txid: { type: string }
       required: [action]
 
     AdminTicket:
@@ -3334,7 +3335,8 @@ components:
     DepositReconciliation:
       type: object
       properties:
-        sessionId: { type: integer }
+        sessionId: { type: ["integer", "null"] }
+        transactionId: { type: ["integer", "null"] }
         userId: { type: integer }
         accountUid: { type: string }
         realName: { type: string }
@@ -3346,7 +3348,7 @@ components:
         reconciledAt: { type: ["string", "null"] }
         depositAddress: { type: string }
         network: { type: string }
-      required: [sessionId, userId, accountUid, realName, email, amount, txid, status, alreadyReconciled, reconciledAt, depositAddress, network]
+      required: [sessionId, transactionId, userId, accountUid, realName, email, amount, txid, status, alreadyReconciled, reconciledAt, depositAddress, network]
 
     ChatMessage:
       type: object

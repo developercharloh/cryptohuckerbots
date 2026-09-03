@@ -1160,20 +1160,47 @@ router.post("/admin/deposit-reconciliation/lookup", async (req, res) => {
     .where(eq(depositSessionsTable.txid, txid))
     .limit(1);
 
-  if (!row || !row.user) return res.status(404).json({ error: "Transaction hash was not found" });
+  if (row?.user && row.session) {
+    return res.json({
+      sessionId: row.session.id,
+      transactionId: row.transaction?.id ?? null,
+      userId: row.session.userId,
+      accountUid: row.user.accountUid,
+      realName: row.user.fullName,
+      email: row.user.email,
+      amount: Number(row.session.amount),
+      txid,
+      status: row.session.status,
+      alreadyReconciled: row.session.status === "completed" || Boolean(row.transaction?.status === "completed"),
+      reconciledAt: row.transaction?.status === "completed" ? row.transaction.createdAt.toISOString() : null,
+      depositAddress: row.session.depositAddress,
+      network: row.session.network,
+    });
+  }
+
+  // Legacy deposits do not have a session row, but must still use the same
+  // hash-first confirmation path before they can be credited.
+  const [legacy] = await db
+    .select({ transaction: transactionsTable, user: usersTable })
+    .from(transactionsTable)
+    .leftJoin(usersTable, eq(transactionsTable.userId, usersTable.id))
+    .where(and(eq(transactionsTable.type, "deposit"), eq(transactionsTable.txid, txid)))
+    .limit(1);
+  if (!legacy?.user) return res.status(404).json({ error: "Transaction hash was not found" });
   return res.json({
-    sessionId: row.session.id,
-    userId: row.session.userId,
-    accountUid: row.user.accountUid,
-    realName: row.user.fullName,
-    email: row.user.email,
-    amount: Number(row.session.amount),
+    sessionId: null,
+    transactionId: legacy.transaction.id,
+    userId: legacy.transaction.userId,
+    accountUid: legacy.user.accountUid,
+    realName: legacy.user.fullName,
+    email: legacy.user.email,
+    amount: Number(legacy.transaction.amount),
     txid,
-    status: row.session.status,
-    alreadyReconciled: row.session.status === "completed" || Boolean(row.transaction?.status === "completed"),
-    reconciledAt: row.transaction?.status === "completed" ? row.transaction.createdAt.toISOString() : null,
-    depositAddress: row.session.depositAddress,
-    network: row.session.network,
+    status: legacy.transaction.status,
+    alreadyReconciled: legacy.transaction.status === "completed",
+    reconciledAt: legacy.transaction.status === "completed" ? legacy.transaction.createdAt.toISOString() : null,
+    depositAddress: legacy.transaction.walletAddress ?? "",
+    network: "BSC BEP20",
   });
 });
 

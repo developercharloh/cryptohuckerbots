@@ -539,7 +539,8 @@ export const LookupDepositReconciliationBody = zod.object({
 })
 
 export const LookupDepositReconciliationResponse = zod.object({
-  "sessionId": zod.number(),
+  "sessionId": zod.number().nullable(),
+  "transactionId": zod.number().nullable(),
   "userId": zod.number(),
   "accountUid": zod.string(),
   "realName": zod.string(),
@@ -1601,7 +1602,8 @@ export const AdminReviewTransactionParams = zod.object({
 })
 
 export const AdminReviewTransactionBody = zod.object({
-  "action": zod.string()
+  "action": zod.string(),
+  "txid": zod.string().optional()
 })
 
 export const AdminReviewTransactionResponse = zod.object({

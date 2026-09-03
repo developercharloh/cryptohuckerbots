@@ -25,6 +25,7 @@ const {
   transactionsTable,
   usersTable,
   vipInvestmentCapitalTable,
+  withdrawalConfirmationsTable,
 } = {
   ...database,
   ...drizzle,
@@ -138,6 +139,7 @@ after(async () => {
     await db.delete(notificationSettingsTable).where(eq(notificationSettingsTable.userId, userId));
     await db.delete(vipInvestmentCapitalTable).where(eq(vipInvestmentCapitalTable.userId, userId));
     await db.delete(depositSessionsTable).where(eq(depositSessionsTable.userId, userId));
+    await db.delete(withdrawalConfirmationsTable).where(eq(withdrawalConfirmationsTable.userId, userId));
     await db.delete(transactionsTable).where(eq(transactionsTable.userId, userId));
     await db.delete(sessionsTable).where(eq(sessionsTable.userId, userId));
     await db.delete(usersTable).where(eq(usersTable.id, userId));
@@ -173,7 +175,7 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
 
   const pendingDeposit = await request<{ id: number }>("/api/cashier/deposit", {
     method: "POST",
-    body: { amount: 250, paymentMethod: "BSC BNB Smart Chain (BEP20)", walletAddress: "test-wallet" },
+    body: { amount: 250, paymentMethod: "BSC BNB Smart Chain (BEP20)", walletAddress: "test-wallet", txid: `0x${"01".repeat(32)}` },
   });
   assert.equal(pendingDeposit.response.status, 201);
 
@@ -183,7 +185,7 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
   const approvedDeposit = await request(`/api/admin/transactions/${pendingDeposit.body.id}/review`, {
     method: "POST",
     cookieJar: adminJar,
-    body: { action: "approve" },
+    body: { action: "approve", txid: `0x${"01".repeat(32)}` },
   });
   assert.equal(approvedDeposit.response.status, 200);
   assert.equal(approvedDeposit.body.status, "completed");
@@ -247,6 +249,18 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
   assert.equal(submittedDeposit.body.status, "payment_detected");
   assert.equal(submittedDeposit.body.txid, submittedTxid);
 
+  const duplicateHash = await request("/api/cashier/deposit", {
+    method: "POST",
+    body: { amount: 20, paymentMethod: "BSC BNB Smart Chain (BEP20)", txid: submittedTxid },
+  });
+  assert.equal(duplicateHash.response.status, 409);
+
+  const hashlessSession = await request<{ id: number }>("/api/cashier/deposit/session", {
+    method: "POST",
+    body: { amount: 90, paymentMethodId: "usdt_bep20" },
+  });
+  assert.equal(hashlessSession.response.status, 201);
+
   const adminDepositSessions = await request<Array<{
     id: number;
     txid: string | null;
@@ -257,6 +271,23 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
   assert.ok(adminDeposit);
   assert.equal(adminDeposit.txid, submittedTxid);
   assert.equal(adminDeposit.depositAddress, BSC_DEPOSIT_ADDRESS);
+  assert.equal(adminDepositSessions.body.some((entry) => entry.id === hashlessSession.body.id), false);
+
+  const reconciliationLookup = await request<{
+    realName: string;
+    accountUid: string;
+    amount: number;
+    alreadyReconciled: boolean;
+  }>("/api/admin/deposit-reconciliation/lookup", {
+    method: "POST",
+    cookieJar: adminJar,
+    body: { txid: submittedTxid },
+  });
+  assert.equal(reconciliationLookup.response.status, 200);
+  assert.equal(reconciliationLookup.body.realName, "Wallet Integration User");
+  assert.ok(reconciliationLookup.body.accountUid);
+  assert.equal(reconciliationLookup.body.amount, 80);
+  assert.equal(reconciliationLookup.body.alreadyReconciled, false);
 
   const beforeSessionApproval = await request<{ mainWalletBalance: number }>("/api/dashboard/summary");
   assert.equal(beforeSessionApproval.body.mainWalletBalance, 425);
@@ -264,7 +295,7 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
   const approvedDepositSession = await request(`/api/admin/deposit-sessions/${depositSession.body.id}/review`, {
     method: "POST",
     cookieJar: adminJar,
-    body: { action: "approve" },
+    body: { action: "approve", txid: submittedTxid },
   });
   assert.equal(approvedDepositSession.response.status, 200);
   assert.equal(approvedDepositSession.body.status, "completed");
@@ -276,6 +307,13 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
   assert.equal(afterSessionApproval.body.mainWalletBalance, 505);
   assert.equal(afterSessionApproval.body.availableBalance, 505);
 
+  const repeatedReconciliation = await request(`/api/admin/deposit-sessions/${depositSession.body.id}/review`, {
+    method: "POST",
+    cookieJar: adminJar,
+    body: { action: "approve", txid: submittedTxid },
+  });
+  assert.equal(repeatedReconciliation.response.status, 409);
+
   const pendingWithdrawal = await request("/api/cashier/withdraw", {
     method: "POST",
     body: {
@@ -284,7 +322,29 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
       walletAddress: "0x1234567890abcdef1234567890ABCDEF12345678",
     },
   });
-  assert.equal(pendingWithdrawal.response.status, 201);
+  assert.equal(pendingWithdrawal.response.status, 400);
+
+  const withdrawalPreparation = await request<{ confirmationToken: string }>("/api/cashier/withdraw/prepare", {
+    method: "POST",
+    body: {
+      amount: 100,
+      paymentMethod: "BSC BNB Smart Chain (BEP20)",
+      walletAddress: "0x1234567890abcdef1234567890ABCDEF12345678",
+    },
+  });
+  assert.equal(withdrawalPreparation.response.status, 200);
+  assert.ok(withdrawalPreparation.body.confirmationToken);
+
+  const confirmedWithdrawal = await request("/api/cashier/withdraw", {
+    method: "POST",
+    body: {
+      amount: 100,
+      paymentMethod: "BSC BNB Smart Chain (BEP20)",
+      walletAddress: "0x1234567890abcdef1234567890ABCDEF12345678",
+      confirmationToken: withdrawalPreparation.body.confirmationToken,
+    },
+  });
+  assert.equal(confirmedWithdrawal.response.status, 201);
   const heldSummary = await request<{
     mainWalletBalance: number;
     availableBalance: number;
@@ -339,6 +399,37 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
       walletAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
     },
   });
-  assert.equal(withdrawalFromMainWallet.response.status, 201);
-  assert.equal(withdrawalFromMainWallet.body.amount, 326);
+  assert.equal(withdrawalFromMainWallet.response.status, 400);
+
+  const secondWithdrawalPreparation = await request<{ confirmationToken: string }>("/api/cashier/withdraw/prepare", {
+    method: "POST",
+    body: {
+      amount: 326,
+      paymentMethod: "BSC BNB Smart Chain (BEP20)",
+      walletAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+    },
+  });
+  assert.equal(secondWithdrawalPreparation.response.status, 200);
+
+  const secondWithdrawal = await request("/api/cashier/withdraw", {
+    method: "POST",
+    body: {
+      amount: 326,
+      paymentMethod: "BSC BNB Smart Chain (BEP20)",
+      walletAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+      confirmationToken: secondWithdrawalPreparation.body.confirmationToken,
+    },
+  });
+  assert.equal(secondWithdrawal.response.status, 201);
+
+  const replayedWithdrawal = await request("/api/cashier/withdraw", {
+    method: "POST",
+    body: {
+      amount: 326,
+      paymentMethod: "BSC BNB Smart Chain (BEP20)",
+      walletAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+      confirmationToken: secondWithdrawalPreparation.body.confirmationToken,
+    },
+  });
+  assert.equal(replayedWithdrawal.response.status, 400);
 });

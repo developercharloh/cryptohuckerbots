@@ -161,7 +161,7 @@ function TransactionsTab() {
                     </div>
                   </div>
                 </div>
-                {txn.status === "pending" && (txn.type === "deposit" || txn.type === "withdrawal") && (
+                {txn.status === "pending" && txn.type === "withdrawal" && (
                   <div className="flex gap-2 mt-3 pt-3 border-t border-border/50">
                     <Button variant="outline" size="sm"
                       className="flex-1 h-8 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10 rounded-xl"
@@ -198,6 +198,7 @@ function DepositSessionsTab() {
     { query: { refetchInterval: 10000 } as any }
   );
   const reviewSession = useAdminReviewDepositSession();
+  const reviewTransaction = useAdminReviewTransaction();
   const lookupReconciliation = useLookupDepositReconciliation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -319,8 +320,26 @@ function DepositSessionsTab() {
               {!reconciliation.alreadyReconciled && (
                 <Button
                   className="w-full h-9 rounded-lg text-xs"
-                  onClick={() => act(reconciliation.sessionId, "approve", { txid: reconciliation.txid })}
-                  disabled={reviewSession.isPending}
+                  onClick={() => {
+                    if (reconciliation.sessionId != null) {
+                      act(reconciliation.sessionId, "approve", { txid: reconciliation.txid });
+                      return;
+                    }
+                    if (reconciliation.transactionId == null) return;
+                    reviewTransaction.mutate(
+                      { id: reconciliation.transactionId, data: { action: "approve", txid: reconciliation.txid } },
+                      {
+                        onSuccess: () => {
+                          toast({ title: "Deposit reconciled and credited" });
+                          setReconciliation(null);
+                          setReconciliationInput("");
+                          queryClient.invalidateQueries({ queryKey: getAdminListTransactionsQueryKey() });
+                        },
+                        onError: (err) => toast({ title: "Reconciliation failed", description: err.message, variant: "destructive" }),
+                      },
+                    );
+                  }}
+                  disabled={reviewSession.isPending || reviewTransaction.isPending}
                 >
                   <CheckCircle className="w-3.5 h-3.5 mr-1.5" />
                   Confirm deposit for {reconciliation.accountUid}

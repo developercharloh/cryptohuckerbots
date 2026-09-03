@@ -106,12 +106,6 @@ router.post("/cashier/deposit/session/:id/txid", async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
 
-  const { txid } = req.body as { txid?: unknown };
-  if (!isValidTxid(txid)) {
-    return res.status(400).json({ error: "Enter a valid BNB Smart Chain transaction hash" });
-  }
-  const normalizedTxid = txid.trim();
-
   const sessions = await db.select().from(depositSessionsTable)
     .where(and(eq(depositSessionsTable.id, id), eq(depositSessionsTable.userId, user.id)))
     .limit(1);
@@ -119,6 +113,22 @@ router.post("/cashier/deposit/session/:id/txid", async (req, res) => {
   if (!sessions[0]) return res.status(404).json({ error: "Not found" });
   if (!["waiting_payment", "payment_detected"].includes(sessions[0].status)) {
     return res.status(400).json({ error: "Cannot update TXID at this stage" });
+  }
+
+  const { txid } = req.body as { txid?: unknown };
+  if (!isValidTxid(txid)) {
+    return res.status(400).json({ error: "Enter a valid BNB Smart Chain transaction hash" });
+  }
+  const normalizedTxid = txid.trim();
+
+  const [existingSession, existingTransaction] = await Promise.all([
+    db.select({ id: depositSessionsTable.id }).from(depositSessionsTable)
+      .where(eq(depositSessionsTable.txid, normalizedTxid)).limit(1),
+    db.select({ id: transactionsTable.id }).from(transactionsTable)
+      .where(eq(transactionsTable.txid, normalizedTxid)).limit(1),
+  ]);
+  if (existingSession[0] || existingTransaction[0]) {
+    return res.status(409).json({ error: "This transaction hash has already been submitted" });
   }
 
   try {
@@ -150,6 +160,16 @@ router.post("/cashier/deposit", async (req, res) => {
   if (!isValidTxid(txid)) {
     return res.status(400).json({ error: "A valid BNB Smart Chain transaction hash is required" });
   }
+  const normalizedTxid = txid.trim();
+  const [existingSession, existingTransaction] = await Promise.all([
+    db.select({ id: depositSessionsTable.id }).from(depositSessionsTable)
+      .where(eq(depositSessionsTable.txid, normalizedTxid)).limit(1),
+    db.select({ id: transactionsTable.id }).from(transactionsTable)
+      .where(eq(transactionsTable.txid, normalizedTxid)).limit(1),
+  ]);
+  if (existingSession[0] || existingTransaction[0]) {
+    return res.status(409).json({ error: "This transaction hash has already been submitted" });
+  }
 
   let txn;
   try {
@@ -160,7 +180,7 @@ router.post("/cashier/deposit", async (req, res) => {
       status: "pending",
       paymentMethod: BSC_PAYMENT_METHOD.name,
       walletAddress: BSC_PAYMENT_METHOD.depositAddress,
-      txid: txid.trim(),
+      txid: normalizedTxid,
       description: `Deposit via ${BSC_PAYMENT_METHOD.name}`,
     }).returning();
   } catch (error: any) {
@@ -195,6 +215,7 @@ router.post("/cashier/deposit", async (req, res) => {
     paymentMethod: txn.paymentMethod,
     createdAt: txn.createdAt.toISOString(),
     walletAddress: txn.walletAddress,
+    txid: txn.txid,
   });
 });
 

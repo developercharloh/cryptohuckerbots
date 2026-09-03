@@ -927,6 +927,7 @@ export interface AdminAssignBotInput {
 
 export interface AdminTxnReviewInput {
   action: string;
+  txid?: string;
 }
 
 export interface AdminTicket {
@@ -1091,7 +1092,10 @@ export interface DepositReconciliationLookupInput {
 }
 
 export interface DepositReconciliation {
-  sessionId: number;
+  /** @nullable */
+  sessionId: number | null;
+  /** @nullable */
+  transactionId: number | null;
   userId: number;
   accountUid: string;
   realName: string;
