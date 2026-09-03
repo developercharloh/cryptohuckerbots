@@ -27,7 +27,7 @@ import {
   technicalIncidentsTable,
   type PaymentMethod,
 } from "@workspace/db";
-import { eq, and, desc, sql, inArray, ilike, or, gte } from "drizzle-orm";
+import { eq, and, desc, sql, inArray, ilike, or, gte, isNotNull, ne } from "drizzle-orm";
 import crypto from "crypto";
 import {
   calculateVaultCapital,
@@ -983,6 +983,7 @@ function mapTxnRow(t: typeof transactionsTable.$inferSelect, u: typeof usersTabl
     paymentMethod: t.paymentMethod,
     network,
     walletAddress: t.walletAddress,
+    txid: t.txid ?? null,
     description: t.description,
     createdAt: t.createdAt.toISOString(),
     cryptoAmount: t.cryptoAmount ? parseFloat(t.cryptoAmount) : null,
@@ -1001,6 +1002,9 @@ router.get("/admin/transactions", async (req, res) => {
   const filters = [];
   if (type && type !== "all") filters.push(eq(transactionsTable.type, type));
   if (status && status !== "all") filters.push(eq(transactionsTable.status, status));
+  // Deposit requests without a submitted transaction hash are never an admin
+  // finance item. This also hides legacy rows created before hash enforcement.
+  filters.push(or(ne(transactionsTable.type, "deposit"), isNotNull(transactionsTable.txid)));
 
   const [[{ total }], rows] = await Promise.all([
     db.select({ total: sql<number>`count(*)::int` })
@@ -1069,9 +1073,6 @@ router.post("/admin/transactions/:id/review", async (req, res) => {
   const parsed = AdminReviewTransactionBody.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
 
-  const newStatus = parsed.data.action === "approve" ? "completed" : "rejected";
-  await db.update(transactionsTable).set({ status: newStatus }).where(eq(transactionsTable.id, id));
-
   const [row] = await db
     .select({ txn: transactionsTable, user: usersTable })
     .from(transactionsTable)
@@ -1079,7 +1080,27 @@ router.post("/admin/transactions/:id/review", async (req, res) => {
     .where(eq(transactionsTable.id, id))
     .limit(1);
   if (!row) return res.status(404).json({ error: "Transaction not found" });
-  return res.json(mapTxnRow(row.txn, row.user));
+  if (row.txn.type === "deposit" && !row.txn.txid) {
+    return res.status(400).json({ error: "Deposit cannot be reviewed without a transaction hash" });
+  }
+  if (row.txn.status !== "pending") {
+    return res.status(409).json({ error: "Transaction has already been reviewed" });
+  }
+
+  const newStatus = parsed.data.action === "approve" ? "completed" : "rejected";
+  const [updated] = await db.update(transactionsTable)
+    .set({ status: newStatus })
+    .where(and(eq(transactionsTable.id, id), eq(transactionsTable.status, "pending")))
+    .returning();
+  if (!updated) return res.status(409).json({ error: "Transaction has already been reviewed" });
+
+  const [updatedRow] = await db
+    .select({ txn: transactionsTable, user: usersTable })
+    .from(transactionsTable)
+    .leftJoin(usersTable, eq(transactionsTable.userId, usersTable.id))
+    .where(eq(transactionsTable.id, id))
+    .limit(1);
+  return res.json(mapTxnRow(updatedRow!.txn, updatedRow!.user));
 });
 
 // ---------------- Deposit Sessions ----------------
@@ -1092,6 +1113,7 @@ function mapDepositSession(
     userId: s.userId,
     userName: u?.fullName ?? "Unknown",
     userEmail: u?.email ?? "",
+    accountUid: u?.accountUid ?? "",
     status: s.status,
     amount: parseFloat(s.amount),
     paymentMethodId: s.paymentMethodId,
@@ -1116,6 +1138,7 @@ router.get("/admin/deposit-sessions", async (req, res) => {
     .select({ session: depositSessionsTable, user: usersTable })
     .from(depositSessionsTable)
     .leftJoin(usersTable, eq(depositSessionsTable.userId, usersTable.id))
+    .where(isNotNull(depositSessionsTable.txid))
     .orderBy(desc(depositSessionsTable.createdAt));
 
   let result = rows.map((r) => mapDepositSession(r.session, r.user));
@@ -1123,42 +1146,101 @@ router.get("/admin/deposit-sessions", async (req, res) => {
   return res.json(result);
 });
 
+router.post("/admin/deposit-reconciliation/lookup", async (req, res) => {
+  const rawTxid = req.body?.txid;
+  if (typeof rawTxid !== "string" || !/^0x[a-fA-F0-9]{64}$/.test(rawTxid.trim())) {
+    return res.status(400).json({ error: "Enter a valid BNB Smart Chain transaction hash" });
+  }
+  const txid = rawTxid.trim();
+  const [row] = await db
+    .select({ session: depositSessionsTable, user: usersTable, transaction: transactionsTable })
+    .from(depositSessionsTable)
+    .leftJoin(usersTable, eq(depositSessionsTable.userId, usersTable.id))
+    .leftJoin(transactionsTable, eq(depositSessionsTable.transactionId, transactionsTable.id))
+    .where(eq(depositSessionsTable.txid, txid))
+    .limit(1);
+
+  if (!row || !row.user) return res.status(404).json({ error: "Transaction hash was not found" });
+  return res.json({
+    sessionId: row.session.id,
+    userId: row.session.userId,
+    accountUid: row.user.accountUid,
+    realName: row.user.fullName,
+    email: row.user.email,
+    amount: Number(row.session.amount),
+    txid,
+    status: row.session.status,
+    alreadyReconciled: row.session.status === "completed" || Boolean(row.transaction?.status === "completed"),
+    reconciledAt: row.transaction?.status === "completed" ? row.transaction.createdAt.toISOString() : null,
+    depositAddress: row.session.depositAddress,
+    network: row.session.network,
+  });
+});
+
 router.post("/admin/deposit-sessions/:id/review", async (req, res) => {
   const id = Number(req.params.id);
   if (Number.isNaN(id)) return res.status(400).json({ error: "Invalid id" });
 
-  const { action, confirmations } = req.body as { action?: string; confirmations?: number };
+  const { action, confirmations, txid } = req.body as { action?: string; confirmations?: number; txid?: unknown };
   if (!action) return res.status(400).json({ error: "action is required" });
 
   const sessions = await db.select().from(depositSessionsTable).where(eq(depositSessionsTable.id, id)).limit(1);
   if (!sessions[0]) return res.status(404).json({ error: "Deposit session not found" });
   const session = sessions[0];
+  if (!session.txid) {
+    return res.status(400).json({ error: "Deposit cannot be reviewed without a transaction hash" });
+  }
+  if (typeof txid === "string" && txid.trim() !== session.txid) {
+    return res.status(400).json({ error: "The transaction hash does not match this deposit" });
+  }
 
   if (action === "detect") {
+    if (session.status === "completed") return res.status(409).json({ error: "Deposit has already been reconciled" });
     await db.update(depositSessionsTable)
       .set({ status: "payment_detected", updatedAt: new Date() })
       .where(eq(depositSessionsTable.id, id));
   } else if (action === "update_confirmations") {
+    if (session.status === "completed") return res.status(409).json({ error: "Deposit has already been reconciled" });
     const count = Number(confirmations ?? 0);
+    if (!Number.isInteger(count) || count < 0 || count > session.requiredConfirmations) {
+      return res.status(400).json({ error: "Invalid confirmation count" });
+    }
     const newStatus = count >= session.requiredConfirmations ? "confirming" : session.status === "payment_detected" ? "confirming" : session.status;
     await db.update(depositSessionsTable)
       .set({ confirmations: count, status: newStatus, updatedAt: new Date() })
       .where(eq(depositSessionsTable.id, id));
   } else if (action === "approve") {
-    // Credit the user by creating a completed deposit transaction (balance is derived from transactions)
-    const [txn] = await db.insert(transactionsTable).values({
-      userId: session.userId,
-      type: "deposit",
-      amount: session.amount,
-      status: "completed",
-      paymentMethod: session.paymentMethodName,
-      walletAddress: session.depositAddress,
-      description: `Crypto deposit via ${session.paymentMethodName}`,
-    }).returning();
-    await db.update(depositSessionsTable)
-      .set({ status: "completed", transactionId: txn.id, confirmations: session.requiredConfirmations, updatedAt: new Date() })
-      .where(eq(depositSessionsTable.id, id));
+    const result = await db.transaction(async (tx) => {
+      const [lockedSession] = await tx.select().from(depositSessionsTable)
+        .where(eq(depositSessionsTable.id, id))
+        .for("update")
+        .limit(1);
+      if (!lockedSession) return { error: "Deposit session not found" } as const;
+      if (lockedSession.status === "completed" || lockedSession.transactionId) {
+        return { error: "Deposit has already been reconciled" } as const;
+      }
+      if (!lockedSession.txid) {
+        return { error: "Deposit cannot be reconciled without a transaction hash" } as const;
+      }
+
+      const [txn] = await tx.insert(transactionsTable).values({
+        userId: lockedSession.userId,
+        type: "deposit",
+        amount: lockedSession.amount,
+        status: "completed",
+        paymentMethod: lockedSession.paymentMethodName,
+        walletAddress: lockedSession.depositAddress,
+        txid: lockedSession.txid,
+        description: `Crypto deposit via ${lockedSession.paymentMethodName}`,
+      }).returning();
+      await tx.update(depositSessionsTable)
+        .set({ status: "completed", transactionId: txn.id, confirmations: lockedSession.requiredConfirmations, updatedAt: new Date() })
+        .where(and(eq(depositSessionsTable.id, id), ne(depositSessionsTable.status, "completed")));
+      return { ok: true } as const;
+    });
+    if ("error" in result) return res.status(409).json({ error: result.error });
   } else if (action === "reject") {
+    if (session.status === "completed") return res.status(409).json({ error: "Deposit has already been reconciled" });
     await db.update(depositSessionsTable)
       .set({ status: "failed", updatedAt: new Date() })
       .where(eq(depositSessionsTable.id, id));
