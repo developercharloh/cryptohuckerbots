@@ -25,4 +25,14 @@ export interface AdminUser {
   /** @nullable */
   country?: string | null;
   createdAt: string;
+  signalTrialActive: boolean;
+  signalTrialExpired: boolean;
+  /** @nullable */
+  signalTrialStartedAt: string | null;
+  /** @nullable */
+  signalTrialEndsAt: string | null;
+  /** @minimum 0 */
+  signalTrialRemainingMs: number;
+  /** @nullable */
+  signalTrialReminderSentAt: string | null;
 }

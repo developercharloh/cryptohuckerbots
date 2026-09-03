@@ -15,7 +15,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { ArrowLeft, Ban, CheckCircle, KeyRound, Plus, Minus, CreditCard, Copy, Check, ShieldCheck, ShieldOff, MessageSquare, Loader2, Send, RotateCcw } from "lucide-react";
+import { ArrowLeft, Ban, CheckCircle, KeyRound, Plus, Minus, CreditCard, Copy, Check, ShieldCheck, ShieldOff, MessageSquare, Loader2, Send, RotateCcw, Clock3 } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -272,6 +272,27 @@ export default function UserDetail() {
                 <div>
                   <div className="text-sm font-medium text-muted-foreground">Joined</div>
                   <div>{format(new Date(user.createdAt), "PPp")}</div>
+                </div>
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    <Clock3 className="w-4 h-4 text-primary" />
+                    Signal access window
+                  </div>
+                  {!user.signalTrialStartedAt ? (
+                    <p className="text-xs text-muted-foreground mt-2">Existing account — no new-user window recorded.</p>
+                  ) : user.signalTrialExpired ? (
+                    <p className="text-xs text-amber-400 mt-2">Expired — VIP 2 is required for continued signal access.</p>
+                  ) : (
+                    <>
+                      <p className="text-xs text-emerald-400 mt-2">Active until {format(new Date(user.signalTrialEndsAt!), "PPp")}</p>
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        {Math.floor(user.signalTrialRemainingMs / 86400000)}d {Math.floor((user.signalTrialRemainingMs % 86400000) / 3600000)}h remaining at last refresh
+                      </p>
+                    </>
+                  )}
+                  {user.signalTrialReminderSentAt && (
+                    <p className="text-[11px] text-muted-foreground mt-2">Three-day Support reminder sent {format(new Date(user.signalTrialReminderSentAt), "PPp")}.</p>
+                  )}
                 </div>
                 {user.phone && (
                   <div>

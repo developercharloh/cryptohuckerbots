@@ -1222,6 +1222,10 @@ export const AdminListUsersQueryParams = zod.object({
   "search": zod.coerce.string().optional()
 })
 
+export const adminListUsersResponseSignalTrialRemainingMsMin = 0;
+
+
+
 export const AdminListUsersResponseItem = zod.object({
   "id": zod.number(),
   "accountUid": zod.string(),
@@ -1238,7 +1242,13 @@ export const AdminListUsersResponseItem = zod.object({
   "totalBots": zod.number(),
   "avatarUrl": zod.string().nullish(),
   "country": zod.string().nullish(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "signalTrialActive": zod.boolean(),
+  "signalTrialExpired": zod.boolean(),
+  "signalTrialStartedAt": zod.string().nullable(),
+  "signalTrialEndsAt": zod.string().nullable(),
+  "signalTrialRemainingMs": zod.number().min(adminListUsersResponseSignalTrialRemainingMsMin),
+  "signalTrialReminderSentAt": zod.string().nullable()
 })
 export const AdminListUsersResponse = zod.array(AdminListUsersResponseItem)
 
@@ -1246,6 +1256,10 @@ export const AdminListUsersResponse = zod.array(AdminListUsersResponseItem)
 export const AdminGetUserParams = zod.object({
   "id": zod.coerce.number()
 })
+
+export const adminGetUserResponseSignalTrialRemainingMsMin = 0;
+
+
 
 export const AdminGetUserResponse = zod.object({
   "id": zod.number(),
@@ -1267,6 +1281,12 @@ export const AdminGetUserResponse = zod.object({
   "totalDeposits": zod.number(),
   "totalWithdrawals": zod.number(),
   "createdAt": zod.string(),
+  "signalTrialActive": zod.boolean(),
+  "signalTrialExpired": zod.boolean(),
+  "signalTrialStartedAt": zod.string().nullable(),
+  "signalTrialEndsAt": zod.string().nullable(),
+  "signalTrialRemainingMs": zod.number().min(adminGetUserResponseSignalTrialRemainingMsMin),
+  "signalTrialReminderSentAt": zod.string().nullable(),
   "bots": zod.array(zod.object({
   "id": zod.number(),
   "botId": zod.number(),
@@ -1304,6 +1324,10 @@ export const AdminSetUserStatusBody = zod.object({
   "status": zod.string()
 })
 
+export const adminSetUserStatusResponseSignalTrialRemainingMsMin = 0;
+
+
+
 export const AdminSetUserStatusResponse = zod.object({
   "id": zod.number(),
   "accountUid": zod.string(),
@@ -1320,7 +1344,13 @@ export const AdminSetUserStatusResponse = zod.object({
   "totalBots": zod.number(),
   "avatarUrl": zod.string().nullish(),
   "country": zod.string().nullish(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "signalTrialActive": zod.boolean(),
+  "signalTrialExpired": zod.boolean(),
+  "signalTrialStartedAt": zod.string().nullable(),
+  "signalTrialEndsAt": zod.string().nullable(),
+  "signalTrialRemainingMs": zod.number().min(adminSetUserStatusResponseSignalTrialRemainingMsMin),
+  "signalTrialReminderSentAt": zod.string().nullable()
 })
 
 
@@ -1352,6 +1382,10 @@ export const AdminAdjustBalanceBody = zod.object({
   "note": zod.string().optional()
 })
 
+export const adminAdjustBalanceResponseSignalTrialRemainingMsMin = 0;
+
+
+
 export const AdminAdjustBalanceResponse = zod.object({
   "id": zod.number(),
   "accountUid": zod.string(),
@@ -1368,7 +1402,13 @@ export const AdminAdjustBalanceResponse = zod.object({
   "totalBots": zod.number(),
   "avatarUrl": zod.string().nullish(),
   "country": zod.string().nullish(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "signalTrialActive": zod.boolean(),
+  "signalTrialExpired": zod.boolean(),
+  "signalTrialStartedAt": zod.string().nullable(),
+  "signalTrialEndsAt": zod.string().nullable(),
+  "signalTrialRemainingMs": zod.number().min(adminAdjustBalanceResponseSignalTrialRemainingMsMin),
+  "signalTrialReminderSentAt": zod.string().nullable()
 })
 
 
@@ -1377,6 +1417,10 @@ export const AdminRefundByUidBody = zod.object({
   "amount": zod.number(),
   "note": zod.string().optional()
 })
+
+export const adminRefundByUidResponseSignalTrialRemainingMsMin = 0;
+
+
 
 export const AdminRefundByUidResponse = zod.object({
   "id": zod.number(),
@@ -1394,7 +1438,13 @@ export const AdminRefundByUidResponse = zod.object({
   "totalBots": zod.number(),
   "avatarUrl": zod.string().nullish(),
   "country": zod.string().nullish(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "signalTrialActive": zod.boolean(),
+  "signalTrialExpired": zod.boolean(),
+  "signalTrialStartedAt": zod.string().nullable(),
+  "signalTrialEndsAt": zod.string().nullable(),
+  "signalTrialRemainingMs": zod.number().min(adminRefundByUidResponseSignalTrialRemainingMsMin),
+  "signalTrialReminderSentAt": zod.string().nullable()
 })
 
 

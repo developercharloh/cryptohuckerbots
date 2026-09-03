@@ -35,7 +35,7 @@ import {
   composeAccountBalanceSnapshot,
   getAccountBalanceSnapshot,
 } from "../utils/balance.js";
-import { ensureDueSignalTrialReminders } from "../lib/signal-trial";
+import { ensureDueSignalTrialReminders, getSignalTrialStatus } from "../lib/signal-trial";
 import {
   AdminSetUserStatusBody,
   AdminAdjustBalanceBody,
@@ -550,6 +550,7 @@ router.get("/admin/users", async (req, res) => {
   }
 
   const result = await Promise.all(users.map(async (u) => {
+    const signalTrial = getSignalTrialStatus(u);
     const botRow = botMap.get(u.id);
     const wallet = calculateWalletSnapshot(txnMap.get(u.id) ?? []);
     const purchasedCapital = purchaseMap.get(u.id) ?? 0;
@@ -577,6 +578,12 @@ router.get("/admin/users", async (req, res) => {
       avatarUrl: u.avatarUrl,
       country: profileMap.get(u.id)?.country ?? null,
       createdAt: u.createdAt.toISOString(),
+      signalTrialActive: signalTrial.active,
+      signalTrialExpired: signalTrial.expired,
+      signalTrialStartedAt: signalTrial.startsAt?.toISOString() ?? null,
+      signalTrialEndsAt: signalTrial.endsAt?.toISOString() ?? null,
+      signalTrialRemainingMs: signalTrial.remainingMs,
+      signalTrialReminderSentAt: u.signalTrialReminderSentAt?.toISOString() ?? null,
     };
   }));
 
@@ -608,6 +615,7 @@ router.get("/admin/users/:id", async (req, res) => {
     if (t.type === "withdrawal") totalWithdrawals += amt;
   }
   const account = await getAccountBalanceSnapshot(id);
+  const signalTrial = getSignalTrialStatus(user);
 
   return res.json({
     id: user.id,
@@ -631,6 +639,12 @@ router.get("/admin/users/:id", async (req, res) => {
     totalDeposits: account.totalDeposited,
     totalWithdrawals: Math.round(totalWithdrawals * 100) / 100,
     createdAt: user.createdAt.toISOString(),
+    signalTrialActive: signalTrial.active,
+    signalTrialExpired: signalTrial.expired,
+    signalTrialStartedAt: signalTrial.startsAt?.toISOString() ?? null,
+    signalTrialEndsAt: signalTrial.endsAt?.toISOString() ?? null,
+    signalTrialRemainingMs: signalTrial.remainingMs,
+    signalTrialReminderSentAt: user.signalTrialReminderSentAt?.toISOString() ?? null,
     bots: userBots.map((b) => ({
       id: b.ub.id,
       botId: b.ub.botId,

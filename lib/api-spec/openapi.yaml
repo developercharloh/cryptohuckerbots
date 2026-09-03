@@ -3020,7 +3020,13 @@ components:
         avatarUrl: { type: ["string", "null"] }
         country: { type: ["string", "null"] }
         createdAt: { type: string }
-      required: [id, accountUid, fullName, email, status, kycStatus, mainWalletBalance, vaultCapital, portfolioBalance, availableBalance, pendingOutflow, balance, totalBots, createdAt]
+        signalTrialActive: { type: boolean }
+        signalTrialExpired: { type: boolean }
+        signalTrialStartedAt: { type: ["string", "null"] }
+        signalTrialEndsAt: { type: ["string", "null"] }
+        signalTrialRemainingMs: { type: integer, minimum: 0 }
+        signalTrialReminderSentAt: { type: ["string", "null"] }
+      required: [id, accountUid, fullName, email, status, kycStatus, mainWalletBalance, vaultCapital, portfolioBalance, availableBalance, pendingOutflow, balance, totalBots, createdAt, signalTrialActive, signalTrialExpired, signalTrialStartedAt, signalTrialEndsAt, signalTrialRemainingMs, signalTrialReminderSentAt]
 
     AdminUserBot:
       type: object
@@ -3056,13 +3062,19 @@ components:
         totalDeposits: { type: number }
         totalWithdrawals: { type: number }
         createdAt: { type: string }
+        signalTrialActive: { type: boolean }
+        signalTrialExpired: { type: boolean }
+        signalTrialStartedAt: { type: ["string", "null"] }
+        signalTrialEndsAt: { type: ["string", "null"] }
+        signalTrialRemainingMs: { type: integer, minimum: 0 }
+        signalTrialReminderSentAt: { type: ["string", "null"] }
         bots:
           type: array
           items: { $ref: "#/components/schemas/AdminUserBot" }
         transactions:
           type: array
           items: { $ref: "#/components/schemas/AdminTransaction" }
-      required: [id, accountUid, fullName, email, status, kycStatus, mainWalletBalance, vaultCapital, portfolioBalance, availableBalance, pendingOutflow, balance, totalBots, totalDeposits, totalWithdrawals, createdAt, bots, transactions]
+      required: [id, accountUid, fullName, email, status, kycStatus, mainWalletBalance, vaultCapital, portfolioBalance, availableBalance, pendingOutflow, balance, totalBots, totalDeposits, totalWithdrawals, createdAt, signalTrialActive, signalTrialExpired, signalTrialStartedAt, signalTrialEndsAt, signalTrialRemainingMs, signalTrialReminderSentAt, bots, transactions]
 
     AdminUserStatusInput:
       type: object

@@ -31,6 +31,16 @@ export interface AdminUserDetail {
   totalDeposits: number;
   totalWithdrawals: number;
   createdAt: string;
+  signalTrialActive: boolean;
+  signalTrialExpired: boolean;
+  /** @nullable */
+  signalTrialStartedAt: string | null;
+  /** @nullable */
+  signalTrialEndsAt: string | null;
+  /** @minimum 0 */
+  signalTrialRemainingMs: number;
+  /** @nullable */
+  signalTrialReminderSentAt: string | null;
   bots: AdminUserBot[];
   transactions: AdminTransaction[];
 }
