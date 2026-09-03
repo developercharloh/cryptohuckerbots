@@ -909,23 +909,13 @@ export default function Trade() {
                         Buy VIP Package
                       </button>
                     </div>
-                  ) : (
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 10 }}>
-                      <p style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.5 }}>
-                         {vipAccess.nextLevel
-                           ? vipAccess.nextLevelReferralRequirement
-                             ? `${vipAccess.qualifiedReferrals} of ${vipAccess.nextLevelReferralRequirement} active referrals needed for VIP ${vipAccess.nextLevel}. No payment required.`
-                             : `Activate VIP ${vipAccess.nextLevel} with $${vipAccess.nextLevelAmountDue?.toLocaleString()} from your Main Wallet.`
-                          : "You are at the highest available VIP level."}
-                        {" "}Timezone: {vipAccess.timezone}.
-                      </p>
-                      {vipAccess.nextLevel && (
-                        <button onClick={() => setLocation("/vip-packages")} style={{ flexShrink: 0, border: "1px solid rgba(245,185,66,0.35)", borderRadius: 9, padding: "8px 10px", background: "rgba(245,185,66,0.08)", color: "#FFD86B", fontSize: 10, fontWeight: 800, cursor: "pointer" }}>
-                          Upgrade VIP
-                        </button>
-                      )}
+                  ) : vipAccess.nextLevel ? (
+                    <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
+                      <button onClick={() => setLocation("/vip-packages")} style={{ flexShrink: 0, border: "1px solid rgba(245,185,66,0.35)", borderRadius: 9, padding: "8px 10px", background: "rgba(245,185,66,0.08)", color: "#FFD86B", fontSize: 10, fontWeight: 800, cursor: "pointer" }}>
+                        Upgrade VIP
+                      </button>
                     </div>
-                  )}
+                  ) : null}
                   <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
                       <p style={{ fontSize: 9, color: "#FFD86B", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 800 }}>
@@ -956,9 +946,6 @@ export default function Trade() {
                         </button>
                       ))}
                     </div>
-                    <p style={{ fontSize: 9, color: "#8D94A8", marginTop: 7 }}>
-                      Use your daily allowance, then wait for the server-controlled 24-hour cooldown.
-                    </p>
                   </div>
                 </div>
               )}
