@@ -15,6 +15,7 @@
 - [VIXUS AI email auth](vixus-ai-email-auth.md) — password login must not restore stale browser sessions or issue a session until email verification and OTP are complete.
 - [VIXUS AI signal amount](vixus-ai-signal-amount.md) — the server-owned signal stake and reward are both fixed at $1.50; keep UI copy and settlement math aligned.
 - [VIXUS AI deployment verification](vixus-ai-vercel-deployment.md) — match Vercel deployment state to the pushed commit before trusting a live bundle; “latest production” can briefly show the prior ready build.
+- [VIXUS legal document imports](vixus-ai-legal-documents.md) — pasted legal files may contain invisible direction marks; compare rendered text while preserving meaningful whitespace.
 - [VIXUS AI signal access window](vixus-ai-signal-trial.md) — new-user signal windows use nullable timestamps; reminder processing is idempotent and lazy-safe for serverless API access.
 - [VIXUS AI social previews](vixus-ai-social-preview-cache.md) — live crawler HTML can be clean while WhatsApp still shows an older cached Open Graph preview for the same URL.
 - [VIXUS AI video audio fallback](vixus-ai-video-audio.md) — if hosted voice/music generation is unavailable, use local FFmpeg Flite narration and composite delayed scene audio.
