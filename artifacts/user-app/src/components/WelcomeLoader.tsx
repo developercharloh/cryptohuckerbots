@@ -75,19 +75,6 @@ export function WelcomeLoader({ ready = false }: { ready?: boolean }) {
     };
   }, [ready]);
 
-  useEffect(() => {
-    if (!ready || leaving || !visible) return;
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const fadeDuration = reducedMotion ? 120 : FADE_DURATION;
-    setProgress(100);
-    setLeaving(true);
-    const hideTimer = window.setTimeout(() => {
-      setVisible(false);
-      document.body.style.overflow = "";
-    }, fadeDuration);
-    return () => window.clearTimeout(hideTimer);
-  }, [ready, leaving, visible]);
-
   if (!visible) return null;
 
   return (

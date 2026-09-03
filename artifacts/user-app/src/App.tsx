@@ -117,7 +117,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AuthGuard } from "@/components/AuthGuard";
 import { InstallAppPrompt } from "@/components/InstallAppPrompt";
 import { ProfileCompletionPrompt } from "@/components/ProfileCompletionPrompt";

@@ -14,3 +14,9 @@ Keep the service-worker cache versioned when shipping auth or shell changes, and
 **Why:** A valid cached shell can keep an active mobile client on old auth behavior even after the deployment index and hashed assets are correct.
 
 **How to apply:** Bump the shell cache name for shell/auth releases and include all current and legacy VIXUS cache prefixes in recovery cleanup.
+
+The startup animation must remain visible until the route shell and session initialization are ready; it must not disappear on a fixed timer while the app is still loading.
+
+**Why:** A fixed-duration splash can expose a second loading/error state during slow mobile launches, which makes a normal refresh look like an app failure.
+
+**How to apply:** Drive the welcome loader from an app-ready signal, keep route/auth fallbacks as neutral spinners, and use shell cache versioning for installed-app updates.
