@@ -1,14 +1,18 @@
 import { useLocation, Link } from "wouter";
 import { Layout } from "@/components/Layout";
 import { VixusLogo } from "@/components/VixusLogo";
-import { ChevronLeft, ChevronRight, MessageSquare, TicketIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, MessageSquare, TicketIcon, Clock3, CheckCircle2 } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { useListFAQ } from "@workspace/api-client-react";
+import { useListFAQ, useListSupportTickets } from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Support() {
   const [, setLocation] = useLocation();
   const { data: faqs, isLoading } = useListFAQ();
+  const { data: tickets = [], isLoading: ticketsLoading } = useListSupportTickets({
+    query: { refetchInterval: 15000, refetchOnWindowFocus: true } as any,
+  });
+  const openTickets = tickets.filter((ticket) => !["closed", "resolved"].includes(ticket.status.toLowerCase()));
 
   return (
     <Layout>
@@ -25,6 +29,20 @@ export default function Support() {
 
         <div className="mb-6">
           <h2 className="text-2xl font-bold mb-1">How can we help you?</h2>
+          <p className="text-xs text-muted-foreground">Choose private chat for quick questions or a ticket when you need a tracked response.</p>
+        </div>
+
+        <div className="flex items-center justify-between rounded-2xl border border-primary/15 bg-primary/5 p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+              {openTickets.length > 0 ? <Clock3 className="h-5 w-5 text-primary" /> : <CheckCircle2 className="h-5 w-5 text-emerald-400" />}
+            </div>
+            <div>
+              <p className="text-sm font-semibold">{ticketsLoading ? "Checking your tickets..." : openTickets.length > 0 ? `${openTickets.length} open ticket${openTickets.length === 1 ? "" : "s"}` : "No open tickets"}</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">Support updates stay attached to your account.</p>
+            </div>
+          </div>
+          {openTickets.length > 0 && <span className="text-[10px] font-bold uppercase tracking-wide text-primary">In progress</span>}
         </div>
 
         <div className="space-y-3">

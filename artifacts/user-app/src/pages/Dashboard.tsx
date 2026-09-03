@@ -32,13 +32,6 @@ const MARKET_COLORS: Record<string, string> = {
 
 const MARKET_SYMBOLS = ["BTC/USD", "ETH/USD", "EUR/USD", "GBP/USD", "XAU/USD", "USD/JPY", "SOL/USD", "AUD/USD"];
 
-const ASSETS = [
-  { name: "USDT",    symbol: "Tether",        icon: "₮", color: "#26A17B", pct: 60 },
-  { name: "BTC",     symbol: "Bitcoin",       icon: "₿", color: "#F7931A", pct: 20 },
-  { name: "ETH",     symbol: "Ethereum",      icon: "Ξ", color: "#627EEA", pct: 12 },
-  { name: "EUR/USD", symbol: "Forex",         icon: "€", color: "#3B82F6", pct: 8  },
-];
-
 export default function Dashboard() {
   const [balanceVisible, setBalanceVisible] = useState(true);
   const { user } = useAuth();
@@ -67,6 +60,14 @@ export default function Dashboard() {
   const portfolioBalance = mainWalletBalance !== undefined && vaultCapital !== undefined
     ? Math.max(0, mainWalletBalance + vaultCapital)
     : summary?.totalBalance;
+  const totalCapital = Math.max(0, Number(portfolioBalance ?? 0));
+  const walletCapital = Math.max(0, Number(mainWalletBalance ?? summary?.availableBalance ?? 0));
+  const lockedCapital = Math.max(0, Number(vaultCapital ?? 0));
+  const walletShare = totalCapital > 0 ? Math.min(100, (walletCapital / totalCapital) * 100) : 0;
+  const capitalRows = [
+    { name: "Main Wallet", symbol: "Spendable balance", icon: "₮", color: "#26A17B", value: walletCapital, pct: walletShare },
+    { name: "Vault Capital", symbol: "Locked VIP capital", icon: "V", color: "#60A5FA", value: lockedCapital, pct: Math.max(0, 100 - walletShare) },
+  ];
 
   return (
     <Layout showNav>
@@ -296,26 +297,25 @@ export default function Dashboard() {
         <div className="user-dashboard-assets" style={{ padding: "0 16px 16px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <h3 style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>My Assets</h3>
-            <Link href="/cashier" style={{ textDecoration: "none" }}>
-              <span style={{ fontSize: 11, color: "#FFD86B", fontWeight: 700 }}>Manage →</span>
+             <Link href="/portfolio" style={{ textDecoration: "none" }}>
+               <span style={{ fontSize: 11, color: "#FFD86B", fontWeight: 700 }}>View details →</span>
             </Link>
           </div>
           <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 20, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden" }}>
-            {ASSETS.map((asset, i) => {
-              const assetBalance = i === 0 ? (summary?.availableBalance ?? 0) : (summary?.availableBalance ?? 0) * (asset.pct / 100) * 0.3;
+             {capitalRows.map((asset, i) => {
               return (
-                <div key={asset.name} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 14px", borderBottom: i < ASSETS.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
+                 <div key={asset.name} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 14px", borderBottom: i < capitalRows.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
                   <div style={{ width: 40, height: 40, borderRadius: "50%", background: `${asset.color}20`, border: `1px solid ${asset.color}30`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>
                     {asset.icon}
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
                       <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{asset.name}</span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{formatUSD(assetBalance)}</span>
+                       <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{formatUSD(asset.value)}</span>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
                       <span style={{ fontSize: 10, color: "#6B7280" }}>{asset.symbol}</span>
-                      <span style={{ fontSize: 10, color: "#6B7280" }}>{asset.pct}%</span>
+                       <span style={{ fontSize: 10, color: "#6B7280" }}>{asset.pct.toFixed(1)}%</span>
                     </div>
                     <div style={{ height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2 }}>
                       <div style={{ height: 3, borderRadius: 2, background: asset.color, width: `${asset.pct}%`, opacity: 0.8 }} />

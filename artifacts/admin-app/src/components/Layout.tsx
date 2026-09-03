@@ -16,7 +16,7 @@ const navItems = [
   { path: "/finance",    label: "Wallet",    icon: CircleDollarSign},
   { path: "/broadcast",  label: "Broadcast", icon: Megaphone       },
   { path: "/support",    label: "Support",   icon: LifeBuoy        },
-  { path: "/health",     label: "Health",    icon: ShieldAlert     },
+  { path: "/health",     label: "Risk & Audit", icon: ShieldAlert   },
   { path: "/settings",   label: "Settings",  icon: Settings        },
 ];
 

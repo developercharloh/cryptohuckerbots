@@ -166,8 +166,8 @@ export default function TechnicalHealth() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">Operations</p>
-          <h1 className="mt-1 text-xl font-bold tracking-tight">System Health</h1>
-          <p className="mt-1 text-xs text-muted-foreground">Private technical monitoring for the VIXUS platform.</p>
+           <h1 className="mt-1 text-xl font-bold tracking-tight">Risk & Audit</h1>
+           <p className="mt-1 text-xs text-muted-foreground">Private monitoring for platform health, incidents, and operational risk.</p>
         </div>
         <Button
           variant="outline"

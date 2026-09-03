@@ -14,3 +14,9 @@ Deposit sessions are workflow records, not wallet credits. A deposit becomes spe
 **Why:** Multiple route-specific balance formulas caused admin, dashboard, trade, and withdrawal views to disagree about credited deposits, returns, fees, locked capital, and pending withdrawal holds.
 
 **How to apply:** Reuse the shared wallet snapshot or its pure transaction-delta helper whenever a route needs a balance. Keep pendingOutflow informational and keep availableBalance aligned with Main Wallet. For per-user Total Profit, net completed trade profits and signal rewards against completed trade losses; ignore legacy bot totals and principal movements.
+
+Portfolio-facing summaries should present the canonical Main Wallet and Vault Capital buckets rather than inventing token or market-asset allocations. The dashboard composition percentage is only the split between spendable and locked capital.
+
+**Why:** A fabricated “asset” mix made the dashboard look detailed while implying balances the ledger did not contain.
+
+**How to apply:** For new portfolio, dashboard, export, or mobile surfaces, derive values from the wallet snapshot and label spendability/lock state explicitly. Keep strategy performance and market data separate from wallet ownership.

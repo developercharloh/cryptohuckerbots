@@ -146,6 +146,7 @@ const VerifyEmail = lazy(() => import("@/pages/auth/VerifyEmail"));
 const ForgotPassword = lazy(() => import("@/pages/auth/ForgotPassword"));
 const ResetPassword = lazy(() => import("@/pages/auth/ResetPassword"));
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const Portfolio = lazy(() => import("@/pages/Portfolio"));
 const Bots = lazy(() => import("@/pages/bots/Bots"));
 const BotDetail = lazy(() => import("@/pages/bots/BotDetail"));
 const BotAnalytics = lazy(() => import("@/pages/bots/BotAnalytics"));
@@ -202,6 +203,7 @@ function Router() {
       <Route path="/legal/terms" component={Terms} />
       <Route path="/legal/privacy" component={Privacy} />
       <Route path="/legal/risk" component={Risk} />
+      <Route path="/trust" component={Risk} />
       <Route path="/contact" component={Contact} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
@@ -212,6 +214,9 @@ function Router() {
       {/* Authenticated Routes */}
       <Route path="/dashboard">
         <AuthGuard><Dashboard /></AuthGuard>
+      </Route>
+      <Route path="/portfolio">
+        <AuthGuard><Portfolio /></AuthGuard>
       </Route>
       <Route path="/bots">
         <AuthGuard><Bots /></AuthGuard>

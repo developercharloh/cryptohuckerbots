@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   ChevronLeft, Laptop, Smartphone, Shield, Key, ChevronRight,
-  Eye, EyeOff, Monitor, Copy, Check, ShieldCheck, ShieldOff,
+  Eye, EyeOff, Monitor, Copy, Check, ShieldCheck, ShieldOff, LogOut,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -178,6 +178,18 @@ export default function Security() {
     });
   };
 
+  const handleRevokeOtherSessions = async () => {
+    const otherSessions = sessions?.filter((session) => !session.isCurrent) ?? [];
+    if (otherSessions.length === 0) return;
+    try {
+      await Promise.all(otherSessions.map((session) => revokeSessionMutation.mutateAsync({ id: session.id })));
+      toast({ title: "Other sessions revoked", description: "Only this device remains signed in." });
+      queryClient.invalidateQueries({ queryKey: ["/api/profile/sessions"] });
+    } catch (err: any) {
+      toast({ title: "Could not revoke all sessions", description: err.message, variant: "destructive" });
+    }
+  };
+
   return (
     <Layout>
       <div className="p-5 pb-8 space-y-6">
@@ -285,6 +297,18 @@ export default function Security() {
             </CollapsibleTrigger>
             <CollapsibleContent className="p-4 pt-0 border-t border-border/50">
               <div className="space-y-3 pt-4">
+                {sessions?.some((session) => !session.isCurrent) && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full h-10 rounded-xl text-xs text-red-400 border-red-500/20 hover:bg-red-500/10 hover:text-red-300"
+                    onClick={() => void handleRevokeOtherSessions()}
+                    disabled={revokeSessionMutation.isPending}
+                  >
+                    <LogOut className="w-3.5 h-3.5 mr-2" />
+                    {revokeSessionMutation.isPending ? "Revoking..." : "Sign out other devices"}
+                  </Button>
+                )}
                 {loadingSessions ? (
                   Array(2).fill(0).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-xl" />)
                 ) : (

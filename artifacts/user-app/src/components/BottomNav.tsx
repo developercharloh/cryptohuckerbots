@@ -5,7 +5,7 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Home",    icon: Home,          center: false },
   { href: "/markets",   label: "Markets", icon: BarChart2,     center: false },
   { href: "/trade",     label: "Trade",  icon: TrendingUp,    center: true  },
-  { href: "/cashier",   label: "Wallet",  icon: Wallet,        center: false },
+  { href: "/portfolio", label: "Portfolio", icon: Wallet,       center: false },
   { href: "/profile",   label: "More",    icon: LayoutGrid,    center: false },
 ];
 

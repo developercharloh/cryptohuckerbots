@@ -58,6 +58,18 @@ export function InstallAppPrompt() {
   }, []);
 
   useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        rememberInstallPrompt(user?.id ?? "");
+        setOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, user?.id]);
+
+  useEffect(() => {
     if (!user || installed || promptedUser.current === user.id || getInstallPromptSeen(user.id)) return;
     promptedUser.current = user.id;
     const timer = window.setTimeout(() => setOpen(true), 700);

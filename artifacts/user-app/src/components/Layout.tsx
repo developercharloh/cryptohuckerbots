@@ -6,6 +6,7 @@ import { VixusLogo } from "./VixusLogo";
 
 const DESKTOP_NAV = [
   { href: "/dashboard", label: "Overview" },
+  { href: "/portfolio", label: "Portfolio" },
   { href: "/markets", label: "Markets" },
   { href: "/news", label: "News" },
   { href: "/trade", label: "Trade" },

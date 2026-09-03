@@ -71,6 +71,7 @@ export default function Profile() {
   ];
 
   const MENU_ITEMS = [
+    { label: "Portfolio",          icon: BarChart2,    href: "/portfolio",             color: "#FFD86B", bg: "rgba(245,185,66,0.12)" },
     { label: "Personal Info",     icon: UserIcon,    href: "/profile/personal-info", color: "#FFD86B", bg: "rgba(245,185,66,0.12)" },
     { label: "Security",          icon: Shield,       href: "/profile/security",      color: "#60A5FA", bg: "rgba(59,130,246,0.12)"  },
     { label: "KYC Verification",  icon: FileCheck,    href: "/profile/kyc",           color: "#FB923C", bg: "rgba(249,115,22,0.12)"  },

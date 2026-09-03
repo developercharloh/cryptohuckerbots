@@ -1,5 +1,5 @@
 import { LegalLayout } from "@/components/LegalLayout";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, BookOpen, LockKeyhole, WalletCards } from "lucide-react";
 
 export default function Risk() {
   return (
@@ -11,6 +11,30 @@ export default function Risk() {
           investor. Only invest capital you can afford to lose.
         </p>
       </div>
+
+      <section className="rounded-2xl border border-blue-400/20 bg-blue-400/5 p-4">
+        <div className="flex items-center gap-2">
+          <BookOpen className="h-4 w-4 text-blue-300" />
+          <h2 className="!mt-0">How VIXUS works</h2>
+        </div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-border/50 bg-background/30 p-3">
+            <WalletCards className="h-4 w-4 text-amber-300" />
+            <p className="mt-2 text-xs font-semibold">Main Wallet</p>
+            <p className="mt-1 text-[11px] leading-relaxed">Spendable funds used for eligible deposits, withdrawals, and account actions.</p>
+          </div>
+          <div className="rounded-xl border border-border/50 bg-background/30 p-3">
+            <LockKeyhole className="h-4 w-4 text-blue-300" />
+            <p className="mt-2 text-xs font-semibold">Vault Capital</p>
+            <p className="mt-1 text-[11px] leading-relaxed">Capital assigned to an active VIP strategy and shown separately from spendable funds.</p>
+          </div>
+          <div className="rounded-xl border border-border/50 bg-background/30 p-3">
+            <BookOpen className="h-4 w-4 text-emerald-300" />
+            <p className="mt-2 text-xs font-semibold">Recorded activity</p>
+            <p className="mt-1 text-[11px] leading-relaxed">Completed deposits, withdrawals, rewards, fees, and trade outcomes are reflected in your ledger.</p>
+          </div>
+        </div>
+      </section>
 
       <section>
         <h2>No guarantee of profit</h2>
