@@ -2612,7 +2612,7 @@ components:
           type: ["number", "null"]
         confirmationToken:
           type: string
-      required: [amount, paymentMethod, walletAddress]
+      required: [amount, paymentMethod, walletAddress, confirmationToken]
 
     PrepareWithdrawalInput:
       type: object

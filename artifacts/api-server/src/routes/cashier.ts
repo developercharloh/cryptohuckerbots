@@ -1,17 +1,26 @@
 import { Router } from "express";
-import { db, transactionsTable, depositSessionsTable, notificationsTable } from "@workspace/db";
-import { eq, and, desc } from "drizzle-orm";
+import crypto from "node:crypto";
+import { db, transactionsTable, depositSessionsTable, notificationsTable, withdrawalConfirmationsTable } from "@workspace/db";
+import { eq, and, desc, gt, isNull } from "drizzle-orm";
 import { getRequestToken, getUserForSession } from "../lib/session";
-import { CreateWithdrawalBody } from "@workspace/api-zod";
+import { CreateWithdrawalBody, PrepareWithdrawalBody } from "@workspace/api-zod";
 import { sendPushToAllAdmins } from "../lib/webPush";
 import { notifyAdminTransaction } from "../lib/loginAlarm";
-import { getAvailableBalance } from "../utils/balance.js";
-import { BSC_PAYMENT_METHOD, validateBscWithdrawal } from "../lib/payment-methods";
+import { calculateWalletSnapshot } from "../utils/balance.js";
+import { BSC_PAYMENT_METHOD, isBscTransactionHash, validateBscWithdrawal } from "../lib/payment-methods";
 
 const router = Router();
 
 async function getUserFromToken(token: string | undefined) {
   return getUserForSession(token);
+}
+
+function hashConfirmationToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+function isValidTxid(value: unknown): value is string {
+  return typeof value === "string" && isBscTransactionHash(value);
 }
 
 function mapSession(s: typeof depositSessionsTable.$inferSelect) {
@@ -98,7 +107,10 @@ router.post("/cashier/deposit/session/:id/txid", async (req, res) => {
   if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
 
   const { txid } = req.body as { txid?: unknown };
-  if (typeof txid !== "string" || !txid.trim()) return res.status(400).json({ error: "TXID is required" });
+  if (!isValidTxid(txid)) {
+    return res.status(400).json({ error: "Enter a valid BNB Smart Chain transaction hash" });
+  }
+  const normalizedTxid = txid.trim();
 
   const sessions = await db.select().from(depositSessionsTable)
     .where(and(eq(depositSessionsTable.id, id), eq(depositSessionsTable.userId, user.id)))
@@ -109,12 +121,19 @@ router.post("/cashier/deposit/session/:id/txid", async (req, res) => {
     return res.status(400).json({ error: "Cannot update TXID at this stage" });
   }
 
-  const [updated] = await db.update(depositSessionsTable)
-    .set({ txid: txid.trim(), status: "payment_detected", updatedAt: new Date() })
-    .where(eq(depositSessionsTable.id, id))
-    .returning();
+  try {
+    const [updated] = await db.update(depositSessionsTable)
+      .set({ txid: normalizedTxid, status: "payment_detected", updatedAt: new Date() })
+      .where(eq(depositSessionsTable.id, id))
+      .returning();
 
-  return res.json(mapSession(updated));
+    return res.json(mapSession(updated));
+  } catch (error: any) {
+    if (error?.code === "23505") {
+      return res.status(409).json({ error: "This transaction hash has already been submitted" });
+    }
+    throw error;
+  }
 });
 
 // ── Legacy deposit endpoint (kept for backward compat) ──────────────────────
@@ -124,20 +143,32 @@ router.post("/cashier/deposit", async (req, res) => {
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
-  const { amount, paymentMethod } = req.body as Record<string, unknown>;
+  const { amount, paymentMethod, txid } = req.body as Record<string, unknown>;
   if (paymentMethod !== BSC_PAYMENT_METHOD.name && paymentMethod !== BSC_PAYMENT_METHOD.id) {
     return res.status(400).json({ error: "Only USDT on BNB Smart Chain (BEP-20) is supported" });
   }
+  if (!isValidTxid(txid)) {
+    return res.status(400).json({ error: "A valid BNB Smart Chain transaction hash is required" });
+  }
 
-  const [txn] = await db.insert(transactionsTable).values({
-    userId: user.id,
-    type: "deposit",
-    amount: String(amount ?? 0),
-    status: "pending",
-    paymentMethod: BSC_PAYMENT_METHOD.name,
-    walletAddress: BSC_PAYMENT_METHOD.depositAddress,
-    description: `Deposit via ${BSC_PAYMENT_METHOD.name}`,
-  }).returning();
+  let txn;
+  try {
+    [txn] = await db.insert(transactionsTable).values({
+      userId: user.id,
+      type: "deposit",
+      amount: String(amount ?? 0),
+      status: "pending",
+      paymentMethod: BSC_PAYMENT_METHOD.name,
+      walletAddress: BSC_PAYMENT_METHOD.depositAddress,
+      txid: txid.trim(),
+      description: `Deposit via ${BSC_PAYMENT_METHOD.name}`,
+    }).returning();
+  } catch (error: any) {
+    if (error?.code === "23505") {
+      return res.status(409).json({ error: "This transaction hash has already been submitted" });
+    }
+    throw error;
+  }
 
   // Notify admin via SSE (browser alarm) + Push (background/offline)
   notifyAdminTransaction({
@@ -169,6 +200,43 @@ router.post("/cashier/deposit", async (req, res) => {
 
 // ── Withdrawal ───────────────────────────────────────────────────────────────
 
+router.post("/cashier/withdraw/prepare", async (req, res) => {
+  const token = getRequestToken(req);
+  const user = await getUserFromToken(token);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+  const parsed = PrepareWithdrawalBody.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid withdrawal details" });
+
+  const { amount, paymentMethod, walletAddress } = parsed.data;
+  if (amount <= 0) return res.status(400).json({ error: "Amount must be greater than 0" });
+  const policyError = validateBscWithdrawal(paymentMethod, walletAddress);
+  if (policyError) return res.status(400).json({ error: policyError });
+
+  const wallet = await db.select({
+    type: transactionsTable.type,
+    amount: transactionsTable.amount,
+    status: transactionsTable.status,
+  }).from(transactionsTable).where(eq(transactionsTable.userId, user.id));
+  const available = calculateWalletSnapshot(wallet).availableBalance;
+  if (amount > available) {
+    return res.status(400).json({ error: `Insufficient balance. Available: $${available.toFixed(2)}.` });
+  }
+
+  const confirmationToken = crypto.randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+  await db.insert(withdrawalConfirmationsTable).values({
+    userId: user.id,
+    tokenHash: hashConfirmationToken(confirmationToken),
+    amount: amount.toString(),
+    paymentMethod: BSC_PAYMENT_METHOD.name,
+    walletAddress: walletAddress.trim(),
+    expiresAt,
+  });
+
+  return res.json({ confirmationToken, expiresAt: expiresAt.toISOString() });
+});
+
 router.post("/cashier/withdraw", async (req, res) => {
   const token = getRequestToken(req);
   const user = await getUserFromToken(token);
@@ -177,28 +245,68 @@ router.post("/cashier/withdraw", async (req, res) => {
   const parsed = CreateWithdrawalBody.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
 
-  const { amount, paymentMethod, walletAddress, cryptoAmount, cryptoAsset, conversionRate } = parsed.data;
+  const { amount, paymentMethod, walletAddress, cryptoAmount, cryptoAsset, conversionRate, confirmationToken } = parsed.data;
   if (amount <= 0) return res.status(400).json({ error: "Amount must be greater than 0" });
   const policyError = validateBscWithdrawal(paymentMethod, walletAddress);
   if (policyError) return res.status(400).json({ error: policyError });
-
-  const available = await getAvailableBalance(user.id);
-  if (amount > available) {
-    return res.status(400).json({ error: `Insufficient balance. Available: $${available.toFixed(2)}.` });
+  if (typeof confirmationToken !== "string" || confirmationToken.length < 32) {
+    return res.status(400).json({ error: "Withdrawal confirmation is required" });
   }
 
-  const [txn] = await db.insert(transactionsTable).values({
-    userId: user.id,
-    type: "withdrawal",
-    amount: amount.toString(),
-    status: "pending",
-    paymentMethod: BSC_PAYMENT_METHOD.name,
-    walletAddress,
-    description: `Withdrawal via ${BSC_PAYMENT_METHOD.name}`,
-    cryptoAmount: cryptoAmount != null ? cryptoAmount.toString() : null,
-    cryptoAsset: cryptoAsset ?? null,
-    conversionRate: conversionRate != null ? conversionRate.toString() : null,
-  }).returning();
+  const result = await db.transaction(async (tx) => {
+    const tokenHash = hashConfirmationToken(confirmationToken);
+    const [challenge] = await tx.select().from(withdrawalConfirmationsTable)
+      .where(and(
+        eq(withdrawalConfirmationsTable.userId, user.id),
+        eq(withdrawalConfirmationsTable.tokenHash, tokenHash),
+        isNull(withdrawalConfirmationsTable.consumedAt),
+        gt(withdrawalConfirmationsTable.expiresAt, new Date()),
+      ))
+      .limit(1);
+    if (!challenge) return { error: "Withdrawal confirmation is invalid or expired" } as const;
+    if (
+      Number(challenge.amount) !== amount ||
+      challenge.paymentMethod !== BSC_PAYMENT_METHOD.name ||
+      challenge.walletAddress !== walletAddress.trim()
+    ) {
+      return { error: "Withdrawal details changed. Please review and confirm again" } as const;
+    }
+
+    const wallet = await tx.select({
+      type: transactionsTable.type,
+      amount: transactionsTable.amount,
+      status: transactionsTable.status,
+    }).from(transactionsTable).where(eq(transactionsTable.userId, user.id));
+    const available = calculateWalletSnapshot(wallet).availableBalance;
+    if (amount > available) {
+      return { error: `Insufficient balance. Available: $${available.toFixed(2)}.` } as const;
+    }
+
+    const [claimed] = await tx.update(withdrawalConfirmationsTable)
+      .set({ consumedAt: new Date() })
+      .where(and(
+        eq(withdrawalConfirmationsTable.id, challenge.id),
+        isNull(withdrawalConfirmationsTable.consumedAt),
+      ))
+      .returning();
+    if (!claimed) return { error: "Withdrawal confirmation has already been used" } as const;
+
+    const [created] = await tx.insert(transactionsTable).values({
+      userId: user.id,
+      type: "withdrawal",
+      amount: amount.toString(),
+      status: "pending",
+      paymentMethod: BSC_PAYMENT_METHOD.name,
+      walletAddress: walletAddress.trim(),
+      description: `Withdrawal via ${BSC_PAYMENT_METHOD.name}`,
+      cryptoAmount: cryptoAmount != null ? cryptoAmount.toString() : null,
+      cryptoAsset: cryptoAsset ?? null,
+      conversionRate: conversionRate != null ? conversionRate.toString() : null,
+    }).returning();
+    return { txn: created } as const;
+  });
+  if ("error" in result) return res.status(400).json({ error: result.error });
+  const txn = result.txn;
 
   await db.insert(notificationsTable).values({
     userId: user.id,
