@@ -1362,7 +1362,10 @@ export const AdminSetUserStatusResponse = zod.object({
   "signalTrialStartedAt": zod.string().nullable(),
   "signalTrialEndsAt": zod.string().nullable(),
   "signalTrialRemainingMs": zod.number().min(adminSetUserStatusResponseSignalTrialRemainingMsMin),
-  "signalTrialReminderSentAt": zod.string().nullable()
+  "signalTrialReminderSentAt": zod.string().nullable(),
+  "signalAccessStartedAt": zod.string().nullable(),
+  "signalPairsRemaining": zod.number().nullable(),
+  "signalPairAllowance": zod.number()
 })
 
 
@@ -1420,7 +1423,10 @@ export const AdminAdjustBalanceResponse = zod.object({
   "signalTrialStartedAt": zod.string().nullable(),
   "signalTrialEndsAt": zod.string().nullable(),
   "signalTrialRemainingMs": zod.number().min(adminAdjustBalanceResponseSignalTrialRemainingMsMin),
-  "signalTrialReminderSentAt": zod.string().nullable()
+  "signalTrialReminderSentAt": zod.string().nullable(),
+  "signalAccessStartedAt": zod.string().nullable(),
+  "signalPairsRemaining": zod.number().nullable(),
+  "signalPairAllowance": zod.number()
 })
 
 
@@ -1456,7 +1462,10 @@ export const AdminRefundByUidResponse = zod.object({
   "signalTrialStartedAt": zod.string().nullable(),
   "signalTrialEndsAt": zod.string().nullable(),
   "signalTrialRemainingMs": zod.number().min(adminRefundByUidResponseSignalTrialRemainingMsMin),
-  "signalTrialReminderSentAt": zod.string().nullable()
+  "signalTrialReminderSentAt": zod.string().nullable(),
+  "signalAccessStartedAt": zod.string().nullable(),
+  "signalPairsRemaining": zod.number().nullable(),
+  "signalPairAllowance": zod.number()
 })
 
 
@@ -1771,20 +1780,45 @@ export const GetChatMessagesResponseItem = zod.object({
   "id": zod.number(),
   "sender": zod.enum(['user', 'admin', 'system']),
   "message": zod.string(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "attachments": zod.array(zod.object({
+  "id": zod.number(),
+  "filename": zod.string(),
+  "contentType": zod.string(),
+  "sizeBytes": zod.number(),
+  "downloadUrl": zod.string()
+}))
 })
 export const GetChatMessagesResponse = zod.array(GetChatMessagesResponseItem)
 
 
+export const sendChatMessageBodyAttachmentsMax = 10;
+
+
+
 export const SendChatMessageBody = zod.object({
-  "message": zod.string()
+  "message": zod.string(),
+  "attachments": zod.array(zod.object({
+  "pathname": zod.string(),
+  "filename": zod.string(),
+  "contentType": zod.string(),
+  "sizeBytes": zod.number(),
+  "uploadProof": zod.string()
+})).max(sendChatMessageBodyAttachmentsMax).optional()
 })
 
 export const SendChatMessageResponse = zod.object({
   "id": zod.number(),
   "sender": zod.enum(['user', 'admin', 'system']),
   "message": zod.string(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "attachments": zod.array(zod.object({
+  "id": zod.number(),
+  "filename": zod.string(),
+  "contentType": zod.string(),
+  "sizeBytes": zod.number(),
+  "downloadUrl": zod.string()
+}))
 })
 
 
@@ -1809,7 +1843,14 @@ export const AdminGetChatResponseItem = zod.object({
   "id": zod.number(),
   "sender": zod.enum(['user', 'admin', 'system']),
   "message": zod.string(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "attachments": zod.array(zod.object({
+  "id": zod.number(),
+  "filename": zod.string(),
+  "contentType": zod.string(),
+  "sizeBytes": zod.number(),
+  "downloadUrl": zod.string()
+}))
 })
 export const AdminGetChatResponse = zod.array(AdminGetChatResponseItem)
 
@@ -1818,15 +1859,33 @@ export const AdminSendChatMessageParams = zod.object({
   "userId": zod.coerce.number()
 })
 
+export const adminSendChatMessageBodyAttachmentsMax = 10;
+
+
+
 export const AdminSendChatMessageBody = zod.object({
-  "message": zod.string()
+  "message": zod.string(),
+  "attachments": zod.array(zod.object({
+  "pathname": zod.string(),
+  "filename": zod.string(),
+  "contentType": zod.string(),
+  "sizeBytes": zod.number(),
+  "uploadProof": zod.string()
+})).max(adminSendChatMessageBodyAttachmentsMax).optional()
 })
 
 export const AdminSendChatMessageResponse = zod.object({
   "id": zod.number(),
   "sender": zod.enum(['user', 'admin', 'system']),
   "message": zod.string(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "attachments": zod.array(zod.object({
+  "id": zod.number(),
+  "filename": zod.string(),
+  "contentType": zod.string(),
+  "sizeBytes": zod.number(),
+  "downloadUrl": zod.string()
+}))
 })
 
 

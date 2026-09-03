@@ -2055,9 +2055,18 @@ components:
         signalTrialRemainingMs:
           type: integer
           minimum: 0
+        signalAccessStartedAt:
+          type: string
+          format: date-time
+          nullable: true
+        signalPairsRemaining:
+          type: integer
+          nullable: true
+        signalPairAllowance:
+          type: integer
         vip2Required:
           type: boolean
-      required: [id, opportunityId, pair, direction, market, confidence, timeframe, suggestedTp, suggestedSl, scheduledAt, expiresAt, status, timezone, vipLevel, dailyLimit, usedToday, remainingToday, signalTrialActive, signalTrialExpired, signalTrialStartedAt, signalTrialEndsAt, signalTrialRemainingMs, vip2Required]
+      required: [id, opportunityId, pair, direction, market, confidence, timeframe, suggestedTp, suggestedSl, scheduledAt, expiresAt, status, timezone, vipLevel, dailyLimit, usedToday, remainingToday, signalTrialActive, signalTrialExpired, signalTrialStartedAt, signalTrialEndsAt, signalTrialRemainingMs, signalAccessStartedAt, signalPairsRemaining, signalPairAllowance, vip2Required]
 
     TradeAccess:
       type: object
@@ -2127,6 +2136,15 @@ components:
         signalTrialRemainingMs:
           type: integer
           minimum: 0
+        signalAccessStartedAt:
+          type: string
+          format: date-time
+          nullable: true
+        signalPairsRemaining:
+          type: integer
+          nullable: true
+        signalPairAllowance:
+          type: integer
         vip2Required:
           type: boolean
         timezone:
@@ -2143,7 +2161,7 @@ components:
           nullable: true
         cooldownActive:
           type: boolean
-      required: [vipLevel, minimumDeposit, totalDeposited, hasPackage, packagePrice, vaultCapital, lockedInvestmentCapital, canExecute, dailyLimit, usedToday, remainingToday, qualifiedReferrals, totalWithdrawn, withdrawalSignalThreshold, withdrawalReferralRequirement, withdrawalGateActive, nextLevelReferralRequirement, timezone, nextLevel, nextLevelDeposit, nextLevelAmountDue, signalTrialActive, signalTrialExpired, signalTrialStartedAt, signalTrialEndsAt, signalTrialRemainingMs, vip2Required, nextSignalAt, signalAmount, cooldownUntil, cooldownActive]
+      required: [vipLevel, minimumDeposit, totalDeposited, hasPackage, packagePrice, vaultCapital, lockedInvestmentCapital, canExecute, dailyLimit, usedToday, remainingToday, qualifiedReferrals, totalWithdrawn, withdrawalSignalThreshold, withdrawalReferralRequirement, withdrawalGateActive, timezone, nextLevelReferralRequirement, nextLevel, nextLevelDeposit, nextLevelAmountDue, signalTrialActive, signalTrialExpired, signalTrialStartedAt, signalTrialEndsAt, signalTrialRemainingMs, signalAccessStartedAt, signalPairsRemaining, signalPairAllowance, vip2Required, nextSignalAt, signalAmount, cooldownUntil, cooldownActive]
 
     VipPackage:
       type: object
@@ -3026,7 +3044,10 @@ components:
         signalTrialEndsAt: { type: ["string", "null"] }
         signalTrialRemainingMs: { type: integer, minimum: 0 }
         signalTrialReminderSentAt: { type: ["string", "null"] }
-      required: [id, accountUid, fullName, email, status, kycStatus, mainWalletBalance, vaultCapital, portfolioBalance, availableBalance, pendingOutflow, balance, totalBots, createdAt, signalTrialActive, signalTrialExpired, signalTrialStartedAt, signalTrialEndsAt, signalTrialRemainingMs, signalTrialReminderSentAt]
+        signalAccessStartedAt: { type: ["string", "null"] }
+        signalPairsRemaining: { type: ["integer", "null"] }
+        signalPairAllowance: { type: integer }
+      required: [id, accountUid, fullName, email, status, kycStatus, mainWalletBalance, vaultCapital, portfolioBalance, availableBalance, pendingOutflow, balance, totalBots, createdAt, signalTrialActive, signalTrialExpired, signalTrialStartedAt, signalTrialEndsAt, signalTrialRemainingMs, signalTrialReminderSentAt, signalAccessStartedAt, signalPairsRemaining, signalPairAllowance]
 
     AdminUserBot:
       type: object
@@ -3068,13 +3089,16 @@ components:
         signalTrialEndsAt: { type: ["string", "null"] }
         signalTrialRemainingMs: { type: integer, minimum: 0 }
         signalTrialReminderSentAt: { type: ["string", "null"] }
+        signalAccessStartedAt: { type: ["string", "null"] }
+        signalPairsRemaining: { type: ["integer", "null"] }
+        signalPairAllowance: { type: integer }
         bots:
           type: array
           items: { $ref: "#/components/schemas/AdminUserBot" }
         transactions:
           type: array
           items: { $ref: "#/components/schemas/AdminTransaction" }
-      required: [id, accountUid, fullName, email, status, kycStatus, mainWalletBalance, vaultCapital, portfolioBalance, availableBalance, pendingOutflow, balance, totalBots, totalDeposits, totalWithdrawals, createdAt, signalTrialActive, signalTrialExpired, signalTrialStartedAt, signalTrialEndsAt, signalTrialRemainingMs, signalTrialReminderSentAt, bots, transactions]
+      required: [id, accountUid, fullName, email, status, kycStatus, mainWalletBalance, vaultCapital, portfolioBalance, availableBalance, pendingOutflow, balance, totalBots, totalDeposits, totalWithdrawals, createdAt, signalTrialActive, signalTrialExpired, signalTrialStartedAt, signalTrialEndsAt, signalTrialRemainingMs, signalTrialReminderSentAt, signalAccessStartedAt, signalPairsRemaining, signalPairAllowance, bots, transactions]
 
     AdminUserStatusInput:
       type: object
@@ -3403,13 +3427,42 @@ components:
         sender: { type: string, enum: [user, admin, system] }
         message: { type: string }
         createdAt: { type: string }
-      required: [id, sender, message, createdAt]
+        attachments:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChatAttachment"
+      required: [id, sender, message, createdAt, attachments]
 
     SendChatMessageInput:
       type: object
       properties:
         message: { type: string }
+        attachments:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/ChatAttachmentInput"
       required: [message]
+
+    ChatAttachment:
+      type: object
+      properties:
+        id: { type: integer }
+        filename: { type: string }
+        contentType: { type: string }
+        sizeBytes: { type: integer, format: int64 }
+        downloadUrl: { type: string }
+      required: [id, filename, contentType, sizeBytes, downloadUrl]
+
+    ChatAttachmentInput:
+      type: object
+      properties:
+        pathname: { type: string }
+        filename: { type: string }
+        contentType: { type: string }
+        sizeBytes: { type: integer, format: int64 }
+        uploadProof: { type: string }
+      required: [pathname, filename, contentType, sizeBytes, uploadProof]
 
     ChatConversation:
       type: object

@@ -5,7 +5,10 @@
  * Quantum FX Bot API
  * OpenAPI spec version: 0.1.0
  */
+import type { ChatAttachmentInput } from './chatAttachmentInput';
 
 export interface SendChatMessageInput {
   message: string;
+  /** @maxItems 10 */
+  attachments?: ChatAttachmentInput[];
 }

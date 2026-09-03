@@ -37,6 +37,7 @@ export interface AdminUser {
   signalTrialReminderSentAt: string | null;
   /** @nullable */
   signalAccessStartedAt: string | null;
+  /** @nullable */
   signalPairsRemaining: number | null;
   signalPairAllowance: number;
 }

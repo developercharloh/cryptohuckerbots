@@ -14,6 +14,7 @@ import {
   settingsTable,
   signalScheduleAuditTable,
   chatMessagesTable,
+  chatAttachmentsTable,
   depositSessionsTable,
   broadcastsTable,
   adminLoginNotificationsTable,
@@ -28,6 +29,14 @@ import {
   type PaymentMethod,
 } from "@workspace/db";
 import { eq, and, desc, sql, inArray, ilike, or, gte, isNotNull, ne, lt } from "drizzle-orm";
+import {
+  confirmUploadedAttachments,
+  cleanupUploadedAttachments,
+  createAttachmentUploadSession,
+  handleChatAttachmentUpload,
+  streamPrivateAttachment,
+  validateAttachmentInputs,
+} from "../lib/chat-attachments";
 import crypto from "crypto";
 import {
   calculateVaultCapital,
@@ -126,6 +135,9 @@ async function requireAdmin(req: Request, res: Response, next: NextFunction) {
   // Note: router.use("/admin", requireAdmin) strips the "/admin" prefix,
   // so req.path here is "/login", not "/admin/login".
   if (req.path === "/login" && req.method === "POST") return next();
+  // The Blob client makes a cross-origin token request without browser
+  // cookies. The signed upload proof is checked by the route itself.
+  if (req.path.match(/^\/chat\/\d+\/attachments\/upload$/) && req.method === "POST") return next();
 
   const token = getRequestToken(req, ADMIN_SESSION_COOKIE);
   const payload = parseAdminToken(token);
@@ -1622,13 +1634,62 @@ router.get("/admin/chat/:userId", async (req, res) => {
   const messages = await db.select().from(chatMessagesTable)
     .where(eq(chatMessagesTable.userId, userId))
     .orderBy(chatMessagesTable.createdAt);
+  const messageIds = messages.map((message) => message.id);
+  const attachments = messageIds.length
+    ? await db.select().from(chatAttachmentsTable).where(inArray(chatAttachmentsTable.messageId, messageIds))
+    : [];
+  const attachmentsByMessage = new Map<number, typeof attachments>();
+  for (const attachment of attachments) {
+    const existing = attachmentsByMessage.get(attachment.messageId) ?? [];
+    existing.push(attachment);
+    attachmentsByMessage.set(attachment.messageId, existing);
+  }
 
   return res.json(messages.map(m => ({
     id: m.id,
     sender: m.sender,
     message: m.message,
     createdAt: m.createdAt.toISOString(),
+    attachments: (attachmentsByMessage.get(m.id) ?? []).map((attachment) => ({
+      id: attachment.id,
+      filename: attachment.filename,
+      contentType: attachment.contentType,
+      sizeBytes: attachment.sizeBytes,
+      downloadUrl: `/api/admin/attachments/${attachment.id}`,
+    })),
   })));
+});
+
+router.post("/admin/chat/:userId/attachments/session", async (req, res) => {
+  const userId = Number(req.params.userId);
+  if (!Number.isInteger(userId)) return res.status(400).json({ error: "Invalid user id." });
+  const [targetUser] = await db.select({ id: usersTable.id }).from(usersTable)
+    .where(eq(usersTable.id, userId)).limit(1);
+  if (!targetUser) return res.status(404).json({ error: "User not found." });
+  return res.json(createAttachmentUploadSession("admin", 0, userId));
+});
+
+router.post("/admin/chat/:userId/attachments/upload", async (req, res) => {
+  const userId = Number(req.params.userId);
+  if (!Number.isInteger(userId)) return res.status(400).json({ error: "Invalid user id." });
+  try {
+    return res.json(await handleChatAttachmentUpload(req, req.body, "admin", 0, userId));
+  } catch (error) {
+    return res.status(400).json({ error: error instanceof Error ? error.message : "Unable to prepare upload." });
+  }
+});
+
+router.get("/admin/attachments/:attachmentId", async (req, res) => {
+  const attachmentId = Number(req.params.attachmentId);
+  if (!Number.isInteger(attachmentId)) return res.status(400).json({ error: "Invalid attachment id." });
+  const [attachment] = await db.select().from(chatAttachmentsTable)
+    .where(eq(chatAttachmentsTable.id, attachmentId)).limit(1);
+  if (!attachment) return res.status(404).json({ error: "Attachment not found." });
+  try {
+    return await streamPrivateAttachment(res, attachment.pathname, attachment.filename);
+  } catch {
+    return res.status(404).json({ error: "Attachment not found." });
+  }
 });
 
 router.post("/admin/chat/:userId/close", async (req, res) => {
@@ -1689,15 +1750,14 @@ router.post("/admin/chat/:userId", async (req, res) => {
   const userId = parseInt(req.params.userId, 10);
   if (isNaN(userId)) return res.status(400).json({ error: "Invalid user id" });
 
-  const { message } = req.body as { message?: string };
+  const { message, attachments: rawAttachments } = req.body as { message?: string; attachments?: unknown };
   const trimmedMessage = typeof message === "string" ? message.trim() : "";
-  if (!trimmedMessage) {
-    return res.status(400).json({ error: "message is required" });
+  if (!trimmedMessage && (!Array.isArray(rawAttachments) || rawAttachments.length === 0)) {
+    return res.status(400).json({ error: "message or attachment is required" });
   }
   if (trimmedMessage.length > 2000) {
     return res.status(400).json({ error: "message must be 2000 characters or fewer" });
   }
-
   const [targetUser] = await db
     .select({ id: usersTable.id })
     .from(usersTable)
@@ -1718,29 +1778,65 @@ router.post("/admin/chat/:userId", async (req, res) => {
     });
   }
 
-  const msg = await db.transaction(async (tx) => {
-    const [createdMessage] = await tx.insert(chatMessagesTable).values({
-      userId,
-      sender: "admin",
-      message: trimmedMessage,
-    }).returning();
+  let attachments;
+  try {
+    attachments = await confirmUploadedAttachments(
+      validateAttachmentInputs(rawAttachments, "admin", 0, userId),
+    );
+  } catch (error) {
+    return res.status(400).json({ error: error instanceof Error ? error.message : "Invalid attachments." });
+  }
 
-    await tx.insert(notificationsTable).values({
-      userId,
-      type: "admin_message",
-      title: "Message from VIXUS Support",
-      message: trimmedMessage,
-      isRead: false,
+  let msg;
+  try {
+    msg = await db.transaction(async (tx) => {
+      const [createdMessage] = await tx.insert(chatMessagesTable).values({
+        userId,
+        sender: "admin",
+        message: trimmedMessage || "Sent an attachment.",
+      }).returning();
+      if (attachments.length > 0) {
+        await tx.insert(chatAttachmentsTable).values(attachments.map((attachment) => ({
+          messageId: createdMessage.id,
+          userId,
+          pathname: attachment.pathname,
+          blobUrl: attachment.blobUrl,
+          filename: attachment.filename,
+          contentType: attachment.contentType,
+          sizeBytes: attachment.sizeBytes,
+        })));
+      }
+
+      await tx.insert(notificationsTable).values({
+        userId,
+        type: "admin_message",
+        title: "Message from VIXUS Support",
+        message: trimmedMessage || "VIXUS Support sent an attachment.",
+        isRead: false,
+      });
+
+      return createdMessage;
     });
-
-    return createdMessage;
-  });
+  } catch (error) {
+    await cleanupUploadedAttachments(attachments).catch(() => undefined);
+    throw error;
+  }
+  const savedAttachments = attachments.length
+    ? await db.select().from(chatAttachmentsTable).where(eq(chatAttachmentsTable.messageId, msg.id))
+    : [];
 
   return res.status(201).json({
     id: msg.id,
     sender: msg.sender,
     message: msg.message,
     createdAt: msg.createdAt.toISOString(),
+    attachments: savedAttachments.map((attachment) => ({
+      id: attachment.id,
+      filename: attachment.filename,
+      contentType: attachment.contentType,
+      sizeBytes: attachment.sizeBytes,
+      downloadUrl: `/api/admin/attachments/${attachment.id}`,
+    })),
   });
 });
 

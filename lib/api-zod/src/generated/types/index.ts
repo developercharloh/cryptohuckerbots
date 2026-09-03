@@ -52,6 +52,8 @@ export * from './bulkTradeExecutionResponse';
 export * from './bulkTradeExecutionSignal';
 export * from './changePasswordInput';
 export * from './chartPoint';
+export * from './chatAttachment';
+export * from './chatAttachmentInput';
 export * from './chatConversation';
 export * from './chatConversationStatus';
 export * from './chatMessage';

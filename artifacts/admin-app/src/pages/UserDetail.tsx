@@ -26,6 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { API_BASE } from "@/lib/api-base";
+import { AdminChatAttachmentPicker, type AdminUploadedChatAttachment } from "@/components/AdminChatAttachmentPicker";
 import {
   Table,
   TableBody,
@@ -78,6 +79,8 @@ export default function UserDetail() {
   const [balanceNote, setBalanceNote] = useState("");
   const [isBalanceOpen, setIsBalanceOpen] = useState(false);
   const [messageText, setMessageText] = useState("");
+  const [messageAttachments, setMessageAttachments] = useState<AdminUploadedChatAttachment[]>([]);
+  const [messageAttachmentsUploading, setMessageAttachmentsUploading] = useState(false);
   const [isMessageOpen, setIsMessageOpen] = useState(false);
   const [tempPassword, setTempPassword] = useState("");
   const [promoteLoading, setPromoteLoading] = useState(false);
@@ -179,14 +182,15 @@ export default function UserDetail() {
 
   const handleSendMessage = () => {
     const trimmedMessage = messageText.trim();
-    if (!trimmedMessage || messageMutation.isPending) return;
+    if ((!trimmedMessage && messageAttachments.length === 0) || messageAttachmentsUploading || messageMutation.isPending) return;
 
     messageMutation.mutate(
-      { userId, data: { message: trimmedMessage } },
+      { userId, data: { message: trimmedMessage || "Sent an attachment.", attachments: messageAttachments } },
       {
         onSuccess: () => {
           toast({ title: "Private message sent", description: "The user was notified privately." });
           setMessageText("");
+          setMessageAttachments([]);
           setIsMessageOpen(false);
           queryClient.invalidateQueries({ queryKey: getAdminGetChatQueryKey(userId) });
           queryClient.invalidateQueries({ queryKey: getAdminListChatsQueryKey() });
@@ -478,6 +482,14 @@ export default function UserDetail() {
                     </DialogHeader>
                     <div className="space-y-2 py-4">
                       <label className="text-sm font-medium">Private message</label>
+                      <AdminChatAttachmentPicker
+                        userId={userId}
+                        disabled={messageMutation.isPending}
+                        onChange={(attachments, uploading) => {
+                          setMessageAttachments(attachments);
+                          setMessageAttachmentsUploading(uploading);
+                        }}
+                      />
                       <Textarea
                         value={messageText}
                         onChange={(event) => setMessageText(event.target.value)}
@@ -498,7 +510,7 @@ export default function UserDetail() {
                       </Button>
                       <Button
                         onClick={handleSendMessage}
-                        disabled={!messageText.trim() || messageMutation.isPending}
+                        disabled={(!messageText.trim() && messageAttachments.length === 0) || messageAttachmentsUploading || messageMutation.isPending}
                         data-testid="btn-send-private-message"
                       >
                         {messageMutation.isPending ? (

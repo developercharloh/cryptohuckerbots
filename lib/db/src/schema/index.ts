@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, numeric, boolean, timestamp, varchar, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, bigint, numeric, boolean, timestamp, varchar, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -351,6 +351,23 @@ export const chatMessagesTable = pgTable("chat_messages", {
 ]);
 
 export type ChatMessage = typeof chatMessagesTable.$inferSelect;
+
+export const chatAttachmentsTable = pgTable("chat_attachments", {
+  id: serial("id").primaryKey(),
+  messageId: integer("message_id").notNull(),
+  userId: integer("user_id").notNull(),
+  pathname: text("pathname").notNull(),
+  blobUrl: text("blob_url").notNull(),
+  filename: text("filename").notNull(),
+  contentType: varchar("content_type", { length: 180 }).notNull(),
+  sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  index("chat_attachments_message_id_idx").on(table.messageId),
+  index("chat_attachments_user_id_idx").on(table.userId),
+]);
+
+export type ChatAttachment = typeof chatAttachmentsTable.$inferSelect;
 
 export const supportTicketsTable = pgTable("support_tickets", {
   id: serial("id").primaryKey(),

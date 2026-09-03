@@ -2,15 +2,52 @@ import { useRef, useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { Layout } from "@/components/Layout";
 import { VixusLogo } from "@/components/VixusLogo";
-import { ChevronLeft, Send, Loader2, LockKeyhole } from "lucide-react";
+import { ChevronLeft, Send, Loader2, LockKeyhole, Paperclip, Camera, X, RotateCcw, FileText } from "lucide-react";
 import { useGetChatMessages, useSendChatMessage } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
+import { upload } from "@vercel/blob/client";
+import { API_BASE, fetchWithTimeout } from "@/lib/api-base";
+
+type PendingAttachment = {
+  id: string;
+  file: File;
+  pathname?: string;
+  uploadProof?: string;
+  progress: number;
+  error?: string;
+};
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function PrivateImage({ href, alt }: { href: string; alt: string }) {
+  const [src, setSrc] = useState<string>();
+  useEffect(() => {
+    let objectUrl: string | undefined;
+    void fetchWithTimeout(href, { credentials: "include" })
+      .then((response) => response.ok ? response.blob() : Promise.reject(new Error("Unable to load image.")))
+      .then((blob) => {
+        objectUrl = URL.createObjectURL(blob);
+        setSrc(objectUrl);
+      })
+      .catch(() => setSrc(undefined));
+    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [href]);
+  return src ? <img src={src} alt={alt} className="max-h-48 max-w-full object-cover" /> : <div className="h-20 w-28 animate-pulse rounded-lg bg-background/20" />;
+}
 
 export default function LiveChat() {
   const [, setLocation] = useLocation();
   const [text, setText] = useState("");
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
+  const pendingAttachmentsRef = useRef<PendingAttachment[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
   const { data: messages = [], isLoading } = useGetChatMessages({
@@ -25,18 +62,97 @@ export default function LiveChat() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  const uploadFile = async (pending: PendingAttachment) => {
+    try {
+      const sessionResponse = await fetchWithTimeout(`${API_BASE}/api/support/attachments/session`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!sessionResponse.ok) throw new Error("Could not start the upload.");
+      const session = await sessionResponse.json() as { prefix: string; proof: string };
+      const safeName = pending.file.name.replace(/[^\w.\- ()[\]]/g, "_").slice(0, 180) || "attachment";
+      const result = await upload(`${session.prefix}/${safeName}`, pending.file, {
+        access: "private",
+        handleUploadUrl: `${API_BASE}/api/support/attachments/upload`,
+        clientPayload: session.proof,
+        contentType: pending.file.type || "application/octet-stream",
+        multipart: pending.file.size > 4 * 1024 * 1024,
+        onUploadProgress: ({ percentage }) => {
+          const next = pendingAttachmentsRef.current.map((item) =>
+            item.id === pending.id ? { ...item, progress: percentage } : item,
+          );
+          pendingAttachmentsRef.current = next;
+          setPendingAttachments(next);
+        },
+      });
+      const next = pendingAttachmentsRef.current.map((item) =>
+        item.id === pending.id ? { ...item, pathname: result.pathname, uploadProof: session.proof, progress: 100 } : item,
+      );
+      pendingAttachmentsRef.current = next;
+      setPendingAttachments(next);
+    } catch (error) {
+      const next = pendingAttachmentsRef.current.map((item) =>
+        item.id === pending.id ? { ...item, error: error instanceof Error ? error.message : "Upload failed." } : item,
+      );
+      pendingAttachmentsRef.current = next;
+      setPendingAttachments(next);
+    }
+  };
+
+  const handleFiles = (fileList: FileList | null) => {
+    if (!fileList) return;
+    const additions = Array.from(fileList).map((file) => ({
+      id: `${file.name}-${file.size}-${file.lastModified}-${crypto.randomUUID()}`,
+      file,
+      progress: 0,
+    }));
+    const acceptedAdditions = additions.slice(0, Math.max(0, 10 - pendingAttachmentsRef.current.length));
+    const next = [...pendingAttachmentsRef.current, ...acceptedAdditions];
+    pendingAttachmentsRef.current = next;
+    setPendingAttachments(next);
+    acceptedAdditions.forEach((item) => void uploadFile(item));
+  };
+
+  const retryUpload = (item: PendingAttachment) => {
+    const next = { ...item, pathname: undefined, uploadProof: undefined, progress: 0, error: undefined };
+    const updated = pendingAttachmentsRef.current.map((candidate) => candidate.id === item.id ? next : candidate);
+    pendingAttachmentsRef.current = updated;
+    setPendingAttachments(updated);
+    void uploadFile(next);
+  };
+
   const handleSend = () => {
     const trimmed = text.trim();
-    if (!trimmed || mutation.isPending) return;
+    const readyAttachments = pendingAttachments.filter((item) => item.pathname && item.uploadProof && !item.error);
+    const hasUploading = pendingAttachments.some((item) => !item.error && !item.pathname);
+    if ((!trimmed && readyAttachments.length === 0) || hasUploading || mutation.isPending) return;
     mutation.mutate(
-      { data: { message: trimmed } },
+      {
+        data: {
+          message: trimmed || "Sent an attachment.",
+          attachments: readyAttachments.map((item) => ({
+            pathname: item.pathname!,
+            filename: item.file.name,
+            contentType: item.file.type || "application/octet-stream",
+            sizeBytes: item.file.size,
+            uploadProof: item.uploadProof!,
+          })),
+        },
+      },
       {
         onSuccess: () => {
           setText("");
+          setPendingAttachments([]);
           queryClient.invalidateQueries({ queryKey: ["getChatMessages"] });
         },
       }
     );
+  };
+
+  const removeAttachment = (id: string) => {
+    const next = pendingAttachmentsRef.current.filter((item) => item.id !== id);
+    pendingAttachmentsRef.current = next;
+    setPendingAttachments(next);
   };
 
   const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -108,6 +224,23 @@ export default function LiveChat() {
                       <p className="text-[10px] font-semibold text-primary mb-1">Support</p>
                     )}
                     <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.message}</p>
+                    {msg.attachments?.length > 0 && (
+                      <div className="mt-2 space-y-1.5">
+                        {msg.attachments.map((attachment) => {
+                          const isImage = attachment.contentType.startsWith("image/");
+                          const href = `${API_BASE}${attachment.downloadUrl}`;
+                          return isImage ? (
+                            <a key={attachment.id} href={href} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl">
+                              <PrivateImage href={href} alt={attachment.filename} />
+                            </a>
+                          ) : (
+                            <a key={attachment.id} href={href} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-lg bg-background/20 px-2.5 py-2 text-xs underline">
+                              <FileText className="h-4 w-4 shrink-0" /> <span className="truncate">{attachment.filename}</span>
+                            </a>
+                          );
+                        })}
+                      </div>
+                    )}
                     <p className={`text-[10px] mt-1 ${isUser ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
                       {format(new Date(msg.createdAt), "HH:mm")}
                     </p>
@@ -127,7 +260,33 @@ export default function LiveChat() {
 
         {/* Input */}
         <div className="shrink-0 p-4 border-t border-border/40">
+          {pendingAttachments.length > 0 && (
+            <div className="mb-3 space-y-1.5">
+              {pendingAttachments.map((item) => (
+                <div key={item.id} className="flex items-center gap-2 rounded-xl border border-border/50 bg-card px-3 py-2 text-xs">
+                  {item.file.type.startsWith("image/") ? <img src={URL.createObjectURL(item.file)} alt="" className="h-8 w-8 rounded object-cover" /> : <FileText className="h-4 w-4 text-primary" />}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate">{item.file.name}</p>
+                    <p className="text-[10px] text-muted-foreground">{item.error || `${item.progress}% · ${formatBytes(item.file.size)}`}</p>
+                    {!item.error && !item.pathname && <div className="mt-1 h-1 overflow-hidden rounded bg-muted"><div className="h-full bg-primary transition-all" style={{ width: `${item.progress}%` }} /></div>}
+                  </div>
+                  {item.error && <button onClick={() => retryUpload(item)} aria-label="Retry upload"><RotateCcw className="h-4 w-4 text-primary" /></button>}
+                  <button onClick={() => removeAttachment(item.id)} aria-label="Remove attachment"><X className="h-4 w-4 text-muted-foreground" /></button>
+                </div>
+              ))}
+            </div>
+          )}
+          <input ref={fileInputRef} type="file" multiple className="hidden" onChange={(event) => { handleFiles(event.target.files); event.currentTarget.value = ""; }} />
+          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(event) => { handleFiles(event.target.files); event.currentTarget.value = ""; }} />
           <div className="flex items-end gap-2">
+            <div className="flex gap-1 pb-1">
+              <button type="button" onClick={() => fileInputRef.current?.click()} disabled={pendingAttachments.length >= 10} className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-card disabled:opacity-40" aria-label="Attach files">
+                <Paperclip className="h-4 w-4" />
+              </button>
+              <button type="button" onClick={() => cameraInputRef.current?.click()} disabled={pendingAttachments.length >= 10} className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-card disabled:opacity-40" aria-label="Take a photo">
+                <Camera className="h-4 w-4" />
+              </button>
+            </div>
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
@@ -139,7 +298,7 @@ export default function LiveChat() {
             />
             <button
               onClick={handleSend}
-              disabled={!text.trim() || mutation.isPending}
+              disabled={(!text.trim() && pendingAttachments.length === 0) || mutation.isPending || pendingAttachments.some((item) => !item.error && !item.pathname)}
               className="w-11 h-11 rounded-full bg-primary flex items-center justify-center shrink-0 disabled:opacity-40 transition-opacity"
             >
               {mutation.isPending ? (

@@ -5,6 +5,7 @@
  * Quantum FX Bot API
  * OpenAPI spec version: 0.1.0
  */
+import type { ChatAttachment } from './chatAttachment';
 import type { ChatMessageSender } from './chatMessageSender';
 
 export interface ChatMessage {
@@ -12,4 +13,5 @@ export interface ChatMessage {
   sender: ChatMessageSender;
   message: string;
   createdAt: string;
+  attachments: ChatAttachment[];
 }

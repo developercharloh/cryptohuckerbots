@@ -824,6 +824,7 @@ export interface AdminUser {
   signalTrialReminderSentAt: string | null;
   /** @nullable */
   signalAccessStartedAt: string | null;
+  /** @nullable */
   signalPairsRemaining: number | null;
   signalPairAllowance: number;
 }
@@ -873,6 +874,7 @@ export interface AdminUserDetail {
   signalTrialReminderSentAt: string | null;
   /** @nullable */
   signalAccessStartedAt: string | null;
+  /** @nullable */
   signalPairsRemaining: number | null;
   signalPairAllowance: number;
   bots: AdminUserBot[];
@@ -1167,15 +1169,34 @@ export const ChatMessageSender = {
   system: 'system',
 } as const;
 
+export interface ChatAttachment {
+  id: number;
+  filename: string;
+  contentType: string;
+  sizeBytes: number;
+  downloadUrl: string;
+}
+
 export interface ChatMessage {
   id: number;
   sender: ChatMessageSender;
   message: string;
   createdAt: string;
+  attachments: ChatAttachment[];
+}
+
+export interface ChatAttachmentInput {
+  pathname: string;
+  filename: string;
+  contentType: string;
+  sizeBytes: number;
+  uploadProof: string;
 }
 
 export interface SendChatMessageInput {
   message: string;
+  /** @maxItems 10 */
+  attachments?: ChatAttachmentInput[];
 }
 
 export type ChatConversationStatus = typeof ChatConversationStatus[keyof typeof ChatConversationStatus];

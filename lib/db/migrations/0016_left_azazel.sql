@@ -1,0 +1,1 @@
+ALTER TABLE "chat_attachments" ADD COLUMN "blob_url" text NOT NULL;

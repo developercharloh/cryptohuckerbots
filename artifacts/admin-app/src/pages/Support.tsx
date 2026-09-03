@@ -24,9 +24,27 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import vixusLogo from "../../../user-app/public/icons/vixus-ai-192.png";
+import { API_BASE } from "@/lib/api-base";
+import { AdminChatAttachmentPicker, type AdminUploadedChatAttachment } from "@/components/AdminChatAttachmentPicker";
 
 const statusTabs = ["open", "closed", "all"] as const;
 type MainTab = "tickets" | "chat";
+
+function PrivateImage({ href, alt }: { href: string; alt: string }) {
+  const [src, setSrc] = useState<string>();
+  useEffect(() => {
+    let objectUrl: string | undefined;
+    void fetch(href, { credentials: "include" })
+      .then((response) => response.ok ? response.blob() : Promise.reject(new Error("Unable to load image.")))
+      .then((blob) => {
+        objectUrl = URL.createObjectURL(blob);
+        setSrc(objectUrl);
+      })
+      .catch(() => setSrc(undefined));
+    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [href]);
+  return src ? <img src={src} alt={alt} className="max-h-40 max-w-full object-cover" /> : <div className="h-16 w-24 animate-pulse rounded-lg bg-background/20" />;
+}
 
 // ─── Tickets tab ─────────────────────────────────────────────────────────────
 function TicketsTab() {
@@ -211,6 +229,8 @@ function ChatThread({
   onBack: () => void;
 }) {
   const [text, setText] = useState("");
+  const [chatAttachments, setChatAttachments] = useState<AdminUploadedChatAttachment[]>([]);
+  const [attachmentsUploading, setAttachmentsUploading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -231,12 +251,13 @@ function ChatThread({
 
   const handleSend = () => {
     const trimmed = text.trim();
-    if (!trimmed || mutation.isPending) return;
+    if ((!trimmed && chatAttachments.length === 0) || attachmentsUploading || mutation.isPending) return;
     mutation.mutate(
-      { userId, data: { message: trimmed } },
+      { userId, data: { message: trimmed || "Sent an attachment.", attachments: chatAttachments } },
       {
         onSuccess: () => {
           setText("");
+          setChatAttachments([]);
           queryClient.invalidateQueries({ queryKey: getAdminGetChatQueryKey(userId) });
           queryClient.invalidateQueries({ queryKey: getAdminListChatsQueryKey() });
         },
@@ -316,6 +337,20 @@ function ChatThread({
                 <div className={`max-w-[75%] rounded-2xl px-3 py-2 ${isAdmin ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-card text-foreground rounded-bl-sm"}`}>
                   {!isAdmin && <p className="text-[9px] font-semibold text-primary mb-0.5">{userName}</p>}
                   <p className="text-xs leading-relaxed whitespace-pre-wrap">{msg.message}</p>
+                  {msg.attachments?.length > 0 && (
+                    <div className="mt-1.5 space-y-1">
+                      {msg.attachments.map((attachment) => {
+                        const href = `${API_BASE}${attachment.downloadUrl}`;
+                        return attachment.contentType.startsWith("image/") ? (
+                          <a key={attachment.id} href={href} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-lg">
+                            <PrivateImage href={href} alt={attachment.filename} />
+                          </a>
+                        ) : (
+                          <a key={attachment.id} href={href} target="_blank" rel="noreferrer" className="block truncate rounded-md bg-background/20 px-2 py-1.5 text-[10px] underline">{attachment.filename}</a>
+                        );
+                      })}
+                    </div>
+                  )}
                   <p className={`text-[9px] mt-0.5 ${isAdmin ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
                     {format(new Date(msg.createdAt), "HH:mm")}
                   </p>
@@ -333,18 +368,21 @@ function ChatThread({
         </div>
       )}
       <div className="flex items-end gap-2 pt-2 border-t border-border/40">
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-          placeholder={isClosed ? "Reply unavailable until the user starts a new conversation…" : "Type a reply…"}
-          rows={1}
-          disabled={isClosed}
-          className="flex-1 resize-none bg-card rounded-xl px-3 py-2 text-xs outline-none border border-border/40 focus:border-primary/50 max-h-20 overflow-y-auto disabled:cursor-not-allowed disabled:opacity-50"
-        />
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <AdminChatAttachmentPicker userId={userId} disabled={isClosed} onChange={(attachments, uploading) => { setChatAttachments(attachments); setAttachmentsUploading(uploading); }} />
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+            placeholder={isClosed ? "Reply unavailable until the user starts a new conversation…" : "Type a reply…"}
+            rows={1}
+            disabled={isClosed}
+            className="w-full resize-none bg-card rounded-xl px-3 py-2 text-xs outline-none border border-border/40 focus:border-primary/50 max-h-20 overflow-y-auto disabled:cursor-not-allowed disabled:opacity-50"
+          />
+        </div>
         <button
           onClick={handleSend}
-          disabled={isClosed || !text.trim() || mutation.isPending}
+          disabled={isClosed || (!text.trim() && chatAttachments.length === 0) || attachmentsUploading || mutation.isPending}
           className="w-9 h-9 rounded-full bg-primary flex items-center justify-center shrink-0 disabled:opacity-40"
         >
           {mutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin text-primary-foreground" /> : <Send className="w-3.5 h-3.5 text-primary-foreground" />}
