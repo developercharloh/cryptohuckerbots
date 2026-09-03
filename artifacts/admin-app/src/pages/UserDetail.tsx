@@ -12,6 +12,7 @@ import {
   getAdminListChatsQueryKey,
   getAdminGetUserQueryKey,
   getAdminListUsersQueryKey,
+  getSafeErrorMessage,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -146,11 +147,11 @@ export default function UserDetail() {
     setPromoteLoading(true);
     try {
       const res = await fetch(`${API_BASE}/api/admin/users/${userId}/promote`, { method: "POST", credentials: "include" });
-      if (!res.ok) throw new Error((await res.json()).error ?? "Request failed");
+      if (!res.ok) throw new Error("The admin access update failed.");
       toast({ title: isAdmin ? "Admin access revoked" : "User promoted to admin" });
       queryClient.invalidateQueries({ queryKey: getAdminGetUserQueryKey(userId) });
     } catch (err: any) {
-      toast({ title: "Failed", description: err.message, variant: "destructive" });
+      toast({ title: "Failed", description: getSafeErrorMessage(err, "The admin access update failed. Please try again shortly."), variant: "destructive" });
     } finally {
       setPromoteLoading(false);
     }

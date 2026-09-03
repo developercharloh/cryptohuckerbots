@@ -138,41 +138,32 @@ function looksLikeJson(text: string): boolean {
   return trimmed.startsWith("{") || trimmed.startsWith("[");
 }
 
-function getStringField(value: unknown, key: string): string | undefined {
-  if (!value || typeof value !== "object") return undefined;
-
-  const candidate = (value as Record<string, unknown>)[key];
-  if (typeof candidate !== "string") return undefined;
-
-  const trimmed = candidate.trim();
-  return trimmed === "" ? undefined : trimmed;
-}
-
-function truncate(text: string, maxLength = 300): string {
-  return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
-}
-
-function buildErrorMessage(response: Response, data: unknown): string {
-  const prefix = `HTTP ${response.status} ${response.statusText}`;
-
-  if (typeof data === "string") {
-    const text = data.trim();
-    return text ? `${prefix}: ${truncate(text)}` : prefix;
+function buildErrorMessage(response: Response): string {
+  if (response.status === 401) {
+    return "Your session may have expired. Please sign in again.";
   }
-
-  const title = getStringField(data, "title");
-  const detail = getStringField(data, "detail");
-  const message =
-    getStringField(data, "message") ??
-    getStringField(data, "error_description") ??
-    getStringField(data, "error");
-
-  if (title && detail) return `${prefix}: ${title} — ${detail}`;
-  if (detail) return `${prefix}: ${detail}`;
-  if (message) return `${prefix}: ${message}`;
-  if (title) return `${prefix}: ${title}`;
-
-  return prefix;
+  if (response.status === 403) {
+    return "You do not have permission to complete this action.";
+  }
+  if (response.status === 404) {
+    return "The requested item was not found.";
+  }
+  if (response.status === 409) {
+    return "This action is no longer current. Please refresh and try again.";
+  }
+  if (response.status === 413) {
+    return "The request is too large. Please reduce it and try again.";
+  }
+  if (response.status === 429) {
+    return "Too many attempts. Please try again later.";
+  }
+  if (response.status === 400 || response.status === 422) {
+    return "Please check the information and try again.";
+  }
+  if (response.status >= 500) {
+    return "This service is temporarily unavailable. Please try again shortly.";
+  }
+  return "This action failed. Please try again shortly.";
 }
 
 export class ApiError<T = unknown> extends Error {
@@ -190,7 +181,9 @@ export class ApiError<T = unknown> extends Error {
     data: T | null,
     requestInfo: { method: string; url: string },
   ) {
-    super(buildErrorMessage(response, data));
+    // Keep the raw response in `data` for controlled diagnostics, but never
+    // copy an upstream response body into a browser-facing Error message.
+    super(buildErrorMessage(response));
     Object.setPrototypeOf(this, new.target.prototype);
 
     this.status = response.status;
@@ -220,10 +213,7 @@ export class ResponseParseError extends Error {
     cause: unknown,
     requestInfo: { method: string; url: string },
   ) {
-    super(
-      `Failed to parse response from ${requestInfo.method} ${response.url || requestInfo.url} ` +
-        `(${response.status} ${response.statusText}) as JSON`,
-    );
+    super("The service returned an invalid response. Please try again shortly.");
     Object.setPrototypeOf(this, new.target.prototype);
 
     this.status = response.status;
@@ -250,6 +240,23 @@ export class ApiNetworkError extends Error {
     this.url = requestInfo.url;
     this.cause = cause;
   }
+}
+
+const DEFAULT_SAFE_ERROR_MESSAGE = "This action failed. Please try again shortly.";
+
+/**
+ * Use this at UI boundaries that also handle manually-created Errors. API
+ * errors have already been classified above; arbitrary Error messages are
+ * treated as unsafe because they may originate from a provider or raw body.
+ */
+export function getSafeErrorMessage(
+  error: unknown,
+  fallback = DEFAULT_SAFE_ERROR_MESSAGE,
+): string {
+  if (error instanceof ApiError || error instanceof ApiNetworkError || error instanceof ResponseParseError) {
+    return error.message;
+  }
+  return fallback;
 }
 
 async function parseJsonBody(

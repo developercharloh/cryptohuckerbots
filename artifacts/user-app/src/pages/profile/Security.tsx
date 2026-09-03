@@ -8,6 +8,7 @@ import {
   useGet2FA,
   useListSessions,
   useRevokeSession,
+  getSafeErrorMessage,
 } from "@workspace/api-client-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -48,7 +49,7 @@ async function api2FA(path: string, body?: object) {
     body: body ? JSON.stringify(body) : undefined,
   });
   const json = await r.json();
-  if (!r.ok) throw new Error(json.error || "Request failed");
+  if (!r.ok) throw new Error("The security request failed.");
   return json;
 }
 
@@ -113,7 +114,7 @@ export default function Security() {
         setSetupCode("");
         setSetupOpen(true);
       } catch (err: any) {
-        toast({ title: "Setup failed", description: err.message, variant: "destructive" });
+        toast({ title: "Setup failed", description: getSafeErrorMessage(err, "2FA setup failed. Please try again shortly."), variant: "destructive" });
       } finally {
         setSetupLoading(false);
       }
@@ -137,7 +138,7 @@ export default function Security() {
       setSetupOpen(false);
       setSetupData(null);
     } catch (err: any) {
-      toast({ title: "Invalid code", description: err.message, variant: "destructive" });
+      toast({ title: "Invalid code", description: getSafeErrorMessage(err, "The code could not be verified. Please try again shortly."), variant: "destructive" });
     } finally {
       setSetupLoading(false);
     }
@@ -155,7 +156,7 @@ export default function Security() {
       toast({ title: "2FA disabled", description: "Two-factor authentication has been turned off." });
       setDisableOpen(false);
     } catch (err: any) {
-      toast({ title: "Invalid code", description: err.message, variant: "destructive" });
+      toast({ title: "Invalid code", description: getSafeErrorMessage(err, "The code could not be verified. Please try again shortly."), variant: "destructive" });
     } finally {
       setDisableLoading(false);
     }
@@ -186,7 +187,7 @@ export default function Security() {
       toast({ title: "Other sessions revoked", description: "Only this device remains signed in." });
       queryClient.invalidateQueries({ queryKey: ["/api/profile/sessions"] });
     } catch (err: any) {
-      toast({ title: "Could not revoke all sessions", description: err.message, variant: "destructive" });
+      toast({ title: "Could not revoke all sessions", description: getSafeErrorMessage(err, "Session management failed. Please try again shortly."), variant: "destructive" });
     }
   };
 

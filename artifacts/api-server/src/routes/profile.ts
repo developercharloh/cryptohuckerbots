@@ -271,7 +271,7 @@ router.get("/profile/kyc", async (req, res) => {
   } catch (err: any) {
     const cause = err?.cause?.message ?? err?.cause ?? "";
     logger.error({ errMsg: err?.message, cause }, "GET /profile/kyc error");
-    return res.status(500).json({ error: "Failed to fetch KYC status", detail: err?.message, cause });
+    return res.status(500).json({ error: "Verification status is temporarily unavailable. Please try again shortly." });
   }
 });
 
@@ -292,10 +292,12 @@ router.post("/profile/kyc/session", async (req, res) => {
   const callbackUrl = process.env["DIDIT_CALLBACK_URL"];
 
   if (!apiKey || !workflowId) {
-    return res.status(503).json({ error: "KYC verification service not configured. Set DIDIT_API_KEY and DIDIT_WORKFLOW_ID." });
+    logger.error({ hasApiKey: Boolean(apiKey), hasWorkflowId: Boolean(workflowId) }, "KYC verification service is not configured");
+    return res.status(503).json({ error: "Verification is temporarily unavailable. Please try again shortly." });
   }
   if (!callbackUrl) {
-    return res.status(503).json({ error: "KYC verification service not configured. Set DIDIT_CALLBACK_URL to the published user app's /profile/kyc page." });
+    logger.error("KYC verification callback is not configured");
+    return res.status(503).json({ error: "Verification is temporarily unavailable. Please try again shortly." });
   }
 
   try {
@@ -319,7 +321,7 @@ router.post("/profile/kyc/session", async (req, res) => {
     if (!response.ok) {
       const errText = await response.text();
       logger.error({ status: response.status, errText }, "Didit session creation failed");
-      return res.status(502).json({ error: "Failed to create verification session", detail: errText });
+      return res.status(502).json({ error: "Verification is temporarily unavailable. Please try again shortly." });
     }
 
     const data = await response.json() as { session_id: string; url: string };
@@ -339,7 +341,7 @@ router.post("/profile/kyc/session", async (req, res) => {
   } catch (err: any) {
     const cause = err?.cause?.message ?? err?.cause ?? "";
     logger.error({ errMsg: err?.message, cause, stack: err?.stack }, "Didit session error");
-    return res.status(500).json({ error: "Internal error creating KYC session", detail: err?.message ?? String(err), cause });
+    return res.status(500).json({ error: "Verification is temporarily unavailable. Please try again shortly." });
   }
 });
 

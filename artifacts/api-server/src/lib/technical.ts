@@ -32,6 +32,10 @@ function redact(value: string, maxLength: number): string {
   return value
     .replace(/bearer\s+[a-z0-9._-]+/gi, "bearer [redacted]")
     .replace(/(?:password|passwd|secret|token|authorization|cookie)\s*[:=]\s*[^\s,;]+/gi, "sensitive=[redacted]")
+    .replace(/https?:\/\/\S+/gi, "[url redacted]")
+    .replace(/\b(?:sk|pk|api|key|secret|token)[_-]?[a-z0-9]{12,}\b/gi, "[credential redacted]")
+    .replace(/\beyJ[a-z0-9_-]{20,}\b/gi, "[jwt redacted]")
+    .replace(/\b[a-f0-9]{32,}\b/gi, "[identifier redacted]")
     .replace(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi, "[redacted-email]")
     .replace(/\s+/g, " ")
     .trim()

@@ -148,11 +148,11 @@ export default function Login() {
         body: JSON.stringify({ tempToken, code: twoFACode }),
       });
       const data = await r.json();
-      if (!r.ok) throw new Error(data.error || "Invalid code");
+       if (!r.ok) throw new Error("The code could not be verified.");
       setAuth(data.user);
       setLocation("/dashboard");
     } catch (err: any) {
-      toast({ title: "Invalid code", description: err.message, variant: "destructive" });
+      toast({ title: "Invalid code", description: "The code could not be verified. Please try again shortly.", variant: "destructive" });
       setTwoFACode("");
     } finally {
       setVerifying(false);

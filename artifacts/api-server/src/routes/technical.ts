@@ -14,7 +14,9 @@ router.post("/technical-errors", async (req, res) => {
   if (rejectRateLimited(res, limited)) return;
 
   const body = req.body && typeof req.body === "object" ? req.body as Record<string, unknown> : {};
-  const source = body.source === "api" || body.source === "health" ? body.source : "client";
+  // Browser reports are untrusted telemetry. API-originated incidents are
+  // recorded directly by the server and must not be impersonated by clients.
+  const source = "client" as const;
   const event = typeof body.event === "string" ? body.event : "client_error";
   const route = typeof body.route === "string" ? body.route : "unknown";
   const message = typeof body.message === "string" ? body.message : "Unexpected technical error";

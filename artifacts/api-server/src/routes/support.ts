@@ -8,6 +8,8 @@ import {
   cleanupUploadedAttachments,
   createAttachmentUploadSession,
   handleChatAttachmentUpload,
+  isAttachmentStorageFailure,
+  recordAttachmentStorageFailure,
   streamPrivateAttachment,
   validateAttachmentInputs,
 } from "../lib/chat-attachments";
@@ -114,7 +116,12 @@ router.post("/support/attachments/upload", async (req, res) => {
     // the Blob client's cross-origin token request.
     return res.json(await handleChatAttachmentUpload(req, req.body, "user"));
   } catch (error) {
-    return res.status(400).json({ error: error instanceof Error ? error.message : "Unable to prepare upload." });
+    if (isAttachmentStorageFailure(error)) {
+      req.log?.error({ err: error }, "Support attachment storage upload failed");
+      await recordAttachmentStorageFailure(req.path);
+      return res.status(503).json({ error: "File upload is temporarily unavailable. Please try again shortly." });
+    }
+    return res.status(400).json({ error: "The upload could not be prepared. Please try again shortly." });
   }
 });
 
@@ -130,7 +137,12 @@ router.get("/support/attachments/:attachmentId", async (req, res) => {
   if (!attachment || attachment.userId !== user.id) return res.status(404).json({ error: "Attachment not found." });
   try {
     return await streamPrivateAttachment(res, attachment.pathname, attachment.filename);
-  } catch {
+  } catch (error) {
+    if (isAttachmentStorageFailure(error)) {
+      req.log?.error({ err: error }, "Support attachment storage download failed");
+      await recordAttachmentStorageFailure(req.path);
+      return res.status(503).json({ error: "File download is temporarily unavailable. Please try again shortly." });
+    }
     return res.status(404).json({ error: "Attachment not found." });
   }
 });
@@ -154,7 +166,12 @@ router.post("/support/chat", async (req, res) => {
       validateAttachmentInputs(rawAttachments, "user", user.id, user.id),
     );
   } catch (error) {
-    return res.status(400).json({ error: error instanceof Error ? error.message : "Invalid attachments." });
+    if (isAttachmentStorageFailure(error)) {
+      req.log?.error({ err: error }, "Support attachment storage confirmation failed");
+      await recordAttachmentStorageFailure(req.path);
+      return res.status(503).json({ error: "File upload is temporarily unavailable. Please try again shortly." });
+    }
+    return res.status(400).json({ error: "One or more attachments could not be added. Please try again shortly." });
   }
 
   const [latestMessage] = await db.select({

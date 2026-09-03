@@ -31,7 +31,7 @@ export default function VerifyEmail() {
     })
       .then(async response => {
         const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.error || "This verification link is invalid or expired.");
+        if (!response.ok) throw new Error("The verification link could not be completed.");
         if (!cancelled) {
           setEmail(data.email || email);
           setStatus("verified");
@@ -41,7 +41,7 @@ export default function VerifyEmail() {
       .catch(error => {
         if (!cancelled) {
           setStatus("error");
-          setMessage(error instanceof Error ? error.message : "This verification link is invalid or expired.");
+          setMessage("This verification link is invalid or expired. Please request a new one.");
         }
       });
     return () => { cancelled = true; };
@@ -62,13 +62,13 @@ export default function VerifyEmail() {
         body: JSON.stringify({ email: normalizedEmail }),
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "Could not send the verification email.");
+      if (!response.ok) throw new Error("The verification email could not be sent.");
       setMessage("If the account needs verification, a new email has been sent.");
       toast({ title: "Verification email sent" });
     } catch (error) {
       toast({
         title: "Could not send email",
-        description: error instanceof Error ? error.message : "Please try again later.",
+        description: "The verification email could not be sent. Please try again shortly.",
         variant: "destructive",
       });
     } finally {

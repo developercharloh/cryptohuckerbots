@@ -3,6 +3,7 @@ import { del, get, head } from "@vercel/blob";
 import { handleUpload } from "@vercel/blob/client";
 import type { Request, Response } from "express";
 import { Readable } from "node:stream";
+import { recordTechnicalIncident } from "./technical";
 
 export const MAX_CHAT_ATTACHMENTS = 10;
 export const MAX_CHAT_ATTACHMENT_BYTES = 5 * 1024 * 1024 * 1024 * 1024;
@@ -193,6 +194,21 @@ export async function handleChatAttachmentUpload(
         tokenPayload: clientPayload,
       };
     },
+  });
+}
+
+export function isAttachmentStorageFailure(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return /vercel blob|blob storage|read-write token|client token|storage credential|storage service/i.test(message);
+}
+
+export async function recordAttachmentStorageFailure(route: string): Promise<void> {
+  await recordTechnicalIncident({
+    source: "api",
+    event: "support_attachment_storage_failed",
+    route,
+    message: "Support attachment storage is unavailable.",
+    statusCode: 503,
   });
 }
 

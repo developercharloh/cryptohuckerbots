@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { useGetKYC, useGetProfile, useCreateKycSession } from "@workspace/api-client-react";
+import { useGetKYC, useGetProfile, useCreateKycSession, getSafeErrorMessage } from "@workspace/api-client-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -100,10 +100,9 @@ export default function KYC() {
           window.location.href = data.url;
         },
         onError: (err: any) => {
-          const detail = err?.response?.data?.detail ?? err?.message ?? "Please try again later.";
           toast({
             title: "Could not start verification",
-            description: detail,
+            description: getSafeErrorMessage(err, "Verification is temporarily unavailable. Please try again shortly."),
             variant: "destructive",
           });
         },

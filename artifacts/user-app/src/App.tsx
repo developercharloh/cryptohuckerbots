@@ -58,7 +58,7 @@ function watchForChunkFailures() {
     }
     reportTechnicalError({
       event: "browser_error",
-      message: error instanceof Error ? error.message : String(error || "Browser error"),
+      message: "A browser error occurred.",
     });
   };
   window.addEventListener("error", (event) => recover(event.error ?? event.message));
@@ -105,7 +105,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
       void recoverFromStaleClient();
       return;
     }
-    reportTechnicalError({ event: "react_render_error", message: err.message });
+    reportTechnicalError({ event: "react_render_error", message: "A page failed to render." });
   }
   render() {
     if (this.state.hasError) {

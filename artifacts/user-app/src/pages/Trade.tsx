@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import {
   useListTradeSignals, useGetTradeAccess, useExecuteTrade, useExecuteAllTradeSignals,
   useListTradePositions, useCloseTradePosition, useGetDashboardSummary,
-  TradePosition,
+  TradePosition, getSafeErrorMessage,
 } from "@workspace/api-client-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -516,7 +516,7 @@ export default function Trade() {
         },
          onError: (err: any) => toast({
            title: "Signal could not be executed",
-           description: err?.data?.error ?? err?.message ?? "Please try again.",
+            description: getSafeErrorMessage(err, "Signal execution failed. Please try again shortly."),
            variant: "destructive",
          }),
       }
@@ -618,7 +618,7 @@ export default function Trade() {
         },
         onError: (err: any) => toast({
           title: "Signals could not be executed",
-          description: err?.data?.error ?? err?.message ?? "Please try again.",
+          description: getSafeErrorMessage(err, "Signal execution failed. Please try again shortly."),
           variant: "destructive",
         }),
       },

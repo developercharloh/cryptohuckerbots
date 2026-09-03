@@ -36,7 +36,7 @@ export default function Login({ onLogin }: LoginProps) {
       const data = await res.json();
 
       if (!res.ok) {
-        triggerShake(data.error ?? "Login failed.");
+        triggerShake("Login failed. Please check your details and try again.");
         return;
       }
 

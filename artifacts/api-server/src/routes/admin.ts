@@ -34,6 +34,8 @@ import {
   cleanupUploadedAttachments,
   createAttachmentUploadSession,
   handleChatAttachmentUpload,
+  isAttachmentStorageFailure,
+  recordAttachmentStorageFailure,
   streamPrivateAttachment,
   validateAttachmentInputs,
 } from "../lib/chat-attachments";
@@ -1675,7 +1677,12 @@ router.post("/admin/chat/:userId/attachments/upload", async (req, res) => {
   try {
     return res.json(await handleChatAttachmentUpload(req, req.body, "admin", 0, userId));
   } catch (error) {
-    return res.status(400).json({ error: error instanceof Error ? error.message : "Unable to prepare upload." });
+    if (isAttachmentStorageFailure(error)) {
+      req.log?.error({ err: error }, "Admin attachment storage upload failed");
+      await recordAttachmentStorageFailure(req.path);
+      return res.status(503).json({ error: "File upload is temporarily unavailable. Please try again shortly." });
+    }
+    return res.status(400).json({ error: "The upload could not be prepared. Please try again shortly." });
   }
 });
 
@@ -1687,7 +1694,12 @@ router.get("/admin/attachments/:attachmentId", async (req, res) => {
   if (!attachment) return res.status(404).json({ error: "Attachment not found." });
   try {
     return await streamPrivateAttachment(res, attachment.pathname, attachment.filename);
-  } catch {
+  } catch (error) {
+    if (isAttachmentStorageFailure(error)) {
+      req.log?.error({ err: error }, "Admin attachment storage download failed");
+      await recordAttachmentStorageFailure(req.path);
+      return res.status(503).json({ error: "File download is temporarily unavailable. Please try again shortly." });
+    }
     return res.status(404).json({ error: "Attachment not found." });
   }
 });
@@ -1784,7 +1796,12 @@ router.post("/admin/chat/:userId", async (req, res) => {
       validateAttachmentInputs(rawAttachments, "admin", 0, userId),
     );
   } catch (error) {
-    return res.status(400).json({ error: error instanceof Error ? error.message : "Invalid attachments." });
+    if (isAttachmentStorageFailure(error)) {
+      req.log?.error({ err: error }, "Admin attachment storage confirmation failed");
+      await recordAttachmentStorageFailure(req.path);
+      return res.status(503).json({ error: "File upload is temporarily unavailable. Please try again shortly." });
+    }
+    return res.status(400).json({ error: "One or more attachments could not be added. Please try again shortly." });
   }
 
   let msg;
