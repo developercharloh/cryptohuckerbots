@@ -624,10 +624,6 @@ export default function Landing() {
                     style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "14px 28px", background: "#fff", color: PURPLE, fontWeight: 700, fontSize: 14, borderRadius: 12, border: "none", cursor: "pointer", boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}>
                     Get Started <ArrowRight size={16} />
                   </button>
-                  <button onClick={() => setLocation("/login")}
-                    style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "14px 28px", background: "rgba(255,255,255,0.12)", color: "#fff", fontWeight: 600, fontSize: 14, borderRadius: 12, border: "1px solid rgba(255,255,255,0.2)", cursor: "pointer", backdropFilter: "blur(8px)" }}>
-                    Schedule a Demo
-                  </button>
                 </div>
 
                 <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>
