@@ -1182,7 +1182,7 @@ export default function Trade() {
                     </strong>
                     <span style={{ display: "block", color: "#9CA3AF", marginTop: 3 }}>
                        {executionMode === "all"
-                         ? "I consent to AI selecting and executing the best available pairs up to my VIP allowance."
+                         ? `I consent to AI auto-selecting and executing the best ${bulkSignalCount >= 2 ? `${bulkSignalCount} available pairs` : "available pair"} within my VIP allowance.`
                          : "I have reviewed this live signal and consent to execute it."}
                     </span>
                   </span>
