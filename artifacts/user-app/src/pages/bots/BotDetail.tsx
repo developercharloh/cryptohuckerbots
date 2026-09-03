@@ -130,7 +130,9 @@ export default function BotDetail() {
             <CardContent className="p-4">
               <div className="text-[11px] font-medium text-muted-foreground mb-1">Profit Today</div>
               {isLoading ? <Skeleton className="h-7 w-16" /> : (
-                <div className="text-xl font-bold text-green-500">+${bot?.profitToday}</div>
+                <div className={`text-xl font-bold ${(bot?.profitToday ?? 0) >= 0 ? "text-green-500" : "text-red-400"}`}>
+                  {(bot?.profitToday ?? 0) >= 0 ? "+" : "−"}${Math.abs(bot?.profitToday ?? 0).toFixed(2)}
+                </div>
               )}
             </CardContent>
           </Card>
@@ -138,7 +140,9 @@ export default function BotDetail() {
             <CardContent className="p-4">
               <div className="text-[11px] font-medium text-muted-foreground mb-1">Total Profit</div>
               {isLoading ? <Skeleton className="h-7 w-16" /> : (
-                <div className="text-xl font-bold text-green-500">+${bot?.profitTotal}</div>
+                <div className={`text-xl font-bold ${(bot?.profitTotal ?? 0) >= 0 ? "text-green-500" : "text-red-400"}`}>
+                  {(bot?.profitTotal ?? 0) >= 0 ? "+" : "−"}${Math.abs(bot?.profitTotal ?? 0).toFixed(2)}
+                </div>
               )}
             </CardContent>
           </Card>

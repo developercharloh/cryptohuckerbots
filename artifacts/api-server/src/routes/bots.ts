@@ -3,9 +3,11 @@ import {
   db,
   userBotsTable,
   botsTable,
+  positionsTable,
   transactionsTable,
 } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, gte, lte, isNotNull } from "drizzle-orm";
+import { eachDayOfInterval, eachMonthOfInterval, format, startOfDay, startOfMonth, startOfWeek, startOfYear, subDays, subMonths, subYears } from "date-fns";
 import { getAvailableBalance } from "../utils/balance.js";
 import { getRequestToken, getUserForSession } from "../lib/session";
 
@@ -115,61 +117,78 @@ router.post("/bots/:id/toggle", async (req, res) => {
 
 // Bot analytics chart
 router.get("/bots/:id/analytics/:period", async (req, res) => {
-  const token = req.headers.authorization?.replace("Bearer ", "");
+  const token = getRequestToken(req);
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
   const botId = parseInt(req.params.id);
   const period = req.params.period || "daily";
 
-  // seed based on bot + user so values are deterministic
-  const seed = botId * 100 + user.id;
-  const rng = (i: number, base: number) => {
-    const x = Math.sin(seed + i + base) * 10000;
-    return x - Math.floor(x);
-  };
+  if (!Number.isFinite(botId)) return res.status(400).json({ error: "Invalid bot id" });
+  const [ownedBot] = await db.select({ botId: userBotsTable.botId })
+    .from(userBotsTable)
+    .where(and(eq(userBotsTable.id, botId), eq(userBotsTable.userId, user.id)))
+    .limit(1);
+  if (!ownedBot) return res.status(404).json({ error: "Bot not found" });
 
   const now = new Date();
-  const points: { date: string; label: string; profit: number; cumulative: number }[] = [];
+  let intervals: Date[];
+  let rangeStart: Date;
+  let labelFn: (date: Date) => string;
+  let keyFn: (date: Date) => string;
 
-  if (period === "daily") {
-    // last 14 days
-    for (let i = 13; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      const profit = parseFloat(((rng(i, 0) * 80) - 10).toFixed(2));
-      points.push({ date: d.toISOString().split("T")[0], label: d.toLocaleDateString("en", { month: "short", day: "numeric" }), profit, cumulative: 0 });
-    }
-  } else if (period === "weekly") {
-    // last 12 weeks
-    for (let i = 11; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i * 7);
-      const profit = parseFloat(((rng(i, 500) * 200) - 20).toFixed(2));
-      const weekNum = Math.ceil((d.getDate() + (new Date(d.getFullYear(), d.getMonth(), 1).getDay())) / 7);
-      points.push({ date: d.toISOString().split("T")[0], label: `W${weekNum}\n${d.toLocaleDateString("en", { month: "short" })}`, profit, cumulative: 0 });
-    }
+  if (period === "weekly") {
+    rangeStart = startOfWeek(subDays(now, 11 * 7), { weekStartsOn: 1 });
+    intervals = eachDayOfInterval({ start: rangeStart, end: now })
+      .filter((date) => date.getDay() === 1 || date.getTime() === rangeStart.getTime());
+    labelFn = (date) => `W${format(date, "w")}\n${format(date, "MMM")}`;
+    keyFn = (date) => format(startOfWeek(date, { weekStartsOn: 1 }), "yyyy-MM-dd");
   } else if (period === "monthly") {
-    // last 12 months
-    for (let i = 11; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const profit = parseFloat(((rng(i, 1000) * 500) - 50).toFixed(2));
-      points.push({ date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`, label: d.toLocaleDateString("en", { month: "short", year: "2-digit" }), profit, cumulative: 0 });
-    }
+    rangeStart = startOfMonth(subMonths(now, 11));
+    intervals = eachMonthOfInterval({ start: rangeStart, end: now });
+    labelFn = (date) => format(date, "MMM yy");
+    keyFn = (date) => format(date, "yyyy-MM");
+  } else if (period === "yearly") {
+    rangeStart = startOfYear(subYears(now, 4));
+    intervals = eachMonthOfInterval({ start: rangeStart, end: now })
+      .filter((date) => date.getMonth() === 0 || date.getTime() === rangeStart.getTime());
+    labelFn = (date) => format(date, "yyyy");
+    keyFn = (date) => format(date, "yyyy");
   } else {
-    // yearly — last 5 years
-    for (let i = 4; i >= 0; i--) {
-      const yr = now.getFullYear() - i;
-      const profit = parseFloat(((rng(i, 2000) * 2000) - 200).toFixed(2));
-      points.push({ date: `${yr}`, label: `${yr}`, profit, cumulative: 0 });
-    }
+    rangeStart = startOfDay(subDays(now, 13));
+    intervals = eachDayOfInterval({ start: rangeStart, end: now });
+    labelFn = (date) => format(date, "MMM d");
+    keyFn = (date) => format(date, "yyyy-MM-dd");
   }
 
-  // compute cumulative
-  let cum = 0;
-  for (const p of points) {
-    cum = parseFloat((cum + p.profit).toFixed(2));
-    p.cumulative = cum;
+  const settledPositions = await db.select({
+    realizedPnl: positionsTable.realizedPnl,
+    closedAt: positionsTable.closedAt,
+  }).from(positionsTable).where(and(
+    eq(positionsTable.userId, user.id),
+    eq(positionsTable.botId, ownedBot.botId),
+    isNotNull(positionsTable.closedAt),
+    gte(positionsTable.closedAt, rangeStart),
+    lte(positionsTable.closedAt, now),
+  ));
+
+  const points: { date: string; label: string; profit: number; cumulative: number }[] = [];
+  let cumulative = 0;
+  for (let i = 0; i < intervals.length; i++) {
+    const interval = intervals[i];
+    const profit = settledPositions.reduce((sum, position) => {
+      if (!position.closedAt || keyFn(position.closedAt) !== keyFn(interval)) return sum;
+      const pnl = Number(position.realizedPnl ?? 0);
+      return Number.isFinite(pnl) ? sum + pnl : sum;
+    }, 0);
+    const roundedProfit = Math.round(profit * 100) / 100;
+    cumulative = Math.round((cumulative + roundedProfit) * 100) / 100;
+    points.push({
+      date: keyFn(interval),
+      label: labelFn(interval),
+      profit: roundedProfit,
+      cumulative,
+    });
   }
 
   return res.json(points);

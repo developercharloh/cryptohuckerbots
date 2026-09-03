@@ -70,10 +70,10 @@ function transactionLabel(type: string) {
 }
 
 function transactionTone(type: string) {
-  if (["deposit", "trade_profit", "signal_reward", "referral_bonus", "vault_trade_return"].includes(type)) {
+  if (["deposit", "trade_profit", "trade_loss_return", "signal_reward", "referral_bonus", "vault_trade_return"].includes(type)) {
     return "positive";
   }
-  if (["withdrawal", "trade_loss", "trade_loss_return", "vip_package_purchase", "vault_trade_fee"].includes(type)) {
+  if (["withdrawal", "trade_loss", "vip_package_purchase", "vault_trade_stake", "vault_trade_fee"].includes(type)) {
     return "negative";
   }
   return "neutral";
@@ -395,7 +395,7 @@ export default function Portfolio() {
               action={<span className="text-[10px] text-slate-500">Updated with your latest account data</span>}
             />
             <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-              <Metric label="Total profit" value={formatUSD(summary?.totalProfit)} detail={`${safeNumber(summary?.earningsChangePercent) >= 0 ? "+" : ""}${safeNumber(summary?.earningsChangePercent).toFixed(2)}% vs prior period`} accent="gold" loading={summaryQuery.isLoading} />
+               <Metric label="Total profit" value={formatUSD(summary?.totalProfit)} detail={`${safeNumber(summary?.earningsChangePercent).toFixed(2)}% return on deposits`} accent="gold" loading={summaryQuery.isLoading} />
               <Metric label="Today profit" value={formatUSD(summary?.todayProfit)} detail="Closed positions only" accent="green" loading={summaryQuery.isLoading} />
               <Metric label="Win rate" value={hasSettledTrades ? `${safeNumber(summary?.winRate).toFixed(1)}%` : "—"} detail={hasSettledTrades ? `${settledTrades.toLocaleString()} settled trades` : "Not recorded yet"} accent="blue" loading={summaryQuery.isLoading} />
               <Metric label="Active bots" value={safeNumber(summary?.activeBots).toLocaleString()} detail={`${safeNumber(summary?.totalBots).toLocaleString()} strategies connected`} accent="slate" loading={summaryQuery.isLoading} />

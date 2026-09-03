@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db, userBotsTable, botsTable, transactionsTable, positionsTable } from "@workspace/db";
-import { eq, desc, and, gte, sql, isNotNull } from "drizzle-orm";
-import { format, subDays, subMonths, subYears, startOfDay, startOfWeek, startOfMonth, startOfYear, eachDayOfInterval, eachMonthOfInterval, eachHourOfInterval } from "date-fns";
+import { eq, desc, and, gte, lte, sql, isNotNull } from "drizzle-orm";
+import { format, subDays, subMonths, subYears, startOfDay, startOfWeek, startOfMonth, startOfYear, eachDayOfInterval, eachMonthOfInterval, endOfDay } from "date-fns";
 import { getRequestToken, getUserForSession } from "../lib/session";
 import { composeAccountBalanceSnapshot, getVaultCapitalSnapshot, getWalletSnapshot } from "../utils/balance.js";
 import { logger } from "../lib/logger";
@@ -12,18 +12,13 @@ async function getUserFromToken(token: string | undefined) {
   return getUserForSession(token);
 }
 
-// Seeded random for deterministic chart data per (userId, date)
-function seededRand(seed: number): number {
-  const x = Math.sin(seed + 1) * 10000;
-  return x - Math.floor(x);
-}
-
 router.get("/dashboard/summary", async (req, res) => {
   const token = getRequestToken(req);
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
-  const [userBots, wallet, vault, [profit], [tradeStats]] = await Promise.all([
+  const dayStart = startOfDay(new Date());
+  const [userBots, wallet, vault, [profit], [tradeStats], [openingBalance]] = await Promise.all([
     db.select().from(userBotsTable).where(eq(userBotsTable.userId, user.id)),
     getWalletSnapshot(user.id),
     getVaultCapitalSnapshot(user.id).catch((err) => {
@@ -44,11 +39,11 @@ router.get("/dashboard/summary", async (req, res) => {
          else 0 end), 0)`,
        todayProfit: sql<string>`coalesce(sum(case
          when ${transactionsTable.status} = 'completed'
-           and ${transactionsTable.createdAt} >= ${startOfDay(new Date())}
+            and ${transactionsTable.createdAt} >= ${dayStart}
            and ${transactionsTable.type} in ('trade_profit', 'signal_reward')
            then ${transactionsTable.amount}
          when ${transactionsTable.status} = 'completed'
-           and ${transactionsTable.createdAt} >= ${startOfDay(new Date())}
+            and ${transactionsTable.createdAt} >= ${dayStart}
            and ${transactionsTable.type} = 'trade_loss'
            then -${transactionsTable.amount}
          else 0 end), 0)`,
@@ -60,6 +55,18 @@ router.get("/dashboard/summary", async (req, res) => {
       eq(positionsTable.userId, user.id),
       isNotNull(positionsTable.closedAt),
     )),
+    db.select({
+      balance: sql<string>`coalesce(sum(case
+        when ${transactionsTable.status} = 'completed'
+          and ${transactionsTable.createdAt} < ${dayStart}
+          and ${transactionsTable.type} in ('deposit', 'trade_profit', 'trade_loss_return', 'signal_reward', 'referral_bonus')
+          then ${transactionsTable.amount}
+        when ${transactionsTable.status} = 'completed'
+          and ${transactionsTable.createdAt} < ${dayStart}
+          and ${transactionsTable.type} in ('withdrawal', 'trade_loss', 'reserved_stake', 'trade_fee', 'bot_purchase', 'vip_package_purchase')
+          then -${transactionsTable.amount}
+        else 0 end), 0)`,
+    }).from(transactionsTable).where(eq(transactionsTable.userId, user.id)),
   ]);
 
   const activeBots = userBots.filter(b => b.status === "running");
@@ -67,8 +74,8 @@ router.get("/dashboard/summary", async (req, res) => {
   const availableBalance = account.availableBalance;
   const mainWalletBalance = account.mainWalletBalance;
   const vaultCapital = account.vaultCapital;
-  const todayProfit = Number(profit?.todayProfit ?? 0);
-  const totalEarnings = Number(profit?.totalProfit ?? 0);
+   const todayProfit = Number(profit?.todayProfit ?? 0);
+   const totalEarnings = Number(profit?.totalProfit ?? 0);
    const totalTrades = Number(tradeStats?.totalTrades ?? 0);
    const winningTrades = Number(tradeStats?.winningTrades ?? 0);
    const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0;
@@ -88,10 +95,12 @@ router.get("/dashboard/summary", async (req, res) => {
     vaultCapital,
     lockedInvestmentCapital: vaultCapital,
     todayProfit,
-    todayProfitPercent: todayProfit > 0 ? 5.3 : 0,
+     todayProfitPercent: Number(openingBalance?.balance ?? 0) > 0
+       ? Math.round((todayProfit / Number(openingBalance?.balance ?? 0)) * 1000) / 10
+       : 0,
     totalEarnings,
     totalProfit: totalEarnings,
-    earningsChangePercent: totalEarnings > 0 ? 18.7 : 0,
+     earningsChangePercent: roi,
     activeBots: activeBots.length,
     totalBots: userBots.length,
     winRate: Math.round(winRate * 10) / 10,
@@ -101,7 +110,7 @@ router.get("/dashboard/summary", async (req, res) => {
 });
 
 router.get("/dashboard/earnings-chart", async (req, res) => {
-  const token = req.headers.authorization?.replace("Bearer ", "");
+  const token = getRequestToken(req);
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
@@ -112,7 +121,8 @@ router.get("/dashboard/earnings-chart", async (req, res) => {
   let intervals: Date[] = [];
   let labelFn: (d: Date) => string;
   let keyFn: (d: Date) => string;
-  let offset = 0; // date offset for seeded rand
+  let rangeStart: Date;
+  let rangeEnd: Date;
 
   switch (period) {
     case "today": {
@@ -121,7 +131,8 @@ router.get("/dashboard/earnings-chart", async (req, res) => {
       intervals = [0, 4, 8, 12, 16, 20].map(h => { const d = new Date(start); d.setHours(h); return d; });
       labelFn = (d) => format(d, "ha");
       keyFn = (d) => format(d, "HH");
-      offset = 0;
+      rangeStart = start;
+      rangeEnd = now;
       break;
     }
     case "yesterday": {
@@ -130,7 +141,8 @@ router.get("/dashboard/earnings-chart", async (req, res) => {
       intervals = [0, 4, 8, 12, 16, 20].map(h => { const d = new Date(yStart); d.setHours(h); return d; });
       labelFn = (d) => format(d, "ha");
       keyFn = (d) => format(d, "HH");
-      offset = 1000;
+      rangeStart = yStart;
+      rangeEnd = endOfDay(yStart);
       break;
     }
     case "last_week": {
@@ -138,7 +150,26 @@ router.get("/dashboard/earnings-chart", async (req, res) => {
       intervals = eachDayOfInterval({ start: weekStart, end: subDays(weekStart, -6) });
       labelFn = (d) => format(d, "EEE'\n'MMM d");
       keyFn = (d) => format(d, "yyyy-MM-dd");
-      offset = 2000;
+      rangeStart = startOfDay(weekStart);
+      rangeEnd = endOfDay(intervals[intervals.length - 1]);
+      break;
+    }
+    case "7d": {
+      rangeStart = startOfDay(subDays(now, 6));
+      rangeEnd = now;
+      intervals = eachDayOfInterval({ start: rangeStart, end: now });
+      labelFn = (d) => format(d, "EEE'\n'MMM d");
+      keyFn = (d) => format(d, "yyyy-MM-dd");
+      break;
+    }
+    case "30d":
+    case "90d": {
+      const days = period === "30d" ? 30 : 90;
+      rangeStart = startOfDay(subDays(now, days - 1));
+      rangeEnd = now;
+      intervals = eachDayOfInterval({ start: rangeStart, end: now });
+      labelFn = (d) => format(d, "MMM d");
+      keyFn = (d) => format(d, "yyyy-MM-dd");
       break;
     }
     case "this_month": {
@@ -146,7 +177,8 @@ router.get("/dashboard/earnings-chart", async (req, res) => {
       intervals = eachDayOfInterval({ start: monthStart, end: now });
       labelFn = (d) => format(d, "MMM d");
       keyFn = (d) => format(d, "yyyy-MM-dd");
-      offset = 3000;
+      rangeStart = startOfDay(monthStart);
+      rangeEnd = now;
       break;
     }
     case "last_month": {
@@ -155,7 +187,8 @@ router.get("/dashboard/earnings-chart", async (req, res) => {
       intervals = eachDayOfInterval({ start: lmStart, end: lmEnd });
       labelFn = (d) => format(d, "MMM d");
       keyFn = (d) => format(d, "yyyy-MM-dd");
-      offset = 4000;
+      rangeStart = startOfDay(lmStart);
+      rangeEnd = endOfDay(lmEnd);
       break;
     }
     case "this_year": {
@@ -163,7 +196,8 @@ router.get("/dashboard/earnings-chart", async (req, res) => {
       intervals = eachMonthOfInterval({ start: yearStart, end: now });
       labelFn = (d) => format(d, "MMM");
       keyFn = (d) => format(d, "yyyy-MM");
-      offset = 5000;
+      rangeStart = startOfMonth(yearStart);
+      rangeEnd = now;
       break;
     }
     case "last_year": {
@@ -172,14 +206,16 @@ router.get("/dashboard/earnings-chart", async (req, res) => {
       intervals = eachMonthOfInterval({ start: lyStart, end: lyEnd });
       labelFn = (d) => format(d, "MMM");
       keyFn = (d) => format(d, "yyyy-MM");
-      offset = 6000;
+      rangeStart = startOfMonth(lyStart);
+      rangeEnd = endOfDay(lyEnd);
       break;
     }
     case "all_time": {
       intervals = eachMonthOfInterval({ start: subMonths(now, 11), end: now });
       labelFn = (d) => format(d, "MMM yy");
       keyFn = (d) => format(d, "yyyy-MM");
-      offset = 7000;
+      rangeStart = startOfMonth(subMonths(now, 11));
+      rangeEnd = now;
       break;
     }
     default: { // "this_week"
@@ -187,23 +223,41 @@ router.get("/dashboard/earnings-chart", async (req, res) => {
       intervals = eachDayOfInterval({ start: weekStart, end: now });
       labelFn = (d) => format(d, "EEE'\n'MMM d");
       keyFn = (d) => format(d, "yyyy-MM-dd");
-      offset = 8000;
+      rangeStart = startOfDay(weekStart);
+      rangeEnd = now;
       break;
     }
   }
 
+  const earnings = await db.select({
+    type: transactionsTable.type,
+    amount: transactionsTable.amount,
+    createdAt: transactionsTable.createdAt,
+  }).from(transactionsTable).where(and(
+    eq(transactionsTable.userId, uid),
+    eq(transactionsTable.status, "completed"),
+    gte(transactionsTable.createdAt, rangeStart!),
+    lte(transactionsTable.createdAt, rangeEnd!),
+  ));
+
   const points: { date: string; label: string; profit: number; cumulative: number }[] = [];
   let cumulative = 0;
 
-  // Check if user has any earnings; if so scale up values
-  const userBots = await db.select().from(userBotsTable).where(eq(userBotsTable.userId, uid));
-  const hasActivity = userBots.some(b => parseFloat(b.profitTotal) > 0);
-  const scale = hasActivity ? parseFloat(userBots.reduce((m, b) => m + parseFloat(b.profitTotal), 0).toFixed(2)) / 1200 : 1;
-
   for (let i = 0; i < intervals.length; i++) {
     const d = intervals[i];
-    const seed = uid * 31 + offset + i;
-    const profit = Math.round((seededRand(seed) * 120 + 30) * scale * 100) / 100;
+    const bucketStart = d.getTime();
+    const bucketEnd = i + 1 < intervals.length
+      ? intervals[i + 1].getTime()
+      : rangeEnd!.getTime() + 1;
+    const profit = Math.round(earnings.reduce((sum, txn) => {
+      const timestamp = txn.createdAt.getTime();
+      if (timestamp < bucketStart || timestamp >= bucketEnd) return sum;
+      const amount = Number(txn.amount);
+      if (!Number.isFinite(amount)) return sum;
+      if (txn.type === "trade_profit" || txn.type === "signal_reward") return sum + amount;
+      if (txn.type === "trade_loss") return sum - amount;
+      return sum;
+    }, 0) * 100) / 100;
     cumulative = Math.round((cumulative + profit) * 100) / 100;
     points.push({ date: keyFn(d), label: labelFn(d), profit, cumulative });
   }
@@ -223,12 +277,11 @@ router.get("/dashboard/profit-by-bot", async (req, res) => {
     .where(eq(userBotsTable.userId, user.id));
 
   const COLORS = ["#7C3AED", "#22C55E", "#F97316", "#3B82F6", "#EC4899", "#14B8A6"];
-  const totalProfit = userBots.reduce((s, r) => s + parseFloat(r.ub.profitTotal), 0);
-
-  if (totalProfit === 0) return res.json([]);
+  const contributionTotal = userBots.reduce((s, r) => s + Math.abs(parseFloat(r.ub.profitTotal)), 0);
+  if (contributionTotal === 0) return res.json([]);
 
   const items = userBots
-    .filter(r => parseFloat(r.ub.profitTotal) > 0)
+    .filter(r => parseFloat(r.ub.profitTotal) !== 0)
     .sort((a, b) => parseFloat(b.ub.profitTotal) - parseFloat(a.ub.profitTotal))
     .map((r, i) => {
       const profit = parseFloat(r.ub.profitTotal);
@@ -236,7 +289,7 @@ router.get("/dashboard/profit-by-bot", async (req, res) => {
         botId: r.ub.id,
         botName: r.b.name,
         profit: Math.round(profit * 100) / 100,
-        percentage: Math.round((profit / totalProfit) * 1000) / 10,
+        percentage: Math.round((Math.abs(profit) / contributionTotal) * 1000) / 10,
         color: COLORS[i % COLORS.length],
       };
     });

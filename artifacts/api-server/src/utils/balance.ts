@@ -120,10 +120,11 @@ export function calculateWalletSnapshot(txns: WalletTransaction[]): WalletSnapsh
 
   ledgerBalance = Math.max(0, Math.round(ledgerBalance * 100) / 100);
   pendingOutflow = Math.max(0, Math.round(pendingOutflow * 100) / 100);
+  const availableBalance = Math.max(0, Math.round((ledgerBalance - pendingOutflow) * 100) / 100);
   return {
     ledgerBalance,
     pendingOutflow,
-    availableBalance: ledgerBalance,
+    availableBalance,
     totalDeposited: Math.round(totalDeposited * 100) / 100,
   };
 }
@@ -155,10 +156,11 @@ export async function getWalletSnapshot(userId: number): Promise<WalletSnapshot>
 
   const ledgerBalance = Math.max(0, Number(row?.balance ?? 0));
   const pendingOutflow = Math.max(0, Number(row?.pendingOutflow ?? 0));
+  const availableBalance = Math.max(0, Math.round((ledgerBalance - pendingOutflow) * 100) / 100);
   return {
     ledgerBalance: Math.round(ledgerBalance * 100) / 100,
     pendingOutflow: Math.round(pendingOutflow * 100) / 100,
-    availableBalance: Math.round(ledgerBalance * 100) / 100,
+    availableBalance,
     totalDeposited: Math.round(Number(row?.totalDeposited ?? 0) * 100) / 100,
   };
 }

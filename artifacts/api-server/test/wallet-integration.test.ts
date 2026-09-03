@@ -353,7 +353,7 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
     portfolioBalance: number;
   }>("/api/dashboard/summary");
   assert.equal(heldSummary.body.mainWalletBalance, 505);
-  assert.equal(heldSummary.body.availableBalance, 505);
+   assert.equal(heldSummary.body.availableBalance, 405);
   assert.equal(heldSummary.body.pendingOutflow, 100);
   assert.equal(heldSummary.body.totalBalance, 1005);
   assert.equal(heldSummary.body.portfolioBalance, 1005);
@@ -432,4 +432,29 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
     },
   });
   assert.equal(replayedWithdrawal.response.status, 400);
+
+  await db.insert(transactionsTable).values({
+    userId: targetUserId,
+    type: "trade_profit",
+    amount: "3.00",
+    status: "completed",
+    paymentMethod: "balance",
+    description: "Regression test settled profit",
+  });
+  const profitSummary = await request<{
+    totalProfit: number;
+    vaultCapital: number;
+    portfolioBalance: number;
+  }>("/api/dashboard/summary");
+  assert.equal(profitSummary.body.totalProfit, 53);
+  assert.equal(profitSummary.body.vaultCapital, 500);
+  assert.equal(profitSummary.body.portfolioBalance, 1008);
+
+  const earningsChart = await request<Array<{ profit: number; cumulative: number }>>(
+    "/api/dashboard/earnings-chart?period=30d",
+  );
+  assert.equal(earningsChart.response.status, 200);
+  assert.equal(earningsChart.body.length, 30);
+  assert.equal(earningsChart.body.reduce((sum, point) => sum + point.profit, 0), 53);
+  assert.equal(earningsChart.body.at(-1)?.cumulative, 53);
 });

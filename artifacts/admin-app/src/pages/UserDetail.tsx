@@ -540,7 +540,7 @@ export default function UserDetail() {
                               <div className={`font-medium ${bot.profitTotal >= 0 ? 'text-emerald-500' : 'text-destructive'}`}>
                                 {bot.profitTotal >= 0 ? '+' : ''}${bot.profitTotal.toFixed(2)}
                               </div>
-                              <Badge variant={bot.status === 'active' ? 'default' : 'secondary'} className="text-[10px]">
+                               <Badge variant={bot.status === 'running' ? 'default' : 'secondary'} className="text-[10px]">
                                 {bot.status}
                               </Badge>
                             </div>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { API_BASE, fetchWithTimeout } from "@/lib/api-base";
 import { useQuery } from "@tanstack/react-query";
@@ -121,35 +121,8 @@ const INITIAL_PAIRS: PriceData[] = [
   { pair: "NAS100",   symbol: "BNBUSDT", price: 18942.0,  prev: 18942.0,  chg: 0, chgPct: 0, up: true,  flash: false, volume: "—" },
 ];
 
-function formatQuoteVolume(value: number): string {
-  if (!Number.isFinite(value) || value <= 0) return "—";
-  if (value >= 1e9) return `$${(value / 1e9).toFixed(value >= 1e10 ? 0 : 1)}B`;
-  if (value >= 1e6) return `$${(value / 1e6).toFixed(0)}M`;
-  if (value >= 1e3) return `$${(value / 1e3).toFixed(0)}K`;
-  return `$${value.toFixed(0)}`;
-}
-
 function useLivePrices() {
   const [pairs, setPairs] = useState<PriceData[]>(INITIAL_PAIRS);
-
-  const updatePrice = useCallback((symbol: string, newPrice: number, quoteVolume?: number) => {
-    setPairs(prev => prev.map(p => {
-      if (p.symbol !== symbol) return p;
-      const chg = newPrice - p.prev;
-      const chgPct = (chg / p.prev) * 100;
-      return {
-        ...p,
-        prev: p.price,
-        price: newPrice,
-        chg,
-        chgPct,
-        up: newPrice >= p.prev,
-        volume: quoteVolume ? formatQuoteVolume(quoteVolume) : p.volume,
-        flash: true,
-      };
-    }));
-    setTimeout(() => setPairs(prev => prev.map(p => p.symbol === symbol ? { ...p, flash: false } : p)), 600);
-  }, []);
 
   useEffect(() => {
     const sim = setInterval(() => {
@@ -164,29 +137,6 @@ function useLivePrices() {
     }, 2000);
     return () => clearInterval(sim);
   }, []);
-
-  useEffect(() => {
-    const symbols = ["btcusdt", "ethusdt", "xauusdt", "solusdt"];
-    const streams = symbols.map(s => `${s}@miniTicker`).join("/");
-    let ws: WebSocket | null = null, retryTimer: ReturnType<typeof setTimeout>, attempts = 0;
-    const connect = () => {
-      if (attempts > 3) return; attempts++;
-      try {
-        ws = new WebSocket(`wss://stream.binance.com:9443/stream?streams=${streams}`);
-        ws.onopen = () => { attempts = 0; };
-         ws.onmessage = e => {
-           try {
-             const d = JSON.parse(e.data)?.data;
-             if (d?.s && d?.c) updatePrice(d.s, parseFloat(d.c), parseFloat(d.q));
-           } catch {}
-         };
-        ws.onerror = () => {};
-        ws.onclose = () => { retryTimer = setTimeout(connect, 8000); };
-      } catch {}
-    };
-    connect();
-    return () => { ws?.close(); clearTimeout(retryTimer); };
-  }, [updatePrice]);
 
   useEffect(() => {
     const fetch_ = async () => {
@@ -258,7 +208,6 @@ function LiveTicker({ pairs }: { pairs: PriceData[] }) {
 function TerminalCard({ pairs }: { pairs: PriceData[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const seriesRef = useRef<any>(null);
-  const wsRef = useRef<WebSocket | null>(null);
   const [price, setPrice] = useState("67,842.30");
   const [chg, setChg] = useState("+2.34%");
   const [up, setUp] = useState(true);
@@ -288,40 +237,12 @@ function TerminalCard({ pairs }: { pairs: PriceData[] }) {
       });
     };
 
-    (async () => {
-      try {
-        const r = await fetch("https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=5m&limit=60");
-        const data: any[] = await r.json();
-        const candles = data.map((k: any) => ({ time: Math.floor(k[0] / 1000) as any, open: +k[1], high: +k[2], low: +k[3], close: +k[4] }));
-        series.setData(candles); chart.timeScale().fitContent();
-        const last = candles[candles.length - 1];
-        setPrice(last.close.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-        const pct = ((last.close - candles[0].open) / candles[0].open) * 100;
-        setChg(`${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`); setUp(pct >= 0);
-        return;
-      } catch {}
-      const candles = fallback(67800, 60);
-      series.setData(candles); chart.timeScale().fitContent();
-    })();
-
-    try {
-      const ws = new WebSocket("wss://stream.binance.com:9443/ws/btcusdt@kline_5m");
-      wsRef.current = ws;
-      ws.onmessage = e => {
-        try {
-          const { k } = JSON.parse(e.data);
-          series.update({ time: Math.floor(k.t / 1000) as any, open: +k.o, high: +k.h, low: +k.l, close: +k.c });
-          const p = +k.c, pct = ((p - +k.o) / +k.o) * 100;
-          setPrice(p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-          setChg(`${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`); setUp(pct >= 0);
-        } catch {}
-      };
-      ws.onerror = () => {};
-    } catch {}
+    const candles = fallback(67800, 60);
+    series.setData(candles); chart.timeScale().fitContent();
 
     const handleResize = () => { if (containerRef.current) chart.applyOptions({ width: containerRef.current.clientWidth, height: containerRef.current.clientHeight }); };
     window.addEventListener("resize", handleResize);
-    return () => { wsRef.current?.close(); chart.remove(); window.removeEventListener("resize", handleResize); };
+    return () => { chart.remove(); window.removeEventListener("resize", handleResize); };
   }, []);
 
   const btcPair = pairs.find(p => p.pair === "BTC/USD");

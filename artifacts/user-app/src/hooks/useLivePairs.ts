@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect } from "react";
 import { fetchWithTimeout } from "@/lib/api-base";
 
 export type LivePair = {
@@ -53,23 +53,15 @@ export function fmtPrice(p: number): string {
 
 /**
  * Shared real-time market data hook.
- * - Crypto prices stream live from Binance WebSocket (miniTicker).
+ * - Crypto prices use a bounded local fallback when the upstream provider is
+ *   unavailable in the user's region or network.
  * - Forex prices poll from a live FX rates API every 60s.
- * - A light simulation layer keeps all pairs ticking between real updates.
+ * - A light simulation layer keeps all pairs ticking between external updates.
  * Used by both the Markets page and the Dashboard "Markets" preview so prices
  * stay consistent across the app.
  */
 export function useLivePairs() {
   const [pairs, setPairs] = useState<LivePair[]>(BASE_PAIRS);
-
-  const applyPrice = useCallback((binance: string, newPrice: number) => {
-    setPairs(prev => prev.map(p => {
-      if (p.binance !== binance) return p;
-      const change = p.prev ? ((newPrice - p.prev) / p.prev) * 100 : p.change;
-      return { ...p, prev: p.price, price: newPrice, change, up: newPrice >= p.price, flash: true };
-    }));
-    setTimeout(() => setPairs(prev => prev.map(p => p.binance === binance ? { ...p, flash: false } : p)), 500);
-  }, []);
 
   // 1.5-second simulation for every pair (keeps things moving between real ticks)
   useEffect(() => {
@@ -85,33 +77,6 @@ export function useLivePairs() {
     }, 1500);
     return () => clearInterval(id);
   }, []);
-
-  // Binance WebSocket for real crypto prices
-  const wsRef = useRef<WebSocket | null>(null);
-  useEffect(() => {
-    const symbols = BASE_PAIRS.filter(p => p.binance).map(p => `${p.binance.toLowerCase()}@miniTicker`).join("/");
-    let attempts = 0;
-    let retryTimer: ReturnType<typeof setTimeout>;
-    const connect = () => {
-      if (attempts > 3) return;
-      attempts++;
-      try {
-        const ws = new WebSocket(`wss://stream.binance.com:9443/stream?streams=${symbols}`);
-        wsRef.current = ws;
-        ws.onopen = () => { attempts = 0; };
-        ws.onmessage = e => {
-          try {
-            const d = JSON.parse(e.data)?.data;
-            if (d?.s && d?.c) applyPrice(d.s, parseFloat(d.c));
-          } catch {}
-        };
-        ws.onerror = () => {};
-        ws.onclose = () => { retryTimer = setTimeout(connect, 8000); };
-      } catch {}
-    };
-    connect();
-    return () => { wsRef.current?.close(); clearTimeout(retryTimer); };
-  }, [applyPrice]);
 
   // Forex rates every 60s
   useEffect(() => {

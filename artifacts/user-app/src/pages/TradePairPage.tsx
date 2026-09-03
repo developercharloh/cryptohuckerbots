@@ -3,7 +3,6 @@ import { useParams, useLocation } from "wouter";
 import { createChart, CandlestickSeries, UTCTimestamp, ISeriesApi } from "lightweight-charts";
 import { Layout } from "@/components/Layout";
 import { useGetTradeAccess } from "@workspace/api-client-react";
-import { fetchWithTimeout } from "@/lib/api-base";
 import { ArrowLeft, TrendingUp, TrendingDown, Activity, ChevronDown, ArrowRight, Zap, ShieldCheck } from "lucide-react";
 
 const PURPLE = "#F5B942";
@@ -51,10 +50,6 @@ interface Candle { time: number; open: number; high: number; low: number; close:
 const TIMEFRAMES = ["1m","5m","15m","1h","4h","1d"] as const;
 type TF = typeof TIMEFRAMES[number];
 
-const BINANCE_INTERVAL: Record<TF, string> = {
-  "1m":"1m","5m":"5m","15m":"15m","1h":"1h","4h":"4h","1d":"1d"
-};
-
 /* ── Seeded PRNG for realistic-looking forex candles ────────────── */
 function seededRand(seed: number) {
   let s = seed;
@@ -81,21 +76,6 @@ function generateCandles(symbol: string, basePrice: number, count = 100): Candle
     price = close;
   }
   return candles;
-}
-
-/* ── Fetch candles from Binance ─────────────────────────────────── */
-async function fetchBinanceCandles(binanceSymbol: string, interval: string): Promise<Candle[]> {
-  const limit = interval === "1d" ? 90 : 100;
-  const url = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${interval}&limit=${limit}`;
-  const res = await fetchWithTimeout(url);
-  const data = await res.json() as [number, string, string, string, string, ...unknown[]][];
-  return data.map(k => ({
-    time: Math.floor(k[0] / 1000),
-    open:  parseFloat(k[1]),
-    high:  parseFloat(k[2]),
-    low:   parseFloat(k[3]),
-    close: parseFloat(k[4]),
-  }));
 }
 
 /* ── Simple RSI calculation ─────────────────────────────────────── */
@@ -140,12 +120,7 @@ export default function TradePairPage() {
   const loadCandles = useCallback(async () => {
     setLoading(true);
     try {
-      let data: Candle[];
-      if (meta.binanceSymbol) {
-        data = await fetchBinanceCandles(meta.binanceSymbol, BINANCE_INTERVAL[tf]);
-      } else {
-        data = generateCandles(symbol + tf, meta.price, 100);
-      }
+      const data = generateCandles(symbol + tf, meta.price, 100);
       setCandles(data);
       if (data.length) {
         const last = data[data.length - 1].close;
@@ -159,7 +134,7 @@ export default function TradePairPage() {
     } finally {
       setLoading(false);
     }
-  }, [symbol, tf, meta.binanceSymbol, meta.price]);
+  }, [symbol, tf, meta.price]);
 
   useEffect(() => { loadCandles(); }, [loadCandles]);
 
@@ -197,29 +172,6 @@ export default function TradePairPage() {
     }, 1500);
     return () => clearInterval(id);
   }, [tickPrice]);
-
-  /* ── Binance WebSocket for crypto ────────────────────────── */
-  useEffect(() => {
-    if (!meta.binanceSymbol) return;
-    const sym = meta.binanceSymbol.toLowerCase();
-    let ws: WebSocket | null = null;
-    let retryTimer: ReturnType<typeof setTimeout>;
-    let attempts = 0;
-    const connect = () => {
-      if (attempts > 3) return; attempts++;
-      try {
-        ws = new WebSocket(`wss://stream.binance.com:9443/ws/${sym}@miniTicker`);
-        ws.onopen = () => { attempts = 0; };
-        ws.onmessage = e => {
-          try { const d = JSON.parse(e.data); if (d?.c) tickPrice(parseFloat(d.c)); } catch {}
-        };
-        ws.onerror = () => {};
-        ws.onclose = () => { retryTimer = setTimeout(connect, 8000); };
-      } catch {}
-    };
-    connect();
-    return () => { ws?.close(); clearTimeout(retryTimer); };
-  }, [meta.binanceSymbol, tickPrice]);
 
   /* ── Build chart ──────────────────────────────────────── */
   useEffect(() => {

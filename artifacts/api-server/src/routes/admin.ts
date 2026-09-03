@@ -369,7 +369,7 @@ router.get("/admin/overview", async (_req, res) => {
   const startOfSeries = new Date(startOfToday);
   startOfSeries.setDate(startOfSeries.getDate() - 13);
 
-  // Revenue series: net deposits per day, last 14 days
+  // Revenue series: net completed deposits minus withdrawals per day, last 14 days.
   const series: { date: string; value: number }[] = [];
   for (let i = 13; i >= 0; i--) {
     const d = new Date(startOfToday);
@@ -413,11 +413,14 @@ router.get("/admin/overview", async (_req, res) => {
       .where(eq(supportTicketsTable.status, "open")),
     db.select({
       day: sql<string>`to_char(date_trunc('day', ${transactionsTable.createdAt}), 'YYYY-MM-DD')`,
-      value: sql<string>`coalesce(sum(${transactionsTable.amount}), 0)`,
+      value: sql<string>`coalesce(sum(case
+        when ${transactionsTable.type} = 'deposit' then ${transactionsTable.amount}
+        when ${transactionsTable.type} = 'withdrawal' then -${transactionsTable.amount}
+        else 0 end), 0)`,
     })
       .from(transactionsTable)
       .where(and(
-        eq(transactionsTable.type, "deposit"),
+        sql`${transactionsTable.type} in ('deposit', 'withdrawal')`,
         eq(transactionsTable.status, "completed"),
         gte(transactionsTable.createdAt, startOfSeries),
       ))

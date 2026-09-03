@@ -51,11 +51,12 @@ export default function Dashboard() {
   });
   const { data: recentActivity = [] } = useGetRecentActivity();
   const { data: bots = [] } = useListBots();
-  const activeBots = bots.filter(b => b.status === "active");
+  const activeBots = bots.filter(b => b.status === "running");
 
   const initials = user?.fullName?.charAt(0)?.toUpperCase() ?? "U";
   const mainWalletBalance = summary?.mainWalletBalance;
   const totalProfit = summary?.totalProfit ?? 0;
+  const returnOnDeposits = Number(summary?.earningsChangePercent ?? 0);
   const vaultCapital = summary?.vaultCapital ?? summary?.lockedInvestmentCapital;
   const portfolioBalance = mainWalletBalance !== undefined && vaultCapital !== undefined
     ? Math.max(0, mainWalletBalance + vaultCapital)
@@ -186,10 +187,12 @@ export default function Dashboard() {
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20, position: "relative" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 10, padding: "4px 10px" }}>
                   <TrendingUp style={{ width: 12, height: 12, color: "#4ade80" }} />
-                  <span style={{ fontSize: 12, fontWeight: 700, color: "#4ade80" }}>+{summary?.earningsChangePercent ?? 0}%</span>
+                   <span style={{ fontSize: 12, fontWeight: 700, color: returnOnDeposits >= 0 ? "#4ade80" : "#f87171" }}>
+                     {returnOnDeposits >= 0 ? "+" : ""}{returnOnDeposits.toFixed(2)}%
+                   </span>
                 </div>
                 <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
-                  Total Profit: {formatUSD(totalProfit)}
+                   Return on deposits: {returnOnDeposits.toFixed(2)}%
                 </span>
               </div>
             )}
@@ -369,7 +372,7 @@ export default function Dashboard() {
             </div>
             <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 20, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden" }}>
               {recentActivity.slice(0, 4).map((tx: any, i: number) => {
-                const isIn = tx.amount > 0;
+                const isIn = ["deposit", "trade_profit", "trade_loss_return", "signal_reward", "referral_bonus", "vault_trade_return"].includes(tx.type);
                 return (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 14px", borderBottom: i < 3 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
                     <div style={{ width: 38, height: 38, borderRadius: 12, background: isIn ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -380,8 +383,8 @@ export default function Dashboard() {
                     </div>
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>
-                        {tx.type === "trade_loss" ? "Contract Opened" :
-                         tx.type === "trade_profit" || tx.type === "trade_loss_return" ? "Contract Closed" :
+                         {tx.type === "trade_loss" ? "Contract Opened" :
+                          tx.type === "trade_profit" || tx.type === "trade_loss_return" ? "Contract Closed" :
                          tx.type === "signal_reward" ? "Signal Reward" :
                           tx.type === "vault_trade_stake" ? "Vault Capital Reserved" :
                           tx.type === "vault_trade_return" ? "Vault Capital Returned" :

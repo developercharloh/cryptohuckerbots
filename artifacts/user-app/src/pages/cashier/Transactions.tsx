@@ -75,8 +75,8 @@ export default function Transactions() {
           ) : transactions.length > 0 ? (
             transactions.map((tx) => {
               const expanded = expandedId === tx.id;
-              const incoming = ["deposit", "trade_profit", "signal_reward", "referral_bonus"].includes(tx.type);
-              const outgoing = ["withdrawal", "trade_loss", "trade_loss_return", "vip_package_purchase", "vault_trade_fee"].includes(tx.type);
+              const incoming = ["deposit", "trade_profit", "trade_loss_return", "signal_reward", "referral_bonus", "vault_trade_return"].includes(tx.type);
+              const outgoing = ["withdrawal", "trade_loss", "vip_package_purchase", "vault_trade_stake", "vault_trade_fee"].includes(tx.type);
               const label = tx.type === "trade_loss" ? "Contract Opened" :
                 tx.type === "trade_profit" || tx.type === "trade_loss_return" ? "Contract Closed" :
                 tx.type === "signal_reward" ? "Signal Reward" :

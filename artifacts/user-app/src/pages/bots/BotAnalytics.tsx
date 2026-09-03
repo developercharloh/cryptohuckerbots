@@ -159,9 +159,9 @@ export default function BotAnalytics() {
                 <Trophy className="w-4.5 h-4.5 text-primary" />
               </div>
               <div>
-                <p className="text-[10px] text-muted-foreground">Win Rate</p>
+                 <p className="text-[10px] text-muted-foreground">Positive Periods</p>
                 <p className="text-xl font-bold mt-0.5">{winRate}%</p>
-                <p className="text-[10px] text-muted-foreground">{positivePeriods}/{chartData.length} periods</p>
+                 <p className="text-[10px] text-muted-foreground">{positivePeriods}/{chartData.length} periods</p>
               </div>
             </div>
 
@@ -184,7 +184,9 @@ export default function BotAnalytics() {
               </div>
               <div>
                 <p className="text-[10px] text-muted-foreground">Best Period</p>
-                <p className="text-xl font-bold mt-0.5 text-green-400">+{bestPeriod.toFixed(2)}</p>
+                 <p className={`text-xl font-bold mt-0.5 ${bestPeriod >= 0 ? "text-green-400" : "text-red-400"}`}>
+                   {bestPeriod >= 0 ? "+" : ""}{bestPeriod.toFixed(2)}
+                 </p>
                 <p className="text-[10px] text-muted-foreground">USDT</p>
               </div>
             </div>

@@ -47,7 +47,7 @@ function OpenCard({
   const pnlPos = p.pnl >= 0;
   const [closing, setClosing] = useState(false);
   const targetProfit = Math.round(p.stake * 0.04 * 100) / 100;
-  const progress = targetProfit > 0 ? Math.min(100, (p.pnl / targetProfit) * 100) : 0;
+  const progress = targetProfit > 0 ? Math.min(100, Math.max(0, (p.pnl / targetProfit) * 100)) : 0;
 
   const handleClose = async () => {
     setClosing(true);
@@ -74,7 +74,7 @@ function OpenCard({
         </div>
         <div className="text-right shrink-0">
           <p className={`text-base font-bold ${pnlPos ? "text-green-400" : "text-red-400"}`}>
-            +${Math.abs(p.pnl).toFixed(2)}
+             {pnlPos ? "+" : "−"}${Math.abs(p.pnl).toFixed(2)}
           </p>
           <div className="flex items-center gap-1 justify-end mt-0.5">
             <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
