@@ -8,6 +8,7 @@ import { ChevronLeft, Loader2, AlertTriangle, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SiTether } from "react-icons/si";
+import { trackEvent } from "@/lib/analytics";
 
 const QUICK_AMOUNTS = [100, 250, 500, 1000];
 const MIN_DEPOSIT = 10;
@@ -70,6 +71,10 @@ export default function Deposit() {
     }
   }, [paymentMethods, selectedMethodId]);
 
+  useEffect(() => {
+    trackEvent("deposit_flow_opened", { surface: "cashier_deposit" });
+  }, []);
+
   const handleContinue = () => {
     if (!selectedMethodId) { toast({ title: "Select a payment method", variant: "destructive" }); return; }
     if (!amount || amount < MIN_DEPOSIT) { toast({ title: `Minimum deposit is $${MIN_DEPOSIT}`, variant: "destructive" }); return; }
@@ -80,8 +85,20 @@ export default function Deposit() {
     createSession.mutate(
       { data: { amount, paymentMethodId: selectedMethodId } },
       {
-        onSuccess: (session) => setLocation(`/cashier/deposit/${session.id}`),
-        onError:   (err: any) => toast({ title: "Failed to create deposit", description: err.message, variant: "destructive" }),
+        onSuccess: (session) => {
+          trackEvent("deposit_session_created", {
+            network: activeMethod?.network === "BEP-20" ? "bsc_bep20" : "unknown",
+            result: "success",
+          });
+          setLocation(`/cashier/deposit/${session.id}`);
+        },
+        onError: (err: any) => {
+          trackEvent("deposit_session_created", {
+            network: activeMethod?.network === "BEP-20" ? "bsc_bep20" : "unknown",
+            result: "failure",
+          });
+          toast({ title: "Failed to create deposit", description: err.message, variant: "destructive" });
+        },
       }
     );
   };
@@ -107,7 +124,12 @@ export default function Deposit() {
                     className={`flex items-center justify-between p-4 rounded-xl cursor-pointer transition-all ${
                       selectedMethodId === m.id ? "bg-card border border-primary" : "bg-card border border-transparent"
                     }`}
-                    onClick={() => setSelectedMethodId(m.id)}
+                     onClick={() => {
+                       setSelectedMethodId(m.id);
+                       trackEvent("deposit_method_selected", {
+                         network: m.network === "BEP-20" ? "bsc_bep20" : "unknown",
+                       });
+                     }}
                   >
                     <div className="flex items-center gap-3">
                        <MethodIcon />

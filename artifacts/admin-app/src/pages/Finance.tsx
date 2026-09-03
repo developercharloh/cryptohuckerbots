@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   useAdminListTransactions,
   useAdminReviewTransaction,
@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { trackEvent } from "@/lib/analytics";
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -196,15 +197,34 @@ function DepositSessionsTab() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  useEffect(() => {
+    trackEvent("admin_deposit_sessions_viewed", { surface: "finance" });
+  }, []);
+
   const act = (id: number, action: string, extra?: Record<string, unknown>) => {
+    trackEvent("admin_deposit_session_action", {
+      action,
+      network: "bsc_bep20",
+      result: "attempted",
+    });
     reviewSession.mutate(
       { id, data: { action, ...extra } },
       {
         onSuccess: () => {
+          trackEvent("admin_deposit_session_action", {
+            action,
+            network: "bsc_bep20",
+            result: "success",
+          });
           toast({ title: "Deposit session updated" });
           queryClient.invalidateQueries({ queryKey: getAdminListDepositSessionsQueryKey() });
         },
         onError: (err) => {
+          trackEvent("admin_deposit_session_action", {
+            action,
+            network: "bsc_bep20",
+            result: "failure",
+          });
           toast({ title: "Action failed", description: err.message, variant: "destructive" });
         },
       }

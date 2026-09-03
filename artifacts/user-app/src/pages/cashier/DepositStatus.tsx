@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { SiTether } from "react-icons/si";
+import { trackEvent } from "@/lib/analytics";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -147,18 +148,32 @@ export default function DepositStatus() {
 
   const handleSubmitTxid = () => {
     if (!txidInput.trim()) { toast({ title: "Enter your transaction ID", variant: "destructive" }); return; }
+    const analyticsNetwork = session?.network === "BEP-20" ? "bsc_bep20" : "unknown";
+    trackEvent("deposit_tx_hash_submission", { network: analyticsNetwork, result: "attempted" });
     submitTxid.mutate(
       { id: Number(id), data: { txid: txidInput.trim() } },
       {
         onSuccess: (updatedSession) => {
+          trackEvent("deposit_tx_hash_submission", { network: analyticsNetwork, result: "success" });
           setTxidInput(updatedSession.txid ?? txidInput.trim());
           setHasSent(true);
           toast({ title: "Transaction hash submitted" });
         },
-        onError:   (err: any) => toast({ title: "Failed to submit TXID", description: err.message, variant: "destructive" }),
+        onError: (err: any) => {
+          trackEvent("deposit_tx_hash_submission", { network: analyticsNetwork, result: "failure" });
+          toast({ title: "Failed to submit TXID", description: err.message, variant: "destructive" });
+        },
       }
     );
   };
+
+  useEffect(() => {
+    if (session?.id) {
+      trackEvent("deposit_payment_screen_opened", {
+        network: session.network === "BEP-20" ? "bsc_bep20" : "unknown",
+      });
+    }
+  }, [session?.id]);
 
   useEffect(() => {
     if (session?.txid && !txidInput) {
