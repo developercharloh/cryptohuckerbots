@@ -2591,7 +2591,9 @@ components:
           type: string
         walletAddress:
           type: ["string", "null"]
-      required: [amount, paymentMethod]
+        txid:
+          type: string
+      required: [amount, paymentMethod, txid]
 
     WithdrawInput:
       type: object
@@ -2608,7 +2610,29 @@ components:
           type: ["string", "null"]
         conversionRate:
           type: ["number", "null"]
+        confirmationToken:
+          type: string
       required: [amount, paymentMethod, walletAddress]
+
+    PrepareWithdrawalInput:
+      type: object
+      properties:
+        amount:
+          type: number
+        paymentMethod:
+          type: string
+        walletAddress:
+          type: string
+      required: [amount, paymentMethod, walletAddress]
+
+    WithdrawalConfirmation:
+      type: object
+      properties:
+        confirmationToken:
+          type: string
+        expiresAt:
+          type: string
+      required: [confirmationToken, expiresAt]
 
     Transaction:
       type: object
@@ -2633,6 +2657,8 @@ components:
           type: ["string", "null"]
         conversionRate:
           type: ["number", "null"]
+        txid:
+          type: ["string", "null"]
       required: [id, type, amount, status, paymentMethod, createdAt]
 
     PaymentMethod:
@@ -3273,6 +3299,7 @@ components:
         userId: { type: integer }
         userName: { type: string }
         userEmail: { type: string }
+        accountUid: { type: string }
         status: { type: string }
         amount: { type: number }
         paymentMethodId: { type: string }
@@ -3288,14 +3315,38 @@ components:
         expiresAt: { type: string }
         createdAt: { type: string }
         updatedAt: { type: string }
-      required: [id, userId, userName, userEmail, status, amount, paymentMethodId, paymentMethodName, network, depositAddress, confirmations, requiredConfirmations, expiresAt, createdAt, updatedAt]
+      required: [id, userId, userName, userEmail, accountUid, status, amount, paymentMethodId, paymentMethodName, network, depositAddress, confirmations, requiredConfirmations, expiresAt, createdAt, updatedAt]
 
     AdminReviewDepositInput:
       type: object
       properties:
         action: { type: string }
         confirmations: { type: integer }
+        txid: { type: string }
       required: [action]
+
+    DepositReconciliationLookupInput:
+      type: object
+      properties:
+        txid: { type: string }
+      required: [txid]
+
+    DepositReconciliation:
+      type: object
+      properties:
+        sessionId: { type: integer }
+        userId: { type: integer }
+        accountUid: { type: string }
+        realName: { type: string }
+        email: { type: string }
+        amount: { type: number }
+        txid: { type: string }
+        status: { type: string }
+        alreadyReconciled: { type: boolean }
+        reconciledAt: { type: ["string", "null"] }
+        depositAddress: { type: string }
+        network: { type: string }
+      required: [sessionId, userId, accountUid, realName, email, amount, txid, status, alreadyReconciled, reconciledAt, depositAddress, network]
 
     ChatMessage:
       type: object
