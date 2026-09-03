@@ -588,7 +588,7 @@ router.post("/trade/manual", async (req, res) => {
   if (!user) return res.status(401).json({ error: "Unauthorized" });
   return res.status(400).json({
     code: "SIGNAL_REQUIRED",
-    error: "Choose a currently available AI Signal, review its risk parameters, and confirm consent before execution.",
+    error: "Choose a currently available AI Signal and confirm consent before execution.",
   });
 });
 
@@ -887,7 +887,7 @@ router.post("/trade/execute", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
 
   const { signalId, opportunityId, consent, clientRequestId } = parsed.data;
-  if (!consent) return res.status(400).json({ code: "CONSENT_REQUIRED", error: "You must confirm the risk disclosure before execution." });
+  if (!consent) return res.status(400).json({ code: "CONSENT_REQUIRED", error: "You must confirm execution before continuing." });
 
   const settings = await getOrCreateSettings();
   const { config, opportunities } = await syncSignalOpportunities(settings);
@@ -1059,7 +1059,7 @@ router.post("/trade/execute-all", async (req, res) => {
   const parsed = ExecuteAllTradeSignalsBody.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
   if (!parsed.data.consent) {
-    return res.status(400).json({ code: "CONSENT_REQUIRED", error: "You must confirm the risk disclosure before execution." });
+    return res.status(400).json({ code: "CONSENT_REQUIRED", error: "You must confirm execution before continuing." });
   }
 
   const settings = await getOrCreateSettings();

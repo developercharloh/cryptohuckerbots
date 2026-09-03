@@ -245,7 +245,7 @@ A failure by VIXUS to enforce any provision of these Terms does not constitute a
 
 26. ENTIRE AGREEMENT
 
-These Terms, together with the VIXUS Privacy Policy, Risk Disclosure, and other policies expressly incorporated into these Terms, constitute the agreement governing your use of the Service unless a separate agreement expressly applies.
+These Terms, together with the VIXUS Privacy Policy and other policies expressly incorporated into these Terms, constitute the agreement governing your use of the Service unless a separate agreement expressly applies.
 
 27. USER ACKNOWLEDGMENT
 

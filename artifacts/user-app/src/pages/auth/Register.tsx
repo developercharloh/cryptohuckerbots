@@ -244,8 +244,7 @@ export default function Register() {
                   <span style={{ fontSize: 12, color: "#64748B", lineHeight: 1.5 }}>
                     I agree to the{" "}
                     <Link href="/legal/terms" style={{ color: LIGHT, textDecoration: "none" }} onClick={e => e.stopPropagation()}>Terms & Conditions</Link>
-                    {" "}and acknowledge the{" "}
-                    <Link href="/legal/risk" style={{ color: LIGHT, textDecoration: "none" }} onClick={e => e.stopPropagation()}>Risk Disclosure</Link>, including that Signal Rewards are program credits, not trading returns.
+                    {", "}including that Signal Rewards are program credits, not trading returns.
                   </span>
                 </div>
                 <FormMessage />

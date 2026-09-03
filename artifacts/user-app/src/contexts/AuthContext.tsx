@@ -35,7 +35,6 @@ function needsSessionValidation(pathname: string) {
     "/about",
     "/legal/terms",
     "/legal/privacy",
-    "/legal/risk",
     "/contact",
     "/login",
     "/register",

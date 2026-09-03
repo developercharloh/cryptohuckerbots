@@ -41,11 +41,9 @@ export default function Contact() {
         <h2>Before you reach out</h2>
         <p>
           Check our{" "}
-          <a href="/legal/risk" className="text-primary">Risk Disclosure</a>{" "}
-          and{" "}
           <a href="/legal/terms" className="text-primary">Terms of Service</a>{" "}
-          for answers to common questions about trading risk, deposits, and
-          withdrawals.
+          for answers to common questions about using the platform, deposits,
+          and withdrawals.
         </p>
       </section>
     </LegalLayout>

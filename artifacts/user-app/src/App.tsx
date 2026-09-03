@@ -146,7 +146,6 @@ const Onboarding = lazy(() => import("@/pages/Onboarding"));
 const About = lazy(() => import("@/pages/legal/About"));
 const Terms = lazy(() => import("@/pages/legal/Terms"));
 const Privacy = lazy(() => import("@/pages/legal/Privacy"));
-const Risk = lazy(() => import("@/pages/legal/Risk"));
 const Contact = lazy(() => import("@/pages/legal/Contact"));
 const Login = lazy(loadLogin);
 const Register = lazy(() => import("@/pages/auth/Register"));
@@ -210,8 +209,6 @@ function Router() {
       <Route path="/about" component={About} />
       <Route path="/legal/terms" component={Terms} />
       <Route path="/legal/privacy" component={Privacy} />
-      <Route path="/legal/risk" component={Risk} />
-      <Route path="/trust" component={Risk} />
       <Route path="/contact" component={Contact} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />

@@ -6,7 +6,6 @@ import {
   ArrowUpRight,
   BarChart3,
   Bell,
-  BookOpen,
   CheckCircle2,
   ChevronRight,
   CircleHelp,
@@ -587,7 +586,6 @@ export default function Portfolio() {
                 { href: "/profile/security", Icon: ShieldCheck, title: "Security", detail: "Password, 2FA, sessions", color: "text-emerald-300", bg: "bg-emerald-400/10" },
                 { href: "/profile/notifications", Icon: Bell, title: "Notifications", detail: unreadCount ? `${unreadCount} unread update${unreadCount === 1 ? "" : "s"}` : "All caught up", color: "text-amber-200", bg: "bg-amber-300/10" },
                 { href: "/support", Icon: CircleHelp, title: "Support", detail: "Get help from the VIXUS team", color: "text-sky-300", bg: "bg-sky-400/10" },
-                { href: "/legal/risk", Icon: BookOpen, title: "Risk disclosure", detail: "Understand the trading model", color: "text-slate-300", bg: "bg-slate-400/10" },
               ].map(({ href, Icon, title, detail, color, bg }) => (
                 <Link key={href} href={href} className="group flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-[#0d1421] p-3.5 transition-colors hover:border-white/[0.14] hover:bg-white/[0.05]">
                   <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${bg}`}>
@@ -610,9 +608,6 @@ export default function Portfolio() {
               <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
                 Vault Capital is locked to the active VIP strategy and is not available for withdrawal. Performance figures describe past activity; they do not guarantee future results.
               </p>
-              <Link href="/legal/risk" className="mt-2 inline-flex items-center gap-1 text-[10px] font-bold text-sky-300 hover:text-sky-200">
-                Read the full risk disclosure <ChevronRight className="h-3 w-3" />
-              </Link>
             </div>
           </footer>
         </div>
