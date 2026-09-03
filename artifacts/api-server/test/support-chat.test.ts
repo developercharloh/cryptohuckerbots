@@ -13,6 +13,7 @@ const {
   db,
   pool,
   chatMessagesTable,
+  chatAttachmentsTable,
   notificationsTable,
   authRateLimitsTable,
   sessionsTable,
@@ -20,6 +21,7 @@ const {
   sql,
   eq,
 } = { ...database, ...drizzle };
+const { attachmentStorage } = await import("../src/lib/chat-attachments.ts");
 
 const origin = "https://vixus.trade";
 const password = "SupportChatTestPassword1!";
@@ -55,12 +57,13 @@ let baseUrl: string;
 let adminUserId = 0;
 let targetUserId = 0;
 let databaseAvailable = false;
+const attachmentIds: number[] = [];
 const adminJar = new CookieJar();
 const userJar = new CookieJar();
 
 async function request<T = unknown>(
   path: string,
-  options: { method?: string; body?: unknown; cookieJar?: CookieJar } = {},
+  options: { method?: string; body?: unknown; cookieJar?: CookieJar; readBody?: boolean } = {},
 ) {
   const jar = options.cookieJar ?? userJar;
   const headers = new Headers({ Origin: origin });
@@ -73,6 +76,7 @@ async function request<T = unknown>(
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
   });
   jar.absorb(response);
+  if (options.readBody === false) return { response, body: undefined as T | undefined };
   const raw = await response.text();
   return { response, body: raw ? JSON.parse(raw) as T : undefined };
 }
@@ -122,6 +126,9 @@ before(async () => {
 });
 
 after(async () => {
+  for (const attachmentId of attachmentIds) {
+    await db.delete(chatAttachmentsTable).where(eq(chatAttachmentsTable.id, attachmentId));
+  }
   if (targetUserId) {
     await db.delete(chatMessagesTable).where(eq(chatMessagesTable.userId, targetUserId));
     await db.delete(notificationsTable).where(eq(notificationsTable.userId, targetUserId));
@@ -211,4 +218,103 @@ test("support inbox tracks pending replies and closed conversation boundaries", 
   assert.deepEqual(thread.body.map((message) => message.sender), ["user", "system", "system", "user", "admin"]);
   assert.match(thread.body[1].message, /closed by VIXUS Support/);
   assert.equal(thread.body[2].message, "New conversation started.");
+});
+
+test("support attachments include admin-visible metadata and stay private when downloaded", async (t) => {
+  if (!databaseAvailable) {
+    t.skip("requires a provisioned PostgreSQL test schema");
+    return;
+  }
+
+  const [message] = await db.insert(chatMessagesTable).values({
+    userId: targetUserId,
+    sender: "user",
+    message: "Please review this screenshot.",
+  }).returning();
+  const [attachment] = await db.insert(chatAttachmentsTable).values({
+    messageId: message.id,
+    userId: targetUserId,
+    pathname: `support/${targetUserId}/regression/screenshot.png`,
+    blobUrl: "https://private.blob.vercel-storage.com/regression-screenshot.png",
+    filename: "account-screenshot.png",
+    contentType: "image/png",
+    sizeBytes: 18,
+  }).returning();
+  attachmentIds.push(attachment.id);
+
+  const userThread = await request<Array<{
+    id: number;
+    attachments: Array<{
+      id: number;
+      filename: string;
+      contentType: string;
+      sizeBytes: number;
+      downloadUrl: string;
+    }>;
+  }>>("/api/support/chat");
+  const userMessage = userThread.body.find((item) => item.id === message.id);
+  assert.deepEqual(userMessage?.attachments, [{
+    id: attachment.id,
+    filename: "account-screenshot.png",
+    contentType: "image/png",
+    sizeBytes: 18,
+    downloadUrl: `/api/support/attachments/${attachment.id}`,
+  }]);
+
+  const adminThread = await request<Array<{
+    id: number;
+    attachments: Array<{
+      id: number;
+      filename: string;
+      contentType: string;
+      sizeBytes: number;
+      downloadUrl: string;
+    }>;
+  }>>(`/api/admin/chat/${targetUserId}`, { cookieJar: adminJar });
+  const adminMessage = adminThread.body.find((item) => item.id === message.id);
+  assert.deepEqual(adminMessage?.attachments, [{
+    id: attachment.id,
+    filename: "account-screenshot.png",
+    contentType: "image/png",
+    sizeBytes: 18,
+    downloadUrl: `/api/admin/attachments/${attachment.id}`,
+  }]);
+
+  const unauthenticatedAdminDownload = await request(`/api/admin/attachments/${attachment.id}`, {
+    cookieJar: new CookieJar(),
+  });
+  assert.equal(unauthenticatedAdminDownload.response.status, 401);
+
+  const unauthenticatedUserDownload = await request(`/api/support/attachments/${attachment.id}`, {
+    cookieJar: new CookieJar(),
+  });
+  assert.equal(unauthenticatedUserDownload.response.status, 401);
+
+  const originalGet = attachmentStorage.get;
+  attachmentStorage.get = (async () => ({
+    statusCode: 200,
+    blob: { contentType: "image/png", size: 18 },
+    stream: new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode("private-image-data"));
+        controller.close();
+      },
+    }),
+  })) as typeof attachmentStorage.get;
+
+  try {
+    const adminDownload = await request(`/api/admin/attachments/${attachment.id}`, { cookieJar: adminJar, readBody: false });
+    assert.equal(adminDownload.response.status, 200);
+    assert.equal(adminDownload.response.headers.get("content-type"), "image/png");
+    assert.equal(adminDownload.response.headers.get("content-disposition"), 'inline; filename="account-screenshot.png"');
+    assert.equal(adminDownload.response.headers.get("x-content-type-options"), "nosniff");
+    assert.equal(await adminDownload.response.text(), "private-image-data");
+
+    const userDownload = await request(`/api/support/attachments/${attachment.id}`, { cookieJar: userJar, readBody: false });
+    assert.equal(userDownload.response.status, 200);
+    assert.equal(userDownload.response.headers.get("content-type"), "image/png");
+    assert.equal(await userDownload.response.text(), "private-image-data");
+  } finally {
+    attachmentStorage.get = originalGet;
+  }
 });

@@ -10,6 +10,7 @@ export const MAX_CHAT_ATTACHMENT_BYTES = 5 * 1024 * 1024 * 1024 * 1024;
 const UPLOAD_SESSION_TTL_MS = 15 * 60 * 1000;
 
 export type AttachmentActor = "user" | "admin";
+export const attachmentStorage = { del, get, head };
 
 export type ChatAttachmentInput = {
   pathname: string;
@@ -149,7 +150,7 @@ export async function confirmUploadedAttachments(
   const confirmed: Array<ChatAttachmentInput & { blobUrl: string }> = [];
   try {
     for (const input of inputs) {
-      const blob = await head(input.pathname);
+      const blob = await attachmentStorage.head(input.pathname);
       if (blob.size !== input.sizeBytes) {
         throw new Error(`Attachment ${input.filename} is incomplete. Please upload it again.`);
       }
@@ -164,7 +165,7 @@ export async function confirmUploadedAttachments(
 
 export async function cleanupUploadedAttachments(inputs: Array<Pick<ChatAttachmentInput, "pathname">>) {
   if (inputs.length === 0) return;
-  await del(inputs.map((input) => input.pathname));
+  await attachmentStorage.del(inputs.map((input) => input.pathname));
 }
 
 export async function handleChatAttachmentUpload(
@@ -217,7 +218,7 @@ export async function streamPrivateAttachment(
   pathname: string,
   filename: string,
 ): Promise<void> {
-  const result = await get(pathname, { access: "private" });
+  const result = await attachmentStorage.get(pathname, { access: "private" });
   if (!result || result.statusCode !== 200) {
     res.status(404).json({ error: "Attachment not found." });
     return;
