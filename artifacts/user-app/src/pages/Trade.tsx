@@ -586,7 +586,7 @@ export default function Trade() {
           setStep("running");
           toast({
             title: `${batch.executedCount} AI signals executing`,
-            description: `AI selected the best available pairs. Expected Main Wallet reward after settlement: $${batch.totalReward.toFixed(2)}.`,
+            description: `AI selected the best available pairs. Expected profit after settlement: $${batch.totalReward.toFixed(2)}.`,
           });
           queryClient.invalidateQueries({ queryKey: ["/api/trade/positions"] });
           queryClient.invalidateQueries({ queryKey: ["/api/trade/access"] });
@@ -1096,7 +1096,7 @@ export default function Trade() {
                     <span style={{ fontSize: 11, fontWeight: 800, color: "#fff" }}>${(bulkSignalCount * signalAmount).toFixed(2)}</span>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginTop: 5 }}>
-                    <span style={{ fontSize: 10, color: "#A7F3D0" }}>Expected Main Wallet reward</span>
+                    <span style={{ fontSize: 10, color: "#A7F3D0" }}>Expected profit</span>
                     <span style={{ fontSize: 11, fontWeight: 900, color: "#86EFAC" }}>+${(bulkSignalCount * signalAmount).toFixed(2)}</span>
                   </div>
                 </div>
@@ -1344,7 +1344,7 @@ export default function Trade() {
                   </p>
                 </div>
                 <div style={{ width: "100%", textAlign: "center", paddingTop: 2 }}>
-                  <p style={{ fontSize: 10, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em" }}>Expected Main Wallet reward</p>
+                  <p style={{ fontSize: 10, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em" }}>Expected profit</p>
                   <p style={{ fontSize: 32, fontWeight: 900, color: "#22c55e", fontFamily: "monospace", marginTop: 3 }}>
                     +${(bulkSignals.length * signalAmount).toFixed(2)}
                   </p>
