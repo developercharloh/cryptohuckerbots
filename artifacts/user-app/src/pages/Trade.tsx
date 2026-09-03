@@ -653,8 +653,6 @@ export default function Trade() {
     : 0;
   const cooldownActive = cooldownSeconds > 0;
   const withdrawalGateActive = Boolean(vipAccess?.withdrawalGateActive);
-  const signalTrialActive = Boolean(vipAccess?.signalTrialActive);
-  const signalPairsRemaining = vipAccess?.signalPairsRemaining ?? 0;
 
   useEffect(() => {
     if (!vipAccess?.cooldownUntil) return;
@@ -893,20 +891,13 @@ export default function Trade() {
                         {vipAccess.vipLevel > 0 ? `VIP ${vipAccess.vipLevel}` : "VIP access locked"}
                       </p>
                     </div>
-                    <div style={{ textAlign: "right" }}>
-                      <p style={{ fontSize: 12, color: "#fff", fontWeight: 800 }}>
-                         {vipAccess.vipLevel === 1 && vipAccess.signalPairsRemaining !== null
-                           ? `${signalPairsRemaining} pairs remaining`
-                           : `${vipAccess.remainingToday} of ${vipAccess.dailyLimit} left`}
-                      </p>
-                      <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 3 }}>
-                         {vipAccess.hasPackage
-                           ? vipAccess.vipLevel === 1
-                             ? "$350 VIP 1 activation completed"
-                             : "Referral upgrade active"
-                           : "Activate VIP 1 to unlock signals"}
-                      </p>
-                    </div>
+                    <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 3, textAlign: "right" }}>
+                      {vipAccess.hasPackage
+                        ? vipAccess.vipLevel === 1
+                          ? "$350 VIP 1 activation completed"
+                          : "Referral upgrade active"
+                        : "Activate VIP 1 to unlock signals"}
+                    </p>
                   </div>
                    {vipAccess.vip2Required ? (
                      <div style={{
@@ -929,27 +920,7 @@ export default function Trade() {
                          View VIP 2 upgrade
                        </button>
                      </div>
-                   ) : signalTrialActive ? (
-                     <div style={{
-                       marginTop: 12,
-                       padding: "10px 12px",
-                       borderRadius: 12,
-                       border: "1px solid rgba(96,165,250,0.28)",
-                       background: "rgba(37,99,235,0.1)",
-                       display: "flex",
-                       alignItems: "center",
-                       justifyContent: "space-between",
-                       gap: 12,
-                     }}>
-                       <div>
-                          <p style={{ fontSize: 9, color: "#93C5FD", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 800 }}>Signal pair allowance</p>
-                         <p style={{ fontSize: 16, color: "#fff", fontWeight: 900, marginTop: 3, fontFamily: "monospace" }}>
-                            {signalPairsRemaining} pairs remaining
-                         </p>
-                       </div>
-                        <p style={{ fontSize: 9, color: "#BFDBFE", textAlign: "right", lineHeight: 1.4 }}>2 signals<br />use 1 pair</p>
-                     </div>
-                   ) : vipAccess.withdrawalGateActive ? (
+                  ) : vipAccess.withdrawalGateActive ? (
                      <div style={{
                        marginTop: 12,
                        padding: 12,
