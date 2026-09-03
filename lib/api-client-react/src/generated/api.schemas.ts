@@ -140,6 +140,13 @@ export interface TradeSignal {
   usedToday: number;
   remainingToday: number;
   signalAmount?: number;
+  signalTrialActive: boolean;
+  signalTrialExpired: boolean;
+  signalTrialStartedAt: string | null;
+  signalTrialEndsAt: string | null;
+  /** @minimum 0 */
+  signalTrialRemainingMs: number;
+  vip2Required: boolean;
 }
 
 export interface TradeAccess {
@@ -168,6 +175,13 @@ export interface TradeAccess {
   nextLevel: number | null;
   nextLevelDeposit: number | null;
   nextLevelAmountDue: number | null;
+  signalTrialActive: boolean;
+  signalTrialExpired: boolean;
+  signalTrialStartedAt: string | null;
+  signalTrialEndsAt: string | null;
+  /** @minimum 0 */
+  signalTrialRemainingMs: number;
+  vip2Required: boolean;
   timezone: string;
   nextSignalAt: string | null;
   signalAmount: number;

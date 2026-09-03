@@ -35,6 +35,7 @@ import {
   composeAccountBalanceSnapshot,
   getAccountBalanceSnapshot,
 } from "../utils/balance.js";
+import { ensureDueSignalTrialReminders } from "../lib/signal-trial";
 import {
   AdminSetUserStatusBody,
   AdminAdjustBalanceBody,
@@ -362,6 +363,7 @@ const KYC_PENDING = ["pending", "submitted", "under_review"];
 
 // ---------------- Overview ----------------
 router.get("/admin/overview", async (_req, res) => {
+  await ensureDueSignalTrialReminders();
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
   const startOfSeries = new Date(startOfToday);
@@ -476,6 +478,7 @@ router.get("/admin/overview", async (_req, res) => {
 
 // ---------------- Users ----------------
 router.get("/admin/users", async (req, res) => {
+  await ensureDueSignalTrialReminders();
   const search = (req.query.search as string | undefined)?.trim().toLowerCase().slice(0, 100);
   const requestedLimit = Number.parseInt(String(req.query.limit ?? "100"), 10);
   const requestedOffset = Number.parseInt(String(req.query.offset ?? "0"), 10);

@@ -4,6 +4,7 @@ import { eq, and, desc, asc, gte, lt, inArray, sql } from "drizzle-orm";
 import { ExecuteAllTradeSignalsBody, ExecuteTradeBody } from "@workspace/api-zod";
 import { getRequestToken, getUserForSession } from "../lib/session";
 import { calculateVaultCapital, calculateWalletBalance, getAvailableBalance, getVaultCapitalSnapshot, getWalletSnapshot } from "../utils/balance.js";
+import { ensureSignalTrialReminder, getSignalTrialStatus } from "../lib/signal-trial";
 
 const router = Router();
 const VIP1_MINIMUM_DEPOSIT = 350;
@@ -101,6 +102,12 @@ type VipAccess = {
   nextLevel: number | null;
   nextLevelDeposit: number | null;
   nextLevelAmountDue: number | null;
+  signalTrialActive: boolean;
+  signalTrialExpired: boolean;
+  signalTrialStartedAt: Date | null;
+  signalTrialEndsAt: Date | null;
+  signalTrialRemainingMs: number;
+  vip2Required: boolean;
   timezone: string;
   dayStart: Date;
   nextDayStart: Date;
@@ -111,11 +118,15 @@ function getVipAmountDue(activeLevel: number, targetLevel: number): number {
   return activeLevel === 0 && targetLevel === 1 ? VIP1_MINIMUM_DEPOSIT : 0;
 }
 
-async function getVipAccess(userId: number, config: ReturnType<typeof getSignalSettings>): Promise<VipAccess> {
+async function getVipAccess(user: typeof usersTable.$inferSelect, config: ReturnType<typeof getSignalSettings>): Promise<VipAccess> {
+  if (user.signalTrialStartedAt && user.signalTrialEndsAt) {
+    await ensureSignalTrialReminder(user.id);
+  }
+  const signalTrial = getSignalTrialStatus(user);
   const [depositTotal] = await db.select({
     total: sql<string>`coalesce(sum(${transactionsTable.amount}), 0)`,
   }).from(transactionsTable).where(and(
-    eq(transactionsTable.userId, userId),
+    eq(transactionsTable.userId, user.id),
     eq(transactionsTable.type, "deposit"),
     eq(transactionsTable.status, "completed"),
   ));
@@ -123,40 +134,41 @@ async function getVipAccess(userId: number, config: ReturnType<typeof getSignalS
   const [referralTotal] = await db.select({
     total: sql<string>`count(*)`,
   }).from(referralsTable).where(and(
-    eq(referralsTable.referrerUserId, userId),
+    eq(referralsTable.referrerUserId, user.id),
     eq(referralsTable.status, "credited"),
   ));
   const qualifiedReferrals = Number(referralTotal?.total ?? 0);
   const [withdrawalTotal] = await db.select({
     total: sql<string>`coalesce(sum(${transactionsTable.amount}), 0)`,
   }).from(transactionsTable).where(and(
-    eq(transactionsTable.userId, userId),
+    eq(transactionsTable.userId, user.id),
     eq(transactionsTable.type, "withdrawal"),
     eq(transactionsTable.status, "completed"),
   ));
   const totalWithdrawn = Number(withdrawalTotal?.total ?? 0);
   const [purchase] = await db.select().from(vipPackagePurchasesTable).where(and(
-    eq(vipPackagePurchasesTable.userId, userId),
+    eq(vipPackagePurchasesTable.userId, user.id),
     eq(vipPackagePurchasesTable.status, "completed"),
   )).orderBy(desc(vipPackagePurchasesTable.vipLevel)).limit(1);
-  const capital = await getVaultCapitalSnapshot(userId);
+  const capital = await getVaultCapitalSnapshot(user.id);
   const tier = VIP_TIERS.find((candidate) => candidate.level === purchase?.vipLevel) ?? null;
   const todayKey = localDateKey(new Date(), config.timezone);
   const dayStart = zonedTimeToUtc(todayKey, "00:00", config.timezone);
   const nextDayStart = zonedTimeToUtc(addLocalDays(todayKey, 1), "00:00", config.timezone);
   const [claims, [latestClaim]] = await Promise.all([
     db.select({ id: signalClaimsTable.id }).from(signalClaimsTable).where(and(
-      eq(signalClaimsTable.userId, userId),
+      eq(signalClaimsTable.userId, user.id),
       gte(signalClaimsTable.createdAt, dayStart),
       lt(signalClaimsTable.createdAt, nextDayStart),
     )),
     db.select({ createdAt: signalClaimsTable.createdAt })
       .from(signalClaimsTable)
-      .where(eq(signalClaimsTable.userId, userId))
+      .where(eq(signalClaimsTable.userId, user.id))
       .orderBy(desc(signalClaimsTable.createdAt))
       .limit(1),
   ]);
-  const dailyLimit = tier?.dailySignals ?? 0;
+  const vip2Required = signalTrial.expired && (tier?.level ?? 0) < 2;
+  const dailyLimit = vip2Required ? 0 : tier?.dailySignals ?? 0;
   let cooldownUntil: Date | null = null;
   if (tier && latestClaim) {
     const latestClaimDayKey = localDateKey(latestClaim.createdAt, config.timezone);
@@ -165,7 +177,7 @@ async function getVipAccess(userId: number, config: ReturnType<typeof getSignalS
     const latestDayClaims = await db.select({ id: signalClaimsTable.id })
       .from(signalClaimsTable)
       .where(and(
-        eq(signalClaimsTable.userId, userId),
+        eq(signalClaimsTable.userId, user.id),
         gte(signalClaimsTable.createdAt, latestClaimDayStart),
         lt(signalClaimsTable.createdAt, latestClaimNextDayStart),
       ));
@@ -189,7 +201,7 @@ async function getVipAccess(userId: number, config: ReturnType<typeof getSignalS
     vaultCapital: capital.vaultCapital,
     dailyLimit,
     usedToday: claims.length,
-    remainingToday: withdrawalGateActive || cooldownActive ? 0 : Math.max(0, dailyLimit - claims.length),
+    remainingToday: vip2Required || withdrawalGateActive || cooldownActive ? 0 : Math.max(0, dailyLimit - claims.length),
     qualifiedReferrals,
     totalWithdrawn: Math.round(totalWithdrawn * 100) / 100,
     withdrawalSignalThreshold: SIGNAL_WITHDRAWAL_THRESHOLD,
@@ -200,6 +212,12 @@ async function getVipAccess(userId: number, config: ReturnType<typeof getSignalS
     nextLevel: nextTier?.level ?? null,
     nextLevelDeposit: nextTier?.level === 1 ? VIP1_MINIMUM_DEPOSIT : 0,
     nextLevelAmountDue: nextTier ? getVipAmountDue(tier?.level ?? 0, nextTier.level) : null,
+    signalTrialActive: signalTrial.active,
+    signalTrialExpired: signalTrial.expired,
+    signalTrialStartedAt: signalTrial.startsAt,
+    signalTrialEndsAt: signalTrial.endsAt,
+    signalTrialRemainingMs: signalTrial.remainingMs,
+    vip2Required,
     timezone: config.timezone,
     dayStart,
     nextDayStart,
@@ -212,6 +230,7 @@ function getVipEligibleOpportunities(
   access: VipAccess,
 ) {
   if (access.level === 0) return [];
+  if (access.vip2Required) return [];
   if (access.withdrawalGateActive) return [];
   if (access.cooldownUntil) return [];
   if (access.remainingToday <= 0) return [];
@@ -581,7 +600,7 @@ router.get("/trade/signals", async (req, res) => {
   if (!user) return res.status(401).json({ error: "Unauthorized" });
   const settings = await getOrCreateSettings();
   const { config, opportunities } = await syncSignalOpportunities(settings);
-  const access = await getVipAccess(user.id, config);
+  const access = await getVipAccess(user, config);
   const eligibleOpportunities = getVipEligibleOpportunities(opportunities, access);
   const claims = eligibleOpportunities.length === 0 ? [] : await db.select().from(signalClaimsTable)
     .where(and(eq(signalClaimsTable.userId, user.id), inArray(signalClaimsTable.opportunityId, eligibleOpportunities.map((o) => o.id))));
@@ -605,6 +624,12 @@ router.get("/trade/signals", async (req, res) => {
     usedToday: access.usedToday,
     remainingToday: access.remainingToday,
     signalAmount: access.signalAmount,
+    signalTrialActive: access.signalTrialActive,
+    signalTrialExpired: access.signalTrialExpired,
+    signalTrialStartedAt: access.signalTrialStartedAt?.toISOString() ?? null,
+    signalTrialEndsAt: access.signalTrialEndsAt?.toISOString() ?? null,
+    signalTrialRemainingMs: access.signalTrialRemainingMs,
+    vip2Required: access.vip2Required,
   })));
 });
 
@@ -614,7 +639,7 @@ router.get("/trade/access", async (req, res) => {
   if (!user) return res.status(401).json({ error: "Unauthorized" });
   const settings = await getOrCreateSettings();
   const { config, opportunities } = await syncSignalOpportunities(settings);
-  const access = await getVipAccess(user.id, config);
+  const access = await getVipAccess(user, config);
   const eligible = getVipEligibleOpportunities(opportunities, access);
   return res.json({
     vipLevel: access.level,
@@ -624,7 +649,7 @@ router.get("/trade/access", async (req, res) => {
     packagePrice: access.packagePrice,
     vaultCapital: access.vaultCapital,
     lockedInvestmentCapital: access.vaultCapital,
-    canExecute: access.level > 0 && !access.cooldownUntil && !access.withdrawalGateActive,
+    canExecute: access.level > 0 && !access.vip2Required && !access.cooldownUntil && !access.withdrawalGateActive,
     dailyLimit: access.dailyLimit,
     usedToday: access.usedToday,
     remainingToday: access.remainingToday,
@@ -638,6 +663,12 @@ router.get("/trade/access", async (req, res) => {
     nextLevel: access.nextLevel,
     nextLevelDeposit: access.nextLevelDeposit,
     nextLevelAmountDue: access.nextLevelAmountDue,
+    signalTrialActive: access.signalTrialActive,
+    signalTrialExpired: access.signalTrialExpired,
+    signalTrialStartedAt: access.signalTrialStartedAt?.toISOString() ?? null,
+    signalTrialEndsAt: access.signalTrialEndsAt?.toISOString() ?? null,
+    signalTrialRemainingMs: access.signalTrialRemainingMs,
+    vip2Required: access.vip2Required,
     timezone: access.timezone,
     nextSignalAt: access.cooldownUntil?.toISOString() ?? null,
     cooldownUntil: access.cooldownUntil?.toISOString() ?? null,
@@ -650,7 +681,7 @@ router.get("/trade/vip-packages", async (req, res) => {
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
   const settings = await getOrCreateSettings();
-  const access = await getVipAccess(user.id, getSignalSettings(settings));
+  const access = await getVipAccess(user, getSignalSettings(settings));
   return res.json(VIP_TIERS.map((tier) => ({
     level: tier.level,
     price: tier.price,
@@ -860,7 +891,14 @@ router.post("/trade/execute", async (req, res) => {
 
   const settings = await getOrCreateSettings();
   const { config, opportunities } = await syncSignalOpportunities(settings);
-  const access = await getVipAccess(user.id, config);
+  const access = await getVipAccess(user, config);
+  if (access.vip2Required) {
+    return res.status(403).json({
+      code: "VIP2_REQUIRED",
+      error: "Your signal access window has ended. Upgrade to VIP 2 to continue receiving and executing signals.",
+      signalTrialEndsAt: access.signalTrialEndsAt?.toISOString() ?? null,
+    });
+  }
   if (access.level === 0) {
     return res.status(403).json({
       code: "VIP_REQUIRED",
@@ -1026,7 +1064,14 @@ router.post("/trade/execute-all", async (req, res) => {
 
   const settings = await getOrCreateSettings();
   const { config, opportunities } = await syncSignalOpportunities(settings);
-  const access = await getVipAccess(user.id, config);
+  const access = await getVipAccess(user, config);
+  if (access.vip2Required) {
+    return res.status(403).json({
+      code: "VIP2_REQUIRED",
+      error: "Your signal access window has ended. Upgrade to VIP 2 to continue receiving and executing signals.",
+      signalTrialEndsAt: access.signalTrialEndsAt?.toISOString() ?? null,
+    });
+  }
   if (access.level === 0) {
     return res.status(403).json({
       code: "VIP_REQUIRED",

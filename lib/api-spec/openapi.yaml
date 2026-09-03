@@ -2040,7 +2040,24 @@ components:
           type: integer
         signalAmount:
           type: number
-      required: [id, opportunityId, pair, direction, market, confidence, timeframe, suggestedTp, suggestedSl, scheduledAt, expiresAt, status, timezone, vipLevel, dailyLimit, usedToday, remainingToday]
+        signalTrialActive:
+          type: boolean
+        signalTrialExpired:
+          type: boolean
+        signalTrialStartedAt:
+          type: string
+          format: date-time
+          nullable: true
+        signalTrialEndsAt:
+          type: string
+          format: date-time
+          nullable: true
+        signalTrialRemainingMs:
+          type: integer
+          minimum: 0
+        vip2Required:
+          type: boolean
+      required: [id, opportunityId, pair, direction, market, confidence, timeframe, suggestedTp, suggestedSl, scheduledAt, expiresAt, status, timezone, vipLevel, dailyLimit, usedToday, remainingToday, signalTrialActive, signalTrialExpired, signalTrialStartedAt, signalTrialEndsAt, signalTrialRemainingMs, vip2Required]
 
     TradeAccess:
       type: object
@@ -2095,6 +2112,23 @@ components:
         nextLevelAmountDue:
           type: number
           nullable: true
+        signalTrialActive:
+          type: boolean
+        signalTrialExpired:
+          type: boolean
+        signalTrialStartedAt:
+          type: string
+          format: date-time
+          nullable: true
+        signalTrialEndsAt:
+          type: string
+          format: date-time
+          nullable: true
+        signalTrialRemainingMs:
+          type: integer
+          minimum: 0
+        vip2Required:
+          type: boolean
         timezone:
           type: string
         nextSignalAt:
@@ -2109,7 +2143,7 @@ components:
           nullable: true
         cooldownActive:
           type: boolean
-      required: [vipLevel, minimumDeposit, totalDeposited, hasPackage, packagePrice, vaultCapital, lockedInvestmentCapital, canExecute, dailyLimit, usedToday, remainingToday, qualifiedReferrals, totalWithdrawn, withdrawalSignalThreshold, withdrawalReferralRequirement, withdrawalGateActive, nextLevelReferralRequirement, timezone, nextLevel, nextLevelDeposit, nextLevelAmountDue, nextSignalAt, signalAmount, cooldownUntil, cooldownActive]
+      required: [vipLevel, minimumDeposit, totalDeposited, hasPackage, packagePrice, vaultCapital, lockedInvestmentCapital, canExecute, dailyLimit, usedToday, remainingToday, qualifiedReferrals, totalWithdrawn, withdrawalSignalThreshold, withdrawalReferralRequirement, withdrawalGateActive, nextLevelReferralRequirement, timezone, nextLevel, nextLevelDeposit, nextLevelAmountDue, signalTrialActive, signalTrialExpired, signalTrialStartedAt, signalTrialEndsAt, signalTrialRemainingMs, vip2Required, nextSignalAt, signalAmount, cooldownUntil, cooldownActive]
 
     VipPackage:
       type: object

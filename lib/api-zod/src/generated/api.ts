@@ -623,6 +623,10 @@ export const ListPaymentMethodsResponseItem = zod.object({
 export const ListPaymentMethodsResponse = zod.array(ListPaymentMethodsResponseItem)
 
 
+export const listTradeSignalsResponseSignalTrialRemainingMsMin = 0;
+
+
+
 export const ListTradeSignalsResponseItem = zod.object({
   "id": zod.string(),
   "pair": zod.string(),
@@ -641,7 +645,13 @@ export const ListTradeSignalsResponseItem = zod.object({
   "dailyLimit": zod.number(),
   "usedToday": zod.number(),
   "remainingToday": zod.number(),
-  "signalAmount": zod.number().optional()
+  "signalAmount": zod.number().optional(),
+  "signalTrialActive": zod.boolean(),
+  "signalTrialExpired": zod.boolean(),
+  "signalTrialStartedAt": zod.coerce.date().nullable(),
+  "signalTrialEndsAt": zod.coerce.date().nullable(),
+  "signalTrialRemainingMs": zod.number().min(listTradeSignalsResponseSignalTrialRemainingMsMin),
+  "vip2Required": zod.boolean()
 })
 export const ListTradeSignalsResponse = zod.array(ListTradeSignalsResponseItem)
 
@@ -655,6 +665,8 @@ export const getTradeAccessResponseWithdrawalSignalThresholdMin = 0;
 export const getTradeAccessResponseWithdrawalReferralRequirementMin = 0;
 
 export const getTradeAccessResponseNextLevelReferralRequirementMin = 0;
+
+export const getTradeAccessResponseSignalTrialRemainingMsMin = 0;
 
 
 
@@ -679,6 +691,12 @@ export const GetTradeAccessResponse = zod.object({
   "nextLevel": zod.number().nullable(),
   "nextLevelDeposit": zod.number().nullable(),
   "nextLevelAmountDue": zod.number().nullable(),
+  "signalTrialActive": zod.boolean(),
+  "signalTrialExpired": zod.boolean(),
+  "signalTrialStartedAt": zod.coerce.date().nullable(),
+  "signalTrialEndsAt": zod.coerce.date().nullable(),
+  "signalTrialRemainingMs": zod.number().min(getTradeAccessResponseSignalTrialRemainingMsMin),
+  "vip2Required": zod.boolean(),
   "timezone": zod.string(),
   "nextSignalAt": zod.coerce.date().nullable(),
   "signalAmount": zod.number(),

@@ -16,6 +16,9 @@ export const usersTable = pgTable("users", {
   twoFAEnabled: boolean("two_fa_enabled").notNull().default(false),
   twoFASecret: text("two_fa_secret"),
   emailVerifiedAt: timestamp("email_verified_at"),
+  signalTrialStartedAt: timestamp("signal_trial_started_at"),
+  signalTrialEndsAt: timestamp("signal_trial_ends_at"),
+  signalTrialReminderSentAt: timestamp("signal_trial_reminder_sent_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (table) => [

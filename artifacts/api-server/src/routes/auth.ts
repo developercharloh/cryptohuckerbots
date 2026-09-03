@@ -35,6 +35,7 @@ import {
   requestIp,
 } from "../lib/security";
 import { logger } from "../lib/logger";
+import { SIGNAL_TRIAL_DURATION_MS } from "../lib/signal-trial";
 import {
   RegisterBody,
   LoginBody,
@@ -183,6 +184,7 @@ router.post("/auth/register", async (req, res) => {
   }
 
   const passwordHash = await hashPassword(password);
+  const signalTrialStartedAt = new Date();
   const [user] = await db.insert(usersTable).values({
     accountUid: generateAccountUid(),
     fullName,
@@ -190,6 +192,8 @@ router.post("/auth/register", async (req, res) => {
     passwordHash,
     kycStatus: "not_verified",
     twoFAEnabled: false,
+    signalTrialStartedAt,
+    signalTrialEndsAt: new Date(signalTrialStartedAt.getTime() + SIGNAL_TRIAL_DURATION_MS),
   }).returning();
 
   // Init notification settings and KYC

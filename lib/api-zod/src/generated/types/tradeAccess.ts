@@ -32,6 +32,13 @@ export interface TradeAccess {
   nextLevel: number | null;
   nextLevelDeposit: number | null;
   nextLevelAmountDue: number | null;
+  signalTrialActive: boolean;
+  signalTrialExpired: boolean;
+  signalTrialStartedAt: Date | null;
+  signalTrialEndsAt: Date | null;
+  /** @minimum 0 */
+  signalTrialRemainingMs: number;
+  vip2Required: boolean;
   timezone: string;
   nextSignalAt: Date | null;
   signalAmount: number;

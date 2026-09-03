@@ -25,4 +25,11 @@ export interface TradeSignal {
   usedToday: number;
   remainingToday: number;
   signalAmount?: number;
+  signalTrialActive: boolean;
+  signalTrialExpired: boolean;
+  signalTrialStartedAt: Date | null;
+  signalTrialEndsAt: Date | null;
+  /** @minimum 0 */
+  signalTrialRemainingMs: number;
+  vip2Required: boolean;
 }
