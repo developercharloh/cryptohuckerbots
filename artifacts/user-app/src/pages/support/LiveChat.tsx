@@ -24,6 +24,10 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function attachmentUploadError() {
+  return "Network error. Please check your connection and try again.";
+}
+
 function PrivateImage({ href, alt }: { href: string; alt: string }) {
   const [src, setSrc] = useState<string>();
   useEffect(() => {
@@ -90,9 +94,9 @@ export default function LiveChat() {
       );
       pendingAttachmentsRef.current = next;
       setPendingAttachments(next);
-    } catch (error) {
+    } catch {
       const next = pendingAttachmentsRef.current.map((item) =>
-        item.id === pending.id ? { ...item, error: error instanceof Error ? error.message : "Upload failed." } : item,
+        item.id === pending.id ? { ...item, error: attachmentUploadError() } : item,
       );
       pendingAttachmentsRef.current = next;
       setPendingAttachments(next);

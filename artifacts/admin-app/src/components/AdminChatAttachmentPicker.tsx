@@ -19,6 +19,10 @@ type PendingFile = {
   error?: string;
 };
 
+function attachmentUploadError() {
+  return "Network error. Please check your connection and try again.";
+}
+
 export function AdminChatAttachmentPicker({
   userId,
   disabled,
@@ -75,10 +79,10 @@ export function AdminChatAttachmentPicker({
         },
       } : candidate);
       report(next);
-    } catch (error) {
+    } catch {
       report(filesRef.current.map((candidate) => candidate.id === item.id ? {
         ...candidate,
-        error: error instanceof Error ? error.message : "Upload failed.",
+        error: attachmentUploadError(),
       } : candidate));
     }
   };
