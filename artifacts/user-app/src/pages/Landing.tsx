@@ -31,12 +31,12 @@ const NAV_LINKS = [
 ];
 
 const MARKETS = [
-  { name: "BTC",  full: "Bitcoin",   chg: "+2.34%", vol: "$48.2B",  signal: "STRONG BUY", sc: GREEN,          up: true  },
-  { name: "ETH",  full: "Ethereum",  chg: "+1.82%", vol: "$18.1B",  signal: "BUY",        sc: GREEN,          up: true  },
-  { name: "SOL",  full: "Solana",    chg: "-0.41%", vol: "$4.3B",   signal: "NEUTRAL",    sc: "#F59E0B",      up: false },
-  { name: "XAU",  full: "Gold",      chg: "+0.67%", vol: "$12.7B",  signal: "BUY",        sc: GREEN,          up: true  },
-  { name: "EUR",  full: "EUR/USD",   chg: "-0.12%", vol: "$8.9B",   signal: "NEUTRAL",    sc: "#F59E0B",      up: false },
-  { name: "GBP",  full: "GBP/USD",   chg: "+0.33%", vol: "$5.6B",   signal: "BUY",        sc: GREEN,          up: true  },
+  { name: "BTC",  pair: "BTC/USD", full: "Bitcoin",   chg: "+2.34%", vol: "$48.2B", signal: "STRONG BUY", sc: GREEN,     up: true  },
+  { name: "ETH",  pair: "ETH/USD", full: "Ethereum",  chg: "+1.82%", vol: "$18.1B", signal: "BUY",        sc: GREEN,     up: true  },
+  { name: "SOL",  pair: "SOL/USD", full: "Solana",    chg: "-0.41%", vol: "$4.3B",  signal: "NEUTRAL",    sc: "#F59E0B", up: false },
+  { name: "XAU",  pair: "XAU/USD", full: "Gold",      chg: "+0.67%", vol: "$12.7B", signal: "BUY",        sc: GREEN,     up: true  },
+  { name: "EUR",  pair: "EUR/USD", full: "EUR/USD",   chg: "-0.12%", vol: "$8.9B",  signal: "NEUTRAL",    sc: "#F59E0B", up: false },
+  { name: "GBP",  pair: "GBP/USD", full: "GBP/USD",   chg: "+0.33%", vol: "$5.6B",  signal: "BUY",        sc: GREEN,     up: true  },
 ];
 
 const FEATURES = [
@@ -83,6 +83,7 @@ const TESTIMONIALS = [
 type PriceData = {
   pair: string; symbol: string; price: number; prev: number;
   chg: number; chgPct: number; up: boolean; flash: boolean;
+  volume: string;
 };
 
 type LandingNewsArticle = {
@@ -110,9 +111,9 @@ function formatNewsTime(value: string) {
 }
 
 const INITIAL_PAIRS: PriceData[] = [
-  { pair: "BTC/USD",  symbol: "BTCUSDT", price: 67842.30, prev: 67842.30, chg: 0, chgPct: 0, up: true,  flash: false },
-  { pair: "ETH/USD",  symbol: "ETHUSDT", price: 3412.80,  prev: 3412.80,  chg: 0, chgPct: 0, up: true,  flash: false },
-  { pair: "EUR/USD",  symbol: "",         price: 1.0847,   prev: 1.0847,   chg: 0, chgPct: 0, up: true,  flash: false },
+  { pair: "BTC/USD",  symbol: "BTCUSDT", price: 67842.30, prev: 67842.30, chg: 0, chgPct: 0, up: true,  flash: false, volume: "$48.2B" },
+  { pair: "ETH/USD",  symbol: "ETHUSDT", price: 3412.80,  prev: 3412.80,  chg: 0, chgPct: 0, up: true,  flash: false, volume: "$18.1B" },
+  { pair: "EUR/USD",  symbol: "",         price: 1.0847,   prev: 1.0847,   chg: 0, chgPct: 0, up: true,  flash: false, volume: "$8.9B" },
   { pair: "GBP/USD",  symbol: "",         price: 1.2703,   prev: 1.2703,   chg: 0, chgPct: 0, up: true,  flash: false },
   { pair: "USD/JPY",  symbol: "",         price: 157.42,   prev: 157.42,   chg: 0, chgPct: 0, up: false, flash: false },
   { pair: "XAU/USD",  symbol: "XAUUSDT", price: 2341.50,  prev: 2341.50,  chg: 0, chgPct: 0, up: true,  flash: false },
