@@ -603,6 +603,30 @@ paths:
               schema:
                 $ref: "#/components/schemas/AdminDepositSession"
 
+  /admin/deposit-reconciliation/lookup:
+    post:
+      operationId: lookupDepositReconciliation
+      tags: [admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DepositReconciliationLookupInput"
+      responses:
+        "200":
+          description: Deposit reconciliation identity and status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DepositReconciliation"
+        "404":
+          description: Transaction hash not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /cashier/withdraw:
     post:
       operationId: createWithdrawal
