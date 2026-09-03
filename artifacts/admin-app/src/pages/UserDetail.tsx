@@ -276,22 +276,19 @@ export default function UserDetail() {
                 <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
                   <div className="flex items-center gap-2 text-sm font-semibold">
                     <Clock3 className="w-4 h-4 text-primary" />
-                    Signal access window
+                    Signal pair allowance
                   </div>
-                  {!user.signalTrialStartedAt ? (
-                    <p className="text-xs text-muted-foreground mt-2">Existing account — no new-user window recorded.</p>
+                  {user.signalPairsRemaining === null ? (
+                    <p className="text-xs text-muted-foreground mt-2">Not started — VIP 1 activation starts the 60-pair allowance.</p>
                   ) : user.signalTrialExpired ? (
-                    <p className="text-xs text-amber-400 mt-2">Expired — VIP 2 is required for continued signal access.</p>
+                    <p className="text-xs text-amber-400 mt-2">Completed — VIP 2 is required for continued signal access.</p>
                   ) : (
                     <>
-                      <p className="text-xs text-emerald-400 mt-2">Active until {format(new Date(user.signalTrialEndsAt!), "PPp")}</p>
+                      <p className="text-xs text-emerald-400 mt-2">{user.signalPairsRemaining} of {user.signalPairAllowance} pairs remaining</p>
                       <p className="text-[11px] text-muted-foreground mt-1">
-                        {Math.floor(user.signalTrialRemainingMs / 86400000)}d {Math.floor((user.signalTrialRemainingMs % 86400000) / 3600000)}h remaining at last refresh
+                        One pair is consumed after 2 successfully executed signals on the same day.
                       </p>
                     </>
-                  )}
-                  {user.signalTrialReminderSentAt && (
-                    <p className="text-[11px] text-muted-foreground mt-2">Three-day Support reminder sent {format(new Date(user.signalTrialReminderSentAt), "PPp")}.</p>
                   )}
                 </div>
                 {user.phone && (

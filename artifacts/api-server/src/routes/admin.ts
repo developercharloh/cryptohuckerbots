@@ -35,7 +35,7 @@ import {
   composeAccountBalanceSnapshot,
   getAccountBalanceSnapshot,
 } from "../utils/balance.js";
-import { ensureDueSignalTrialReminders, getSignalTrialStatus } from "../lib/signal-trial";
+import { ensureDueSignalTrialReminders, getSignalTrialStatus, SIGNAL_PAIR_ALLOWANCE } from "../lib/signal-trial";
 import {
   AdminSetUserStatusBody,
   AdminAdjustBalanceBody,
@@ -584,6 +584,9 @@ router.get("/admin/users", async (req, res) => {
       signalTrialEndsAt: signalTrial.endsAt?.toISOString() ?? null,
       signalTrialRemainingMs: signalTrial.remainingMs,
       signalTrialReminderSentAt: u.signalTrialReminderSentAt?.toISOString() ?? null,
+      signalAccessStartedAt: u.signalAccessStartedAt?.toISOString() ?? null,
+      signalPairsRemaining: u.signalPairsRemaining,
+      signalPairAllowance: SIGNAL_PAIR_ALLOWANCE,
     };
   }));
 
@@ -645,6 +648,9 @@ router.get("/admin/users/:id", async (req, res) => {
     signalTrialEndsAt: signalTrial.endsAt?.toISOString() ?? null,
     signalTrialRemainingMs: signalTrial.remainingMs,
     signalTrialReminderSentAt: user.signalTrialReminderSentAt?.toISOString() ?? null,
+    signalAccessStartedAt: user.signalAccessStartedAt?.toISOString() ?? null,
+    signalPairsRemaining: user.signalPairsRemaining,
+    signalPairAllowance: SIGNAL_PAIR_ALLOWANCE,
     bots: userBots.map((b) => ({
       id: b.ub.id,
       botId: b.ub.botId,

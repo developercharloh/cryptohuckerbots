@@ -4,7 +4,7 @@ import { eq, and, desc, asc, gte, lt, inArray, sql } from "drizzle-orm";
 import { ExecuteAllTradeSignalsBody, ExecuteTradeBody } from "@workspace/api-zod";
 import { getRequestToken, getUserForSession } from "../lib/session";
 import { calculateVaultCapital, calculateWalletBalance, getAvailableBalance, getVaultCapitalSnapshot, getWalletSnapshot } from "../utils/balance.js";
-import { ensureSignalTrialReminder, getSignalTrialStatus } from "../lib/signal-trial";
+import { getSignalTrialStatus, SIGNAL_PAIR_ALLOWANCE } from "../lib/signal-trial";
 
 const router = Router();
 const VIP1_MINIMUM_DEPOSIT = 350;
@@ -107,6 +107,9 @@ type VipAccess = {
   signalTrialStartedAt: Date | null;
   signalTrialEndsAt: Date | null;
   signalTrialRemainingMs: number;
+  signalAccessStartedAt: Date | null;
+  signalPairsRemaining: number | null;
+  signalPairAllowance: number;
   vip2Required: boolean;
   timezone: string;
   dayStart: Date;
@@ -119,10 +122,6 @@ function getVipAmountDue(activeLevel: number, targetLevel: number): number {
 }
 
 async function getVipAccess(user: typeof usersTable.$inferSelect, config: ReturnType<typeof getSignalSettings>): Promise<VipAccess> {
-  if (user.signalTrialStartedAt && user.signalTrialEndsAt) {
-    await ensureSignalTrialReminder(user.id);
-  }
-  const signalTrial = getSignalTrialStatus(user);
   const [depositTotal] = await db.select({
     total: sql<string>`coalesce(sum(${transactionsTable.amount}), 0)`,
   }).from(transactionsTable).where(and(
@@ -150,6 +149,48 @@ async function getVipAccess(user: typeof usersTable.$inferSelect, config: Return
     eq(vipPackagePurchasesTable.userId, user.id),
     eq(vipPackagePurchasesTable.status, "completed"),
   )).orderBy(desc(vipPackagePurchasesTable.vipLevel)).limit(1);
+  let signalAccessStartedAt = user.signalAccessStartedAt;
+  let signalPairsRemaining = user.signalPairsRemaining;
+  if (purchase?.vipLevel === 1 && (!signalAccessStartedAt || signalPairsRemaining === null)) {
+    const initialized = await db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(${user.id})`);
+      const [current] = await tx.select({
+        signalAccessStartedAt: usersTable.signalAccessStartedAt,
+        signalPairsRemaining: usersTable.signalPairsRemaining,
+      }).from(usersTable).where(eq(usersTable.id, user.id)).limit(1);
+      if (current?.signalAccessStartedAt && current.signalPairsRemaining !== null) return current;
+
+      const claimsSinceActivation = await tx.select({
+        createdAt: signalClaimsTable.createdAt,
+      }).from(signalClaimsTable).where(and(
+        eq(signalClaimsTable.userId, user.id),
+        gte(signalClaimsTable.createdAt, purchase.createdAt),
+      ));
+      const dailyClaims = new Map<string, number>();
+      for (const claim of claimsSinceActivation) {
+        const key = localDateKey(claim.createdAt, config.timezone);
+        dailyClaims.set(key, (dailyClaims.get(key) ?? 0) + 1);
+      }
+      const completedPairs = [...dailyClaims.values()]
+        .reduce((total, count) => total + Math.floor(count / 2), 0);
+      const remaining = Math.max(0, SIGNAL_PAIR_ALLOWANCE - completedPairs);
+      const [updated] = await tx.update(usersTable).set({
+        signalAccessStartedAt: purchase.createdAt,
+        signalPairsRemaining: remaining,
+        signalTrialStartedAt: null,
+        signalTrialEndsAt: null,
+        signalTrialReminderSentAt: null,
+        updatedAt: new Date(),
+      }).where(eq(usersTable.id, user.id)).returning({
+        signalAccessStartedAt: usersTable.signalAccessStartedAt,
+        signalPairsRemaining: usersTable.signalPairsRemaining,
+      });
+      return updated;
+    });
+    signalAccessStartedAt = initialized?.signalAccessStartedAt ?? purchase.createdAt;
+    signalPairsRemaining = initialized?.signalPairsRemaining ?? SIGNAL_PAIR_ALLOWANCE;
+  }
+  const signalTrial = getSignalTrialStatus({ signalAccessStartedAt, signalPairsRemaining });
   const capital = await getVaultCapitalSnapshot(user.id);
   const tier = VIP_TIERS.find((candidate) => candidate.level === purchase?.vipLevel) ?? null;
   const todayKey = localDateKey(new Date(), config.timezone);
@@ -217,6 +258,9 @@ async function getVipAccess(user: typeof usersTable.$inferSelect, config: Return
     signalTrialStartedAt: signalTrial.startsAt,
     signalTrialEndsAt: signalTrial.endsAt,
     signalTrialRemainingMs: signalTrial.remainingMs,
+    signalAccessStartedAt,
+    signalPairsRemaining,
+    signalPairAllowance: SIGNAL_PAIR_ALLOWANCE,
     vip2Required,
     timezone: config.timezone,
     dayStart,
@@ -629,6 +673,9 @@ router.get("/trade/signals", async (req, res) => {
     signalTrialStartedAt: access.signalTrialStartedAt?.toISOString() ?? null,
     signalTrialEndsAt: access.signalTrialEndsAt?.toISOString() ?? null,
     signalTrialRemainingMs: access.signalTrialRemainingMs,
+      signalAccessStartedAt: access.signalAccessStartedAt?.toISOString() ?? null,
+      signalPairsRemaining: access.signalPairsRemaining,
+      signalPairAllowance: access.signalPairAllowance,
     vip2Required: access.vip2Required,
   })));
 });
@@ -668,6 +715,9 @@ router.get("/trade/access", async (req, res) => {
     signalTrialStartedAt: access.signalTrialStartedAt?.toISOString() ?? null,
     signalTrialEndsAt: access.signalTrialEndsAt?.toISOString() ?? null,
     signalTrialRemainingMs: access.signalTrialRemainingMs,
+    signalAccessStartedAt: access.signalAccessStartedAt?.toISOString() ?? null,
+    signalPairsRemaining: access.signalPairsRemaining,
+    signalPairAllowance: access.signalPairAllowance,
     vip2Required: access.vip2Required,
     timezone: access.timezone,
     nextSignalAt: access.cooldownUntil?.toISOString() ?? null,
@@ -811,6 +861,16 @@ router.post("/trade/vip-packages/:level/purchase", async (req, res) => {
           status: "locked",
           activatedAt: now,
         });
+        if (!active) {
+          await tx.update(usersTable).set({
+            signalAccessStartedAt: now,
+            signalPairsRemaining: SIGNAL_PAIR_ALLOWANCE,
+            signalTrialStartedAt: null,
+            signalTrialEndsAt: null,
+            signalTrialReminderSentAt: null,
+            updatedAt: now,
+          }).where(eq(usersTable.id, user.id));
+        }
       }
 
       if (tier.level === 1 && !active) {
@@ -895,7 +955,7 @@ router.post("/trade/execute", async (req, res) => {
   if (access.vip2Required) {
     return res.status(403).json({
       code: "VIP2_REQUIRED",
-      error: "Your signal access window has ended. Upgrade to VIP 2 to continue receiving and executing signals.",
+      error: "Your 60 signal-pair allowance has been completed. Upgrade to VIP 2 to continue receiving and executing signals.",
       signalTrialEndsAt: access.signalTrialEndsAt?.toISOString() ?? null,
     });
   }
@@ -965,6 +1025,16 @@ router.post("/trade/execute", async (req, res) => {
       // Serialize claims per user so concurrent tabs cannot bypass the daily
       // quota check between the read above and the insert.
       await tx.execute(sql`select pg_advisory_xact_lock(${user.id})`);
+      const [liveAccess] = await tx.select({
+        signalPairsRemaining: usersTable.signalPairsRemaining,
+      }).from(usersTable).where(eq(usersTable.id, user.id)).limit(1);
+      if (access.level === 1 && liveAccess?.signalPairsRemaining === 0) {
+        throw new SignalRuleError(
+          "VIP2_REQUIRED",
+          "Your 60 signal-pair allowance has been completed. Upgrade to VIP 2 to continue receiving and executing signals.",
+          403,
+        );
+      }
       const [purchaseBaseline] = await tx.select({
         amount: sql<string>`coalesce(sum(${vipPackagePurchasesTable.amount}), 0)`,
       }).from(vipPackagePurchasesTable).where(and(
@@ -1020,6 +1090,25 @@ router.post("/trade/execute", async (req, res) => {
         status: "open",
       }).returning();
       await tx.update(signalClaimsTable).set({ positionId: inserted.id }).where(eq(signalClaimsTable.id, claim.id));
+      if (access.level === 1 && access.signalAccessStartedAt && access.signalPairsRemaining !== null) {
+        const pairStart = access.signalAccessStartedAt.getTime() > access.dayStart.getTime()
+          ? access.signalAccessStartedAt
+          : access.dayStart;
+        const pairClaims = await tx.select({ id: signalClaimsTable.id }).from(signalClaimsTable).where(and(
+          eq(signalClaimsTable.userId, user.id),
+          gte(signalClaimsTable.createdAt, pairStart),
+          lt(signalClaimsTable.createdAt, access.nextDayStart),
+        ));
+        if (pairClaims.length >= 2) {
+          await tx.update(usersTable).set({
+            signalPairsRemaining: sql`greatest(0, ${usersTable.signalPairsRemaining} - 1)`,
+            updatedAt: new Date(),
+          }).where(and(
+            eq(usersTable.id, user.id),
+            sql`${usersTable.signalPairsRemaining} > 0`,
+          ));
+        }
+      }
       await tx.insert(transactionsTable).values({
         userId: user.id,
         type: "vault_trade_stake",
@@ -1068,7 +1157,7 @@ router.post("/trade/execute-all", async (req, res) => {
   if (access.vip2Required) {
     return res.status(403).json({
       code: "VIP2_REQUIRED",
-      error: "Your signal access window has ended. Upgrade to VIP 2 to continue receiving and executing signals.",
+      error: "Your 60 signal-pair allowance has been completed. Upgrade to VIP 2 to continue receiving and executing signals.",
       signalTrialEndsAt: access.signalTrialEndsAt?.toISOString() ?? null,
     });
   }
@@ -1112,6 +1201,16 @@ router.post("/trade/execute-all", async (req, res) => {
       // One lock covers the complete selection, quota check, capital check,
       // claim creation, and position creation for this user.
       await tx.execute(sql`select pg_advisory_xact_lock(${user.id})`);
+      const [liveAccess] = await tx.select({
+        signalPairsRemaining: usersTable.signalPairsRemaining,
+      }).from(usersTable).where(eq(usersTable.id, user.id)).limit(1);
+      if (access.level === 1 && liveAccess?.signalPairsRemaining === 0) {
+        throw new SignalRuleError(
+          "VIP2_REQUIRED",
+          "Your 60 signal-pair allowance has been completed. Upgrade to VIP 2 to continue receiving and executing signals.",
+          403,
+        );
+      }
 
       const freshClaims = await tx.select().from(signalClaimsTable).where(and(
         eq(signalClaimsTable.userId, user.id),
@@ -1202,6 +1301,26 @@ router.post("/trade/execute-all", async (req, res) => {
           description: `Reserved stake for AI Signal: ${opportunity.pair} ${opportunity.direction} (${bot.name})`,
         });
         openedPositions.push(inserted);
+      }
+
+      if (access.level === 1 && access.signalAccessStartedAt && access.signalPairsRemaining !== null && selected.length > 0) {
+        const pairStart = access.signalAccessStartedAt.getTime() > access.dayStart.getTime()
+          ? access.signalAccessStartedAt
+          : access.dayStart;
+        const pairClaims = await tx.select({ id: signalClaimsTable.id }).from(signalClaimsTable).where(and(
+          eq(signalClaimsTable.userId, user.id),
+          gte(signalClaimsTable.createdAt, pairStart),
+          lt(signalClaimsTable.createdAt, access.nextDayStart),
+        ));
+        if (pairClaims.length >= 2) {
+          await tx.update(usersTable).set({
+            signalPairsRemaining: sql`greatest(0, ${usersTable.signalPairsRemaining} - 1)`,
+            updatedAt: new Date(),
+          }).where(and(
+            eq(usersTable.id, user.id),
+            sql`${usersTable.signalPairsRemaining} > 0`,
+          ));
+        }
       }
 
       return {

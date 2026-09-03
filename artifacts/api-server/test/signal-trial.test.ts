@@ -110,7 +110,7 @@ after(async () => {
   });
 });
 
-test("new users receive a server-timed signal window and one reminder", async (t) => {
+test("VIP 1 receives a usage-based 60-pair signal allowance", async (t) => {
   if (!databaseAvailable) {
     t.skip("requires a provisioned PostgreSQL test schema");
     return;
@@ -120,15 +120,14 @@ test("new users receive a server-timed signal window and one reminder", async (t
     signalTrialStartedAt: usersTable.signalTrialStartedAt,
     signalTrialEndsAt: usersTable.signalTrialEndsAt,
     signalTrialReminderSentAt: usersTable.signalTrialReminderSentAt,
+    signalAccessStartedAt: usersTable.signalAccessStartedAt,
+    signalPairsRemaining: usersTable.signalPairsRemaining,
   }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
-  assert.ok(created[0]?.signalTrialStartedAt);
-  assert.ok(created[0]?.signalTrialEndsAt);
-  assert.ok(Math.abs(
-    created[0].signalTrialEndsAt!.getTime() -
-    created[0].signalTrialStartedAt!.getTime() -
-    60 * 24 * 60 * 60 * 1000,
-  ) < 5_000);
+  assert.equal(created[0]?.signalTrialStartedAt, null);
+  assert.equal(created[0]?.signalTrialEndsAt, null);
   assert.equal(created[0].signalTrialReminderSentAt, null);
+  assert.equal(created[0]?.signalAccessStartedAt, null);
+  assert.equal(created[0]?.signalPairsRemaining, null);
 
   type Access = {
     signalTrialActive: boolean;
@@ -139,72 +138,50 @@ test("new users receive a server-timed signal window and one reminder", async (t
     vip2Required: boolean;
     vipLevel: number;
     dailyLimit: number;
+    signalAccessStartedAt: string | null;
+    signalPairsRemaining: number | null;
+    signalPairAllowance: number;
   };
+  const beforeVip = await request<Access>("/api/trade/access");
+  assert.equal(beforeVip.body.signalTrialActive, false);
+  assert.equal(beforeVip.body.signalTrialExpired, false);
+  assert.equal(beforeVip.body.signalPairsRemaining, null);
+  assert.equal(beforeVip.body.vipLevel, 0);
+
+  const [vipOne] = await db.insert(vipPackagePurchasesTable).values({
+    userId,
+    vipLevel: 1,
+    amount: "350.00",
+    status: "completed",
+  }).returning();
   const active = await request<Access>("/api/trade/access");
   assert.equal(active.response.status, 200);
   assert.equal(active.body.signalTrialActive, true);
   assert.equal(active.body.signalTrialExpired, false);
-  assert.ok(active.body.signalTrialRemainingMs > 59 * 24 * 60 * 60 * 1000);
-  assert.ok(active.body.signalTrialEndsAt);
+  assert.equal(active.body.signalPairsRemaining, 60);
+  assert.equal(active.body.signalPairAllowance, 60);
+  assert.ok(active.body.signalAccessStartedAt);
+  assert.equal(active.body.signalTrialEndsAt, null);
   assert.equal(active.body.vip2Required, false);
+  assert.equal(active.body.dailyLimit, 2);
 
-  // A user without a recorded trial remains on the old access path.
-  await db.update(usersTable).set({
-    signalTrialStartedAt: null,
-    signalTrialEndsAt: null,
-    signalTrialReminderSentAt: null,
-  }).where(eq(usersTable.id, userId));
-  const existing = await request<Access>("/api/trade/access");
-  assert.equal(existing.body.signalTrialActive, false);
-  assert.equal(existing.body.signalTrialExpired, false);
-  assert.equal(existing.body.signalTrialStartedAt, null);
-  assert.equal(existing.body.signalTrialEndsAt, null);
-  assert.equal(existing.body.vip2Required, false);
-
-  const now = Date.now();
-  await db.update(usersTable).set({
-    signalTrialStartedAt: new Date(now - 57 * 24 * 60 * 60 * 1000),
-    signalTrialEndsAt: new Date(now + 2 * 24 * 60 * 60 * 1000),
-  }).where(eq(usersTable.id, userId));
-  const reminderWindow = await request<Access>("/api/trade/access");
-  assert.equal(reminderWindow.body.signalTrialActive, true);
-  const reminderMessages = await db.select({
-    sender: chatMessagesTable.sender,
-    message: chatMessagesTable.message,
-  }).from(chatMessagesTable).where(eq(chatMessagesTable.userId, userId));
-  assert.equal(reminderMessages.length, 1);
-  assert.equal(reminderMessages[0].sender, "admin");
-  assert.match(reminderMessages[0].message, /ends in 3 days/i);
-
-  await request<Access>("/api/trade/access");
-  const repeatedReminderMessages = await db.select({ id: chatMessagesTable.id })
-    .from(chatMessagesTable).where(eq(chatMessagesTable.userId, userId));
-  assert.equal(repeatedReminderMessages.length, 1);
+  const initialized = await db.select({
+    signalAccessStartedAt: usersTable.signalAccessStartedAt,
+    signalPairsRemaining: usersTable.signalPairsRemaining,
+  }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  assert.equal(initialized[0]?.signalAccessStartedAt?.getTime(), vipOne.createdAt.getTime());
+  assert.equal(initialized[0]?.signalPairsRemaining, 60);
 
   await db.update(usersTable).set({
-    signalTrialEndsAt: new Date(now - 1_000),
+    signalPairsRemaining: 0,
   }).where(eq(usersTable.id, userId));
-  const expired = await request<Access>("/api/trade/access");
-  assert.equal(expired.body.signalTrialActive, false);
-  assert.equal(expired.body.signalTrialExpired, true);
-  assert.equal(expired.body.signalTrialRemainingMs, 0);
-  assert.equal(expired.body.vip2Required, true);
-  assert.equal(expired.body.dailyLimit, 0);
-
-  const blockedSignals = await request("/api/trade/signals");
-  assert.equal(blockedSignals.response.status, 200);
-  assert.deepEqual(blockedSignals.body, []);
-  const blockedExecution = await request("/api/trade/execute", {
-    method: "POST",
-    body: {
-      signalId: "expired-trial-signal",
-      opportunityId: 1,
-      consent: true,
-      clientRequestId: `expired-trial-${Date.now()}`,
-    },
-  });
-  assert.equal(blockedExecution.response.status, 403);
-  assert.equal(blockedExecution.body.code, "VIP2_REQUIRED");
+  const exhausted = await request<Access>("/api/trade/access");
+  assert.equal(exhausted.body.signalTrialActive, false);
+  assert.equal(exhausted.body.signalTrialExpired, true);
+  assert.equal(exhausted.body.signalPairsRemaining, 0);
+  assert.equal(exhausted.body.signalTrialRemainingMs, 0);
+  assert.equal(exhausted.body.vip2Required, true);
+  assert.equal(exhausted.body.dailyLimit, 0);
 
   await db.insert(vipPackagePurchasesTable).values({
     userId,

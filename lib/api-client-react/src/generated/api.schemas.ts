@@ -146,6 +146,9 @@ export interface TradeSignal {
   signalTrialEndsAt: string | null;
   /** @minimum 0 */
   signalTrialRemainingMs: number;
+  signalAccessStartedAt: string | null;
+  signalPairsRemaining: number | null;
+  signalPairAllowance: number;
   vip2Required: boolean;
 }
 
@@ -181,6 +184,9 @@ export interface TradeAccess {
   signalTrialEndsAt: string | null;
   /** @minimum 0 */
   signalTrialRemainingMs: number;
+  signalAccessStartedAt: string | null;
+  signalPairsRemaining: number | null;
+  signalPairAllowance: number;
   vip2Required: boolean;
   timezone: string;
   nextSignalAt: string | null;
@@ -816,6 +822,10 @@ export interface AdminUser {
   signalTrialRemainingMs: number;
   /** @nullable */
   signalTrialReminderSentAt: string | null;
+  /** @nullable */
+  signalAccessStartedAt: string | null;
+  signalPairsRemaining: number | null;
+  signalPairAllowance: number;
 }
 
 export interface AdminUserBot {
@@ -861,6 +871,10 @@ export interface AdminUserDetail {
   signalTrialRemainingMs: number;
   /** @nullable */
   signalTrialReminderSentAt: string | null;
+  /** @nullable */
+  signalAccessStartedAt: string | null;
+  signalPairsRemaining: number | null;
+  signalPairAllowance: number;
   bots: AdminUserBot[];
   transactions: AdminTransaction[];
 }

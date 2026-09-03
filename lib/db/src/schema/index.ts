@@ -19,6 +19,8 @@ export const usersTable = pgTable("users", {
   signalTrialStartedAt: timestamp("signal_trial_started_at"),
   signalTrialEndsAt: timestamp("signal_trial_ends_at"),
   signalTrialReminderSentAt: timestamp("signal_trial_reminder_sent_at"),
+  signalAccessStartedAt: timestamp("signal_access_started_at"),
+  signalPairsRemaining: integer("signal_pairs_remaining"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (table) => [

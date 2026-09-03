@@ -41,6 +41,10 @@ export interface AdminUserDetail {
   signalTrialRemainingMs: number;
   /** @nullable */
   signalTrialReminderSentAt: string | null;
+  /** @nullable */
+  signalAccessStartedAt: string | null;
+  signalPairsRemaining: number | null;
+  signalPairAllowance: number;
   bots: AdminUserBot[];
   transactions: AdminTransaction[];
 }

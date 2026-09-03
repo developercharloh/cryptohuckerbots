@@ -389,7 +389,7 @@ export default function Trade() {
     if (vipAccess?.vip2Required) {
       toast({
         title: "VIP 2 required",
-        description: "Your signal access window has ended. Upgrade to VIP 2 to continue receiving signals.",
+        description: "Your 60 signal-pair allowance has been completed. Upgrade to VIP 2 to continue receiving signals.",
       });
       return;
     }
@@ -436,7 +436,7 @@ export default function Trade() {
     if (vipAccess?.vip2Required) {
       toast({
         title: "VIP 2 required",
-        description: "Your signal access window has ended. Upgrade to VIP 2 to continue receiving and executing signals.",
+        description: "Your 60 signal-pair allowance has been completed. Upgrade to VIP 2 to continue receiving and executing signals.",
       });
       setLocation("/vip-packages");
       return;
@@ -461,7 +461,7 @@ export default function Trade() {
         title: cooldownActive ? "24-hour cooldown active" : "Daily signal allowance reached",
         description: cooldownActive
           ? `No new signals can execute for ${formatCooldown(cooldownSeconds)}.`
-          : "Your signal allowance will be available again after the current signal window.",
+          : "Your daily allowance will be available again after the 24-hour cooldown.",
       });
       return;
     }
@@ -527,7 +527,7 @@ export default function Trade() {
     if (vipAccess?.vip2Required) {
       toast({
         title: "VIP 2 required",
-        description: "Your signal access window has ended. Upgrade to VIP 2 to continue receiving and executing signals.",
+        description: "Your 60 signal-pair allowance has been completed. Upgrade to VIP 2 to continue receiving and executing signals.",
       });
       setLocation("/vip-packages");
       return;
@@ -552,7 +552,7 @@ export default function Trade() {
         title: cooldownActive ? "24-hour cooldown active" : "Daily signal allowance reached",
         description: cooldownActive
           ? `No new signals can execute for ${formatCooldown(cooldownSeconds)}.`
-          : "Your signal allowance will be available again after the current signal window.",
+          : "Your daily allowance will be available again after the 24-hour cooldown.",
       });
       return;
     }
@@ -653,27 +653,15 @@ export default function Trade() {
     : 0;
   const cooldownActive = cooldownSeconds > 0;
   const withdrawalGateActive = Boolean(vipAccess?.withdrawalGateActive);
-  const signalTrialEndsAtMs = vipAccess?.signalTrialEndsAt
-    ? new Date(vipAccess.signalTrialEndsAt).getTime()
-    : 0;
-  const signalTrialSeconds = signalTrialEndsAtMs > cooldownNowMs
-    ? Math.ceil((signalTrialEndsAtMs - cooldownNowMs) / 1000)
-    : 0;
-  const signalTrialActive = Boolean(vipAccess?.signalTrialActive) && signalTrialSeconds > 0;
-  const formatSignalWindow = (totalSeconds: number) => {
-    const days = Math.floor(totalSeconds / 86400);
-    const hours = Math.floor((totalSeconds % 86400) / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    return `${days}d ${hours}h ${minutes}m ${seconds}s`;
-  };
+  const signalTrialActive = Boolean(vipAccess?.signalTrialActive);
+  const signalPairsRemaining = vipAccess?.signalPairsRemaining ?? 0;
 
   useEffect(() => {
-    if (!vipAccess?.cooldownUntil && !vipAccess?.signalTrialEndsAt) return;
+    if (!vipAccess?.cooldownUntil) return;
     setCooldownNowMs(Date.now());
     const id = setInterval(() => setCooldownNowMs(Date.now()), 1000);
     return () => clearInterval(id);
-  }, [vipAccess?.cooldownUntil, vipAccess?.signalTrialEndsAt]);
+  }, [vipAccess?.cooldownUntil]);
 
   useEffect(() => {
     if (!vipAccess?.cooldownUntil || cooldownActive) return;
@@ -907,7 +895,9 @@ export default function Trade() {
                     </div>
                     <div style={{ textAlign: "right" }}>
                       <p style={{ fontSize: 12, color: "#fff", fontWeight: 800 }}>
-                        {vipAccess.remainingToday} of {vipAccess.dailyLimit} left
+                         {vipAccess.vipLevel === 1 && vipAccess.signalPairsRemaining !== null
+                           ? `${signalPairsRemaining} pairs remaining`
+                           : `${vipAccess.remainingToday} of ${vipAccess.dailyLimit} left`}
                       </p>
                       <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 3 }}>
                          {vipAccess.hasPackage
@@ -931,7 +921,7 @@ export default function Trade() {
                          <div style={{ flex: 1 }}>
                            <p style={{ fontSize: 12, fontWeight: 900, color: "#FDE68A" }}>VIP 2 required</p>
                            <p style={{ fontSize: 10, color: "#FDE68A", lineHeight: 1.5, marginTop: 4 }}>
-                             Your signal access window has ended. Upgrade to VIP 2 to continue receiving and executing signals.
+                              You have completed all 60 signal pairs. Upgrade to VIP 2 to continue receiving and executing signals.
                            </p>
                          </div>
                        </div>
@@ -952,12 +942,12 @@ export default function Trade() {
                        gap: 12,
                      }}>
                        <div>
-                         <p style={{ fontSize: 9, color: "#93C5FD", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 800 }}>Signal access window</p>
+                          <p style={{ fontSize: 9, color: "#93C5FD", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 800 }}>Signal pair allowance</p>
                          <p style={{ fontSize: 16, color: "#fff", fontWeight: 900, marginTop: 3, fontFamily: "monospace" }}>
-                           {formatSignalWindow(signalTrialSeconds)}
+                            {signalPairsRemaining} pairs remaining
                          </p>
                        </div>
-                       <p style={{ fontSize: 9, color: "#BFDBFE", textAlign: "right", lineHeight: 1.4 }}>remaining<br />server timed</p>
+                        <p style={{ fontSize: 9, color: "#BFDBFE", textAlign: "right", lineHeight: 1.4 }}>2 signals<br />use 1 pair</p>
                      </div>
                    ) : vipAccess.withdrawalGateActive ? (
                      <div style={{

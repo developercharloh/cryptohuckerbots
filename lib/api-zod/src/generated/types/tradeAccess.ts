@@ -38,6 +38,9 @@ export interface TradeAccess {
   signalTrialEndsAt: Date | null;
   /** @minimum 0 */
   signalTrialRemainingMs: number;
+  signalAccessStartedAt: Date | null;
+  signalPairsRemaining: number | null;
+  signalPairAllowance: number;
   vip2Required: boolean;
   timezone: string;
   nextSignalAt: Date | null;

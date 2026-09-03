@@ -651,6 +651,9 @@ export const ListTradeSignalsResponseItem = zod.object({
   "signalTrialStartedAt": zod.coerce.date().nullable(),
   "signalTrialEndsAt": zod.coerce.date().nullable(),
   "signalTrialRemainingMs": zod.number().min(listTradeSignalsResponseSignalTrialRemainingMsMin),
+  "signalAccessStartedAt": zod.coerce.date().nullable(),
+  "signalPairsRemaining": zod.number().nullable(),
+  "signalPairAllowance": zod.number(),
   "vip2Required": zod.boolean()
 })
 export const ListTradeSignalsResponse = zod.array(ListTradeSignalsResponseItem)
@@ -696,6 +699,9 @@ export const GetTradeAccessResponse = zod.object({
   "signalTrialStartedAt": zod.coerce.date().nullable(),
   "signalTrialEndsAt": zod.coerce.date().nullable(),
   "signalTrialRemainingMs": zod.number().min(getTradeAccessResponseSignalTrialRemainingMsMin),
+  "signalAccessStartedAt": zod.coerce.date().nullable(),
+  "signalPairsRemaining": zod.number().nullable(),
+  "signalPairAllowance": zod.number(),
   "vip2Required": zod.boolean(),
   "timezone": zod.string(),
   "nextSignalAt": zod.coerce.date().nullable(),
@@ -1248,7 +1254,10 @@ export const AdminListUsersResponseItem = zod.object({
   "signalTrialStartedAt": zod.string().nullable(),
   "signalTrialEndsAt": zod.string().nullable(),
   "signalTrialRemainingMs": zod.number().min(adminListUsersResponseSignalTrialRemainingMsMin),
-  "signalTrialReminderSentAt": zod.string().nullable()
+  "signalTrialReminderSentAt": zod.string().nullable(),
+  "signalAccessStartedAt": zod.string().nullable(),
+  "signalPairsRemaining": zod.number().nullable(),
+  "signalPairAllowance": zod.number()
 })
 export const AdminListUsersResponse = zod.array(AdminListUsersResponseItem)
 
@@ -1287,6 +1296,9 @@ export const AdminGetUserResponse = zod.object({
   "signalTrialEndsAt": zod.string().nullable(),
   "signalTrialRemainingMs": zod.number().min(adminGetUserResponseSignalTrialRemainingMsMin),
   "signalTrialReminderSentAt": zod.string().nullable(),
+  "signalAccessStartedAt": zod.string().nullable(),
+  "signalPairsRemaining": zod.number().nullable(),
+  "signalPairAllowance": zod.number(),
   "bots": zod.array(zod.object({
   "id": zod.number(),
   "botId": zod.number(),

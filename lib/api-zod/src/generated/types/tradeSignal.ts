@@ -31,5 +31,8 @@ export interface TradeSignal {
   signalTrialEndsAt: Date | null;
   /** @minimum 0 */
   signalTrialRemainingMs: number;
+  signalAccessStartedAt: Date | null;
+  signalPairsRemaining: number | null;
+  signalPairAllowance: number;
   vip2Required: boolean;
 }

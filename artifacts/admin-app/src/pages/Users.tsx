@@ -197,7 +197,7 @@ export default function Users() {
                            <div className="flex items-center gap-3 mt-1">
                              <span className="text-[11px] font-mono font-bold text-primary/80 bg-primary/8 px-1.5 py-0.5 rounded">{user.accountUid}</span>
                              <span className="text-[11px] text-muted-foreground">{user.totalBots} bots</span>
-                               {user.signalTrialActive && <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-emerald-500/30 text-emerald-400">Signal window active</Badge>}
+                               {user.signalTrialActive && <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-emerald-500/30 text-emerald-400">Signal pairs active</Badge>}
                                {user.signalTrialExpired && <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-amber-500/30 text-amber-400">VIP 2 required</Badge>}
                            </div>
                            <div className="grid grid-cols-3 gap-2 mt-2 max-w-md">
