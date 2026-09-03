@@ -62,3 +62,9 @@ Fresh linked Vercel builds can select a different pnpm major than the workspace 
 **Why:** A cold admin build selected pnpm 11 and blocked esbuild, while pinning pnpm 9 then exposed a lockfile override mismatch. Pinning the workspace's pnpm 10 version restored clean builds for all three linked projects.
 
 **How to apply:** Check the local pnpm version and lockfile generation before a source-triggered publish, set `packageManager` to that exact version, and verify every artifact reaches `READY` for the pushed commit.
+
+Vercel's remote rebuild can produce different Vite content hashes from the local build even when the source commit is identical.
+
+**Why:** Build-environment details such as dependency resolution or bundler output can change hashed filenames without changing application behavior.
+
+**How to apply:** Verify the production HTML's current entry bundle, follow its lazy-chunk references, and inspect the live lazy chunk for the user-visible change instead of requesting a locally generated hash.
