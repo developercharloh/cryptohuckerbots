@@ -1002,7 +1002,7 @@ router.get("/admin/transactions", async (req, res) => {
   const filters = [];
   if (type && type !== "all") filters.push(eq(transactionsTable.type, type));
   if (status && status !== "all") filters.push(eq(transactionsTable.status, status));
-  // Deposit requests without a submitted transaction hash are never an admin
+  // Deposit requests without a submitted Txid are never an admin
   // finance item. This also hides legacy rows created before hash enforcement.
   filters.push(or(ne(transactionsTable.type, "deposit"), isNotNull(transactionsTable.txid)));
 
@@ -1081,7 +1081,7 @@ router.post("/admin/transactions/:id/review", async (req, res) => {
     .limit(1);
   if (!row) return res.status(404).json({ error: "Transaction not found" });
   if (row.txn.type === "deposit" && !row.txn.txid) {
-    return res.status(400).json({ error: "Deposit cannot be reviewed without a transaction hash" });
+    return res.status(400).json({ error: "Deposit cannot be reviewed without a Txid" });
   }
   if (row.txn.status !== "pending") {
     return res.status(409).json({ error: "Transaction has already been reviewed" });
@@ -1149,7 +1149,7 @@ router.get("/admin/deposit-sessions", async (req, res) => {
 router.post("/admin/deposit-reconciliation/lookup", async (req, res) => {
   const rawTxid = req.body?.txid;
   if (typeof rawTxid !== "string" || !/^0x[a-fA-F0-9]{64}$/.test(rawTxid.trim())) {
-    return res.status(400).json({ error: "Enter a valid BNB Smart Chain transaction hash" });
+    return res.status(400).json({ error: "Enter a valid BNB Smart Chain Txid" });
   }
   const txid = rawTxid.trim();
   const [row] = await db
@@ -1186,7 +1186,7 @@ router.post("/admin/deposit-reconciliation/lookup", async (req, res) => {
     .leftJoin(usersTable, eq(transactionsTable.userId, usersTable.id))
     .where(and(eq(transactionsTable.type, "deposit"), eq(transactionsTable.txid, txid)))
     .limit(1);
-  if (!legacy?.user) return res.status(404).json({ error: "Transaction hash was not found" });
+  if (!legacy?.user) return res.status(404).json({ error: "Txid was not found" });
   return res.json({
     sessionId: null,
     transactionId: legacy.transaction.id,
@@ -1215,10 +1215,10 @@ router.post("/admin/deposit-sessions/:id/review", async (req, res) => {
   if (!sessions[0]) return res.status(404).json({ error: "Deposit session not found" });
   const session = sessions[0];
   if (!session.txid) {
-    return res.status(400).json({ error: "Deposit cannot be reviewed without a transaction hash" });
+    return res.status(400).json({ error: "Deposit cannot be reviewed without a Txid" });
   }
   if (typeof txid === "string" && txid.trim() !== session.txid) {
-    return res.status(400).json({ error: "The transaction hash does not match this deposit" });
+    return res.status(400).json({ error: "The Txid does not match this deposit" });
   }
 
   if (action === "detect") {
@@ -1247,7 +1247,7 @@ router.post("/admin/deposit-sessions/:id/review", async (req, res) => {
         return { error: "Deposit has already been reconciled" } as const;
       }
       if (!lockedSession.txid) {
-        return { error: "Deposit cannot be reconciled without a transaction hash" } as const;
+        return { error: "Deposit cannot be reconciled without a Txid" } as const;
       }
 
       const [txn] = await tx.insert(transactionsTable).values({

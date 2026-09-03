@@ -7,7 +7,7 @@ import { CreateWithdrawalBody, PrepareWithdrawalBody } from "@workspace/api-zod"
 import { sendPushToAllAdmins } from "../lib/webPush";
 import { notifyAdminTransaction } from "../lib/loginAlarm";
 import { calculateWalletSnapshot } from "../utils/balance.js";
-import { BSC_PAYMENT_METHOD, isBscTransactionHash, validateBscWithdrawal } from "../lib/payment-methods";
+import { BSC_PAYMENT_METHOD, isBscTxid, validateBscWithdrawal } from "../lib/payment-methods";
 
 const router = Router();
 
@@ -20,7 +20,7 @@ function hashConfirmationToken(token: string): string {
 }
 
 function isValidTxid(value: unknown): value is string {
-  return typeof value === "string" && isBscTransactionHash(value);
+  return typeof value === "string" && isBscTxid(value);
 }
 
 function mapSession(s: typeof depositSessionsTable.$inferSelect) {
@@ -112,12 +112,12 @@ router.post("/cashier/deposit/session/:id/txid", async (req, res) => {
 
   if (!sessions[0]) return res.status(404).json({ error: "Not found" });
   if (!["waiting_payment", "payment_detected"].includes(sessions[0].status)) {
-    return res.status(400).json({ error: "Cannot update TXID at this stage" });
+    return res.status(400).json({ error: "Cannot update Txid at this stage" });
   }
 
   const { txid } = req.body as { txid?: unknown };
   if (!isValidTxid(txid)) {
-    return res.status(400).json({ error: "Enter a valid BNB Smart Chain transaction hash" });
+    return res.status(400).json({ error: "Enter a valid BNB Smart Chain Txid" });
   }
   const normalizedTxid = txid.trim();
 
@@ -128,7 +128,7 @@ router.post("/cashier/deposit/session/:id/txid", async (req, res) => {
       .where(eq(transactionsTable.txid, normalizedTxid)).limit(1),
   ]);
   if (existingSession[0] || existingTransaction[0]) {
-    return res.status(409).json({ error: "This transaction hash has already been submitted" });
+    return res.status(409).json({ error: "This Txid has already been submitted" });
   }
 
   try {
@@ -140,7 +140,7 @@ router.post("/cashier/deposit/session/:id/txid", async (req, res) => {
     return res.json(mapSession(updated));
   } catch (error: any) {
     if (error?.code === "23505") {
-      return res.status(409).json({ error: "This transaction hash has already been submitted" });
+      return res.status(409).json({ error: "This Txid has already been submitted" });
     }
     throw error;
   }
@@ -158,7 +158,7 @@ router.post("/cashier/deposit", async (req, res) => {
     return res.status(400).json({ error: "Only USDT on BNB Smart Chain (BEP-20) is supported" });
   }
   if (!isValidTxid(txid)) {
-    return res.status(400).json({ error: "A valid BNB Smart Chain transaction hash is required" });
+    return res.status(400).json({ error: "A valid BNB Smart Chain Txid is required" });
   }
   const normalizedTxid = txid.trim();
   const [existingSession, existingTransaction] = await Promise.all([
@@ -168,7 +168,7 @@ router.post("/cashier/deposit", async (req, res) => {
       .where(eq(transactionsTable.txid, normalizedTxid)).limit(1),
   ]);
   if (existingSession[0] || existingTransaction[0]) {
-    return res.status(409).json({ error: "This transaction hash has already been submitted" });
+    return res.status(409).json({ error: "This Txid has already been submitted" });
   }
 
   let txn;
@@ -185,7 +185,7 @@ router.post("/cashier/deposit", async (req, res) => {
     }).returning();
   } catch (error: any) {
     if (error?.code === "23505") {
-      return res.status(409).json({ error: "This transaction hash has already been submitted" });
+      return res.status(409).json({ error: "This Txid has already been submitted" });
     }
     throw error;
   }

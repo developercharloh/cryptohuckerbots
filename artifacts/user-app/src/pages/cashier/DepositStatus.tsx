@@ -147,7 +147,7 @@ export default function DepositStatus() {
   const submitTxid = useSubmitDepositTxid();
 
   const handleSubmitTxid = () => {
-    if (!txidInput.trim()) { toast({ title: "Enter your transaction ID", variant: "destructive" }); return; }
+    if (!txidInput.trim()) { toast({ title: "Enter your Txid", variant: "destructive" }); return; }
     const analyticsNetwork = session?.network === "BEP-20" ? "bsc_bep20" : "unknown";
     trackEvent("deposit_tx_hash_submission", { network: analyticsNetwork, result: "attempted" });
     submitTxid.mutate(
@@ -157,11 +157,11 @@ export default function DepositStatus() {
           trackEvent("deposit_tx_hash_submission", { network: analyticsNetwork, result: "success" });
           setTxidInput(updatedSession.txid ?? txidInput.trim());
           setHasSent(true);
-          toast({ title: "Transaction hash submitted" });
+          toast({ title: "Txid submitted" });
         },
         onError: (err: any) => {
           trackEvent("deposit_tx_hash_submission", { network: analyticsNetwork, result: "failure" });
-          toast({ title: "Failed to submit TXID", description: err.message, variant: "destructive" });
+          toast({ title: "Failed to submit Txid", description: err.message, variant: "destructive" });
         },
       }
     );
@@ -316,10 +316,10 @@ export default function DepositStatus() {
             <TStep label="Funds Credited"    done={false} active={false} sub="Waiting..." />
           </div>
 
-          {/* Transaction hash if available */}
+          {/* Txid if available */}
           {displayedTxid && (
             <div className="rounded-xl bg-card p-4 space-y-1.5">
-              <p className="text-xs text-muted-foreground font-medium">Transaction Hash / TX Address</p>
+              <p className="text-xs text-muted-foreground font-medium">Txid</p>
               <div className="flex items-center gap-2">
                 <code className="text-[10px] font-mono break-all flex-1 leading-snug">{displayedTxid}</code>
                 <CopyBtn text={displayedTxid} />
@@ -362,10 +362,10 @@ export default function DepositStatus() {
             <TStep label="Funds Credited"   done={false} active={false} sub="Waiting..." />
           </div>
 
-          {/* Submitted transaction hash */}
+          {/* Submitted Txid */}
           {displayedTxid && (
             <div className="rounded-2xl bg-card p-5 space-y-3">
-              <p className="text-sm font-semibold">Transaction Hash / TX Address</p>
+              <p className="text-sm font-semibold">Txid</p>
               <div className="flex items-center gap-2">
                 <code className="text-[10px] font-mono break-all flex-1 leading-snug">{displayedTxid}</code>
                 <CopyBtn text={displayedTxid} />
@@ -432,17 +432,17 @@ export default function DepositStatus() {
         {/* Copy Address button */}
         <CopyBtn text={depositAddress} label="Copy Address" />
 
-        {/* Transaction hash / TX address */}
+        {/* Txid */}
         <div className="rounded-2xl bg-card p-5 space-y-3">
-          <p className="text-sm font-semibold">Transaction Hash / TX Address</p>
+          <p className="text-sm font-semibold">Txid</p>
           <Input
             value={txidInput}
             onChange={(e) => setTxidInput(e.target.value)}
-            placeholder="Paste your BSC transaction hash"
+            placeholder="Paste your BSC Txid"
             className="bg-background border-none h-12 rounded-xl font-mono text-xs"
           />
           <p className="text-[11px] leading-relaxed text-muted-foreground">
-            Enter the transaction hash before confirming that you have made the deposit. It will be securely attached to this deposit for verification.
+            Enter the Txid before confirming that you have made the deposit. It will be securely attached to this deposit for verification.
           </p>
         </div>
 

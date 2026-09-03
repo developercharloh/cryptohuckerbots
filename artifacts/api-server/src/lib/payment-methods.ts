@@ -25,7 +25,7 @@ export function isBscWalletAddress(value: string): boolean {
   return /^0x[a-fA-F0-9]{40}$/.test(value.trim());
 }
 
-export function isBscTransactionHash(value: string): boolean {
+export function isBscTxid(value: string): boolean {
   return /^0x[a-fA-F0-9]{64}$/.test(value.trim());
 }
 

@@ -244,7 +244,7 @@ function DepositSessionsTab() {
   const handleLookup = () => {
     const txid = reconciliationInput.trim();
     if (!txid) {
-      toast({ title: "Transaction hash is required", variant: "destructive" });
+      toast({ title: "Txid is required", variant: "destructive" });
       return;
     }
     lookupReconciliation.mutate(
@@ -253,7 +253,7 @@ function DepositSessionsTab() {
         onSuccess: (result) => setReconciliation(result),
         onError: (err) => {
           setReconciliation(null);
-          toast({ title: "Hash not found", description: err.message, variant: "destructive" });
+          toast({ title: "Txid not found", description: err.message, variant: "destructive" });
         },
       },
     );
@@ -279,7 +279,7 @@ function DepositSessionsTab() {
             <div>
               <p className="text-sm font-semibold">Wallet reconciliation</p>
               <p className="text-[11px] text-muted-foreground">
-                Paste a BNB Smart Chain transaction hash from the wallet and confirm the matched account.
+                Paste a BNB Smart Chain Txid from the wallet and confirm the matched account.
               </p>
             </div>
           </div>
@@ -288,7 +288,7 @@ function DepositSessionsTab() {
               value={reconciliationInput}
               onChange={(event) => setReconciliationInput(event.target.value)}
               onKeyDown={(event) => { if (event.key === "Enter") handleLookup(); }}
-              placeholder="Paste transaction hash"
+              placeholder="Paste Txid"
               className="h-9 bg-background font-mono text-xs rounded-lg"
             />
             <Button
@@ -418,7 +418,7 @@ function DepositSessionsTab() {
                     <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 p-2.5 space-y-1">
                       <div className="flex items-center gap-1.5">
                         <ArrowUpRight className="w-3 h-3 text-blue-400" />
-                         <p className="text-[10px] text-blue-300 font-medium">Transaction Hash / TX Address</p>
+                         <p className="text-[10px] text-blue-300 font-medium">Txid</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <code className="text-[10px] font-mono break-all flex-1 leading-snug">{s.txid}</code>
