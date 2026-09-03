@@ -14,7 +14,6 @@ import {
   FileText,
   Gauge,
   LockKeyhole,
-  RefreshCw,
   ShieldCheck,
   TrendingDown,
   TrendingUp,
@@ -601,15 +600,6 @@ export default function Portfolio() {
             </div>
           </section>
 
-          <footer className="mt-8 flex items-start gap-3 rounded-2xl border border-sky-300/10 bg-sky-300/[0.045] px-4 py-4">
-            <RefreshCw className="mt-0.5 h-4 w-4 shrink-0 text-sky-300" />
-            <div>
-              <p className="text-xs font-semibold text-sky-100">A measured view is a safer view</p>
-              <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
-                Vault Capital is locked to the active VIP strategy and is not available for withdrawal. Performance figures describe past activity; they do not guarantee future results.
-              </p>
-            </div>
-          </footer>
         </div>
       </main>
     </Layout>
