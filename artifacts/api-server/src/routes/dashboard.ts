@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db, userBotsTable, botsTable, transactionsTable } from "@workspace/db";
-import { eq, desc, and, gte, sql } from "drizzle-orm";
+import { db, userBotsTable, botsTable, transactionsTable, positionsTable } from "@workspace/db";
+import { eq, desc, and, gte, sql, isNotNull } from "drizzle-orm";
 import { format, subDays, subMonths, subYears, startOfDay, startOfWeek, startOfMonth, startOfYear, eachDayOfInterval, eachMonthOfInterval, eachHourOfInterval } from "date-fns";
 import { getRequestToken, getUserForSession } from "../lib/session";
 import { composeAccountBalanceSnapshot, getVaultCapitalSnapshot, getWalletSnapshot } from "../utils/balance.js";
@@ -23,7 +23,7 @@ router.get("/dashboard/summary", async (req, res) => {
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
-  const [userBots, wallet, vault, [profit]] = await Promise.all([
+  const [userBots, wallet, vault, [profit], [tradeStats]] = await Promise.all([
     db.select().from(userBotsTable).where(eq(userBotsTable.userId, user.id)),
     getWalletSnapshot(user.id),
     getVaultCapitalSnapshot(user.id).catch((err) => {
@@ -53,6 +53,13 @@ router.get("/dashboard/summary", async (req, res) => {
            then -${transactionsTable.amount}
          else 0 end), 0)`,
      }).from(transactionsTable).where(eq(transactionsTable.userId, user.id)),
+    db.select({
+      totalTrades: sql<string>`count(*)`,
+      winningTrades: sql<string>`count(*) filter (where coalesce(${positionsTable.realizedPnl}, 0) > 0)`,
+    }).from(positionsTable).where(and(
+      eq(positionsTable.userId, user.id),
+      isNotNull(positionsTable.closedAt),
+    )),
   ]);
 
   const activeBots = userBots.filter(b => b.status === "running");
@@ -62,8 +69,9 @@ router.get("/dashboard/summary", async (req, res) => {
   const vaultCapital = account.vaultCapital;
   const todayProfit = Number(profit?.todayProfit ?? 0);
   const totalEarnings = Number(profit?.totalProfit ?? 0);
-  const totalTrades = userBots.reduce((sum, b) => sum + (b.totalTrades ?? 0), 0);
-  const winRate = userBots.length > 0 ? 72 + (user.id % 20) : 0; // deterministic per user
+   const totalTrades = Number(tradeStats?.totalTrades ?? 0);
+   const winningTrades = Number(tradeStats?.winningTrades ?? 0);
+   const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0;
 
   // Compute ROI as totalEarnings / totalDeposited * 100
   const totalDeposited = wallet.totalDeposited;

@@ -372,11 +372,13 @@ test("deposit funding does not grant VIP, purchase unlocks access, and purchases
     assert.equal(settled.pnl, 1.5);
   assert.equal(settled.status, "tp_hit");
 
-  const afterClose = await request<{ mainWalletBalance: number; vaultCapital: number; portfolioBalance: number; totalProfit: number }>("/api/dashboard/summary");
+   const afterClose = await request<{ mainWalletBalance: number; vaultCapital: number; portfolioBalance: number; totalProfit: number; totalTrades: number; winRate: number }>("/api/dashboard/summary");
     assert.equal(afterClose.body.mainWalletBalance, 49471.5);
    assert.equal(afterClose.body.vaultCapital, 350);
     assert.equal(afterClose.body.portfolioBalance, 49821.5);
     assert.equal(afterClose.body.totalProfit, 1.5);
+    assert.equal(afterClose.body.totalTrades, 1);
+    assert.equal(afterClose.body.winRate, 100);
 
   const signalRewards = await db.select({
     type: transactionsTable.type,

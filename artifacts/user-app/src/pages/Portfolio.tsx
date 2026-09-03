@@ -169,6 +169,8 @@ export default function Portfolio() {
   const vault = safeNumber(summary?.vaultCapital ?? summary?.lockedInvestmentCapital);
   const pending = safeNumber(summary?.pendingOutflow);
   const available = safeNumber(summary?.availableBalance);
+  const settledTrades = safeNumber(summary?.totalTrades);
+  const hasSettledTrades = settledTrades > 0;
   const walletShare = total > 0 ? Math.min(100, Math.max(0, (wallet / total) * 100)) : 0;
 
   const chartGeometry = useMemo(() => {
@@ -370,7 +372,7 @@ export default function Portfolio() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-2 text-xs text-slate-400"><CheckCircle2 className="h-4 w-4 text-emerald-300" /> Win rate</span>
-                  <strong className="font-mono text-sm text-slate-100">{safeNumber(summary?.winRate).toFixed(1)}%</strong>
+                  <strong className="font-mono text-sm text-slate-100">{hasSettledTrades ? `${safeNumber(summary?.winRate).toFixed(1)}%` : "—"}</strong>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-2 text-xs text-slate-400"><TrendingUp className="h-4 w-4 text-sky-300" /> Return on investment</span>
@@ -378,7 +380,7 @@ export default function Portfolio() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-2 text-xs text-slate-400"><Activity className="h-4 w-4 text-amber-200" /> Total trades</span>
-                  <strong className="font-mono text-sm text-slate-100">{safeNumber(summary?.totalTrades).toLocaleString()}</strong>
+                  <strong className="font-mono text-sm text-slate-100">{settledTrades.toLocaleString()}</strong>
                 </div>
               </div>
               <Link href="/dashboard" className="mt-6 flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.035] px-3.5 py-3 text-xs font-semibold text-slate-300 transition-colors hover:bg-white/[0.08]">
@@ -396,7 +398,7 @@ export default function Portfolio() {
             <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
               <Metric label="Total profit" value={formatUSD(summary?.totalProfit)} detail={`${safeNumber(summary?.earningsChangePercent) >= 0 ? "+" : ""}${safeNumber(summary?.earningsChangePercent).toFixed(2)}% vs prior period`} accent="gold" loading={summaryQuery.isLoading} />
               <Metric label="Today profit" value={formatUSD(summary?.todayProfit)} detail="Closed positions only" accent="green" loading={summaryQuery.isLoading} />
-              <Metric label="Win rate" value={`${safeNumber(summary?.winRate).toFixed(1)}%`} detail={`${safeNumber(summary?.totalTrades).toLocaleString()} recorded trades`} accent="blue" loading={summaryQuery.isLoading} />
+              <Metric label="Win rate" value={hasSettledTrades ? `${safeNumber(summary?.winRate).toFixed(1)}%` : "—"} detail={hasSettledTrades ? `${settledTrades.toLocaleString()} settled trades` : "Not recorded yet"} accent="blue" loading={summaryQuery.isLoading} />
               <Metric label="Active bots" value={safeNumber(summary?.activeBots).toLocaleString()} detail={`${safeNumber(summary?.totalBots).toLocaleString()} strategies connected`} accent="slate" loading={summaryQuery.isLoading} />
             </div>
           </section>
