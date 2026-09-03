@@ -27,7 +27,7 @@ import {
   technicalIncidentsTable,
   type PaymentMethod,
 } from "@workspace/db";
-import { eq, and, desc, sql, inArray, ilike, or, gte, isNotNull, ne } from "drizzle-orm";
+import { eq, and, desc, sql, inArray, ilike, or, gte, isNotNull, ne, lt } from "drizzle-orm";
 import crypto from "crypto";
 import {
   calculateVaultCapital,
@@ -243,6 +243,23 @@ router.delete("/admin/login-notifications/:id", async (req, res) => {
 });
 
 // ─── Technical Health ─────────────────────────────────────────────────────────
+const TECHNICAL_INCIDENT_STALE_MS = 30 * 60 * 1000;
+
+async function resolveStaleTechnicalIncidents(): Promise<void> {
+  const staleBefore = new Date(Date.now() - TECHNICAL_INCIDENT_STALE_MS);
+  await db
+    .update(technicalIncidentsTable)
+    .set({
+      status: "resolved",
+      resolvedAt: new Date(),
+      resolvedBy: null,
+    })
+    .where(and(
+      eq(technicalIncidentsTable.status, "active"),
+      lt(technicalIncidentsTable.lastSeenAt, staleBefore),
+    ));
+}
+
 router.get("/admin/technical-health", async (req, res) => {
   const checkedAt = new Date().toISOString();
   let databaseStatus: "healthy" | "critical" = "healthy";
@@ -254,6 +271,12 @@ router.get("/admin/technical-health", async (req, res) => {
     databaseStatus = "critical";
     databaseMessage = "Database check failed.";
     req.log?.error({ err: error }, "Technical health database check failed");
+  }
+
+  try {
+    await resolveStaleTechnicalIncidents();
+  } catch (error) {
+    req.log?.warn({ err: error }, "Technical health stale-incident cleanup failed");
   }
 
   const incidents = await db
@@ -737,12 +760,15 @@ router.post("/admin/users/:id/adjust-balance", async (req, res) => {
 
   const amount = parsed.data.amount;
   if (amount === 0) return res.status(400).json({ error: "Amount cannot be zero" });
+  if (!Number.isFinite(amount) || Math.abs(amount) < 0.01 || Math.abs(amount) > 9_999_999_999.99) {
+    return res.status(400).json({ error: "Amount must be between $0.01 and $9,999,999,999.99." });
+  }
   const note = parsed.data.note?.trim() || "Admin balance adjustment";
 
   await db.insert(transactionsTable).values({
     userId: id,
     type: amount >= 0 ? "deposit" : "withdrawal",
-    amount: Math.abs(amount).toString(),
+    amount: Math.abs(amount).toFixed(2),
     status: "completed",
     paymentMethod: "admin",
     description: note,

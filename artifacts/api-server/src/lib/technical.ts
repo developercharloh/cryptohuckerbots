@@ -17,6 +17,17 @@ const MAX_MESSAGE_LENGTH = 320;
 const MAX_ROUTE_LENGTH = 255;
 const MAX_EVENT_LENGTH = 100;
 
+function shouldIgnore(input: TechnicalIncidentInput): boolean {
+  // Rejected cross-origin requests are an intentional security response. They
+  // must not pollute the operational incident list or make the system look
+  // unhealthy when the CORS policy is doing its job.
+  return (
+    input.source === "api" &&
+    input.statusCode === 403 &&
+    /not allowed by cors/i.test(input.message ?? "")
+  );
+}
+
 function redact(value: string, maxLength: number): string {
   return value
     .replace(/bearer\s+[a-z0-9._-]+/gi, "bearer [redacted]")
@@ -38,6 +49,8 @@ function normalizeRoute(route: string | undefined): string {
 }
 
 export async function recordTechnicalIncident(input: TechnicalIncidentInput): Promise<void> {
+  if (shouldIgnore(input)) return;
+
   const event = redact(input.event || "unknown_error", MAX_EVENT_LENGTH) || "unknown_error";
   const route = normalizeRoute(input.route);
   const message = redact(input.message || "Unexpected technical error", MAX_MESSAGE_LENGTH) || "Unexpected technical error";

@@ -3,6 +3,7 @@ import { Switch, Route, Router as WouterRouter } from "wouter";
 
 const CHUNK_RECOVERY_KEY = "vixus_chunk_recovery_attempts";
 const CHUNK_RECOVERY_MAX_ATTEMPTS = 3;
+let chunkRecoveryStarted = false;
 
 function isChunkLoadError(error: unknown): boolean {
   const message = typeof error === "string"
@@ -34,9 +35,11 @@ async function recoverFromStaleClient(force = false): Promise<void> {
       );
     }
   } finally {
-    // Reload the current route without exposing a cache-busting query string
-    // or an internal recovery URL to the user.
-    window.location.reload();
+    // Change the request URL so the browser must fetch the latest no-cache
+    // application shell instead of retrying a stale HTML document.
+    const refreshUrl = new URL(window.location.href);
+    refreshUrl.searchParams.set("vixus_refresh", String(Date.now()));
+    window.location.replace(refreshUrl.toString());
   }
 }
 
@@ -44,6 +47,8 @@ function watchForChunkFailures() {
   if (typeof window === "undefined") return;
   const recover = (error: unknown) => {
     if (isChunkLoadError(error)) {
+      if (chunkRecoveryStarted) return;
+      chunkRecoveryStarted = true;
       reportTechnicalError({
         event: "chunk_load_failed",
         message: "A page resource failed to load.",
@@ -58,10 +63,6 @@ function watchForChunkFailures() {
   };
   window.addEventListener("error", (event) => recover(event.error ?? event.message));
   window.addEventListener("unhandledrejection", (event) => {
-    reportTechnicalError({
-      event: "unhandled_promise_rejection",
-      message: event.reason instanceof Error ? event.reason.message : String(event.reason || "Unhandled promise rejection"),
-    });
     recover(event.reason);
   });
   window.addEventListener("vixus-api-error", ((event: CustomEvent) => {
@@ -94,10 +95,17 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
     return { hasError: true };
   }
   componentDidCatch(err: Error) {
-    reportTechnicalError({ event: "react_render_error", message: err.message });
     if (isChunkLoadError(err)) {
+      if (chunkRecoveryStarted) return;
+      chunkRecoveryStarted = true;
+      reportTechnicalError({
+        event: "chunk_load_failed",
+        message: "A page resource failed to load.",
+      });
       void recoverFromStaleClient();
+      return;
     }
+    reportTechnicalError({ event: "react_render_error", message: err.message });
   }
   render() {
     if (this.state.hasError) {
