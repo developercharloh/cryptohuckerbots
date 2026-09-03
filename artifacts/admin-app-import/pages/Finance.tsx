@@ -266,7 +266,7 @@ function DepositSessionsTab() {
                     <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 p-2.5 space-y-1">
                       <div className="flex items-center gap-1.5">
                         <ArrowUpRight className="w-3 h-3 text-blue-400" />
-                        <p className="text-[10px] text-blue-300 font-medium">Transaction ID submitted</p>
+                        <p className="text-[10px] text-blue-300 font-medium">Txid submitted</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <code className="text-[10px] font-mono break-all flex-1 leading-snug">{s.txid}</code>

@@ -554,7 +554,7 @@ paths:
               $ref: "#/components/schemas/SubmitTxidInput"
       responses:
         "200":
-          description: TXID submitted
+          description: Txid submitted
           content:
             application/json:
               schema:
