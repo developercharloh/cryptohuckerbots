@@ -212,6 +212,7 @@ export const transactionsTable = pgTable("transactions", {
   status: varchar("status", { length: 50 }).notNull().default("pending"),
   paymentMethod: varchar("payment_method", { length: 100 }).notNull(),
   walletAddress: text("wallet_address"),
+  txid: varchar("txid", { length: 255 }),
   description: text("description"),
   cryptoAmount: numeric("crypto_amount", { precision: 20, scale: 8 }),
   cryptoAsset: varchar("crypto_asset", { length: 20 }),
@@ -221,6 +222,7 @@ export const transactionsTable = pgTable("transactions", {
   index("transactions_user_created_at_idx").on(table.userId, table.createdAt),
   index("transactions_user_status_created_at_idx").on(table.userId, table.status, table.createdAt),
   index("transactions_status_type_created_at_idx").on(table.status, table.type, table.createdAt),
+  uniqueIndex("transactions_txid_unique").on(table.txid),
 ]);
 
 export type Transaction = typeof transactionsTable.$inferSelect;
@@ -307,9 +309,30 @@ export const depositSessionsTable = pgTable("deposit_sessions", {
 }, (table) => [
   index("deposit_sessions_user_created_at_idx").on(table.userId, table.createdAt),
   index("deposit_sessions_status_expires_at_idx").on(table.status, table.expiresAt),
+  uniqueIndex("deposit_sessions_txid_unique").on(table.txid),
 ]);
 
 export type DepositSession = typeof depositSessionsTable.$inferSelect;
+
+// A short-lived, one-time server challenge is required before a withdrawal can
+// be created. The raw token is never stored, so a database leak cannot replay
+// an unconsumed withdrawal confirmation.
+export const withdrawalConfirmationsTable = pgTable("withdrawal_confirmations", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  tokenHash: varchar("token_hash", { length: 64 }).notNull().unique(),
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  paymentMethod: varchar("payment_method", { length: 100 }).notNull(),
+  walletAddress: text("wallet_address").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  consumedAt: timestamp("consumed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  index("withdrawal_confirmations_user_created_at_idx").on(table.userId, table.createdAt),
+  index("withdrawal_confirmations_expires_at_idx").on(table.expiresAt),
+]);
+
+export type WithdrawalConfirmation = typeof withdrawalConfirmationsTable.$inferSelect;
 
 // Live Chat (user ↔ admin)
 export const chatMessagesTable = pgTable("chat_messages", {

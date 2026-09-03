@@ -627,6 +627,30 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /cashier/withdraw/prepare:
+    post:
+      operationId: prepareWithdrawal
+      tags: [cashier]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PrepareWithdrawalInput"
+      responses:
+        "200":
+          description: One-time withdrawal confirmation challenge
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WithdrawalConfirmation"
+        "400":
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /cashier/transactions:
     get:
       operationId: listTransactions
