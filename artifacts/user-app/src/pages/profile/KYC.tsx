@@ -150,13 +150,13 @@ export default function KYC() {
                 <div className="p-5 rounded-2xl bg-yellow-500/10 flex items-center gap-4">
                   <Clock className="w-10 h-10 text-yellow-500 shrink-0 animate-pulse" />
                   <div>
-                   <p className="font-bold text-yellow-500">Pending Admin Approval</p>
-                   <p className="text-xs text-muted-foreground mt-0.5">Your Didit submission is complete and is waiting for VIXUS Support to review and approve it.</p>
+                   <p className="font-bold text-yellow-500">Pending Review</p>
+                   <p className="text-xs text-muted-foreground mt-0.5">Your Didit submission is complete and is currently being reviewed. We’ll update your verification status when the review is complete.</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-2 text-xs text-muted-foreground bg-card/60 rounded-xl p-3">
                   <ShieldCheck className="w-4 h-4 shrink-0 text-primary mt-0.5" />
-                   <span>Your KYC status will update after an admin makes the final approval decision.</span>
+                    <span>Your KYC status will update once the review is complete.</span>
                 </div>
               </div>
             )}

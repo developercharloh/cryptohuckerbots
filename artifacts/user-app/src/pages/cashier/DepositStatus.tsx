@@ -370,7 +370,7 @@ export default function DepositStatus() {
                 <code className="text-[10px] font-mono break-all flex-1 leading-snug">{displayedTxid}</code>
                 <CopyBtn text={displayedTxid} />
               </div>
-              <p className="text-xs text-muted-foreground">This hash has been sent to the admin deposit review screen.</p>
+              <p className="text-xs text-muted-foreground">This hash has been submitted for verification.</p>
             </div>
           )}
 
@@ -442,7 +442,7 @@ export default function DepositStatus() {
             className="bg-background border-none h-12 rounded-xl font-mono text-xs"
           />
           <p className="text-[11px] leading-relaxed text-muted-foreground">
-            Enter the transaction hash before confirming that you have made the deposit. It will be visible to the admin with this deposit address.
+            Enter the transaction hash before confirming that you have made the deposit. It will be securely attached to this deposit for verification.
           </p>
         </div>
 
