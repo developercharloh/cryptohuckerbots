@@ -233,9 +233,11 @@ Your continued use of VIXUS after revised Terms become effective constitutes acc
 
 Your use of VIXUS is also subject to the VIXUS Privacy Policy, which describes how personal information may be collected, processed, stored, protected, and disclosed.
 
+
+
 24. SEVERABILITY
 
-If any provision of these Terms is found to be invalid or unenforceable, the remaining provisions will continue in effect to the maximum extent.\u0020\u0020
+If any provision of these Terms is found to be invalid or unenforceable, the remaining provisions will continue in effect to the maximum extent.\u0020
 
 25. NO WAIVER
 
