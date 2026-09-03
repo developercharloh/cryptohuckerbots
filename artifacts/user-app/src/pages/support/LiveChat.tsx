@@ -28,20 +28,24 @@ function attachmentUploadError() {
   return "Network error. Please check your connection and try again.";
 }
 
-function PrivateImage({ href, alt }: { href: string; alt: string }) {
-  const [src, setSrc] = useState<string>();
-  useEffect(() => {
-    let objectUrl: string | undefined;
-    void fetchWithTimeout(href, { credentials: "include" })
-      .then((response) => response.ok ? response.blob() : Promise.reject(new Error("Unable to load image.")))
-      .then((blob) => {
-        objectUrl = URL.createObjectURL(blob);
-        setSrc(objectUrl);
-      })
-      .catch(() => setSrc(undefined));
-    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
-  }, [href]);
-  return src ? <img src={src} alt={alt} className="max-h-48 max-w-full object-cover" /> : <div className="h-20 w-28 animate-pulse rounded-lg bg-background/20" />;
+function PrivateImage({ href, alt, filename }: { href: string; alt: string; filename: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return (
+      <span className="flex min-h-20 min-w-28 items-center justify-center rounded-lg bg-background/20 px-2 text-center text-[10px] underline">
+        {filename}
+      </span>
+    );
+  }
+  return (
+    <img
+      src={href}
+      alt={alt}
+      loading="lazy"
+      onError={() => setFailed(true)}
+      className="max-h-48 max-w-full object-cover"
+    />
+  );
 }
 
 export default function LiveChat() {
@@ -235,7 +239,7 @@ export default function LiveChat() {
                           const href = `${API_BASE}${attachment.downloadUrl}`;
                           return isImage ? (
                             <a key={attachment.id} href={href} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl">
-                              <PrivateImage href={href} alt={attachment.filename} />
+                              <PrivateImage href={href} alt={attachment.filename} filename={attachment.filename} />
                             </a>
                           ) : (
                             <a key={attachment.id} href={href} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-lg bg-background/20 px-2.5 py-2 text-xs underline">

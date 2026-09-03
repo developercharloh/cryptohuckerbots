@@ -30,20 +30,24 @@ import { AdminChatAttachmentPicker, type AdminUploadedChatAttachment } from "@/c
 const statusTabs = ["open", "closed", "all"] as const;
 type MainTab = "tickets" | "chat";
 
-function PrivateImage({ href, alt }: { href: string; alt: string }) {
-  const [src, setSrc] = useState<string>();
-  useEffect(() => {
-    let objectUrl: string | undefined;
-    void fetch(href, { credentials: "include" })
-      .then((response) => response.ok ? response.blob() : Promise.reject(new Error("Unable to load image.")))
-      .then((blob) => {
-        objectUrl = URL.createObjectURL(blob);
-        setSrc(objectUrl);
-      })
-      .catch(() => setSrc(undefined));
-    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
-  }, [href]);
-  return src ? <img src={src} alt={alt} className="max-h-40 max-w-full object-cover" /> : <div className="h-16 w-24 animate-pulse rounded-lg bg-background/20" />;
+function PrivateImage({ href, alt, filename }: { href: string; alt: string; filename: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return (
+      <span className="flex min-h-16 min-w-24 items-center justify-center rounded-lg bg-background/20 px-2 text-center text-[10px] underline">
+        {filename}
+      </span>
+    );
+  }
+  return (
+    <img
+      src={href}
+      alt={alt}
+      loading="lazy"
+      onError={() => setFailed(true)}
+      className="max-h-40 max-w-full object-cover"
+    />
+  );
 }
 
 // ─── Tickets tab ─────────────────────────────────────────────────────────────
@@ -343,7 +347,7 @@ function ChatThread({
                         const href = `${API_BASE}${attachment.downloadUrl}`;
                         return attachment.contentType.startsWith("image/") ? (
                           <a key={attachment.id} href={href} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-lg">
-                            <PrivateImage href={href} alt={attachment.filename} />
+                            <PrivateImage href={href} alt={attachment.filename} filename={attachment.filename} />
                           </a>
                         ) : (
                           <a key={attachment.id} href={href} target="_blank" rel="noreferrer" className="block truncate rounded-md bg-background/20 px-2 py-1.5 text-[10px] underline">{attachment.filename}</a>
