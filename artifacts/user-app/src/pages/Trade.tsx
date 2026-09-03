@@ -1154,7 +1154,7 @@ export default function Trade() {
 
                    <p style={{ fontSize: 10, color: "#8D94A8", lineHeight: 1.5, marginTop: 11 }}>
                    {executionMode === "all"
-                     ? "Confirm once and the AI will select and execute the available pairs together."
+                     ? "Confirm once to let AI select and execute the highest-confidence pairs simultaneously."
                      : "Review the live signal, then confirm below to continue."}
                 </p>
                 <label style={{
