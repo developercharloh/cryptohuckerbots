@@ -5,12 +5,14 @@ import {
   useAdminListReferrals,
   useAdminListDepositSessions,
   useAdminReviewDepositSession,
+  useLookupDepositReconciliation,
+  type DepositReconciliation,
   getAdminListTransactionsQueryKey,
   getAdminListDepositSessionsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { CheckCircle, XCircle, Clock, Copy, Check, Eye, AlertTriangle, ArrowUpRight } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Copy, Check, Eye, AlertTriangle, ArrowUpRight, Search, ShieldCheck } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -188,12 +190,15 @@ function TransactionsTab() {
 function DepositSessionsTab() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [confirmInput, setConfirmInput] = useState<Record<number, string>>({});
+  const [reconciliationInput, setReconciliationInput] = useState("");
+  const [reconciliation, setReconciliation] = useState<DepositReconciliation | null>(null);
 
   const { data: sessions, isLoading } = useAdminListDepositSessions(
     { status: filterStatus !== "all" ? filterStatus : undefined },
     { query: { refetchInterval: 10000 } as any }
   );
   const reviewSession = useAdminReviewDepositSession();
+  const lookupReconciliation = useLookupDepositReconciliation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -217,6 +222,10 @@ function DepositSessionsTab() {
             result: "success",
           });
           toast({ title: "Deposit session updated" });
+          if (action === "approve") {
+            setReconciliation(null);
+            setReconciliationInput("");
+          }
           queryClient.invalidateQueries({ queryKey: getAdminListDepositSessionsQueryKey() });
         },
         onError: (err) => {
@@ -228,6 +237,24 @@ function DepositSessionsTab() {
           toast({ title: "Action failed", description: err.message, variant: "destructive" });
         },
       }
+    );
+  };
+
+  const handleLookup = () => {
+    const txid = reconciliationInput.trim();
+    if (!txid) {
+      toast({ title: "Transaction hash is required", variant: "destructive" });
+      return;
+    }
+    lookupReconciliation.mutate(
+      { data: { txid } },
+      {
+        onSuccess: (result) => setReconciliation(result),
+        onError: (err) => {
+          setReconciliation(null);
+          toast({ title: "Hash not found", description: err.message, variant: "destructive" });
+        },
+      },
     );
   };
 
@@ -244,6 +271,66 @@ function DepositSessionsTab() {
 
   return (
     <div className="space-y-3">
+      <Card className="rounded-2xl border-primary/30 bg-primary/5">
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-start gap-2">
+            <ShieldCheck className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold">Wallet reconciliation</p>
+              <p className="text-[11px] text-muted-foreground">
+                Paste a BNB Smart Chain transaction hash from the wallet and confirm the matched account.
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Input
+              value={reconciliationInput}
+              onChange={(event) => setReconciliationInput(event.target.value)}
+              onKeyDown={(event) => { if (event.key === "Enter") handleLookup(); }}
+              placeholder="Paste transaction hash"
+              className="h-9 bg-background font-mono text-xs rounded-lg"
+            />
+            <Button
+              size="sm"
+              onClick={handleLookup}
+              disabled={lookupReconciliation.isPending || !reconciliationInput.trim()}
+              className="h-9 rounded-lg shrink-0"
+            >
+              <Search className="w-3.5 h-3.5 mr-1.5" />
+              Find
+            </Button>
+          </div>
+          {reconciliation && (
+            <div className="rounded-xl border border-border bg-background/70 p-3 space-y-2">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold">{reconciliation.realName}</p>
+                  <p className="text-[11px] text-muted-foreground">{reconciliation.email}</p>
+                </div>
+                <Badge variant={reconciliation.alreadyReconciled ? "default" : "secondary"} className="text-[10px]">
+                  {reconciliation.alreadyReconciled ? "Already reconciled" : "Ready to reconcile"}
+                </Badge>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-[11px]">
+                <p className="text-muted-foreground">UID <span className="font-mono font-semibold text-foreground">{reconciliation.accountUid}</span></p>
+                <p className="text-right text-muted-foreground">Amount <span className="font-semibold text-emerald-400">${reconciliation.amount.toFixed(2)}</span></p>
+              </div>
+              <p className="text-[10px] text-muted-foreground break-all font-mono">{reconciliation.txid}</p>
+              {!reconciliation.alreadyReconciled && (
+                <Button
+                  className="w-full h-9 rounded-lg text-xs"
+                  onClick={() => act(reconciliation.sessionId, "approve", { txid: reconciliation.txid })}
+                  disabled={reviewSession.isPending}
+                >
+                  <CheckCircle className="w-3.5 h-3.5 mr-1.5" />
+                  Confirm deposit for {reconciliation.accountUid}
+                </Button>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-xs text-muted-foreground w-12">Status</span>
         {DEPOSIT_STATUSES.map((s) => (
@@ -277,6 +364,7 @@ function DepositSessionsTab() {
                       </div>
                       <p className="text-sm font-semibold truncate">{s.userName}</p>
                       <p className="text-[11px] text-muted-foreground">{s.userEmail}</p>
+                      <p className="text-[10px] text-primary font-mono">{s.accountUid}</p>
                       <p className="text-[10px] text-muted-foreground/60 mt-0.5">{format(new Date(s.createdAt), "PP · p")}</p>
                     </div>
                     <div className="text-right shrink-0">
@@ -362,11 +450,6 @@ function DepositSessionsTab() {
                           <Eye className="w-3 h-3 mr-1" /> Mark Detected
                         </Button>
                       )}
-                      <Button size="sm" variant="outline"
-                        className="flex-1 h-8 text-[11px] text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10 rounded-xl"
-                        onClick={() => act(s.id, "approve")} disabled={reviewSession.isPending}>
-                        <CheckCircle className="w-3 h-3 mr-1" /> Approve & Credit
-                      </Button>
                       <Button size="sm" variant="outline"
                         className="flex-1 h-8 text-[11px] text-destructive border-destructive/30 hover:bg-destructive/10 rounded-xl"
                         onClick={() => act(s.id, "reject")} disabled={reviewSession.isPending}>

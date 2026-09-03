@@ -16,5 +16,5 @@ export interface WithdrawInput {
   cryptoAsset?: string | null;
   /** @nullable */
   conversionRate?: number | null;
-  confirmationToken?: string;
+  confirmationToken: string;
 }

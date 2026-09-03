@@ -561,7 +561,7 @@ export const CreateWithdrawalBody = zod.object({
   "cryptoAmount": zod.number().nullish(),
   "cryptoAsset": zod.string().nullish(),
   "conversionRate": zod.number().nullish(),
-  "confirmationToken": zod.string().optional()
+  "confirmationToken": zod.string()
 })
 
 export const CreateWithdrawalResponse = zod.object({
