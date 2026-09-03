@@ -114,22 +114,39 @@ const INITIAL_PAIRS: PriceData[] = [
   { pair: "BTC/USD",  symbol: "BTCUSDT", price: 67842.30, prev: 67842.30, chg: 0, chgPct: 0, up: true,  flash: false, volume: "$48.2B" },
   { pair: "ETH/USD",  symbol: "ETHUSDT", price: 3412.80,  prev: 3412.80,  chg: 0, chgPct: 0, up: true,  flash: false, volume: "$18.1B" },
   { pair: "EUR/USD",  symbol: "",         price: 1.0847,   prev: 1.0847,   chg: 0, chgPct: 0, up: true,  flash: false, volume: "$8.9B" },
-  { pair: "GBP/USD",  symbol: "",         price: 1.2703,   prev: 1.2703,   chg: 0, chgPct: 0, up: true,  flash: false },
-  { pair: "USD/JPY",  symbol: "",         price: 157.42,   prev: 157.42,   chg: 0, chgPct: 0, up: false, flash: false },
-  { pair: "XAU/USD",  symbol: "XAUUSDT", price: 2341.50,  prev: 2341.50,  chg: 0, chgPct: 0, up: true,  flash: false },
-  { pair: "SOL/USD",  symbol: "SOLUSDT", price: 142.30,   prev: 142.30,   chg: 0, chgPct: 0, up: false, flash: false },
-  { pair: "NAS100",   symbol: "BNBUSDT", price: 18942.0,  prev: 18942.0,  chg: 0, chgPct: 0, up: true,  flash: false },
+  { pair: "GBP/USD",  symbol: "",         price: 1.2703,   prev: 1.2703,   chg: 0, chgPct: 0, up: true,  flash: false, volume: "$5.6B" },
+  { pair: "USD/JPY",  symbol: "",         price: 157.42,   prev: 157.42,   chg: 0, chgPct: 0, up: false, flash: false, volume: "—" },
+  { pair: "XAU/USD",  symbol: "XAUUSDT", price: 2341.50,  prev: 2341.50,  chg: 0, chgPct: 0, up: true,  flash: false, volume: "$12.7B" },
+  { pair: "SOL/USD",  symbol: "SOLUSDT", price: 142.30,   prev: 142.30,   chg: 0, chgPct: 0, up: false, flash: false, volume: "$4.3B" },
+  { pair: "NAS100",   symbol: "BNBUSDT", price: 18942.0,  prev: 18942.0,  chg: 0, chgPct: 0, up: true,  flash: false, volume: "—" },
 ];
+
+function formatQuoteVolume(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return "—";
+  if (value >= 1e9) return `$${(value / 1e9).toFixed(value >= 1e10 ? 0 : 1)}B`;
+  if (value >= 1e6) return `$${(value / 1e6).toFixed(0)}M`;
+  if (value >= 1e3) return `$${(value / 1e3).toFixed(0)}K`;
+  return `$${value.toFixed(0)}`;
+}
 
 function useLivePrices() {
   const [pairs, setPairs] = useState<PriceData[]>(INITIAL_PAIRS);
 
-  const updatePrice = useCallback((symbol: string, newPrice: number) => {
+  const updatePrice = useCallback((symbol: string, newPrice: number, quoteVolume?: number) => {
     setPairs(prev => prev.map(p => {
       if (p.symbol !== symbol) return p;
       const chg = newPrice - p.prev;
       const chgPct = (chg / p.prev) * 100;
-      return { ...p, prev: p.price, price: newPrice, chg, chgPct, up: newPrice >= p.prev, flash: true };
+      return {
+        ...p,
+        prev: p.price,
+        price: newPrice,
+        chg,
+        chgPct,
+        up: newPrice >= p.prev,
+        volume: quoteVolume ? formatQuoteVolume(quoteVolume) : p.volume,
+        flash: true,
+      };
     }));
     setTimeout(() => setPairs(prev => prev.map(p => p.symbol === symbol ? { ...p, flash: false } : p)), 600);
   }, []);
@@ -157,7 +174,12 @@ function useLivePrices() {
       try {
         ws = new WebSocket(`wss://stream.binance.com:9443/stream?streams=${streams}`);
         ws.onopen = () => { attempts = 0; };
-        ws.onmessage = e => { try { const d = JSON.parse(e.data)?.data; if (d?.s && d?.c) updatePrice(d.s, parseFloat(d.c)); } catch {} };
+         ws.onmessage = e => {
+           try {
+             const d = JSON.parse(e.data)?.data;
+             if (d?.s && d?.c) updatePrice(d.s, parseFloat(d.c), parseFloat(d.q));
+           } catch {}
+         };
         ws.onerror = () => {};
         ws.onclose = () => { retryTimer = setTimeout(connect, 8000); };
       } catch {}
@@ -474,6 +496,18 @@ export default function Landing() {
     setLocation(seen ? "/register" : "/onboarding");
   };
 
+  const liveMarkets = MARKETS.map(m => {
+    const live = pairs.find(p => p.pair === m.pair);
+    const hasLiveChange = live && (live.chgPct !== 0 || live.flash);
+    return {
+      ...m,
+      live,
+      chg: hasLiveChange ? `${live!.chgPct >= 0 ? "+" : ""}${live!.chgPct.toFixed(2)}%` : m.chg,
+      vol: live?.volume ?? m.vol,
+      up: live?.up ?? m.up,
+    };
+  });
+
   return (
     <div style={{ background: "#fff", color: "#111827", fontFamily: "'Inter Tight', Inter, system-ui, sans-serif", minHeight: "100dvh", overflowX: "hidden" }}>
       {/* ── GOOGLE FONTS ──────────────────────────────────────── */}
@@ -716,13 +750,14 @@ export default function Landing() {
             ))}
           </div>
           {/* Rows */}
-          {MARKETS.map((m, i) => (
+          {liveMarkets.map((m, i) => (
             <div key={m.name} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1.2fr", padding: "14px 24px", borderBottom: i < MARKETS.length - 1 ? "1px solid #F8F8FC" : "none", alignItems: "center", cursor: "pointer", transition: "background 0.15s" }}
               onMouseEnter={e => (e.currentTarget.style.background = "rgba(0,0,0,0.015)")}
               onMouseLeave={e => (e.currentTarget.style.background = "none")}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{m.name}</div>
                 <div style={{ fontSize: 11, color: "#9CA3AF" }}>{m.full}</div>
+                {m.live && <div style={{ fontSize: 10, color: "#6B7280", fontFamily: "'JetBrains Mono', monospace", marginTop: 2 }}>{fmt(m.live)}</div>}
               </div>
               <div style={{ fontSize: 12, fontWeight: 700, color: m.up ? GREEN : RED, fontFamily: "'JetBrains Mono', monospace" }}>{m.chg}</div>
               <div style={{ fontSize: 12, color: "#6B7280" }}>{m.vol}</div>

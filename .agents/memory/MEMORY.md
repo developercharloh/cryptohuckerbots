@@ -23,3 +23,4 @@
 - [VIXUS AI deposit reconciliation](vixus-ai-deposit-reconciliation.md) — deposit hashes must be globally one-time across legacy transactions and deposit sessions.
 - [VIXUS technical health](vixus-technical-health.md) — public technical reports stay opaque and sanitized; investigation and incident controls belong only in the admin health workspace.
 - [VIXUS brand style](vixus-branding.md) — user-facing branding is uppercase `VIXUS`; preserve technical `vixus-ai` identifiers for compatibility.
+- [VIXUS AI market feed](vixus-ai-market-feed.md) — browser market providers can be blocked by CORS or region; keep an explicit fallback and prefer a server-side feed.
