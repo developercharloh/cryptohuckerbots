@@ -1257,7 +1257,6 @@ export default function Trade() {
                 <div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                     <p style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>Trade Journal</p>
-                    <span style={{ fontSize: 10, color: "#6B7280" }}>Permanent history</span>
                   </div>
                   {JournalRows}
                 </div>
