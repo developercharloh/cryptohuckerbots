@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense, Component, ReactNode } from "react";
+import { useEffect, useState, useCallback, lazy, Suspense, Component, ReactNode } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 
 const CHUNK_RECOVERY_KEY = "vixus_chunk_recovery_attempts";
@@ -109,20 +109,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
   }
   render() {
     if (this.state.hasError) {
-      return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground p-6 gap-4">
-          <p className="text-destructive font-semibold text-center">VIXUS is refreshing</p>
-          <p className="text-sm text-muted-foreground text-center max-w-sm">
-            We’re refreshing the app so you can continue securely.
-          </p>
-           <button
-             className="mt-2 px-4 py-2 rounded-lg bg-primary text-white text-sm"
-             onClick={() => void recoverFromStaleClient(true)}
-           >
-             Reload app
-           </button>
-        </div>
-      );
+      return <AppLoadingScreen />;
     }
     return this.props.children;
   }
@@ -136,6 +123,7 @@ import { InstallAppPrompt } from "@/components/InstallAppPrompt";
 import { ProfileCompletionPrompt } from "@/components/ProfileCompletionPrompt";
 import { reportTechnicalError } from "@/lib/technical-errors";
 import { WelcomeLoader } from "@/components/WelcomeLoader";
+import { Spinner } from "@/components/ui/spinner";
 
 // Keep the entry chunk small. Pages load only when their route is visited so
 // login does not download charts, cashier forms, support, and bot analytics.
@@ -196,6 +184,24 @@ function RouteLoading() {
   return (
     <div className="flex min-h-[60vh] items-center justify-center bg-background text-muted-foreground">
       <div className="h-7 w-7 animate-spin rounded-full border-2 border-primary/25 border-t-primary" aria-label="Loading page" />
+    </div>
+  );
+}
+
+function AppLoadingScreen() {
+  return (
+    <div
+      className="fixed inset-0 z-[10000] flex min-h-screen items-center justify-center bg-background text-muted-foreground"
+      role="status"
+      aria-live="polite"
+      aria-label="Loading VIXUS"
+    >
+      <div className="flex flex-col items-center gap-4">
+        <Spinner size="xl" className="text-primary" />
+        <span className="text-xs font-medium tracking-[0.24em] text-muted-foreground/80">
+          LOADING VIXUS
+        </span>
+      </div>
     </div>
   );
 }
@@ -304,7 +310,20 @@ function Router() {
   );
 }
 
+function AppReadyMarker({ onReady }: { onReady: () => void }) {
+  const { isLoading } = useAuth();
+
+  useEffect(() => {
+    if (!isLoading) onReady();
+  }, [isLoading, onReady]);
+
+  return null;
+}
+
 function App() {
+  const [appReady, setAppReady] = useState(false);
+  const markAppReady = useCallback(() => setAppReady(true), []);
+
   useEffect(() => {
     const saved = localStorage.getItem("vixus_theme") ?? "dark";
     if (saved === "dark") {
@@ -326,12 +345,13 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <WelcomeLoader />
+        <WelcomeLoader ready={appReady} />
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
             <AuthProvider>
             <ErrorBoundary>
               <Suspense fallback={<RouteLoading />}>
                 <div className="user-app-shell w-full max-w-[1440px] mx-auto min-h-screen bg-background relative overflow-x-hidden shadow-2xl">
+                  <AppReadyMarker onReady={markAppReady} />
                   <Router />
                 </div>
               </Suspense>

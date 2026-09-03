@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { VixusLogo } from "@/components/VixusLogo";
 
-const LOADER_DURATION = 3_400;
+const PROGRESS_RAMP_DURATION = 2_400;
 const FADE_DURATION = 550;
 
 const LOADING_MESSAGES = [
@@ -30,7 +30,7 @@ const DOLLAR_SIGNS = [
   { left: "88%", top: "83%", size: 25, delay: "-6.4s", duration: "7.9s", drift: "28px", opacity: 0.7 },
 ];
 
-export function WelcomeLoader() {
+export function WelcomeLoader({ ready = false }: { ready?: boolean }) {
   const [progress, setProgress] = useState(0);
   const [messageIndex, setMessageIndex] = useState(0);
   const [leaving, setLeaving] = useState(false);
@@ -39,39 +39,54 @@ export function WelcomeLoader() {
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const duration = reducedMotion ? 650 : LOADER_DURATION;
     const fadeDuration = reducedMotion ? 120 : FADE_DURATION;
-    const messageInterval = reducedMotion ? duration : 820;
     const startedAt = Date.now();
     let progressTimer: number | undefined;
     let messageTimer: number | undefined;
-    let fadeTimer: number | undefined;
     let hideTimer: number | undefined;
+    let finished = false;
 
     document.body.style.overflow = "hidden";
     progressTimer = window.setInterval(() => {
-      setProgress(Math.min(((Date.now() - startedAt) / duration) * 100, 100));
+      setProgress(Math.min(((Date.now() - startedAt) / PROGRESS_RAMP_DURATION) * 92, 92));
     }, 45);
-    messageTimer = window.setInterval(() => {
-      setMessageIndex((current) => (current + 1) % LOADING_MESSAGES.length);
-    }, messageInterval);
-    fadeTimer = window.setTimeout(() => {
+    if (!reducedMotion) {
+      messageTimer = window.setInterval(() => {
+        setMessageIndex((current) => (current + 1) % LOADING_MESSAGES.length);
+      }, 820);
+    }
+
+    if (ready) {
+      finished = true;
       setProgress(100);
       setLeaving(true);
       hideTimer = window.setTimeout(() => {
         setVisible(false);
         document.body.style.overflow = previousOverflow;
       }, fadeDuration);
-    }, Math.max(0, duration - fadeDuration));
+    }
 
     return () => {
       if (progressTimer) window.clearInterval(progressTimer);
       if (messageTimer) window.clearInterval(messageTimer);
-      if (fadeTimer) window.clearTimeout(fadeTimer);
       if (hideTimer) window.clearTimeout(hideTimer);
+      if (!finished) setLeaving(false);
       document.body.style.overflow = previousOverflow;
     };
-  }, []);
+  }, [ready]);
+
+  useEffect(() => {
+    if (!ready || leaving || !visible) return;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const fadeDuration = reducedMotion ? 120 : FADE_DURATION;
+    setProgress(100);
+    setLeaving(true);
+    const hideTimer = window.setTimeout(() => {
+      setVisible(false);
+      document.body.style.overflow = "";
+    }, fadeDuration);
+    return () => window.clearTimeout(hideTimer);
+  }, [ready, leaving, visible]);
 
   if (!visible) return null;
 
