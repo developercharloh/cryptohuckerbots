@@ -55,8 +55,8 @@ const STEPS = [
 ];
 
 const STATS = [
-  { value: "$482M+", label: "Volume Traded"    },
-  { value: "128K+",  label: "Active Traders"   },
+  { value: "$2.5B+", label: "Volume Traded"    },
+  { value: "2.7M+",  label: "Active Traders"   },
   { value: "11",     label: "Markets Covered"  },
   { value: "99.9%",  label: "Platform Uptime"  },
 ];
