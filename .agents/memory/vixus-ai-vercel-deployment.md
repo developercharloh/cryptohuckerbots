@@ -68,3 +68,9 @@ Vercel's remote rebuild can produce different Vite content hashes from the local
 **Why:** Build-environment details such as dependency resolution or bundler output can change hashed filenames without changing application behavior.
 
 **How to apply:** Verify the production HTML's current entry bundle, follow its lazy-chunk references, and inspect the live lazy chunk for the user-visible change instead of requesting a locally generated hash.
+
+Direct API uploads must recursively include the packaged migration metadata, especially `migrations/meta/_journal.json`, alongside the SQL files.
+
+**Why:** A Vercel deployment can reach `READY` while the serverless app stays unavailable if the startup migration journal is omitted from the uploaded function files.
+
+**How to apply:** Before promoting a prebuilt API deployment, verify the uploaded file set contains the migration journal and then check both `/api/readyz` and a representative API route.
