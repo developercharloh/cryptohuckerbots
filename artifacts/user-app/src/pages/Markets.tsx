@@ -5,27 +5,22 @@ import { useLocation } from "wouter";
 import { useLivePairs, fmtPrice } from "@/hooks/useLivePairs";
 import { useGetTradeAccess } from "@workspace/api-client-react";
 
-/* ── Mini chart from the server-provided candle history ──────────── */
-function MiniChart({ up, points }: { up: boolean; points: { close: number }[] }) {
-  const line = useMemo(() => {
-    if (points.length < 2) return "";
-    const values = points.map((point) => point.close);
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const spread = max - min || Math.max(Math.abs(max) * 0.0001, 0.00001);
-    return values.map((value, index) => {
-      const x = (index / (values.length - 1)) * 64;
-      const y = 18 - ((value - min) / spread) * 16;
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    }).join(" ");
-  }, [points]);
+/* ── Animated mini chart (sparkline shifts on each tick) ────────── */
+function MiniChart({ up, seed }: { up: boolean; seed: number }) {
+  const pts = useMemo(() => {
+    const r = (n: number) => { let s = n; return () => { s=(s*9301+49297)%233280; return s/233280; }; };
+    const rand = r(seed);
+    const pts: string[] = [];
+    let y = 10;
+    for (let x = 0; x <= 64; x += 8) {
+      y = Math.max(2, Math.min(18, y + (rand() - (up ? 0.4 : 0.6)) * 6));
+      pts.push(`${x},${y.toFixed(1)}`);
+    }
+    return pts.join(" ");
+  }, [up, seed]);
   return (
     <svg width={64} height={20} viewBox="0 0 64 20" fill="none">
-      {line ? (
-        <polyline points={line} stroke={up ? "#22c55e" : "#ef4444"} strokeWidth={1.5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-      ) : (
-        <line x1="4" y1="10" x2="60" y2="10" stroke="#4B5563" strokeWidth="1.5" strokeDasharray="2 2" />
-      )}
+      <polyline points={pts} stroke={up ? "#22c55e" : "#ef4444"} strokeWidth={1.5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -122,7 +117,7 @@ export default function Markets() {
 
         {/* Pairs list */}
         <div style={{ padding: "0 16px" }}>
-           {filtered.map((pair) => (
+          {filtered.map((pair, i) => (
             <button
               key={pair.symbol}
               onClick={() => setLocation(`/trade/${pair.symbol.replace("/", "-")}`)}
@@ -154,32 +149,30 @@ export default function Markets() {
 
               {/* Mini chart */}
               <div style={{ width: 64, flexShrink: 0 }}>
-               <MiniChart up={pair.up} points={pair.sparkline} />
+                <MiniChart up={pair.up} seed={i * 137 + (pair.up ? 1 : 0)} />
               </div>
 
               {/* Price + change — flash color on tick */}
               <div style={{ width: 80, textAlign: "right", flexShrink: 0 }}>
                 <p style={{
                   fontSize: 12, fontWeight: 700, marginBottom: 3,
-                   color: pair.flash ? (pair.up ? "#22c55e" : "#ef4444") : pair.price === null ? "#6B7280" : "#fff",
+                  color: pair.flash ? (pair.up ? "#22c55e" : "#ef4444") : "#fff",
                   transition: "color 0.3s",
                   fontFamily: "'JetBrains Mono', monospace",
                 }}>
-                   {fmtPrice(pair.price)}
+                  {fmtPrice(pair.price)}
                 </p>
                 <div style={{
                   display: "inline-flex", alignItems: "center", gap: 2,
                   background: pair.up ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)",
                   borderRadius: 6, padding: "2px 6px",
                 }}>
-                    {pair.price === null
-                      ? <span style={{ fontSize: 9, color: "#6B7280" }}>{pair.status === "loading" ? "CONNECTING LIVE DATA" : "LIVE DATA UNAVAILABLE"}</span>
-                     : pair.up
-                       ? <TrendingUp style={{ width: 9, height: 9, color: "#22c55e" }} />
-                       : <TrendingDown style={{ width: 9, height: 9, color: "#ef4444" }} />
-                   }
+                  {pair.up
+                    ? <TrendingUp style={{ width: 9, height: 9, color: "#22c55e" }} />
+                    : <TrendingDown style={{ width: 9, height: 9, color: "#ef4444" }} />
+                  }
                   <span style={{ fontSize: 10, fontWeight: 700, color: pair.up ? "#22c55e" : "#ef4444" }}>
-                    {pair.change === null ? "—" : `${pair.up ? "+" : ""}${pair.change.toFixed(2)}%`}
+                    {pair.up ? "+" : ""}{pair.change.toFixed(2)}%
                   </span>
                 </div>
               </div>

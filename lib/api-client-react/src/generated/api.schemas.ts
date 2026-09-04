@@ -121,20 +121,6 @@ export interface MarketCandle {
   close: number;
 }
 
-export interface MarketQuotePoint {
-  time: number;
-  close: number;
-}
-
-export interface MarketQuote {
-  symbol: string;
-  price: number;
-  previousClose: number;
-  changePercent: number;
-  updatedAt: number;
-  sparkline: MarketQuotePoint[];
-}
-
 export interface ErrorResponse {
   error: string;
 }
@@ -1281,13 +1267,6 @@ export const GetMarketCandlesInterval = {
   '4h': '4h',
   '1d': '1d',
 } as const;
-
-export type GetMarketQuotesParams = {
-/**
- * Comma-separated market symbols such as EUR-USD,BTC-USD
- */
-symbols: string;
-};
 
 export type VerifyEmailParams = {
 token: VerifyEmailToken;
