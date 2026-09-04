@@ -27,3 +27,4 @@
 - [VIXUS AI support attachments](vixus-ai-support-attachments.md) — private cross-origin Blob uploads need short-lived signed capabilities plus final message ownership checks.
 - [VIXUS AI public error boundaries](vixus-ai-public-errors.md) — client errors use safe retry copy; provider and infrastructure details are retained only in protected technical health incidents.
 - [VIXUS AI candlestick controls](vixus-ai-candlestick-controls.md) — lightweight-charts v5 custom zoom uses visible logical ranges; keep mobile chart gestures enabled.
+- [VIXUS AI form resolver compatibility](vixus-ai-form-resolver.md) — use @hookform/resolvers 5.x with the workspace's Zod peer to avoid pnpm resolving mismatched Zod type generations.
