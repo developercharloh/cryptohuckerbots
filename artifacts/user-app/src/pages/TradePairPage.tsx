@@ -100,10 +100,15 @@ export default function TradePairPage() {
         setCurrentPrice(last);
         setMarketChange(reference ? ((last - reference) / reference) * 100 : null);
         setRsi(calcRSI(data));
+      } else {
+        setCurrentPrice(null);
+        setMarketChange(null);
+        setRsi(null);
+        setChartError("Live candles unavailable for this market.");
       }
     } catch {
       if (showSpinner) setCandles([]);
-      setChartError("Live market data is temporarily unavailable.");
+      setChartError("Live candles unavailable for this market.");
     } finally {
       if (showSpinner) setLoading(false);
     }
@@ -138,8 +143,11 @@ export default function TradePairPage() {
         borderColor: "rgba(255,255,255,0.08)",
         timeVisible: true,
         secondsVisible: false,
-        rightOffset: 3,
+        rightOffset: 0,
         minBarSpacing: 1,
+        fixLeftEdge: true,
+        fixRightEdge: true,
+        lockVisibleTimeRangeOnResize: true,
       },
       handleScale: {
         mouseWheel: true,

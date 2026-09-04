@@ -15,6 +15,7 @@ export type LivePair = {
   binance: string;
   flash: boolean;
   up: boolean;
+  status: "loading" | "live" | "unavailable";
   sparkline: MarketQuote["sparkline"];
 };
 
@@ -38,6 +39,7 @@ function pair(
     binance,
     flash: false,
     up: true,
+    status: "loading",
     sparkline: [],
   };
 }
@@ -90,7 +92,7 @@ export function useLivePairs() {
         const bySymbol = new Map(quotes.map((quote) => [quote.symbol, quote]));
         setPairs((previous) => previous.map((item) => {
           const quote = bySymbol.get(item.symbol.replace("/", "-"));
-          if (!quote) return { ...item, flash: false };
+          if (!quote) return { ...item, flash: false, status: "unavailable" };
           const changed = item.price !== null && item.price !== quote.price;
           return {
             ...item,
@@ -99,6 +101,7 @@ export function useLivePairs() {
             change: quote.changePercent,
             up: quote.changePercent >= 0,
             flash: changed,
+            status: "live",
             sparkline: quote.sparkline,
           };
         }));
@@ -106,12 +109,12 @@ export function useLivePairs() {
           if (!cancelled) setPairs((previous) => previous.map((item) => ({ ...item, flash: false })));
         }, 400);
       } catch {
-        if (!cancelled) setPairs((previous) => previous.map((item) => ({ ...item, flash: false })));
+        if (!cancelled) setPairs((previous) => previous.map((item) => ({ ...item, flash: false, status: item.price === null ? "unavailable" : item.status })));
       }
     };
 
     void fetchQuotes();
-    const interval = window.setInterval(fetchQuotes, 60_000);
+    const interval = window.setInterval(fetchQuotes, 30_000);
     return () => {
       cancelled = true;
       window.clearInterval(interval);

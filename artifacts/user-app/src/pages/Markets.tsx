@@ -172,8 +172,8 @@ export default function Markets() {
                   background: pair.up ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)",
                   borderRadius: 6, padding: "2px 6px",
                 }}>
-                   {pair.price === null
-                     ? <span style={{ fontSize: 9, color: "#6B7280" }}>LIVE DATA PENDING</span>
+                    {pair.price === null
+                      ? <span style={{ fontSize: 9, color: "#6B7280" }}>{pair.status === "loading" ? "CONNECTING LIVE DATA" : "LIVE DATA UNAVAILABLE"}</span>
                      : pair.up
                        ? <TrendingUp style={{ width: 9, height: 9, color: "#22c55e" }} />
                        : <TrendingDown style={{ width: 9, height: 9, color: "#ef4444" }} />
