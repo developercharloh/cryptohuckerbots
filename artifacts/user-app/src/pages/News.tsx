@@ -44,8 +44,9 @@ export default function News() {
       if (!response.ok) throw new Error("Unable to load live market news");
       return response.json() as Promise<NewsResponse>;
     },
-    staleTime: 5 * 60 * 1000,
-    refetchInterval: 10 * 60 * 1000,
+    staleTime: 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
+    refetchOnWindowFocus: true,
   });
 
   const filtered = useMemo(() => {

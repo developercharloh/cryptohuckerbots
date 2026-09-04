@@ -398,8 +398,9 @@ export default function Landing() {
       if (!response.ok) throw new Error("Live market news unavailable");
       return response.json() as Promise<LandingNewsResponse>;
     },
-    staleTime: 5 * 60 * 1000,
-    refetchInterval: 10 * 60 * 1000,
+    staleTime: 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
+    refetchOnWindowFocus: true,
   });
 
   // The in-memory token marker is present before the HttpOnly cookie has been
