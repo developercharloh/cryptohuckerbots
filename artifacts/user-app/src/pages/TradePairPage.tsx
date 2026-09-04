@@ -194,8 +194,19 @@ export default function TradePairPage() {
     };
   }, [candles]);
 
-  const zoomIn = () => chartApiRef.current?.timeScale().zoom(0.5);
-  const zoomOut = () => chartApiRef.current?.timeScale().zoom(-0.5);
+  const zoomChart = (factor: number) => {
+    const timeScale = chartApiRef.current?.timeScale();
+    const range = timeScale?.getVisibleLogicalRange();
+    if (!timeScale || !range) return;
+    const center = (range.from + range.to) / 2;
+    const width = (range.to - range.from) * factor;
+    timeScale.setVisibleLogicalRange({
+      from: center - width / 2,
+      to: center + width / 2,
+    });
+  };
+  const zoomIn = () => zoomChart(0.75);
+  const zoomOut = () => zoomChart(1.333333);
   const resetZoom = () => chartApiRef.current?.timeScale().fitContent();
 
   const up = marketChange >= 0;
