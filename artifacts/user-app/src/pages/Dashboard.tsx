@@ -116,14 +116,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ── Greeting ────────────────────────────────────────────── */}
-        <div className="user-dashboard-greeting" style={{ padding: "0 16px 16px" }}>
-          <p style={{ fontSize: 12, color: "#6B7280" }}>Good day,</p>
-          <h2 style={{ fontSize: 20, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em" }}>
-            {user?.fullName?.split(" ")[0] ?? "Trader"} 👋
-          </h2>
-        </div>
-
         {/* ── Portfolio Card ──────────────────────────────────────── */}
         <div className="user-dashboard-portfolio" style={{ padding: "0 16px 16px" }}>
           <div style={{
