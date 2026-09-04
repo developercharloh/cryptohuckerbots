@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useLocation } from "wouter";
-import { createChart, CandlestickSeries, UTCTimestamp, ISeriesApi } from "lightweight-charts";
+import { createChart, CandlestickSeries, UTCTimestamp } from "lightweight-charts";
 import { Layout } from "@/components/Layout";
-import { useGetTradeAccess } from "@workspace/api-client-react";
+import { getMarketCandles, useGetTradeAccess } from "@workspace/api-client-react";
+import type { MarketCandle } from "@workspace/api-client-react";
 import { ArrowLeft, TrendingUp, TrendingDown, Activity, ChevronDown, ArrowRight, Zap, ShieldCheck } from "lucide-react";
 
 const PURPLE = "#F5B942";
@@ -44,39 +45,11 @@ const PAIR_META: Record<string, PairMeta> = {
 };
 
 /* ── Candle data types ─────────────────────────────────────────── */
-interface Candle { time: number; open: number; high: number; low: number; close: number; }
+type Candle = MarketCandle;
 
 /* ── Timeframes ─────────────────────────────────────────────────── */
 const TIMEFRAMES = ["1m","5m","15m","1h","4h","1d"] as const;
 type TF = typeof TIMEFRAMES[number];
-
-/* ── Seeded PRNG for realistic-looking forex candles ────────────── */
-function seededRand(seed: number) {
-  let s = seed;
-  return () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
-}
-function generateCandles(symbol: string, basePrice: number, count = 100): Candle[] {
-  let seed = 0;
-  for (let i = 0; i < symbol.length; i++) seed += symbol.charCodeAt(i) * (i + 1);
-  const rand = seededRand(seed);
-  const now = Math.floor(Date.now() / 1000);
-  const interval = 3600; // 1h
-  let price = basePrice;
-  const candles: Candle[] = [];
-  for (let i = count; i >= 0; i--) {
-    const t = now - i * interval;
-    const open = price;
-    const body = (rand() - 0.49) * basePrice * 0.003;
-    const close = open + body;
-    const wick1 = rand() * basePrice * 0.002;
-    const wick2 = rand() * basePrice * 0.002;
-    const high = Math.max(open, close) + wick1;
-    const low  = Math.min(open, close) - wick2;
-    candles.push({ time: t, open: +open.toFixed(5), high: +high.toFixed(5), low: +low.toFixed(5), close: +close.toFixed(5) });
-    price = close;
-  }
-  return candles;
-}
 
 /* ── Simple RSI calculation ─────────────────────────────────────── */
 function calcRSI(candles: Candle[], period = 14): number {
@@ -104,74 +77,49 @@ export default function TradePairPage() {
   const [tf, setTf] = useState<TF>("1h");
   const [candles, setCandles] = useState<Candle[]>([]);
   const [loading, setLoading] = useState(true);
+  const [chartError, setChartError] = useState<string | null>(null);
   const [currentPrice, setCurrentPrice] = useState(meta.price);
-  const [priceUp, setPriceUp]           = useState(true);
-  const [priceFlash, setPriceFlash]     = useState(false);
+  const [priceUp, setPriceUp] = useState(meta.change >= 0);
+  const [marketChange, setMarketChange] = useState(meta.change);
   const [rsi, setRsi] = useState(50);
-  const priceRef = useRef(meta.price);
 
   const chartRef      = useRef<HTMLDivElement>(null);
-  const chartInstance = useRef<ReturnType<typeof createChart> | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const seriesRef     = useRef<ISeriesApi<"Candlestick"> | null>(null);
-  const lastCandleRef = useRef<Candle | null>(null);
 
   /* ── Load candles ─────────────────────────────────────── */
-  const loadCandles = useCallback(async () => {
-    setLoading(true);
+  const loadCandles = useCallback(async (showSpinner: boolean) => {
+    if (showSpinner) setLoading(true);
+    setChartError(null);
     try {
-      const data = generateCandles(symbol + tf, meta.price, 100);
+      const data = await getMarketCandles({ symbol, interval: tf });
       setCandles(data);
       if (data.length) {
         const last = data[data.length - 1].close;
+        const previous = data[data.length - 2]?.close ?? meta.price;
+        const lookback = tf === "1d" ? 1 : tf === "4h" ? 6 : tf === "1h" ? 24 : tf === "15m" ? 96 : tf === "5m" ? 100 : 100;
+        const reference = data[Math.max(0, data.length - 1 - lookback)]?.close ?? previous;
         setCurrentPrice(last);
+        setPriceUp(last >= previous);
+        setMarketChange(reference ? ((last - reference) / reference) * 100 : meta.change);
         setRsi(calcRSI(data));
       }
     } catch {
-      const data = generateCandles(symbol + tf, meta.price, 100);
-      setCandles(data);
-      setCurrentPrice(meta.price);
+      if (showSpinner) setCandles([]);
+      setChartError("Live market data is temporarily unavailable.");
     } finally {
-      setLoading(false);
+      if (showSpinner) setLoading(false);
     }
   }, [symbol, tf, meta.price]);
 
-  useEffect(() => { loadCandles(); }, [loadCandles]);
-
-  /* ── Keep priceRef in sync ───────────────────────────────── */
-  useEffect(() => { priceRef.current = currentPrice; }, [currentPrice]);
-
-  /* ── Live tick helper — updates header + live candle ─────── */
-  const tickPrice = useCallback((next: number) => {
-    setPriceUp(next >= priceRef.current);
-    setCurrentPrice(next);
-    setPriceFlash(true);
-    setTimeout(() => setPriceFlash(false), 500);
-    // Push close price into the current (last) candle on the chart
-    if (seriesRef.current && lastCandleRef.current) {
-      const c = lastCandleRef.current;
-      const updated: Candle = {
-        time: c.time,
-        open:  c.open,
-        high:  Math.max(c.high, next),
-        low:   Math.min(c.low, next),
-        close: next,
-      };
-      lastCandleRef.current = updated;
-      seriesRef.current.update({ ...updated, time: updated.time as UTCTimestamp });
-    }
-  }, []);
-
-  /* ── 1.5s simulation for all pairs ──────────────────────── */
   useEffect(() => {
-    const id = setInterval(() => {
-      const p = priceRef.current;
-      const v = p > 10000 ? 0.0003 : p > 100 ? 0.0002 : 0.00015;
-      const d = (Math.random() - 0.49) * v;
-      tickPrice(+(p * (1 + d)).toFixed(p > 10 ? 2 : 5));
-    }, 1500);
+    void loadCandles(true);
+    const refreshMs = tf === "1m" || tf === "5m" || tf === "15m" || tf === "1h"
+      ? 60_000
+      : tf === "4h"
+        ? 120_000
+        : 300_000;
+    const id = setInterval(() => { void loadCandles(false); }, refreshMs);
     return () => clearInterval(id);
-  }, [tickPrice]);
+  }, [loadCandles, tf]);
 
   /* ── Build chart ──────────────────────────────────────── */
   useEffect(() => {
@@ -187,8 +135,6 @@ export default function TradePairPage() {
       rightPriceScale: { borderColor: "rgba(255,255,255,0.08)" },
       timeScale: { borderColor: "rgba(255,255,255,0.08)", timeVisible: true, secondsVisible: false },
     });
-    chartInstance.current = chart;
-
     const decimals = meta.price < 10 ? 5 : meta.price < 100 ? 3 : 2;
     const candleSeries = chart.addSeries(CandlestickSeries, {
       upColor: "#22c55e", downColor: "#ef4444",
@@ -198,8 +144,6 @@ export default function TradePairPage() {
     });
     const mapped = candles.map(c => ({ ...c, time: c.time as UTCTimestamp }));
     candleSeries.setData(mapped);
-    seriesRef.current = candleSeries;
-    lastCandleRef.current = candles[candles.length - 1] ?? null;
     chart.timeScale().fitContent();
 
     const obs = new ResizeObserver(() => {
@@ -209,7 +153,7 @@ export default function TradePairPage() {
     return () => { obs.disconnect(); chart.remove(); };
   }, [candles]);
 
-  const up = meta.change >= 0;
+  const up = marketChange >= 0;
   function formatPrice(p: number) {
     if (p > 1000) return p.toLocaleString("en-US", { maximumFractionDigits: 2 });
     if (p > 10)   return p.toFixed(3);
@@ -234,13 +178,12 @@ export default function TradePairPage() {
                 background: up ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)",
                 color: up ? "#22c55e" : "#ef4444",
               }}>
-                {up ? "+" : ""}{meta.change.toFixed(2)}%
+                {up ? "+" : ""}{marketChange.toFixed(2)}%
               </span>
             </div>
             <span style={{
               fontSize: 22, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace",
-              color: priceFlash ? (priceUp ? "#22c55e" : "#ef4444") : "#fff",
-              transition: "color 0.3s",
+              color: "#fff",
             }}>
               {formatPrice(currentPrice)}
             </span>
@@ -266,6 +209,11 @@ export default function TradePairPage() {
           {loading && (
             <div style={{ position: "absolute", inset: 0, zIndex: 10, display: "flex", alignItems: "center", justifyContent: "center", background: "#0F1117" }}>
               <div style={{ width: 28, height: 28, borderRadius: "50%", border: `3px solid ${PURPLE}`, borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+            </div>
+          )}
+          {chartError && !loading && (
+            <div style={{ position: "absolute", inset: 0, zIndex: 10, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, textAlign: "center", background: "#0F1117", color: "#9CA3AF", fontSize: 12 }}>
+              {chartError}
             </div>
           )}
           <div ref={chartRef} style={{ width: "100%", height: 260 }} />
