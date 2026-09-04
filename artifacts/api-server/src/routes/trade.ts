@@ -355,6 +355,25 @@ function shuffleSignals(seed: number) {
   return arr;
 }
 
+function selectAlternatingSignals<T extends { direction: string }>(signals: T[], limit: number) {
+  const remaining = [...signals];
+  const selected: T[] = [];
+  let expectedDirection: "BUY" | "SELL" | null = null;
+
+  while (selected.length < limit && remaining.length > 0) {
+    const matchingIndex = expectedDirection === null
+      ? 0
+      : remaining.findIndex((signal) => signal.direction.toUpperCase() === expectedDirection);
+    const nextIndex = matchingIndex >= 0 ? matchingIndex : 0;
+    const [next] = remaining.splice(nextIndex, 1);
+    if (!next) break;
+    selected.push(next);
+    expectedDirection = next.direction.toUpperCase() === "BUY" ? "SELL" : "BUY";
+  }
+
+  return selected;
+}
+
 // Non-signal bot positions retain the deterministic simulation because live
 // broker execution is out of scope. AI Signals use the disclosed fixed outcome.
 async function getTradeOutcome(
@@ -1232,9 +1251,10 @@ router.post("/trade/execute-all", async (req, res) => {
         );
       // Choose each pair/signal only once per batch. This gives the user
       // simultaneous pair diversification instead of repeated schedule slots.
-      const selected = available.filter((opportunity, index, all) =>
+      const uniqueAvailable = available.filter((opportunity, index, all) =>
         all.findIndex((candidate) => candidate.signalId === opportunity.signalId) === index
-      ).slice(0, remaining);
+      );
+      const selected = selectAlternatingSignals(uniqueAvailable, remaining);
       if (selected.length === 0) {
         throw new SignalRuleError("NO_SIGNALS_AVAILABLE", "There are no new AI Signal pairs available right now.", 409);
       }
