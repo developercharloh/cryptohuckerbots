@@ -4,7 +4,7 @@ import { createChart, CandlestickSeries, UTCTimestamp } from "lightweight-charts
 import { Layout } from "@/components/Layout";
 import { getMarketCandles, useGetTradeAccess } from "@workspace/api-client-react";
 import type { MarketCandle } from "@workspace/api-client-react";
-import { ArrowLeft, TrendingUp, TrendingDown, Activity, ChevronDown, ArrowRight, Zap, ShieldCheck } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Activity, ChevronDown, ArrowRight, Zap, ShieldCheck, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
 
 const PURPLE = "#F5B942";
 
@@ -84,6 +84,7 @@ export default function TradePairPage() {
   const [rsi, setRsi] = useState(50);
 
   const chartRef      = useRef<HTMLDivElement>(null);
+  const chartApiRef   = useRef<ReturnType<typeof createChart> | null>(null);
 
   /* ── Load candles ─────────────────────────────────────── */
   const loadCandles = useCallback(async (showSpinner: boolean) => {
@@ -112,8 +113,10 @@ export default function TradePairPage() {
 
   useEffect(() => {
     void loadCandles(true);
-    const refreshMs = tf === "1m" || tf === "5m" || tf === "15m" || tf === "1h"
-      ? 60_000
+    const refreshMs = tf === "1m" || tf === "5m" || tf === "15m"
+      ? 15_000
+      : tf === "1h"
+        ? 30_000
       : tf === "4h"
         ? 120_000
         : 300_000;
@@ -137,12 +140,23 @@ export default function TradePairPage() {
         borderColor: "rgba(255,255,255,0.08)",
         timeVisible: true,
         secondsVisible: false,
-        rightOffset: 0,
-        fixLeftEdge: true,
-        fixRightEdge: true,
+        rightOffset: 3,
         minBarSpacing: 1,
       },
+      handleScale: {
+        mouseWheel: true,
+        pinch: true,
+        axisPressedMouseMove: true,
+        axisDoubleClickReset: true,
+      },
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: true,
+      },
     });
+    chartApiRef.current = chart;
     const decimals = meta.price < 10 ? 5 : meta.price < 100 ? 3 : 2;
     const candleSeries = chart.addSeries(CandlestickSeries, {
       upColor: "#22c55e", downColor: "#ef4444",
@@ -173,8 +187,16 @@ export default function TradePairPage() {
       if (!hasFittedToContainer) chart.timeScale().fitContent();
     });
     obs.observe(chartRef.current);
-    return () => { obs.disconnect(); chart.remove(); };
+    return () => {
+      obs.disconnect();
+      if (chartApiRef.current === chart) chartApiRef.current = null;
+      chart.remove();
+    };
   }, [candles]);
+
+  const zoomIn = () => chartApiRef.current?.timeScale().zoom(0.5);
+  const zoomOut = () => chartApiRef.current?.timeScale().zoom(-0.5);
+  const resetZoom = () => chartApiRef.current?.timeScale().fitContent();
 
   const up = marketChange >= 0;
   function formatPrice(p: number) {
@@ -229,6 +251,28 @@ export default function TradePairPage() {
 
         {/* ── Candlestick chart ───────────────────────────── */}
         <div className="user-pair-chart" style={{ margin: "10px 0 0", position: "relative" }}>
+          <div style={{ position: "absolute", top: 8, right: 48, zIndex: 5, display: "flex", gap: 4 }}>
+            {[
+              { label: "Zoom in", icon: <ZoomIn size={14} />, action: zoomIn },
+              { label: "Zoom out", icon: <ZoomOut size={14} />, action: zoomOut },
+              { label: "Fit chart", icon: <RotateCcw size={14} />, action: resetZoom },
+            ].map(control => (
+              <button
+                key={control.label}
+                type="button"
+                aria-label={control.label}
+                title={control.label}
+                onClick={control.action}
+                style={{
+                  width: 28, height: 28, padding: 0, display: "grid", placeItems: "center",
+                  border: "1px solid rgba(255,255,255,0.12)", borderRadius: 7,
+                  background: "rgba(15,17,23,0.88)", color: "#D1D5DB", cursor: "pointer",
+                }}
+              >
+                {control.icon}
+              </button>
+            ))}
+          </div>
           {loading && (
             <div style={{ position: "absolute", inset: 0, zIndex: 10, display: "flex", alignItems: "center", justifyContent: "center", background: "#0F1117" }}>
               <div style={{ width: 28, height: 28, borderRadius: "50%", border: `3px solid ${PURPLE}`, borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
