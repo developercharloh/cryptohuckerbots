@@ -133,7 +133,15 @@ export default function TradePairPage() {
       grid: { vertLines: { color: "rgba(255,255,255,0.04)" }, horzLines: { color: "rgba(255,255,255,0.04)" } },
       crosshair: { mode: 1 },
       rightPriceScale: { borderColor: "rgba(255,255,255,0.08)" },
-      timeScale: { borderColor: "rgba(255,255,255,0.08)", timeVisible: true, secondsVisible: false },
+      timeScale: {
+        borderColor: "rgba(255,255,255,0.08)",
+        timeVisible: true,
+        secondsVisible: false,
+        rightOffset: 0,
+        fixLeftEdge: true,
+        fixRightEdge: true,
+        minBarSpacing: 1,
+      },
     });
     const decimals = meta.price < 10 ? 5 : meta.price < 100 ? 3 : 2;
     const candleSeries = chart.addSeries(CandlestickSeries, {
@@ -144,10 +152,25 @@ export default function TradePairPage() {
     });
     const mapped = candles.map(c => ({ ...c, time: c.time as UTCTimestamp }));
     candleSeries.setData(mapped);
-    chart.timeScale().fitContent();
+    let hasFittedToContainer = false;
+    const fitToContainer = () => {
+      const width = chartRef.current?.clientWidth ?? 0;
+      if (width <= 0) return;
+      chart.applyOptions({ width });
+      chart.timeScale().fitContent();
+      hasFittedToContainer = true;
+    };
+    fitToContainer();
+    requestAnimationFrame(fitToContainer);
 
     const obs = new ResizeObserver(() => {
-      if (chartRef.current) chart.applyOptions({ width: chartRef.current.clientWidth });
+      const width = chartRef.current?.clientWidth ?? 0;
+      if (width <= 0) return;
+      chart.applyOptions({ width });
+      // On mobile the first effect can run before the grid settles. Fit once
+      // after the container receives its real width so candles start at the
+      // left edge instead of leaving a blank time range.
+      if (!hasFittedToContainer) chart.timeScale().fitContent();
     });
     obs.observe(chartRef.current);
     return () => { obs.disconnect(); chart.remove(); };
