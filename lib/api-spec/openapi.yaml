@@ -106,6 +106,34 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /market/quotes:
+    get:
+      operationId: getMarketQuotes
+      tags: [market]
+      summary: Live prices and recent movement for supported instruments
+      parameters:
+        - name: symbols
+          in: query
+          required: true
+          description: Comma-separated market symbols such as EUR-USD,BTC-USD
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Live market quotes; unavailable symbols are omitted
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MarketQuote"
+        "400":
+          description: Unsupported market request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   # Auth
   /auth/register:
     post:
@@ -2033,6 +2061,27 @@ components:
         low: { type: number }
         close: { type: number }
       required: [time, open, high, low, close]
+
+    MarketQuotePoint:
+      type: object
+      properties:
+        time: { type: integer }
+        close: { type: number }
+      required: [time, close]
+
+    MarketQuote:
+      type: object
+      properties:
+        symbol: { type: string }
+        price: { type: number }
+        previousClose: { type: number }
+        changePercent: { type: number }
+        updatedAt: { type: integer }
+        sparkline:
+          type: array
+          items:
+            $ref: "#/components/schemas/MarketQuotePoint"
+      required: [symbol, price, previousClose, changePercent, updatedAt, sparkline]
 
     ErrorResponse:
       type: object

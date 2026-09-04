@@ -74,3 +74,9 @@ Direct API uploads must recursively include the packaged migration metadata, esp
 **Why:** A Vercel deployment can reach `READY` while the serverless app stays unavailable if the startup migration journal is omitted from the uploaded function files.
 
 **How to apply:** Before promoting a prebuilt API deployment, verify the uploaded file set contains the migration journal and then check both `/api/readyz` and a representative API route.
+
+When uploading the bundled API handler directly, preserve its native ESM extension (`api/index.mjs`) and place migrations under `api/migrations/**`, beside the handler. Uploading the same `.mjs` bundle as `api/index.js` can make Vercel transpile it and fail every invocation; placing migrations under `dist/migrations` leaves readiness unable to initialize.
+
+**Why:** The API can build and run locally while a prebuilt Vercel function fails only after Vercel's entrypoint transformation or because the handler resolves `MIGRATIONS_DIR` relative to its deployed location.
+
+**How to apply:** Deploy `dist/vercel-handler.mjs` as `api/index.mjs`, route all requests to that entry, package the complete migration tree at `api/migrations`, and verify `/api/readyz` before testing provider calls.

@@ -285,8 +285,8 @@ export default function Dashboard() {
                         ? <TrendingUp style={{ width: 10, height: 10, color: "#22c55e" }} />
                         : <TrendingDown style={{ width: 10, height: 10, color: "#ef4444" }} />
                       }
-                      <span style={{ fontSize: 11, fontWeight: 700, color: up ? "#22c55e" : "#ef4444" }}>
-                        {up ? "+" : ""}{m.change.toFixed(2)}%
+                      <span style={{ fontSize: 11, fontWeight: 700, color: m.change === null ? "#6B7280" : up ? "#22c55e" : "#ef4444" }}>
+                        {m.change === null ? "—" : `${up ? "+" : ""}${m.change.toFixed(2)}%`}
                       </span>
                     </div>
                   </div>

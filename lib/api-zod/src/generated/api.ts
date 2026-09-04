@@ -65,6 +65,27 @@ export const GetMarketCandlesResponseItem = zod.object({
 export const GetMarketCandlesResponse = zod.array(GetMarketCandlesResponseItem)
 
 
+/**
+ * @summary Live prices and recent movement for supported instruments
+ */
+export const GetMarketQuotesQueryParams = zod.object({
+  "symbols": zod.coerce.string().describe('Comma-separated market symbols such as EUR-USD,BTC-USD')
+})
+
+export const GetMarketQuotesResponseItem = zod.object({
+  "symbol": zod.string(),
+  "price": zod.number(),
+  "previousClose": zod.number(),
+  "changePercent": zod.number(),
+  "updatedAt": zod.number(),
+  "sparkline": zod.array(zod.object({
+  "time": zod.number(),
+  "close": zod.number()
+}))
+})
+export const GetMarketQuotesResponse = zod.array(GetMarketQuotesResponseItem)
+
+
 export const registerBodyReferralCodeMax = 15;
 
 

@@ -10,6 +10,7 @@ import {
   Cpu, Clock, Newspaper, ExternalLink, RefreshCw,
 } from "lucide-react";
 import { createChart, ColorType, CrosshairMode, CandlestickSeries } from "lightweight-charts";
+import { getMarketCandles, getMarketQuotes } from "@workspace/api-client-react";
 
 /* ─── Design tokens (extracted from Base44 bundle) ────────────── */
 const PURPLE    = "#F5B942";
@@ -81,9 +82,10 @@ const TESTIMONIALS = [
 
 /* ─── Live prices hook ────────────────────────────────────────── */
 type PriceData = {
-  pair: string; symbol: string; price: number; prev: number;
+  pair: string; symbol: string; price: number | null; prev: number | null;
   chg: number; chgPct: number; up: boolean; flash: boolean;
   volume: string;
+  sparkline: { time: number; close: number }[];
 };
 
 type LandingNewsArticle = {
@@ -111,52 +113,49 @@ function formatNewsTime(value: string) {
 }
 
 const INITIAL_PAIRS: PriceData[] = [
-  { pair: "BTC/USD",  symbol: "BTCUSDT", price: 67842.30, prev: 67842.30, chg: 0, chgPct: 0, up: true,  flash: false, volume: "$48.2B" },
-  { pair: "ETH/USD",  symbol: "ETHUSDT", price: 3412.80,  prev: 3412.80,  chg: 0, chgPct: 0, up: true,  flash: false, volume: "$18.1B" },
-  { pair: "EUR/USD",  symbol: "",         price: 1.0847,   prev: 1.0847,   chg: 0, chgPct: 0, up: true,  flash: false, volume: "$8.9B" },
-  { pair: "GBP/USD",  symbol: "",         price: 1.2703,   prev: 1.2703,   chg: 0, chgPct: 0, up: true,  flash: false, volume: "$5.6B" },
-  { pair: "USD/JPY",  symbol: "",         price: 157.42,   prev: 157.42,   chg: 0, chgPct: 0, up: false, flash: false, volume: "—" },
-  { pair: "XAU/USD",  symbol: "XAUUSDT", price: 2341.50,  prev: 2341.50,  chg: 0, chgPct: 0, up: true,  flash: false, volume: "$12.7B" },
-  { pair: "SOL/USD",  symbol: "SOLUSDT", price: 142.30,   prev: 142.30,   chg: 0, chgPct: 0, up: false, flash: false, volume: "$4.3B" },
-  { pair: "NAS100",   symbol: "BNBUSDT", price: 18942.0,  prev: 18942.0,  chg: 0, chgPct: 0, up: true,  flash: false, volume: "—" },
+  { pair: "BTC/USD",  symbol: "BTC-USD", price: null, prev: null, chg: 0, chgPct: 0, up: true, flash: false, volume: "—", sparkline: [] },
+  { pair: "ETH/USD",  symbol: "ETH-USD", price: null, prev: null, chg: 0, chgPct: 0, up: true, flash: false, volume: "—", sparkline: [] },
+  { pair: "EUR/USD",  symbol: "EUR-USD", price: null, prev: null, chg: 0, chgPct: 0, up: true, flash: false, volume: "—", sparkline: [] },
+  { pair: "GBP/USD",  symbol: "GBP-USD", price: null, prev: null, chg: 0, chgPct: 0, up: true, flash: false, volume: "—", sparkline: [] },
+  { pair: "USD/JPY",  symbol: "USD-JPY", price: null, prev: null, chg: 0, chgPct: 0, up: true, flash: false, volume: "—", sparkline: [] },
+  { pair: "XAU/USD",  symbol: "XAU-USD", price: null, prev: null, chg: 0, chgPct: 0, up: true, flash: false, volume: "—", sparkline: [] },
+  { pair: "SOL/USD",  symbol: "SOL-USD", price: null, prev: null, chg: 0, chgPct: 0, up: true, flash: false, volume: "—", sparkline: [] },
 ];
 
 function useLivePrices() {
   const [pairs, setPairs] = useState<PriceData[]>(INITIAL_PAIRS);
 
   useEffect(() => {
-    const sim = setInterval(() => {
-      setPairs(prev => prev.map(p => {
-        const v = p.price > 10000 ? 0.0003 : p.price > 100 ? 0.0002 : 0.00015;
-        const d = (Math.random() - 0.49) * v;
-        const n = +(p.price * (1 + d)).toFixed(p.price > 100 ? 2 : 5);
-        const chg = n - p.prev, chgPct = (chg / p.prev) * 100;
-        return { ...p, prev: p.price, price: n, chg, chgPct, up: n >= p.prev, flash: true };
-      }));
-      setTimeout(() => setPairs(prev => prev.map(p => ({ ...p, flash: false }))), 400);
-    }, 2000);
-    return () => clearInterval(sim);
-  }, []);
-
-  useEffect(() => {
-    const fetch_ = async () => {
-      let rates: Record<string, number> | null = null;
-      try { const r = await fetchWithTimeout("https://open.er-api.com/v6/latest/USD"); const d = await r.json(); if (d.result === "success") rates = d.rates; } catch {}
-      if (!rates) { try { const r = await fetchWithTimeout("https://api.frankfurter.app/latest?from=USD&to=EUR,GBP,JPY"); const d = await r.json(); rates = d.rates; } catch {} }
-      if (!rates) return;
-      setPairs(prev => prev.map(p => {
-        let n: number | null = null;
-        if (p.pair === "EUR/USD" && rates!.EUR) n = +(1 / rates!.EUR).toFixed(5);
-        if (p.pair === "GBP/USD" && rates!.GBP) n = +(1 / rates!.GBP).toFixed(5);
-        if (p.pair === "USD/JPY" && rates!.JPY) n = +rates!.JPY.toFixed(3);
-        if (n === null) return p;
-        const chg = n - p.prev, chgPct = p.prev ? (chg / p.prev) * 100 : 0;
-        return { ...p, prev: p.price, price: n, chg, chgPct, up: n >= p.prev };
-      }));
+    let cancelled = false;
+    const fetchQuotes = async () => {
+      try {
+        const quotes = await getMarketQuotes({ symbols: INITIAL_PAIRS.map((pair) => pair.symbol).join(",") });
+        if (cancelled) return;
+        const bySymbol = new Map(quotes.map((quote) => [quote.symbol, quote]));
+        setPairs((previous) => previous.map((item) => {
+          const quote = bySymbol.get(item.symbol);
+          if (!quote) return { ...item, flash: false };
+          return {
+            ...item,
+            price: quote.price,
+            prev: quote.previousClose,
+            chg: quote.price - quote.previousClose,
+            chgPct: quote.changePercent,
+            up: quote.changePercent >= 0,
+            flash: item.price !== null && item.price !== quote.price,
+            sparkline: quote.sparkline,
+          };
+        }));
+      } catch {
+        if (!cancelled) setPairs((previous) => previous.map((item) => ({ ...item, flash: false })));
+      }
     };
-    fetch_();
-    const iv = setInterval(fetch_, 60000);
-    return () => clearInterval(iv);
+    void fetchQuotes();
+    const interval = window.setInterval(fetchQuotes, 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
   }, []);
 
   return pairs;
@@ -164,19 +163,31 @@ function useLivePrices() {
 
 function fmt(p: PriceData): string {
   const v = p.price;
+  if (v === null || !Number.isFinite(v)) return "—";
   if (v > 10000) return v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   if (v > 100) return v.toFixed(2);
   if (v > 1) return v.toFixed(4);
   return v.toFixed(5);
 }
 
-/* ─── Sparkline ───────────────────────────────────────────────── */
-function Spark({ up }: { up: boolean }) {
-  const pts = Array.from({ length: 8 }, (_, i) => ({
-    x: i * 8,
-    y: 14 + (Math.random() - (up ? 0.38 : 0.62)) * 10,
-  }));
-  const d = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+/* ─── Sparkline from the server-provided candle history ─────────── */
+function Spark({ up, points }: { up: boolean; points: { close: number }[] }) {
+  if (points.length < 2) {
+    return (
+      <svg width="56" height="28" viewBox="0 0 56 28">
+        <line x1="4" y1="14" x2="52" y2="14" stroke="#9CA3AF" strokeWidth="1.5" strokeDasharray="2 2" />
+      </svg>
+    );
+  }
+  const values = points.map((point) => point.close);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const spread = max - min || Math.max(Math.abs(max) * 0.0001, 0.00001);
+  const d = values.map((value, index) => {
+    const x = (index / (values.length - 1)) * 56;
+    const y = 25 - ((value - min) / spread) * 22;
+    return `${index === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`;
+  }).join(" ");
   return (
     <svg width="56" height="28" viewBox="0 0 56 28">
       <path d={d} stroke={up ? GREEN : RED} strokeWidth={1.5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
@@ -196,7 +207,7 @@ function LiveTicker({ pairs }: { pairs: PriceData[] }) {
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRight: "1px solid #F0F0F5", flexShrink: 0 }}>
             <span style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF" }}>{t.pair}</span>
             <span style={{ fontSize: 12, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, color: t.flash ? (t.up ? GREEN : RED) : "#111827", transition: "color 0.3s" }}>{fmt(t)}</span>
-            <span style={{ fontSize: 11, color: t.up ? GREEN : RED, fontFamily: "'JetBrains Mono', monospace" }}>{t.up ? "▲" : "▼"} {Math.abs(t.chgPct).toFixed(2)}%</span>
+            <span style={{ fontSize: 11, color: t.price === null ? "#9CA3AF" : t.up ? GREEN : RED, fontFamily: "'JetBrains Mono', monospace" }}>{t.price === null ? "—" : `${t.up ? "▲" : "▼"} ${Math.abs(t.chgPct).toFixed(2)}%`}</span>
           </div>
         ))}
       </div>
@@ -208,9 +219,6 @@ function LiveTicker({ pairs }: { pairs: PriceData[] }) {
 function TerminalCard({ pairs }: { pairs: PriceData[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const seriesRef = useRef<any>(null);
-  const [price, setPrice] = useState("67,842.30");
-  const [chg, setChg] = useState("+2.34%");
-  const [up, setUp] = useState(true);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -227,25 +235,24 @@ function TerminalCard({ pairs }: { pairs: PriceData[] }) {
     });
     seriesRef.current = series;
 
-    const fallback = (base: number, n: number) => {
-      const now = Math.floor(Date.now() / 1000); let p = base;
-      return Array.from({ length: n }, (_, i) => {
-        const o = p, move = (Math.random() - 0.48) * p * 0.004, c = +(o + move).toFixed(2);
-        const h = +(Math.max(o, c) * (1 + Math.random() * 0.003)).toFixed(2);
-        const l = +(Math.min(o, c) * (1 - Math.random() * 0.003)).toFixed(2);
-        p = c; return { time: (now - (n - i) * 300) as any, open: o, high: h, low: l, close: c };
-      });
-    };
-
-    const candles = fallback(67800, 60);
-    series.setData(candles); chart.timeScale().fitContent();
+    let cancelled = false;
+    void getMarketCandles({ symbol: "BTC-USD", interval: "5m" }).then((candles) => {
+      if (cancelled) return;
+      series.setData(candles.map((candle) => ({ ...candle, time: candle.time as any })));
+      chart.timeScale().fitContent();
+    }).catch(() => {
+      // Keep the chart empty rather than displaying simulated market data.
+    });
 
     const handleResize = () => { if (containerRef.current) chart.applyOptions({ width: containerRef.current.clientWidth, height: containerRef.current.clientHeight }); };
     window.addEventListener("resize", handleResize);
-    return () => { chart.remove(); window.removeEventListener("resize", handleResize); };
+    return () => { cancelled = true; chart.remove(); window.removeEventListener("resize", handleResize); };
   }, []);
 
   const btcPair = pairs.find(p => p.pair === "BTC/USD");
+  const price = btcPair ? fmt(btcPair) : "—";
+  const chg = btcPair?.price === null || btcPair?.price === undefined ? "—" : `${btcPair.up ? "+" : ""}${btcPair.chgPct.toFixed(2)}%`;
+  const up = btcPair?.up ?? true;
 
   return (
     <div id="terminal" style={{ background: "#fff", borderRadius: 16, overflow: "hidden", border: "1px solid #F0F0F5", boxShadow: CARD_SH_LG }}>
@@ -275,7 +282,7 @@ function TerminalCard({ pairs }: { pairs: PriceData[] }) {
         <span style={{ fontSize: 10, background: "#FFF8E1", color: PURPLE, fontWeight: 600, borderRadius: 6, padding: "2px 8px" }}>5m</span>
         <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 600, color: GREEN, background: "#ECFDF5", borderRadius: 20, padding: "2px 8px", display: "flex", alignItems: "center", gap: 4 }}>
           <span style={{ width: 5, height: 5, borderRadius: "50%", background: GREEN, display: "inline-block" }} />
-          BTC/USD · {btcPair ? fmt(btcPair) : "67,821.50"}
+           BTC/USD · {btcPair ? fmt(btcPair) : "—"}
         </span>
       </div>
 
@@ -419,13 +426,12 @@ export default function Landing() {
 
   const liveMarkets = MARKETS.map(m => {
     const live = pairs.find(p => p.pair === m.pair);
-    const hasLiveChange = live && (live.chgPct !== 0 || live.flash);
     return {
       ...m,
       live,
-      chg: hasLiveChange ? `${live!.chgPct >= 0 ? "+" : ""}${live!.chgPct.toFixed(2)}%` : m.chg,
-      vol: live?.volume ?? m.vol,
-      up: live?.up ?? m.up,
+       chg: live?.price !== null && live?.price !== undefined ? `${live.chgPct >= 0 ? "+" : ""}${live.chgPct.toFixed(2)}%` : "—",
+       vol: live?.price !== null && live?.price !== undefined ? live.volume : "—",
+       up: live?.price !== null && live?.price !== undefined ? live.up : false,
     };
   });
 
@@ -678,7 +684,7 @@ export default function Landing() {
               </div>
               <div style={{ fontSize: 12, fontWeight: 700, color: m.up ? GREEN : RED, fontFamily: "'JetBrains Mono', monospace" }}>{m.chg}</div>
               <div style={{ fontSize: 12, color: "#6B7280" }}>{m.vol}</div>
-              <Spark up={m.up} />
+               <Spark up={m.up} points={m.live?.sparkline ?? []} />
               <div>
                 <span style={{ fontSize: 10, fontWeight: 700, color: m.sc, background: m.sc + "18", borderRadius: 6, padding: "4px 10px", whiteSpace: "nowrap" }}>{m.signal}</span>
               </div>

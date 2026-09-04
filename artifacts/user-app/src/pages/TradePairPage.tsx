@@ -71,17 +71,16 @@ export default function TradePairPage() {
   const [, setLocation] = useLocation();
   const { data: vipAccess } = useGetTradeAccess({ query: { refetchInterval: 15000 } as any });
   const meta = PAIR_META[symbol] ?? {
-    label: symbol.replace("-", "/"), price: 1, change: 0, vol: "-", category: "forex" as const
+    label: symbol.replace("-", "/"), price: 1, change: 0, vol: "—", category: "forex" as const
   };
 
   const [tf, setTf] = useState<TF>("1h");
   const [candles, setCandles] = useState<Candle[]>([]);
   const [loading, setLoading] = useState(true);
   const [chartError, setChartError] = useState<string | null>(null);
-  const [currentPrice, setCurrentPrice] = useState(meta.price);
-  const [priceUp, setPriceUp] = useState(meta.change >= 0);
-  const [marketChange, setMarketChange] = useState(meta.change);
-  const [rsi, setRsi] = useState(50);
+  const [currentPrice, setCurrentPrice] = useState<number | null>(null);
+  const [marketChange, setMarketChange] = useState<number | null>(null);
+  const [rsi, setRsi] = useState<number | null>(null);
 
   const chartRef      = useRef<HTMLDivElement>(null);
   const chartApiRef   = useRef<ReturnType<typeof createChart> | null>(null);
@@ -95,12 +94,11 @@ export default function TradePairPage() {
       setCandles(data);
       if (data.length) {
         const last = data[data.length - 1].close;
-        const previous = data[data.length - 2]?.close ?? meta.price;
+        const previous = data[data.length - 2]?.close ?? last;
         const lookback = tf === "1d" ? 1 : tf === "4h" ? 6 : tf === "1h" ? 24 : tf === "15m" ? 96 : tf === "5m" ? 100 : 100;
         const reference = data[Math.max(0, data.length - 1 - lookback)]?.close ?? previous;
         setCurrentPrice(last);
-        setPriceUp(last >= previous);
-        setMarketChange(reference ? ((last - reference) / reference) * 100 : meta.change);
+        setMarketChange(reference ? ((last - reference) / reference) * 100 : null);
         setRsi(calcRSI(data));
       }
     } catch {
@@ -157,7 +155,8 @@ export default function TradePairPage() {
       },
     });
     chartApiRef.current = chart;
-    const decimals = meta.price < 10 ? 5 : meta.price < 100 ? 3 : 2;
+    const referencePrice = currentPrice ?? meta.price;
+    const decimals = referencePrice < 10 ? 5 : referencePrice < 100 ? 3 : 2;
     const candleSeries = chart.addSeries(CandlestickSeries, {
       upColor: "#22c55e", downColor: "#ef4444",
       borderVisible: false,
@@ -209,8 +208,9 @@ export default function TradePairPage() {
   const zoomOut = () => zoomChart(1.333333);
   const resetZoom = () => chartApiRef.current?.timeScale().fitContent();
 
-  const up = marketChange >= 0;
-  function formatPrice(p: number) {
+  const up = marketChange !== null && marketChange >= 0;
+  function formatPrice(p: number | null) {
+    if (p === null || !Number.isFinite(p)) return "—";
     if (p > 1000) return p.toLocaleString("en-US", { maximumFractionDigits: 2 });
     if (p > 10)   return p.toFixed(3);
     return p.toFixed(5);
@@ -234,7 +234,7 @@ export default function TradePairPage() {
                 background: up ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)",
                 color: up ? "#22c55e" : "#ef4444",
               }}>
-                {up ? "+" : ""}{marketChange.toFixed(2)}%
+                {marketChange === null ? "—" : `${up ? "+" : ""}${marketChange.toFixed(2)}%`}
               </span>
             </div>
             <span style={{
@@ -299,11 +299,11 @@ export default function TradePairPage() {
 
         {/* ── Indicators bar ──────────────────────────────── */}
         <div style={{ display: "flex", gap: 16, padding: "10px 16px", overflowX: "auto", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-          {[
-            { label: "RSI (14)", value: rsi.toString(), color: rsi > 70 ? "#ef4444" : rsi < 30 ? "#22c55e" : "#9CA3AF" },
-            { label: "MACD",  value: up ? "Bullish ↑" : "Bearish ↓", color: up ? "#22c55e" : "#ef4444" },
-            { label: "Vol (24h)", value: meta.vol, color: "#9CA3AF" },
-            { label: "Trend",  value: up ? "Up" : "Down", color: up ? "#22c55e" : "#ef4444" },
+            {[
+            { label: "RSI (14)", value: rsi === null ? "—" : rsi.toString(), color: rsi === null ? "#6B7280" : rsi > 70 ? "#ef4444" : rsi < 30 ? "#22c55e" : "#9CA3AF" },
+            { label: "MACD",  value: marketChange === null ? "—" : up ? "Bullish ↑" : "Bearish ↓", color: marketChange === null ? "#6B7280" : up ? "#22c55e" : "#ef4444" },
+            { label: "Vol (24h)", value: "—", color: "#6B7280" },
+            { label: "Trend",  value: marketChange === null ? "—" : up ? "Up" : "Down", color: marketChange === null ? "#6B7280" : up ? "#22c55e" : "#ef4444" },
           ].map(ind => (
             <div key={ind.label} style={{ flexShrink: 0 }}>
               <span style={{ fontSize: 10, color: "#6B7280", display: "block" }}>{ind.label}</span>
