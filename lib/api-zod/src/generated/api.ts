@@ -47,6 +47,24 @@ export const ListMarketNewsResponse = zod.object({
 })
 
 
+/**
+ * @summary Live OHLC candlesticks for a supported instrument
+ */
+export const GetMarketCandlesQueryParams = zod.object({
+  "symbol": zod.coerce.string(),
+  "interval": zod.enum(['1m', '5m', '15m', '1h', '4h', '1d'])
+})
+
+export const GetMarketCandlesResponseItem = zod.object({
+  "time": zod.number(),
+  "open": zod.number(),
+  "high": zod.number(),
+  "low": zod.number(),
+  "close": zod.number()
+})
+export const GetMarketCandlesResponse = zod.array(GetMarketCandlesResponseItem)
+
+
 export const registerBodyReferralCodeMax = 15;
 
 

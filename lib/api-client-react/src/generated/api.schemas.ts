@@ -113,6 +113,14 @@ export interface MarketNewsResponse {
   updatedAt: string;
 }
 
+export interface MarketCandle {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+}
+
 export interface ErrorResponse {
   error: string;
 }
@@ -1242,6 +1250,23 @@ export interface AdminBroadcast {
   recipientCount: number;
   createdAt: string;
 }
+
+export type GetMarketCandlesParams = {
+symbol: string;
+interval: GetMarketCandlesInterval;
+};
+
+export type GetMarketCandlesInterval = typeof GetMarketCandlesInterval[keyof typeof GetMarketCandlesInterval];
+
+
+export const GetMarketCandlesInterval = {
+  '1m': '1m',
+  '5m': '5m',
+  '15m': '15m',
+  '1h': '1h',
+  '4h': '4h',
+  '1d': '1d',
+} as const;
 
 export type VerifyEmailParams = {
 token: VerifyEmailToken;

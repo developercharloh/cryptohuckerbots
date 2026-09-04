@@ -73,6 +73,7 @@ import type {
   FAQItem,
   ForgotPasswordInput,
   GetEarningsChartParams,
+  GetMarketCandlesParams,
   HealthStatus,
   KYCInput,
   KYCSession,
@@ -81,6 +82,7 @@ import type {
   ListMarketplaceBotsParams,
   ListTransactionsParams,
   LoginInput,
+  MarketCandle,
   MarketNewsResponse,
   MarketplaceBot,
   Notification,
@@ -359,6 +361,90 @@ export function useListMarketNews<TData = Awaited<ReturnType<typeof listMarketNe
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListMarketNewsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMarketCandlesUrl = (params: GetMarketCandlesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/market/candles?${stringifiedParams}` : `/api/market/candles`
+}
+
+/**
+ * @summary Live OHLC candlesticks for a supported instrument
+ */
+export const getMarketCandles = async (params: GetMarketCandlesParams, options?: RequestInit): Promise<MarketCandle[]> => {
+
+  return customFetch<MarketCandle[]>(getGetMarketCandlesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMarketCandlesQueryKey = (params?: GetMarketCandlesParams,) => {
+    return [
+    `/api/market/candles`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetMarketCandlesQueryOptions = <TData = Awaited<ReturnType<typeof getMarketCandles>>, TError = ErrorType<ErrorResponse>>(params: GetMarketCandlesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMarketCandles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMarketCandlesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMarketCandles>>> = ({ signal }) => getMarketCandles(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMarketCandles>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMarketCandlesQueryResult = NonNullable<Awaited<ReturnType<typeof getMarketCandles>>>
+export type GetMarketCandlesQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Live OHLC candlesticks for a supported instrument
+ */
+
+export function useGetMarketCandles<TData = Awaited<ReturnType<typeof getMarketCandles>>, TError = ErrorType<ErrorResponse>>(
+ params: GetMarketCandlesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMarketCandles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMarketCandlesQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

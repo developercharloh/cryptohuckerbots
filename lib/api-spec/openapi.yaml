@@ -13,6 +13,7 @@ tags:
   - name: bots
   - name: cashier
   - name: trade
+  - name: market
   - name: profile
   - name: notifications
   - name: support
@@ -61,6 +62,45 @@ paths:
                 $ref: "#/components/schemas/MarketNewsResponse"
         "502":
           description: News sources temporarily unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /market/candles:
+    get:
+      operationId: getMarketCandles
+      tags: [market]
+      summary: Live OHLC candlesticks for a supported instrument
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: interval
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [1m, 5m, 15m, 1h, 4h, 1d]
+      responses:
+        "200":
+          description: Live OHLC candlesticks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MarketCandle"
+        "400":
+          description: Unsupported market request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Market data source temporarily unavailable
           content:
             application/json:
               schema:
@@ -1983,6 +2023,16 @@ components:
         publishedAt:
           type: string
       required: [id, title, summary, url, source, category, publishedAt]
+
+    MarketCandle:
+      type: object
+      properties:
+        time: { type: integer }
+        open: { type: number }
+        high: { type: number }
+        low: { type: number }
+        close: { type: number }
+      required: [time, open, high, low, close]
 
     ErrorResponse:
       type: object

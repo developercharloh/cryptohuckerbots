@@ -11,6 +11,7 @@ import supportRouter from "./support";
 import adminRouter from "./admin";
 import webhooksRouter from "./webhooks";
 import newsRouter from "./news";
+import marketRouter from "./market";
 import technicalRouter from "./technical";
 
 const router: IRouter = Router();
@@ -27,6 +28,7 @@ router.use(supportRouter);
 router.use(adminRouter);
 router.use(webhooksRouter);
 router.use(newsRouter);
+router.use(marketRouter);
 router.use(technicalRouter);
 
 export default router;
