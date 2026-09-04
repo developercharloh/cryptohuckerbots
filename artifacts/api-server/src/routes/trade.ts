@@ -361,11 +361,11 @@ function selectAlternatingSignals<T extends { direction: string }>(signals: T[],
   let expectedDirection: "BUY" | "SELL" | null = null;
 
   while (selected.length < limit && remaining.length > 0) {
-    const matchingIndex = expectedDirection === null
+    const matchingIndex: number = expectedDirection === null
       ? 0
       : remaining.findIndex((signal) => signal.direction.toUpperCase() === expectedDirection);
-    const nextIndex = matchingIndex >= 0 ? matchingIndex : 0;
-    const [next] = remaining.splice(nextIndex, 1);
+    const nextIndex: number = matchingIndex >= 0 ? matchingIndex : 0;
+    const next: T | undefined = remaining.splice(nextIndex, 1)[0];
     if (!next) break;
     selected.push(next);
     expectedDirection = next.direction.toUpperCase() === "BUY" ? "SELL" : "BUY";
