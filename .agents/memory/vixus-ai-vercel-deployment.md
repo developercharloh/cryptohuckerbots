@@ -51,11 +51,11 @@ Workspace/Replit secrets are not automatically guaranteed to exist in the separa
 
 **How to apply:** Treat workspace verification and Vercel environment verification as separate gates; never claim production email delivery is ready based only on the local secret.
 
-The linked GitHub push can fail with an invalid-credential error using the default remote helper even though the workspace's secured GitHub token works. After a verified commit, push through a temporary secured credential helper and verify all three Vercel projects independently by commit SHA; the admin project naming can differ from the user and API projects.
+ The linked GitHub push can fail with an invalid-credential error even when a workspace GitHub token is present. If the Vercel token remains valid, a direct prebuilt deployment can publish the verified static user app without changing the source repository.
 
-**Why:** The referral release could not use the default Git remote credential, while the secured workspace token successfully triggered the user, admin, and API production builds.
+ **Why:** GitHub and Vercel credentials are independent, and a rejected GitHub credential should not prevent an urgent verified frontend fix from reaching its existing Vercel project.
 
-**How to apply:** Never print or persist the token. Confirm each project reaches READY, then check the user signup chunk, admin referral bundle, API `/api/healthz`, and protected endpoints separately.
+ **How to apply:** Never print or persist tokens. Upload the local static bundle to the existing user-app project, create a production deployment, wait for `READY`, then verify the live hashed bundle and protected production endpoints separately.
 
 Fresh linked Vercel builds can select a different pnpm major than the workspace lockfile expects. Pin the exact workspace pnpm version in the root package manifest before relying on `--frozen-lockfile`; a mismatched major can either reject the lockfile configuration or block approved native build scripts.
 
