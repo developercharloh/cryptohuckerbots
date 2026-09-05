@@ -61,7 +61,17 @@ function parseCandles(value: unknown): Candle[] {
       low: Number(candle.low),
       close: Number(candle.close),
     };
-    if (Object.values(parsed).every(Number.isFinite)) byTime.set(parsed.time, parsed);
+    if (
+      Object.values(parsed).every(Number.isFinite) &&
+      parsed.open > 0 &&
+      parsed.high > 0 &&
+      parsed.low > 0 &&
+      parsed.close > 0 &&
+      parsed.high >= Math.max(parsed.open, parsed.close) &&
+      parsed.low <= Math.min(parsed.open, parsed.close)
+    ) {
+      byTime.set(parsed.time, parsed);
+    }
   }
   return [...byTime.values()].sort((a, b) => a.time - b.time);
 }

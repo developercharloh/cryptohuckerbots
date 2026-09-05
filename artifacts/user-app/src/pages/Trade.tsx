@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useLocation } from "wouter";
+import { createChart, CandlestickSeries, UTCTimestamp, ISeriesApi } from "lightweight-charts";
 import {
   useListTradeSignals, useGetTradeAccess, useExecuteTrade, useExecuteAllTradeSignals,
   useListTradePositions, useCloseTradePosition, useGetDashboardSummary,
@@ -16,9 +17,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip,
-} from "recharts";
+import { API_BASE, fetchWithTimeout } from "@/lib/api-base";
 
 type Step = "configure" | "running" | "result";
 type ExecutionMode = "single" | "all";
@@ -63,26 +62,46 @@ const PAIR_INFO: Record<string, { base: string; price: string; change: number; i
   "XAU/USD": { base: "XAU", price: "2,342.80", change: -0.09, icon: "🥇" },
 };
 
-function seededRandom(seed: number) {
-  let s = seed;
-  return () => {
-    s = (s * 9301 + 49297) % 233280;
-    return s / 233280;
-  };
+interface LiveCandle {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
 }
 
-function generateChartData(pair: string, count = 60) {
-  let seed = 0;
-  for (let i = 0; i < pair.length; i++) seed += pair.charCodeAt(i);
-  const rand = seededRandom(seed);
-  const base = parseFloat((PAIR_INFO[pair]?.price ?? "100").replace(/,/g, "")) || 100;
-  let price = base * (0.995 + rand() * 0.01);
-  const data = [];
-  for (let i = 0; i < count; i++) {
-    price += (rand() - 0.49) * base * 0.002;
-    data.push({ i, price: parseFloat(price.toFixed(5)) });
+function parseLiveCandles(value: unknown): LiveCandle[] {
+  if (!Array.isArray(value)) return [];
+  const byTime = new Map<number, LiveCandle>();
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const candle = item as Partial<LiveCandle>;
+    const parsed = {
+      time: Number(candle.time),
+      open: Number(candle.open),
+      high: Number(candle.high),
+      low: Number(candle.low),
+      close: Number(candle.close),
+    };
+    if (
+      Object.values(parsed).every(Number.isFinite) &&
+      parsed.open > 0 &&
+      parsed.high > 0 &&
+      parsed.low > 0 &&
+      parsed.close > 0 &&
+      parsed.high >= Math.max(parsed.open, parsed.close) &&
+      parsed.low <= Math.min(parsed.open, parsed.close)
+    ) {
+      byTime.set(parsed.time, parsed);
+    }
   }
-  return data;
+  return [...byTime.values()].sort((a, b) => a.time - b.time);
+}
+
+function formatMarketPrice(value: number): string {
+  if (value > 1000) return value.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  if (value > 10) return value.toFixed(3);
+  return value.toFixed(5);
 }
 
 const VIP_LEVELS = [
@@ -196,16 +215,133 @@ export default function Trade() {
   const [selectedPair, setSelectedPair] = useState("EUR/USD");
   const [requestedDirection] = useState(() => new URLSearchParams(window.location.search).get("direction")?.toUpperCase() ?? "");
   const [pairDropOpen, setPairDropOpen] = useState(false);
+  const [marketCandles, setMarketCandles] = useState<LiveCandle[]>([]);
+  const [marketLoading, setMarketLoading] = useState(true);
+  const [marketError, setMarketError] = useState<string | null>(null);
 
   const timerRef     = useRef<ReturnType<typeof setInterval> | null>(null);
   const consentRef   = useRef<HTMLInputElement>(null);
   const finishedRef  = useRef(false);
   const restoringRef = useRef<SavedTrade | null>(null);
   const positionsReadyRef = useRef(false);
+  const marketCandlesRef = useRef<LiveCandle[]>([]);
+  const compactChartRef = useRef<HTMLDivElement>(null);
+  const compactChartInstance = useRef<ReturnType<typeof createChart> | null>(null);
+  const compactSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
 
-  const chartData = useMemo(() => generateChartData(selectedPair, 60), [selectedPair]);
-  const pairInfo = PAIR_INFO[selectedPair] ?? { base: "EUR", price: "1.08412", change: 0.23, icon: "€" };
-  const priceUp = pairInfo.change >= 0;
+  marketCandlesRef.current = marketCandles;
+  const latestMarketCandle = marketCandles[marketCandles.length - 1];
+  const firstMarketOpen = marketCandles[0]?.open;
+  const marketChange = firstMarketOpen && latestMarketCandle
+    ? ((latestMarketCandle.close - firstMarketOpen) / firstMarketOpen) * 100
+    : undefined;
+  const priceUp = (marketChange ?? 0) >= 0;
+  const marketIsLive = latestMarketCandle
+    ? Date.now() / 1000 - latestMarketCandle.time < 2 * 60
+    : false;
+
+  const fetchMarketCandles = useCallback(async () => {
+    const query = new URLSearchParams({
+      symbol: selectedPair.replace("/", "-"),
+      interval: "1m",
+    });
+    const response = await fetchWithTimeout(
+      `${API_BASE}/api/market/candles?${query.toString()}`,
+      { credentials: "include" },
+    );
+    if (!response.ok) throw new Error("Live market candles are temporarily unavailable.");
+    const data = parseLiveCandles(await response.json());
+    if (data.length < 2) throw new Error("The market source returned too few candles.");
+    return data;
+  }, [selectedPair]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setMarketLoading(true);
+    setMarketError(null);
+
+    const refresh = async () => {
+      try {
+        const data = await fetchMarketCandles();
+        if (cancelled) return;
+        setMarketCandles(data);
+        setMarketError(null);
+      } catch (error) {
+        if (cancelled) return;
+        setMarketError(error instanceof Error ? error.message : "Live market candles are temporarily unavailable.");
+      } finally {
+        if (!cancelled) setMarketLoading(false);
+      }
+    };
+
+    void refresh();
+    const id = setInterval(refresh, 5_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [fetchMarketCandles]);
+
+  useEffect(() => {
+    const container = compactChartRef.current;
+    if (!container) return;
+    container.innerHTML = "";
+
+    const chart = createChart(container, {
+      width: container.clientWidth,
+      height: 152,
+      layout: { background: { color: "transparent" }, textColor: "#6B7280" },
+      grid: { vertLines: { color: "rgba(255,255,255,0.025)" }, horzLines: { color: "rgba(255,255,255,0.025)" } },
+      rightPriceScale: { visible: false },
+      leftPriceScale: { visible: false },
+      timeScale: {
+        visible: false,
+        rightOffset: 2,
+        barSpacing: 7,
+        minBarSpacing: 4,
+        shiftVisibleRangeOnNewBar: true,
+      },
+      handleScale: false,
+      handleScroll: false,
+    });
+    compactChartInstance.current = chart;
+
+    const series = chart.addSeries(CandlestickSeries, {
+      upColor: "#22c55e",
+      downColor: "#ef4444",
+      borderVisible: false,
+      wickUpColor: "#22c55e",
+      wickDownColor: "#ef4444",
+      priceLineVisible: false,
+      lastValueVisible: false,
+      priceFormat: { type: "price", precision: 5, minMove: 0.00001 },
+    });
+    compactSeriesRef.current = series;
+    if (marketCandlesRef.current.length > 0) {
+      series.setData(marketCandlesRef.current.map((candle) => ({ ...candle, time: candle.time as UTCTimestamp })));
+      chart.timeScale().fitContent();
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      if (compactChartRef.current) chart.applyOptions({ width: compactChartRef.current.clientWidth });
+    });
+    resizeObserver.observe(container);
+
+    return () => {
+      resizeObserver.disconnect();
+      chart.remove();
+      compactChartInstance.current = null;
+      compactSeriesRef.current = null;
+    };
+  }, [selectedPair]);
+
+  useEffect(() => {
+    if (!compactSeriesRef.current || marketCandles.length === 0) return;
+    compactSeriesRef.current.setData(
+      marketCandles.map((candle) => ({ ...candle, time: candle.time as UTCTimestamp })),
+    );
+    compactChartInstance.current?.timeScale().fitContent();
+  }, [marketCandles]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -842,11 +978,13 @@ export default function Trade() {
 
             {/* Live price */}
             <div>
-              <p style={{ fontSize: 18, fontWeight: 800, color: "#fff", lineHeight: 1 }}>{pairInfo.price}</p>
+              <p style={{ fontSize: 18, fontWeight: 800, color: "#fff", lineHeight: 1 }}>
+                {latestMarketCandle ? formatMarketPrice(latestMarketCandle.close) : "—"}
+              </p>
               <div style={{ display: "flex", alignItems: "center", gap: 3, marginTop: 2 }}>
                 {priceUp ? <TrendingUp style={{ width: 10, height: 10, color: "#22c55e" }} /> : <TrendingDown style={{ width: 10, height: 10, color: "#ef4444" }} />}
                 <span style={{ fontSize: 11, fontWeight: 700, color: priceUp ? "#22c55e" : "#ef4444" }}>
-                  {priceUp ? "+" : ""}{pairInfo.change.toFixed(2)}%
+                  {marketChange === undefined ? "—" : `${priceUp ? "+" : ""}${marketChange.toFixed(2)}%`}
                 </span>
               </div>
             </div>
@@ -854,39 +992,25 @@ export default function Trade() {
 
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 20, padding: "3px 8px" }}>
-              <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#22c55e", boxShadow: "0 0 5px #22c55e" }} />
-              <span style={{ fontSize: 9, fontWeight: 700, color: "#22c55e" }}>LIVE</span>
+              <div style={{ width: 5, height: 5, borderRadius: "50%", background: marketIsLive ? "#22c55e" : "#FBBF24", boxShadow: `0 0 5px ${marketIsLive ? "#22c55e" : "#FBBF24"}` }} />
+              <span style={{ fontSize: 9, fontWeight: 700, color: marketIsLive ? "#22c55e" : "#FBBF24" }}>{marketIsLive ? "LIVE" : "SOURCE"}</span>
             </div>
           </div>
         </div>
 
         {/* ── Price Chart ── */}
         <div className="user-trade-chart" style={{ padding: "8px 0 0", height: 160, position: "relative" }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor={priceUp ? "#22c55e" : "#ef4444"} stopOpacity={0.25} />
-                  <stop offset="95%" stopColor={priceUp ? "#22c55e" : "#ef4444"} stopOpacity={0}    />
-                </linearGradient>
-              </defs>
-              <Area
-                type="monotone"
-                dataKey="price"
-                stroke={priceUp ? "#22c55e" : "#ef4444"}
-                strokeWidth={1.5}
-                fill="url(#chartGrad)"
-                dot={false}
-                isAnimationActive={false}
-              />
-              <Tooltip
-                contentStyle={{ background: "#1a1f36", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 11 }}
-                itemStyle={{ color: "#fff" }}
-                labelStyle={{ display: "none" }}
-                formatter={(v: any) => [v.toFixed(5), "Price"]}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          <div ref={compactChartRef} style={{ width: "100%", height: "100%" }} />
+          {marketLoading && marketCandles.length === 0 && (
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF", fontSize: 11 }}>
+              Loading live candles…
+            </div>
+          )}
+          {marketError && marketCandles.length === 0 && (
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, textAlign: "center", color: "#FCA5A5", fontSize: 11 }}>
+              {marketError}
+            </div>
+          )}
         </div>
 
         {/* ── Divider ── */}
