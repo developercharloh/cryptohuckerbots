@@ -501,7 +501,7 @@ async function closePosition(
       return cur[0] ?? p;
     }
 
-    // Stake was reserved from Vault Capital on open. Return the principal
+    // Stake was reserved from Earn on open. Return the principal
     // portion to the vault. Signal outcomes are fixed at +$1.50 and credited
     // through the one-time signal reward below.
     const stake = parseFloat(p.stake);
@@ -513,7 +513,7 @@ async function closePosition(
         amount: vaultReturn.toFixed(2),
         status: "completed",
         paymentMethod: "balance",
-        description: `${opts.title}: Vault Capital principal return for ${p.pair} ${p.direction} (${p.botName})`,
+        description: `${opts.title}: Earn principal return for ${p.pair} ${p.direction} (${p.botName})`,
       });
     }
     if (realized > 0 && !isSignalPosition) {
@@ -523,7 +523,7 @@ async function closePosition(
         amount: realized.toFixed(2),
         status: "completed",
         paymentMethod: "balance",
-        description: `${opts.title}: Main Wallet profit from ${p.pair} ${p.direction} (${p.botName})`,
+        description: `${opts.title}: Spot Wallet profit from ${p.pair} ${p.direction} (${p.botName})`,
       });
     }
     if (signalClaim) {
@@ -533,7 +533,7 @@ async function closePosition(
         amount: SIGNAL_REWARD_AMOUNT.toFixed(2),
         status: "completed",
         paymentMethod: "balance",
-        description: `AI Signal reward: Main Wallet credit reflected in Portfolio Wallet for ${p.pair} ${p.direction} (${p.botName})`,
+        description: `AI Signal reward: Spot Wallet credit reflected in Portfolio for ${p.pair} ${p.direction} (${p.botName})`,
       });
     }
     if (fee > 0) {
@@ -543,7 +543,7 @@ async function closePosition(
         amount: fee.toFixed(2),
         status: "completed",
         paymentMethod: "balance",
-        description: `AI Signal Vault Capital fee: ${p.pair} (${p.botName})`,
+        description: `AI Signal Earn fee: ${p.pair} (${p.botName})`,
       });
     }
     await tx.insert(earningsTable).values({ userId: p.userId, amount: netRealized.toFixed(2), source: "trade" });
@@ -552,7 +552,7 @@ async function closePosition(
       ? `Your ${p.pair} ${p.direction} AI Signal settled with the disclosed +$${SIGNAL_REWARD_AMOUNT.toFixed(2)} outcome.`
       : opts.message;
     const notificationSuffix = isSignalPosition
-      ? " The outcome was credited to your Main Wallet and reflected in your Portfolio Wallet."
+      ? " The outcome was credited to your Spot Wallet and reflected in your Portfolio."
       : ` Net realized P&L after a ${fee.toFixed(2)} fee: ${netRealized >= 0 ? "+" : "-"}$${Math.abs(netRealized).toFixed(2)}.`;
     await tx.insert(notificationsTable).values({
       userId: p.userId,
@@ -924,7 +924,7 @@ router.post("/trade/vip-packages/:level/purchase", async (req, res) => {
             userId: referral.referrerUserId,
             type: "referral",
             title: "Referral bonus credited",
-            message: `Your $${Number(referral.bonusAmount).toFixed(2)} referral bonus is now available in your Main Wallet.`,
+            message: `Your $${Number(referral.bonusAmount).toFixed(2)} referral bonus is now available in your Spot Wallet.`,
           });
         }
       }
@@ -1036,9 +1036,9 @@ router.post("/trade/execute", async (req, res) => {
   const stopLoss = SIGNAL_EXECUTION_AMOUNT;
 
   const vaultSnapshot = await getVaultCapitalSnapshot(user.id);
-  if (stake > vaultSnapshot.vaultCapital) return res.status(400).json({ error: "Insufficient Vault Capital for this stake" });
+  if (stake > vaultSnapshot.vaultCapital) return res.status(400).json({ error: "Insufficient Earn balance for this stake" });
   if (stake > vaultSnapshot.vaultCapital * (config.maxStakePercent / 100)) {
-     return res.status(400).json({ error: `Stake exceeds the ${config.maxStakePercent}% maximum of Vault Capital.` });
+     return res.status(400).json({ error: `Stake exceeds the ${config.maxStakePercent}% maximum of Earn.` });
   }
 
   const dayClaims = await db.select().from(signalClaimsTable).where(and(
@@ -1084,10 +1084,10 @@ router.post("/trade/execute", async (req, res) => {
       const initialCapital = purchasedCapital > 0 ? purchasedCapital : Number(legacyCapital?.amount ?? 0);
       const currentVaultCapital = calculateVaultCapital(initialCapital, vaultTransactions);
       if (stake > currentVaultCapital) {
-        throw new SignalRuleError("INSUFFICIENT_VAULT_CAPITAL", "Insufficient Vault Capital for this stake.", 400);
+        throw new SignalRuleError("INSUFFICIENT_VAULT_CAPITAL", "Insufficient Earn balance for this stake.", 400);
       }
       if (stake > currentVaultCapital * (config.maxStakePercent / 100)) {
-        throw new SignalRuleError("STAKE_LIMIT", `Stake exceeds the ${config.maxStakePercent}% maximum of Vault Capital.`, 400);
+        throw new SignalRuleError("STAKE_LIMIT", `Stake exceeds the ${config.maxStakePercent}% maximum of Earn.`, 400);
       }
       const freshClaims = await tx.select().from(signalClaimsTable).where(and(
         eq(signalClaimsTable.userId, user.id),
@@ -1291,10 +1291,10 @@ router.post("/trade/execute-all", async (req, res) => {
       const initialCapital = purchasedCapital > 0 ? purchasedCapital : Number(legacyCapital?.amount ?? 0);
       const currentVaultCapital = calculateVaultCapital(initialCapital, vaultTransactions);
       if (totalStake > currentVaultCapital) {
-        throw new SignalRuleError("INSUFFICIENT_VAULT_CAPITAL", `Insufficient Vault Capital for ${selected.length} simultaneous signals.`, 400);
+        throw new SignalRuleError("INSUFFICIENT_VAULT_CAPITAL", `Insufficient Earn balance for ${selected.length} simultaneous signals.`, 400);
       }
       if (stake > currentVaultCapital * (config.maxStakePercent / 100)) {
-        throw new SignalRuleError("STAKE_LIMIT", `Stake exceeds the ${config.maxStakePercent}% maximum of Vault Capital.`, 400);
+        throw new SignalRuleError("STAKE_LIMIT", `Stake exceeds the ${config.maxStakePercent}% maximum of Earn.`, 400);
       }
 
       const consentAt = new Date();

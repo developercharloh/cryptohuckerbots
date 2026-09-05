@@ -22,7 +22,7 @@ test("wallet credits completed deposits and returns, including admin credits", (
   assert.equal(balance, 727.75);
 });
 
-test("Vault Capital is separate from Main Wallet ledger movements", () => {
+test("Earn is separate from Spot Wallet ledger movements", () => {
   assert.equal(vaultTransactionDelta("vault_trade_stake", 2.5), -2.5);
   assert.equal(vaultTransactionDelta("vault_trade_return", 2.5), 2.5);
   assert.equal(vaultTransactionDelta("vault_trade_fee", 0.25), -0.25);

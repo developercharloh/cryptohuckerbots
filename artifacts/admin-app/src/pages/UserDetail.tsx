@@ -379,17 +379,17 @@ export default function UserDetail() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
-                    <div className="text-xs font-medium text-muted-foreground">Main Wallet</div>
+                    <div className="text-xs font-medium text-muted-foreground">Spot Wallet</div>
                     <div className="text-xl font-bold text-emerald-500">${user.mainWalletBalance.toFixed(2)}</div>
                     <div className="text-[10px] text-muted-foreground mt-1">Completed ledger balance</div>
                   </div>
                   <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
-                    <div className="text-xs font-medium text-muted-foreground">Vault Capital</div>
+                    <div className="text-xs font-medium text-muted-foreground">Earn</div>
                     <div className="text-xl font-bold text-amber-500">${user.vaultCapital.toFixed(2)}</div>
                     <div className="text-[10px] text-muted-foreground mt-1">VIP trading capital</div>
                   </div>
                   <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
-                    <div className="text-xs font-medium text-muted-foreground">Portfolio Wallet</div>
+                    <div className="text-xs font-medium text-muted-foreground">Portfolio</div>
                     <div className="text-xl font-bold text-primary">${user.portfolioBalance.toFixed(2)}</div>
                     <div className="text-[10px] text-muted-foreground mt-1">Main + Vault</div>
                   </div>
@@ -582,7 +582,7 @@ export default function UserDetail() {
                             <TableRow key={txn.id}>
                               <TableCell className="text-xs whitespace-nowrap">{format(new Date(txn.createdAt), "PP p")}</TableCell>
                               <TableCell className="capitalize">
-                                <div>{txn.type === 'trade_loss' ? 'Contract Opened' : txn.type === 'trade_profit' || txn.type === 'trade_loss_return' ? 'Contract Closed' : txn.type === 'vault_trade_stake' ? 'Vault Capital Reserved' : txn.type === 'vault_trade_return' ? 'Vault Capital Returned' : txn.type === 'vault_trade_fee' ? 'Vault Capital Trading Fee' : txn.type.replace('_', ' ')}</div>
+                                <div>{txn.type === 'trade_loss' ? 'Contract Opened' : txn.type === 'trade_profit' || txn.type === 'trade_loss_return' ? 'Contract Closed' : txn.type === 'vault_trade_stake' ? 'Earn Reserved' : txn.type === 'vault_trade_return' ? 'Earn Returned' : txn.type === 'vault_trade_fee' ? 'Earn Trading Fee' : txn.type.replace('_', ' ')}</div>
                                 {txn.type === 'withdrawal' && txn.walletAddress && (
                                   <div className="mt-1 p-1.5 rounded-md bg-secondary/60 space-y-1">
                                     {txn.network && (

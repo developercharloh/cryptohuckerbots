@@ -77,7 +77,7 @@ const TUTORIALS: Tutorial[] = [
     id: "wallets",
     label: "Manage funds",
     title: "Understand your wallets",
-    description: "Keep track of available Main Wallet funds, Vault Capital, deposits, withdrawals, and transaction history.",
+    description: "Keep track of available Spot Wallet funds, Earn, deposits, withdrawals, and transaction history.",
     icon: Wallet,
     accent: "#34D399",
     steps: [

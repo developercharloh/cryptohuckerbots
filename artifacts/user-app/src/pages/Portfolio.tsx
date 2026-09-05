@@ -60,10 +60,10 @@ function transactionLabel(type: string) {
     trade_loss_return: "Trade return",
     signal_reward: "Signal reward",
     referral_bonus: "Referral bonus",
-    vip_package_purchase: "Vault capital transfer",
-    vault_trade_stake: "Vault capital reserved",
-    vault_trade_return: "Vault capital returned",
-    vault_trade_fee: "Vault trading fee",
+    vip_package_purchase: "Earn transfer",
+    vault_trade_stake: "Earn reserved",
+    vault_trade_return: "Earn returned",
+    vault_trade_fee: "Earn trading fee",
   };
   return labels[type] ?? titleCase(type);
 }
@@ -262,7 +262,7 @@ export default function Portfolio() {
               <div className="relative">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Portfolio wallet</p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Portfolio</p>
                     {summaryQuery.isLoading ? (
                       <Skeleton className="mt-3 h-11 w-48 bg-white/[0.1]" />
                     ) : primaryError ? (
@@ -292,7 +292,7 @@ export default function Portfolio() {
                     <div className="mt-6 grid gap-2 sm:grid-cols-2">
                       <div className="rounded-2xl border border-amber-200/10 bg-white/[0.055] p-3.5">
                         <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">
-                          <WalletCards className="h-3.5 w-3.5 text-amber-200" /> Main wallet
+                          <WalletCards className="h-3.5 w-3.5 text-amber-200" /> Spot Wallet
                         </div>
                         <p className="mt-2 font-mono text-lg font-bold text-amber-100">
                           {balanceVisible ? formatUSD(wallet) : "••••••"}
@@ -301,7 +301,7 @@ export default function Portfolio() {
                       </div>
                       <div className="rounded-2xl border border-sky-300/10 bg-sky-300/[0.055] p-3.5">
                         <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">
-                          <LockKeyhole className="h-3.5 w-3.5 text-sky-300" /> Vault capital
+                          <LockKeyhole className="h-3.5 w-3.5 text-sky-300" /> Earn
                         </div>
                         <p className="mt-2 font-mono text-lg font-bold text-sky-200">
                           {balanceVisible ? formatUSD(vault) : "••••••"}
@@ -319,8 +319,8 @@ export default function Portfolio() {
                         <div className="bg-sky-400/70" style={{ width: `${Math.max(0, 100 - walletShare)}%` }} />
                       </div>
                       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-slate-500">
-                        <span><i className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-amber-300" />Main wallet</span>
-                        <span><i className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-sky-400" />Vault capital</span>
+                        <span><i className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-amber-300" />Spot Wallet</span>
+                        <span><i className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-sky-400" />Earn</span>
                       </div>
                     </div>
                     {pending > 0 && (

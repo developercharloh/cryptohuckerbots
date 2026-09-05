@@ -169,18 +169,18 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
                 </p>
                 <h1 className="text-2xl font-black tracking-tight">VIXUS Referral Programme</h1>
                    <p className="mt-2 max-w-xl text-xs leading-5 text-gray-400">
-                    Every qualified referral credits $20.00 to your referral bonus total. VIP 1 starts with a $350 Main Wallet activation; VIP 2–10 unlock through active referrals.
+                     Every qualified referral credits $20.00 to your referral bonus total. VIP 1 starts with a $350 Spot Wallet activation; VIP 2–10 unlock through active referrals.
                 </p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-2 text-right">
-                  <p className="text-[9px] uppercase tracking-wider text-gray-500">Main wallet balance</p>
+                   <p className="text-[9px] uppercase tracking-wider text-gray-500">Spot Wallet balance</p>
                    <p className="mt-1 text-lg font-black text-amber-200">{walletDisplay}</p>
                   {pendingOutflow > 0 && (
                     <p className="mt-1 max-w-[150px] text-[9px] leading-3 text-gray-500">
                   VIP purchases use completed wallet funds. Pending withdrawals remain visible in your transaction history.
                     </p>
                   )}
-                  <p className="mt-2 text-[9px] uppercase tracking-wider text-gray-500">Vault capital</p>
+                   <p className="mt-2 text-[9px] uppercase tracking-wider text-gray-500">Earn balance</p>
                     <p className="mt-1 text-sm font-black text-blue-200">{vaultCapitalDisplay}</p>
               </div>
             </div>
@@ -308,7 +308,7 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
                    <p className="text-sm font-bold">Activate VIP {selected.level}</p>
                    <p className="mt-1 text-xs text-gray-400">
                         {selected.level === 1
-                          ? `${formatUSD(selected.amountDue)} will move from your Main Wallet into Vault Capital`
+                           ? `${formatUSD(selected.amountDue)} will move from your Spot Wallet into Earn`
                           : `${qualifiedReferrals} of ${referralRequirement} active referrals · no payment required`}
                          {" "}· {selected.dailySignals} AI Signals per day at $1.50 each
                   </p>
@@ -341,11 +341,11 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
               </div>
               {!canPurchase && selected.level > activeLevel && selected.level === 1 && purchaseBalance < selected.amountDue && (
                 <p role="alert" className="mt-3 rounded-xl border border-red-300/20 bg-red-400/10 px-3 py-2 text-[11px] leading-5 text-red-200">
-                   Insufficient Main Wallet balance to purchase VIP {selected.level}. You need {formatUSD(selected.amountDue)}, but your Main Wallet is {formatUSD(purchaseBalance)}. Top up your wallet or use accumulated profits; you are short by {formatUSD(shortfall)}.
+                    Insufficient Spot Wallet balance to purchase VIP {selected.level}. You need {formatUSD(selected.amountDue)}, but your Spot Wallet is {formatUSD(purchaseBalance)}. Top up your wallet or use accumulated profits; you are short by {formatUSD(shortfall)}.
                 </p>
               )}
                 <p className="mt-3 text-[10px] leading-4 text-gray-500">
-                    VIP 1 uses $350 from your Main Wallet as Vault Capital. VIP 2–10 require active referrals only and do not charge your wallet or add paid capital.
+                     VIP 1 uses $350 from your Spot Wallet as Earn. VIP 2–10 require active referrals only and do not charge your wallet or add paid capital.
               </p>
             </div>
           )}
@@ -377,10 +377,10 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
                   <div className="rounded-2xl border border-amber-200/15 bg-amber-200/[0.07] p-3">
                     <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-amber-200/70">Activated tier</p>
                     <p className="mt-1 text-lg font-black text-amber-100">VIP {purchaseSuccess.level}</p>
-                      <p className="mt-0.5 text-xs text-slate-400">{formatUSD(purchaseSuccess.amountPaid)} paid today · {formatUSD(purchaseSuccess.price)} in Vault Capital</p>
+                       <p className="mt-0.5 text-xs text-slate-400">{formatUSD(purchaseSuccess.amountPaid)} paid today · {formatUSD(purchaseSuccess.price)} in Earn</p>
                   </div>
                   <div className="rounded-2xl border border-blue-200/15 bg-blue-200/[0.07] p-3">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-blue-200/70">Main wallet</p>
+                     <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-blue-200/70">Spot Wallet</p>
                     <p className="mt-1 text-lg font-black text-blue-100">{formatUSD(purchaseSuccess.mainWalletBalance)}</p>
                     <p className="mt-0.5 text-xs text-slate-400">Available to use</p>
                   </div>
@@ -388,7 +388,7 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
 
                 <div className="mt-3 flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-xs text-slate-300">
                   <LockKeyhole className="h-4 w-4 shrink-0 text-amber-300" />
-                   <span>Total Vault Capital: <strong className="text-white">{formatUSD(purchaseSuccess.vaultCapital)}</strong></span>
+                    <span>Total Earn: <strong className="text-white">{formatUSD(purchaseSuccess.vaultCapital)}</strong></span>
                 </div>
 
                 <button

@@ -22,7 +22,7 @@ router.get("/dashboard/summary", async (req, res) => {
     db.select().from(userBotsTable).where(eq(userBotsTable.userId, user.id)),
     getWalletSnapshot(user.id),
     getVaultCapitalSnapshot(user.id).catch((err) => {
-      // A vault read must not hide a user's spendable Main Wallet. Keep the
+      // An Earn read must not hide a user's spendable Spot Wallet. Keep the
       // failure visible in server logs while returning the independent wallet
       // ledger so deposits and admin credits remain usable.
       logger.error({ err, userId: user.id }, "Vault snapshot failed for dashboard");

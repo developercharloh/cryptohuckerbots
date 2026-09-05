@@ -66,8 +66,8 @@ export default function Dashboard() {
   const lockedCapital = Math.max(0, Number(vaultCapital ?? 0));
   const walletShare = totalCapital > 0 ? Math.min(100, (walletCapital / totalCapital) * 100) : 0;
   const capitalRows = [
-    { name: "Main Wallet", symbol: "Spendable balance", icon: "₮", color: "#26A17B", value: walletCapital, pct: walletShare },
-    { name: "Vault Capital", symbol: "Locked VIP capital", icon: "V", color: "#60A5FA", value: lockedCapital, pct: Math.max(0, 100 - walletShare) },
+    { name: "Spot Wallet", symbol: "Spendable balance", icon: "₮", color: "#26A17B", value: walletCapital, pct: walletShare },
+    { name: "Earn", symbol: "VIP trading capital", icon: "E", color: "#60A5FA", value: lockedCapital, pct: Math.max(0, 100 - walletShare) },
   ];
 
   return (
@@ -130,7 +130,7 @@ export default function Dashboard() {
 
             {/* Balance label + eye */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, position: "relative" }}>
-               <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 600 }}>Portfolio Wallet</span>
+               <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 600 }}>Portfolio</span>
               <button
                 onClick={() => setBalanceVisible(v => !v)}
                 style={{ background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 8, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
@@ -158,11 +158,11 @@ export default function Dashboard() {
             {!loadingSummary && (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 18, position: "relative" }}>
                 <div style={{ borderRadius: 12, padding: "9px 10px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                  <p style={{ fontSize: 9, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Main wallet</p>
+                  <p style={{ fontSize: 9, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Spot Wallet</p>
                   <p style={{ fontSize: 14, fontWeight: 800, color: "#fff", marginTop: 3 }}>{balanceVisible ? formatUSD(mainWalletBalance ?? summary?.availableBalance) : "••••••"}</p>
                 </div>
                 <div style={{ borderRadius: 12, padding: "9px 10px", background: "rgba(37,99,235,0.12)", border: "1px solid rgba(96,165,250,0.18)" }}>
-                  <p style={{ fontSize: 9, color: "rgba(191,219,254,0.65)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Vault Capital</p>
+                  <p style={{ fontSize: 9, color: "rgba(191,219,254,0.65)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Earn</p>
                   <p style={{ fontSize: 14, fontWeight: 800, color: "#bfdbfe", marginTop: 3 }}>{balanceVisible ? formatUSD(vaultCapital) : "••••••"}</p>
                 </div>
               </div>
@@ -378,9 +378,9 @@ export default function Dashboard() {
                          {tx.type === "trade_loss" ? "Contract Opened" :
                           tx.type === "trade_profit" || tx.type === "trade_loss_return" ? "Contract Closed" :
                          tx.type === "signal_reward" ? "Signal Reward" :
-                          tx.type === "vault_trade_stake" ? "Vault Capital Reserved" :
-                          tx.type === "vault_trade_return" ? "Vault Capital Returned" :
-                          tx.type === "vault_trade_fee" ? "Vault Capital Trading Fee" :
+                          tx.type === "vault_trade_stake" ? "Earn Reserved" :
+                          tx.type === "vault_trade_return" ? "Earn Returned" :
+                          tx.type === "vault_trade_fee" ? "Earn Trading Fee" :
                          tx.type ? tx.type.replace(/_/g, " ") : (isIn ? "Deposit" : "Withdrawal")}
                       </p>
                       <p style={{ fontSize: 10, color: "#6B7280" }}>{tx.createdAt ? new Date(tx.createdAt).toLocaleDateString() : "—"}</p>

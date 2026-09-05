@@ -283,7 +283,7 @@ export default function Settings() {
               <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
                 <p className="text-xs font-semibold">VIP signal policy</p>
                 <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                   VIP 1 requires a $350 Main Wallet activation and unlocks 2 daily signals. VIP 2–10 require active VIP 1 referrals only: 5, 10, 20, 35, 55, 80, 110, 145, and 185 referrals respectively.
+                   VIP 1 requires a $350 Spot Wallet activation and unlocks 2 daily signals. VIP 2–10 require active VIP 1 referrals only: 5, 10, 20, 35, 55, 80, 110, 145, and 185 referrals respectively.
                    Daily allowances run from 2 through 11 signals, each with a disclosed $2.25 reward. VIP status changes signal access only and never guarantees returns or restricts withdrawals.
                 </p>
               </div>

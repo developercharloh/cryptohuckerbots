@@ -243,7 +243,7 @@ export default function StartBot() {
               <div className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center">1</div>
               <h2 className="text-sm font-bold">Stake Amount</h2>
               <span className="ml-auto text-[10px] text-muted-foreground">
-                 Vault Capital: <span className="font-bold text-foreground">${(summary?.vaultCapital ?? summary?.lockedInvestmentCapital ?? 0).toFixed(2)}</span>
+                 Earn: <span className="font-bold text-foreground">${(summary?.vaultCapital ?? summary?.lockedInvestmentCapital ?? 0).toFixed(2)}</span>
               </span>
             </div>
             <div className="relative">
@@ -258,7 +258,7 @@ export default function StartBot() {
             </div>
             {stakeNum > 0 && stakeNum > (summary?.vaultCapital ?? summary?.lockedInvestmentCapital ?? 0) && (
               <p className="text-[11px] text-destructive font-semibold mt-2 flex items-center gap-1">
-                ⚠ Amount exceeds your Vault Capital of ${(summary?.vaultCapital ?? summary?.lockedInvestmentCapital ?? 0).toFixed(2)}
+                ⚠ Amount exceeds your Earn balance of ${(summary?.vaultCapital ?? summary?.lockedInvestmentCapital ?? 0).toFixed(2)}
               </p>
             )}
             <div className="flex gap-2 mt-2.5">
@@ -553,7 +553,7 @@ export default function StartBot() {
           ))}
         </div>
 
-        {/* Updated Main Wallet balance */}
+        {/* Updated Spot Wallet balance */}
         <div className="w-full bg-card rounded-2xl p-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <BarChart2 className="w-4 h-4 text-muted-foreground" />

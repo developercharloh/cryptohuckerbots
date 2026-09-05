@@ -236,7 +236,7 @@ export default function Dashboard() {
                     <div className="text-sm font-medium truncate">{txn.userName}</div>
                     <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
                       <Clock className="w-3 h-3" />
-                      <span className="capitalize">{txn.type === 'trade_loss' ? 'Contract Opened' : txn.type === 'trade_profit' || txn.type === 'trade_loss_return' ? 'Contract Closed' : txn.type === 'vault_trade_stake' ? 'Vault Capital Reserved' : txn.type === 'vault_trade_return' ? 'Vault Capital Returned' : txn.type === 'vault_trade_fee' ? 'Vault Capital Trading Fee' : txn.type === 'vip_package_purchase' ? 'VIP Package Purchase' : txn.type.replace('_', ' ')}</span>
+                      <span className="capitalize">{txn.type === 'trade_loss' ? 'Contract Opened' : txn.type === 'trade_profit' || txn.type === 'trade_loss_return' ? 'Contract Closed' : txn.type === 'vault_trade_stake' ? 'Earn Reserved' : txn.type === 'vault_trade_return' ? 'Earn Returned' : txn.type === 'vault_trade_fee' ? 'Earn Trading Fee' : txn.type === 'vip_package_purchase' ? 'VIP Package Purchase' : txn.type.replace('_', ' ')}</span>
                       <span>·</span>
                       <span>{txn.status}</span>
                     </div>

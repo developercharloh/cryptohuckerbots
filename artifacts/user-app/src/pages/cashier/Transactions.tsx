@@ -81,10 +81,10 @@ export default function Transactions() {
                 tx.type === "trade_profit" || tx.type === "trade_loss_return" ? "Contract Closed" :
                 tx.type === "signal_reward" ? "Signal Reward" :
                 tx.type === "referral_bonus" ? "Referral Bonus" :
-                tx.type === "vip_package_purchase" ? "Vault Capital Transfer" :
-                tx.type === "vault_trade_stake" ? "Vault Capital Reserved" :
-                tx.type === "vault_trade_return" ? "Vault Capital Returned" :
-                tx.type === "vault_trade_fee" ? "Vault Capital Trading Fee" :
+                tx.type === "vip_package_purchase" ? "Earn Transfer" :
+                tx.type === "vault_trade_stake" ? "Earn Reserved" :
+                tx.type === "vault_trade_return" ? "Earn Returned" :
+                tx.type === "vault_trade_fee" ? "Earn Trading Fee" :
                 tx.type.replace(/_/g, " ");
               return (
                 <div key={tx.id} className="overflow-hidden rounded-2xl bg-card">

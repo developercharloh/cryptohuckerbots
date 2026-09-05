@@ -69,7 +69,7 @@ export default function Cashier() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12, position: "relative" }}>
               <div>
                 <p style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  Main Wallet Balance
+                   Spot Wallet Balance
                 </p>
                 {isLoading ? (
                   <Skeleton className="h-9 w-36 bg-white/10" />
@@ -147,7 +147,7 @@ export default function Cashier() {
                 <LockKeyhole className="h-5 w-5 text-blue-300" />
               </div>
               <div>
-                 <p className="text-sm font-semibold">Vault Capital</p>
+                 <p className="text-sm font-semibold">Earn</p>
                  <p className="text-[11px] text-muted-foreground">VIP trading capital · not available to withdraw</p>
               </div>
             </div>

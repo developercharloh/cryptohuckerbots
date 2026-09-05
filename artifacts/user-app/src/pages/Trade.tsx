@@ -622,7 +622,7 @@ export default function Trade() {
     }
     const signalAmount = vipAccess?.signalAmount ?? 1.5;
     if (signalAmount > vaultCapital) {
-      toast({ title: "Insufficient Vault Capital", description: `Your Vault Capital is $${vaultCapital.toFixed(2)}. Activate or upgrade VIP and try again.`, variant: "destructive" });
+      toast({ title: "Insufficient Earn balance", description: `Your Earn balance is $${vaultCapital.toFixed(2)}. Activate or upgrade VIP and try again.`, variant: "destructive" });
       return;
     }
     const secs = runtime * 60;
@@ -714,8 +714,8 @@ export default function Trade() {
     const totalStake = signalAmount * bulkSignalCount;
     if (totalStake > vaultCapital) {
       toast({
-        title: "Insufficient Vault Capital",
-        description: `You need $${totalStake.toFixed(2)} of Vault Capital for ${bulkSignalCount} simultaneous signals.`,
+        title: "Insufficient Earn balance",
+        description: `You need $${totalStake.toFixed(2)} in Earn for ${bulkSignalCount} simultaneous signals.`,
         variant: "destructive",
       });
       return;
@@ -1326,7 +1326,7 @@ export default function Trade() {
                   border: "1px solid rgba(255,255,255,0.06)",
                 }}>
                   <div>
-                    <p style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", color: "#7C849D", fontWeight: 800 }}>Vault Capital available</p>
+                    <p style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", color: "#7C849D", fontWeight: 800 }}>Earn available</p>
                     <p style={{ fontSize: 23, color: "#fff", fontWeight: 900, marginTop: 3 }}>${vaultCapital.toFixed(2)}</p>
                   </div>
                   <p style={{ fontSize: 11, color: "#9CA3AF", textAlign: "right", display: "flex", alignItems: "center", gap: 5 }}>
@@ -1495,7 +1495,7 @@ export default function Trade() {
                             </div>
                             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 4 }}>
                               <span style={{ fontSize: 9, color: isCurrent ? "#C4B5FD" : "#7C8498" }}>
-                                {phase === "queued" ? "Waiting for AI review" : phase === "scanning" ? "Comparing momentum and liquidity" : phase === "selected" ? "Best available opportunity selected" : phase === "executing" ? "Opening securely with Vault Capital" : "Monitoring position performance"}
+                                {phase === "queued" ? "Waiting for AI review" : phase === "scanning" ? "Comparing momentum and liquidity" : phase === "selected" ? "Best available opportunity selected" : phase === "executing" ? "Opening securely with Earn" : "Monitoring position performance"}
                               </span>
                               <span style={{ fontSize: 9, color: "#FDE68A", fontFamily: "monospace" }}>{signal.confidence}%</span>
                             </div>
@@ -1509,7 +1509,7 @@ export default function Trade() {
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "3px 8px 0" }}>
                   <Activity style={{ width: 14, height: 14, color: "#60A5FA" }} />
                   <p style={{ fontSize: 10, color: "#8D94A8", textAlign: "center", lineHeight: 1.5 }}>
-                    All {bulkPositionIds.length} positions opened together. Rewards are credited to Main Wallet as each signal settles.
+                    All {bulkPositionIds.length} positions opened together. Rewards are credited to Spot Wallet as each signal settles.
                   </p>
                 </div>
                 <div style={{ width: "100%", textAlign: "center", paddingTop: 2 }}>
@@ -1640,7 +1640,7 @@ export default function Trade() {
                     {win ? "+" : "−"}${Math.abs(result.pnl).toFixed(2)}
                   </p>
                   <p style={{ fontSize: 13, color: "#6B7280", marginTop: 4 }}>{roi > 0 ? "+" : ""}{roi.toFixed(1)}% outcome on ${result.stake.toFixed(2)} signal</p>
-                    <p style={{ fontSize: 11, color: "#FFD86B", marginTop: 8 }}>Disclosed signal outcome: +${signalAmount.toFixed(2)} to Main Wallet · reflected in Portfolio Wallet</p>
+                    <p style={{ fontSize: 11, color: "#FFD86B", marginTop: 8 }}>Disclosed signal outcome: +${signalAmount.toFixed(2)} to Spot Wallet · reflected in Portfolio</p>
                 </div>
 
                  <div style={{
@@ -1655,7 +1655,7 @@ export default function Trade() {
                        {win ? "Congratulations — signal complete!" : "Signal complete — outcome recorded"}
                      </p>
                      <p style={{ fontSize: 11, lineHeight: 1.5, color: "#CBD5E1", marginTop: 4 }}>
-                         `Your position settled successfully at the disclosed +$${signalAmount.toFixed(2)} signal outcome. The amount was added to Main Wallet.`
+                         `Your position settled successfully at the disclosed +$${signalAmount.toFixed(2)} signal outcome. The amount was added to Spot Wallet.`
                      </p>
                    </div>
                  </div>

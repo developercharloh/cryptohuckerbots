@@ -236,11 +236,11 @@ export default function DepositStatus() {
             {[
               { label: "You sent",   value: `${sendAmount} ${assetSymbol}` },
               { label: "Network",     value: network === "BEP-20" ? "BNB Smart Chain (BEP-20)" : network },
-              ...(newBalance != null ? [{ label: "New Main Wallet Balance", value: `$${Number(newBalance).toFixed(2)}` }] : []),
+              ...(newBalance != null ? [{ label: "New Spot Wallet Balance", value: `$${Number(newBalance).toFixed(2)}` }] : []),
             ].map(({ label, value }) => (
               <div key={label} className="flex items-center justify-between px-5 py-4">
                 <span className="text-sm text-muted-foreground">{label}</span>
-                 <span className={`text-sm font-bold ${label === "New Main Wallet Balance" ? "text-emerald-400" : ""}`}>{value}</span>
+                 <span className={`text-sm font-bold ${label === "New Spot Wallet Balance" ? "text-emerald-400" : ""}`}>{value}</span>
               </div>
             ))}
           </div>

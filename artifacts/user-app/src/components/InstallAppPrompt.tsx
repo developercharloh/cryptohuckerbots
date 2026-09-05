@@ -148,7 +148,7 @@ export function InstallAppPrompt() {
           <div className="mt-6 grid grid-cols-2 gap-2.5">
             {[
               ["AI Signals", "Review opportunities quickly"],
-              ["Portfolio Wallet", "Track Main Wallet + Vault"],
+              ["Portfolio", "Track Spot Wallet + Earn"],
               ["Market News", "Stay ahead of movement"],
               ["Secure access", "Open your account instantly"],
             ].map(([title, description]) => (

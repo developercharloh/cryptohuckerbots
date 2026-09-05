@@ -276,7 +276,7 @@ export default function Withdraw() {
                     <FormLabel className="text-sm font-semibold">Amount (USD)</FormLabel>
                     <div className="text-right text-xs text-muted-foreground">
                       <div>
-                        Main Wallet:{" "}
+                        Spot Wallet:{" "}
                         {loadingSummary ? (
                           <Skeleton className="w-16 h-3 inline-block" />
                         ) : (
