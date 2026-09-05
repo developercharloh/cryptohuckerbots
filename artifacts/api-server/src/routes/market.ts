@@ -46,13 +46,13 @@ const YAHOO_INTERVALS: Record<Interval, { interval: string; range: string; aggre
   "1d": { interval: "1d", range: "1y" },
 };
 
-const COINBASE_INTERVALS: Record<Interval, { granularity: number; aggregateHours?: number }> = {
-  "1m": { granularity: 60 },
-  "5m": { granularity: 300 },
-  "15m": { granularity: 900 },
-  "1h": { granularity: 3600 },
-  "4h": { granularity: 3600, aggregateHours: 4 },
-  "1d": { granularity: 86400 },
+const COINBASE_INTERVALS: Record<Interval, { granularity: number; lookbackSeconds: number; aggregateHours?: number }> = {
+  "1m": { granularity: 60, lookbackSeconds: 24 * 60 * 60 },
+  "5m": { granularity: 300, lookbackSeconds: 5 * 24 * 60 * 60 },
+  "15m": { granularity: 900, lookbackSeconds: 31 * 24 * 60 * 60 },
+  "1h": { granularity: 3600, lookbackSeconds: 90 * 24 * 60 * 60 },
+  "4h": { granularity: 3600, lookbackSeconds: 180 * 24 * 60 * 60, aggregateHours: 4 },
+  "1d": { granularity: 86400, lookbackSeconds: 365 * 24 * 60 * 60 },
 };
 
 type CacheEntry = { candles: Candle[]; fetchedAt: number };
@@ -75,7 +75,7 @@ function aggregateCandles(candles: Candle[], hours: number): Candle[] {
     existing.close = candle.close;
   }
 
-  return [...buckets.values()].sort((a, b) => a.time - b.time).slice(-100);
+  return [...buckets.values()].sort((a, b) => a.time - b.time);
 }
 
 function normalizeCandles(candles: Candle[], aggregateHours?: number): Candle[] {
@@ -89,7 +89,7 @@ function normalizeCandles(candles: Candle[], aggregateHours?: number): Candle[] 
     )
     .sort((a, b) => a.time - b.time);
 
-  return aggregateHours ? aggregateCandles(normalized, aggregateHours) : normalized.slice(-100);
+  return aggregateHours ? aggregateCandles(normalized, aggregateHours) : normalized;
 }
 
 async function fetchYahoo(instrument: Instrument, interval: Interval): Promise<Candle[]> {
@@ -129,26 +129,44 @@ async function fetchYahoo(instrument: Instrument, interval: Interval): Promise<C
 
 async function fetchCoinbase(instrument: Instrument, interval: Interval): Promise<Candle[]> {
   const config = COINBASE_INTERVALS[interval];
-  const url = new URL(`https://api.exchange.coinbase.com/products/${encodeURIComponent(instrument.symbol)}/candles`);
-  url.searchParams.set("granularity", String(config.granularity));
-  const response = await fetch(url, {
-    headers: { accept: "application/json", "user-agent": "VIXUS-AI-Market/1.0" },
-    signal: AbortSignal.timeout(8_000),
-  });
-  if (!response.ok) throw new Error(`Coinbase returned ${response.status}`);
+  const end = Math.floor(Date.now() / 1000);
+  const start = end - config.lookbackSeconds;
+  const candles: Candle[] = [];
+  let windowEnd = end;
 
-  const payload = await response.json() as unknown;
-  if (!Array.isArray(payload)) return [];
-  const candles: Candle[] = payload.map((row) => {
-    const values = Array.isArray(row) ? row : [];
-    return {
-      time: Number(values[0]),
-      low: Number(values[1]),
-      high: Number(values[2]),
-      open: Number(values[3]),
-      close: Number(values[4]),
-    };
-  });
+  while (windowEnd > start) {
+    const windowStart = Math.max(start, windowEnd - config.granularity * 300);
+    const url = new URL(`https://api.exchange.coinbase.com/products/${encodeURIComponent(instrument.symbol)}/candles`);
+    url.searchParams.set("granularity", String(config.granularity));
+    url.searchParams.set("start", new Date(windowStart * 1000).toISOString());
+    url.searchParams.set("end", new Date(windowEnd * 1000).toISOString());
+
+    const response = await fetch(url, {
+      headers: { accept: "application/json", "user-agent": "VIXUS-AI-Market/1.0" },
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!response.ok) throw new Error(`Coinbase returned ${response.status}`);
+
+    const payload = await response.json() as unknown;
+    if (!Array.isArray(payload) || payload.length === 0) break;
+
+    const batch: Candle[] = payload.map((row) => {
+      const values = Array.isArray(row) ? row : [];
+      return {
+        time: Number(values[0]),
+        low: Number(values[1]),
+        high: Number(values[2]),
+        open: Number(values[3]),
+        close: Number(values[4]),
+      };
+    });
+    candles.push(...batch);
+
+    const oldest = batch.reduce((value, candle) => Math.min(value, candle.time), windowEnd);
+    if (!Number.isFinite(oldest) || oldest >= windowEnd) break;
+    windowEnd = oldest - config.granularity;
+  }
+
   return normalizeCandles(candles, config.aggregateHours);
 }
 

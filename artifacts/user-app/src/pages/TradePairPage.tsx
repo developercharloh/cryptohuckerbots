@@ -3,6 +3,7 @@ import { useParams, useLocation } from "wouter";
 import { createChart, CandlestickSeries, UTCTimestamp, ISeriesApi } from "lightweight-charts";
 import { Layout } from "@/components/Layout";
 import { useGetTradeAccess } from "@workspace/api-client-react";
+import { API_BASE, fetchWithTimeout } from "@/lib/api-base";
 import { ArrowLeft, TrendingUp, TrendingDown, Activity, ChevronDown, ArrowRight, Zap, ShieldCheck } from "lucide-react";
 
 const PURPLE = "#F5B942";
@@ -46,37 +47,33 @@ const PAIR_META: Record<string, PairMeta> = {
 /* ── Candle data types ─────────────────────────────────────────── */
 interface Candle { time: number; open: number; high: number; low: number; close: number; }
 
+function parseCandles(value: unknown): Candle[] {
+  if (!Array.isArray(value)) return [];
+  const byTime = new Map<number, Candle>();
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const candle = item as Partial<Candle>;
+    const parsed = {
+      time: Number(candle.time),
+      open: Number(candle.open),
+      high: Number(candle.high),
+      low: Number(candle.low),
+      close: Number(candle.close),
+    };
+    if (Object.values(parsed).every(Number.isFinite)) byTime.set(parsed.time, parsed);
+  }
+  return [...byTime.values()].sort((a, b) => a.time - b.time);
+}
+
+function mergeCandles(existing: Candle[], incoming: Candle[]): Candle[] {
+  const byTime = new Map(existing.map((candle) => [candle.time, candle]));
+  for (const candle of incoming) byTime.set(candle.time, candle);
+  return [...byTime.values()].sort((a, b) => a.time - b.time);
+}
+
 /* ── Timeframes ─────────────────────────────────────────────────── */
 const TIMEFRAMES = ["1m","5m","15m","1h","4h","1d"] as const;
 type TF = typeof TIMEFRAMES[number];
-
-/* ── Seeded PRNG for realistic-looking forex candles ────────────── */
-function seededRand(seed: number) {
-  let s = seed;
-  return () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
-}
-function generateCandles(symbol: string, basePrice: number, count = 100): Candle[] {
-  let seed = 0;
-  for (let i = 0; i < symbol.length; i++) seed += symbol.charCodeAt(i) * (i + 1);
-  const rand = seededRand(seed);
-  const now = Math.floor(Date.now() / 1000);
-  const interval = 3600; // 1h
-  let price = basePrice;
-  const candles: Candle[] = [];
-  for (let i = count; i >= 0; i--) {
-    const t = now - i * interval;
-    const open = price;
-    const body = (rand() - 0.49) * basePrice * 0.003;
-    const close = open + body;
-    const wick1 = rand() * basePrice * 0.002;
-    const wick2 = rand() * basePrice * 0.002;
-    const high = Math.max(open, close) + wick1;
-    const low  = Math.min(open, close) - wick2;
-    candles.push({ time: t, open: +open.toFixed(5), high: +high.toFixed(5), low: +low.toFixed(5), close: +close.toFixed(5) });
-    price = close;
-  }
-  return candles;
-}
 
 /* ── Simple RSI calculation ─────────────────────────────────────── */
 function calcRSI(candles: Candle[], period = 14): number {
@@ -104,11 +101,13 @@ export default function TradePairPage() {
   const [tf, setTf] = useState<TF>("1h");
   const [candles, setCandles] = useState<Candle[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [currentPrice, setCurrentPrice] = useState(meta.price);
   const [priceUp, setPriceUp]           = useState(true);
   const [priceFlash, setPriceFlash]     = useState(false);
   const [rsi, setRsi] = useState(50);
   const priceRef = useRef(meta.price);
+  const candlesRef = useRef<Candle[]>([]);
 
   const chartRef      = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<ReturnType<typeof createChart> | null>(null);
@@ -116,66 +115,71 @@ export default function TradePairPage() {
   const seriesRef     = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const lastCandleRef = useRef<Candle | null>(null);
 
-  /* ── Load candles ─────────────────────────────────────── */
+  candlesRef.current = candles;
+
+  const fetchCandles = useCallback(async () => {
+    const response = await fetchWithTimeout(
+      `${API_BASE}/api/market/candles?symbol=${encodeURIComponent(symbol)}&interval=${tf}`,
+      { credentials: "include" },
+    );
+    if (!response.ok) throw new Error("Live market candles are temporarily unavailable.");
+    const data = parseCandles(await response.json());
+    if (data.length < 2) throw new Error("The market source returned too few candles.");
+    return data;
+  }, [symbol, tf]);
+
+  const applyLatestCandle = useCallback((data: Candle[]) => {
+    const latest = data[data.length - 1];
+    if (!latest) return;
+    setPriceUp(latest.close >= priceRef.current);
+    setCurrentPrice(latest.close);
+    setPriceFlash(true);
+    setTimeout(() => setPriceFlash(false), 500);
+    setRsi(calcRSI(data));
+  }, []);
+
+  /* ── Load the full source history ─────────────────────── */
   const loadCandles = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      const data = generateCandles(symbol + tf, meta.price, 100);
+      const data = await fetchCandles();
       setCandles(data);
-      if (data.length) {
-        const last = data[data.length - 1].close;
-        setCurrentPrice(last);
-        setRsi(calcRSI(data));
-      }
-    } catch {
-      const data = generateCandles(symbol + tf, meta.price, 100);
-      setCandles(data);
-      setCurrentPrice(meta.price);
+      applyLatestCandle(data);
+    } catch (loadError) {
+      setCandles([]);
+      setError(loadError instanceof Error ? loadError.message : "Live market candles are temporarily unavailable.");
     } finally {
       setLoading(false);
     }
-  }, [symbol, tf, meta.price]);
+  }, [applyLatestCandle, fetchCandles]);
 
   useEffect(() => { loadCandles(); }, [loadCandles]);
 
-  /* ── Keep priceRef in sync ───────────────────────────────── */
+  /* ── Keep the header and chart moving with the source ───── */
   useEffect(() => { priceRef.current = currentPrice; }, [currentPrice]);
-
-  /* ── Live tick helper — updates header + live candle ─────── */
-  const tickPrice = useCallback((next: number) => {
-    setPriceUp(next >= priceRef.current);
-    setCurrentPrice(next);
-    setPriceFlash(true);
-    setTimeout(() => setPriceFlash(false), 500);
-    // Push close price into the current (last) candle on the chart
-    if (seriesRef.current && lastCandleRef.current) {
-      const c = lastCandleRef.current;
-      const updated: Candle = {
-        time: c.time,
-        open:  c.open,
-        high:  Math.max(c.high, next),
-        low:   Math.min(c.low, next),
-        close: next,
-      };
-      lastCandleRef.current = updated;
-      seriesRef.current.update({ ...updated, time: updated.time as UTCTimestamp });
-    }
-  }, []);
-
-  /* ── 1.5s simulation for all pairs ──────────────────────── */
   useEffect(() => {
-    const id = setInterval(() => {
-      const p = priceRef.current;
-      const v = p > 10000 ? 0.0003 : p > 100 ? 0.0002 : 0.00015;
-      const d = (Math.random() - 0.49) * v;
-      tickPrice(+(p * (1 + d)).toFixed(p > 10 ? 2 : 5));
-    }, 1500);
-    return () => clearInterval(id);
-  }, [tickPrice]);
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const incoming = await fetchCandles();
+        if (cancelled) return;
+        setCandles((current) => mergeCandles(current, incoming));
+        applyLatestCandle(incoming);
+      } catch {
+        // Keep the last valid source candles visible during a transient provider failure.
+      }
+    };
+    const id = setInterval(refresh, 15_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [applyLatestCandle, fetchCandles]);
 
   /* ── Build chart ──────────────────────────────────────── */
   useEffect(() => {
-    if (!chartRef.current || candles.length === 0) return;
+    if (!chartRef.current) return;
     chartRef.current.innerHTML = "";
 
     const chart = createChart(chartRef.current, {
@@ -185,7 +189,13 @@ export default function TradePairPage() {
       grid: { vertLines: { color: "rgba(255,255,255,0.04)" }, horzLines: { color: "rgba(255,255,255,0.04)" } },
       crosshair: { mode: 1 },
       rightPriceScale: { borderColor: "rgba(255,255,255,0.08)" },
-      timeScale: { borderColor: "rgba(255,255,255,0.08)", timeVisible: true, secondsVisible: false },
+      timeScale: {
+        borderColor: "rgba(255,255,255,0.08)",
+        timeVisible: true,
+        secondsVisible: false,
+        rightOffset: 0,
+        shiftVisibleRangeOnNewBar: true,
+      },
     });
     chartInstance.current = chart;
 
@@ -196,20 +206,37 @@ export default function TradePairPage() {
       wickUpColor: "#22c55e", wickDownColor: "#ef4444",
       priceFormat: { type: "price", precision: decimals, minMove: 1 / Math.pow(10, decimals) },
     });
-    const mapped = candles.map(c => ({ ...c, time: c.time as UTCTimestamp }));
-    candleSeries.setData(mapped);
     seriesRef.current = candleSeries;
-    lastCandleRef.current = candles[candles.length - 1] ?? null;
-    chart.timeScale().fitContent();
+    if (candlesRef.current.length > 0) {
+      candleSeries.setData(candlesRef.current.map(c => ({ ...c, time: c.time as UTCTimestamp })));
+      lastCandleRef.current = candlesRef.current[candlesRef.current.length - 1] ?? null;
+      chart.timeScale().fitContent();
+    }
 
     const obs = new ResizeObserver(() => {
       if (chartRef.current) chart.applyOptions({ width: chartRef.current.clientWidth });
     });
     obs.observe(chartRef.current);
-    return () => { obs.disconnect(); chart.remove(); };
+    return () => {
+      obs.disconnect();
+      chart.remove();
+      chartInstance.current = null;
+      seriesRef.current = null;
+      lastCandleRef.current = null;
+    };
+  }, [meta.price, symbol]);
+
+  useEffect(() => {
+    if (!seriesRef.current || candles.length === 0) return;
+    seriesRef.current.setData(candles.map(c => ({ ...c, time: c.time as UTCTimestamp })));
+    const wasEmpty = lastCandleRef.current === null;
+    lastCandleRef.current = candles[candles.length - 1] ?? null;
+    if (wasEmpty) chartInstance.current?.timeScale().fitContent();
   }, [candles]);
 
-  const up = meta.change >= 0;
+  const firstOpen = candles[0]?.open;
+  const liveChange = firstOpen ? ((currentPrice - firstOpen) / firstOpen) * 100 : meta.change;
+  const up = liveChange >= 0;
   function formatPrice(p: number) {
     if (p > 1000) return p.toLocaleString("en-US", { maximumFractionDigits: 2 });
     if (p > 10)   return p.toFixed(3);
@@ -269,6 +296,11 @@ export default function TradePairPage() {
             </div>
           )}
           <div ref={chartRef} style={{ width: "100%", height: 260 }} />
+          {error && !loading && (
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center", color: "#FCA5A5", fontSize: 12 }}>
+              {error}
+            </div>
+          )}
         </div>
 
         {/* ── Indicators bar ──────────────────────────────── */}
