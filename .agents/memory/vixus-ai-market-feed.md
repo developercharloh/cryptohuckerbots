@@ -3,8 +3,8 @@ name: VIXUS AI market feed
 description: Browser market feeds may be blocked by provider CORS or regional restrictions.
 ---
 
-The landing page must retain a clear fallback when a browser-side market provider is unavailable; direct Binance access can fail with CORS or HTTP 451 in the Replit preview and production network path. The current product decision is to use the restored simulated market display and candles rather than Twelve Data.
+The market chart uses server-side Yahoo Finance for forex/commodities and Coinbase for crypto; do not fabricate candles when a provider or market session has no new bar. Browser-side providers can fail with CORS or regional restrictions, so live chart data must stay behind the API.
 
-**Why:** A failed external feed should not make the public landing page blank or freeze its market display, and the Twelve Data rollout was intentionally reversed after production testing showed plan coverage and UI-state problems.
+**Why:** Real source-backed candles are required for the chart, while closed FX/commodity sessions legitimately stop producing new minute bars. Direct browser feeds are less reliable than the server-side path.
 
-**How to apply:** Do not reintroduce Twelve Data or another live-provider contract into the market UI/API without confirming that product decision first. If live data is revisited, preserve an explicit bounded fallback and label it accurately.
+**How to apply:** Preserve the Yahoo/Coinbase provider contract and reject invalid source rows. Refresh 1-minute data frequently enough to append the next real bar when the market is open, but never synthesize movement during a closed session.
