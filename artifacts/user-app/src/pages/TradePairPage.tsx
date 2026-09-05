@@ -46,6 +46,7 @@ const PAIR_META: Record<string, PairMeta> = {
 
 /* ── Candle data types ─────────────────────────────────────────── */
 interface Candle { time: number; open: number; high: number; low: number; close: number; }
+const CANDLE_BAR_SPACING = 14;
 
 function parseCandles(value: unknown): Candle[] {
   if (!Array.isArray(value)) return [];
@@ -72,7 +73,7 @@ function mergeCandles(existing: Candle[], incoming: Candle[]): Candle[] {
 }
 
 function latestVisibleRange(totalCandles: number, chartWidth: number) {
-  const visibleCount = Math.min(72, Math.max(30, Math.floor(chartWidth / 10)));
+  const visibleCount = Math.max(18, Math.floor(chartWidth / CANDLE_BAR_SPACING));
   return {
     from: Math.max(0, totalCandles - visibleCount),
     to: Math.max(0, totalCandles - 1) + 2,
@@ -240,9 +241,9 @@ export default function TradePairPage() {
         timeVisible: true,
         secondsVisible: false,
         rightOffset: 2,
-        barSpacing: 10,
-        minBarSpacing: 6,
-        maxBarSpacing: 16,
+        barSpacing: CANDLE_BAR_SPACING,
+        minBarSpacing: CANDLE_BAR_SPACING,
+        maxBarSpacing: CANDLE_BAR_SPACING,
         shiftVisibleRangeOnNewBar: true,
       },
     });
