@@ -53,6 +53,12 @@ function addLocalDays(dateKey: string, days: number) {
   return date.toISOString().slice(0, 10);
 }
 
+function isWeekendDateKey(dateKey: string): boolean {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+  return weekday === 0 || weekday === 6;
+}
+
 // Convert a wall-clock time in the configured IANA timezone into an instant.
 // The two correction passes also handle DST transitions without a dependency.
 function zonedTimeToUtc(dateKey: string, time: string, timeZone: string) {
@@ -329,15 +335,16 @@ const SIGNALS = [
   { id: "eurgbp-sell", pair: "EUR/GBP", direction: "SELL", market: "Forex",       confidence: 83, timeframe: "30m", suggestedTp: 100, suggestedSl: 50  },
   { id: "eurjpy-buy",  pair: "EUR/JPY", direction: "BUY",  market: "Forex",       confidence: 85, timeframe: "1h",  suggestedTp: 115, suggestedSl: 57  },
   { id: "gbpjpy-sell", pair: "GBP/JPY", direction: "SELL", market: "Forex",       confidence: 81, timeframe: "30m", suggestedTp: 90,  suggestedSl: 50  },
-  // Cryptocurrency
-  { id: "btcusd-buy",  pair: "BTC/USD", direction: "BUY",  market: "Crypto",      confidence: 89, timeframe: "1h",  suggestedTp: 250, suggestedSl: 110 },
-  { id: "ethusd-sell", pair: "ETH/USD", direction: "SELL", market: "Crypto",      confidence: 78, timeframe: "15m", suggestedTp: 160, suggestedSl: 95  },
-  { id: "ltcusd-buy",  pair: "LTC/USD", direction: "BUY",  market: "Crypto",      confidence: 74, timeframe: "30m", suggestedTp: 140, suggestedSl: 80  },
-  { id: "xrpusd-buy",  pair: "XRP/USD", direction: "BUY",  market: "Crypto",      confidence: 76, timeframe: "15m", suggestedTp: 130, suggestedSl: 75  },
-  { id: "adausd-sell", pair: "ADA/USD", direction: "SELL", market: "Crypto",      confidence: 72, timeframe: "1h",  suggestedTp: 125, suggestedSl: 70  },
-  { id: "solusd-buy",  pair: "SOL/USD", direction: "BUY",  market: "Crypto",      confidence: 80, timeframe: "30m", suggestedTp: 170, suggestedSl: 85  },
-  { id: "dotusd-sell", pair: "DOT/USD", direction: "SELL", market: "Crypto",      confidence: 73, timeframe: "1h",  suggestedTp: 135, suggestedSl: 72  },
-  { id: "maticusd-buy",pair: "MATIC/USD",direction:"BUY",  market: "Crypto",      confidence: 75, timeframe: "15m", suggestedTp: 130, suggestedSl: 68  },
+  // Cryptocurrency — Coinbase-supported pairs stay eligible 24/7.
+  // Directions are balanced so alternating batch selection can pair BUY/SELL.
+  { id: "btcusd-buy",  pair: "BTC/USD",  direction: "BUY",  market: "Crypto", confidence: 89, timeframe: "1h",  suggestedTp: 250, suggestedSl: 110 },
+  { id: "solusd-sell", pair: "SOL/USD",  direction: "SELL", market: "Crypto", confidence: 80, timeframe: "30m", suggestedTp: 170, suggestedSl: 85  },
+  { id: "xrpusd-buy",  pair: "XRP/USD",  direction: "BUY",  market: "Crypto", confidence: 76, timeframe: "15m", suggestedTp: 130, suggestedSl: 75  },
+  { id: "ethusd-sell", pair: "ETH/USD",  direction: "SELL", market: "Crypto", confidence: 78, timeframe: "15m", suggestedTp: 160, suggestedSl: 95  },
+  { id: "avaxusd-buy", pair: "AVAX/USD", direction: "BUY",  market: "Crypto", confidence: 74, timeframe: "30m", suggestedTp: 140, suggestedSl: 80  },
+  { id: "maticusd-sell",pair: "MATIC/USD",direction:"SELL", market: "Crypto", confidence: 75, timeframe: "15m", suggestedTp: 130, suggestedSl: 68  },
+  { id: "bnbusd-buy",  pair: "BNB/USD",  direction: "BUY",  market: "Crypto", confidence: 73, timeframe: "1h",  suggestedTp: 145, suggestedSl: 76  },
+  { id: "adausd-sell", pair: "ADA/USD",  direction: "SELL", market: "Crypto", confidence: 72, timeframe: "1h",  suggestedTp: 125, suggestedSl: 70  },
   // Commodities
   { id: "xauusd-buy",  pair: "XAU/USD", direction: "BUY",  market: "Commodities", confidence: 87, timeframe: "1h",  suggestedTp: 180, suggestedSl: 90  },
 ];
@@ -604,11 +611,13 @@ async function syncSignalOpportunities(settings: typeof settingsTable.$inferSele
   const config = getSignalSettings(settings);
   const now = new Date();
   const todayKey = localDateKey(now, config.timezone);
-  // Each configured signal window gets its own opportunity for every pair.
+  const weekend = isWeekendDateKey(todayKey);
+  const activeSignals = SIGNALS.filter((signal) => !weekend || signal.market === "Crypto");
+  // Each configured signal window gets its own opportunity for every active pair.
   // This lets a user spend multiple daily signals on the same pair without
   // reusing a claimed opportunity or weakening the one-claim-per-opportunity
   // duplicate protection.
-  const keys = config.times.flatMap((time) => SIGNALS.map((signal) => ({
+  const keys = config.times.flatMap((time) => activeSignals.map((signal) => ({
     signal,
     time,
     scheduleKey: `${MANUAL_SIGNAL_PREFIX}:${todayKey}:${time}:${signal.id}`,

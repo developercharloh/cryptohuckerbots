@@ -54,6 +54,12 @@ const PAIR_INFO: Record<string, { base: string; price: string; change: number; i
   "USD/JPY": { base: "USD", price: "153.420", change: -0.18, icon: "$" },
   "BTC/USD": { base: "BTC", price: "67,821.5", change: 1.25, icon: "₿" },
   "ETH/USD": { base: "ETH", price: "3,512.80", change: 2.04, icon: "Ξ" },
+  "BNB/USD": { base: "BNB", price: "598.40", change: -0.87, icon: "◆" },
+  "SOL/USD": { base: "SOL", price: "182.50", change: 3.41, icon: "◎" },
+  "XRP/USD": { base: "XRP", price: "0.58240", change: -1.12, icon: "✕" },
+  "ADA/USD": { base: "ADA", price: "0.45210", change: 0.88, icon: "₳" },
+  "AVAX/USD": { base: "AVAX", price: "38.210", change: 4.12, icon: "▲" },
+  "MATIC/USD": { base: "MATIC", price: "0.88100", change: 1.55, icon: "⬡" },
   "XAU/USD": { base: "XAU", price: "2,342.80", change: -0.09, icon: "🥇" },
 };
 
@@ -684,6 +690,17 @@ export default function Trade() {
      const matchingPair = matchingDirection.filter(s => s.pair === selectedPair);
      return matchingPair[0] ?? null;
   }, [signals, requestedDirection, selectedPair]);
+
+  useEffect(() => {
+    const unclaimed = signals.filter((signal) => signal.status !== "executed" && Boolean(signal.opportunityId));
+    const matchingDirection = requestedDirection
+      ? unclaimed.filter((signal) => signal.direction?.toUpperCase() === requestedDirection)
+      : unclaimed;
+    if (matchingDirection.some((signal) => signal.pair === selectedPair)) return;
+    const fallback = matchingDirection.find((signal) => signal.pair && PAIR_INFO[signal.pair]);
+    if (fallback?.pair && fallback.pair !== selectedPair) setSelectedPair(fallback.pair);
+  }, [signals, requestedDirection, selectedPair]);
+
   const bulkSignalCount = useMemo(() => {
     const uniqueSignalIds = new Set(
       signals
