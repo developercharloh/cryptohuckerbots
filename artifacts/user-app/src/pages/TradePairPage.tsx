@@ -71,6 +71,14 @@ function mergeCandles(existing: Candle[], incoming: Candle[]): Candle[] {
   return [...byTime.values()].sort((a, b) => a.time - b.time);
 }
 
+function latestVisibleRange(totalCandles: number, chartWidth: number) {
+  const visibleCount = Math.min(72, Math.max(30, Math.floor(chartWidth / 10)));
+  return {
+    from: Math.max(0, totalCandles - visibleCount),
+    to: Math.max(0, totalCandles - 1) + 2,
+  };
+}
+
 /* ── Timeframes ─────────────────────────────────────────────────── */
 const TIMEFRAMES = ["1m","5m","15m","1h","4h","1d"] as const;
 type TF = typeof TIMEFRAMES[number];
@@ -231,7 +239,10 @@ export default function TradePairPage() {
         borderColor: "rgba(255,255,255,0.08)",
         timeVisible: true,
         secondsVisible: false,
-        rightOffset: 0,
+        rightOffset: 2,
+        barSpacing: 10,
+        minBarSpacing: 6,
+        maxBarSpacing: 16,
         shiftVisibleRangeOnNewBar: true,
       },
     });
@@ -248,7 +259,9 @@ export default function TradePairPage() {
     if (candlesRef.current.length > 0) {
       candleSeries.setData(candlesRef.current.map(c => ({ ...c, time: c.time as UTCTimestamp })));
       lastCandleRef.current = candlesRef.current[candlesRef.current.length - 1] ?? null;
-      chart.timeScale().fitContent();
+      chart.timeScale().setVisibleLogicalRange(
+        latestVisibleRange(candlesRef.current.length, chartRef.current.clientWidth),
+      );
     }
 
     const onVisibleLogicalRangeChange = (range: { from: number; to: number } | null) => {
@@ -277,7 +290,11 @@ export default function TradePairPage() {
     seriesRef.current.setData(candles.map(c => ({ ...c, time: c.time as UTCTimestamp })));
     const wasEmpty = lastCandleRef.current === null;
     lastCandleRef.current = candles[candles.length - 1] ?? null;
-    if (wasEmpty) chartInstance.current?.timeScale().fitContent();
+    if (wasEmpty && chartRef.current) {
+      chartInstance.current?.timeScale().setVisibleLogicalRange(
+        latestVisibleRange(candles.length, chartRef.current.clientWidth),
+      );
+    }
     else if (pendingPrepended > 0 && visibleRange) {
       chartInstance.current?.timeScale().setVisibleLogicalRange({
         from: visibleRange.from + pendingPrepended,
