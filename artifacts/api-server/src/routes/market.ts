@@ -129,7 +129,10 @@ async function fetchYahoo(instrument: Instrument, interval: Interval, before?: n
     low: Number(quote.low?.[index]),
     close: Number(quote.close?.[index]),
   }));
-  return normalizeCandles(candles, config.aggregateHours);
+  return normalizeCandles(
+    before === undefined ? candles : candles.filter((candle) => candle.time < before),
+    config.aggregateHours,
+  );
 }
 
 async function fetchCoinbase(instrument: Instrument, interval: Interval, before?: number): Promise<Candle[]> {
@@ -159,7 +162,10 @@ async function fetchCoinbase(instrument: Instrument, interval: Interval, before?
       close: Number(values[4]),
     };
   });
-  return normalizeCandles(candles, config.aggregateHours);
+  return normalizeCandles(
+    before === undefined ? candles : candles.filter((candle) => candle.time < before),
+    config.aggregateHours,
+  );
 }
 
 router.get("/market/candles", async (req, res): Promise<void> => {
@@ -169,13 +175,24 @@ router.get("/market/candles", async (req, res): Promise<void> => {
     return;
   }
 
+  const rawBefore = req.query.before;
+  const before = rawBefore === undefined
+    ? undefined
+    : typeof rawBefore === "string" && /^\d+$/.test(rawBefore)
+      ? Number(rawBefore)
+      : NaN;
+  if (before !== undefined && (!Number.isSafeInteger(before) || before <= 0)) {
+    res.status(400).json({ error: "The candle history cursor must be a positive Unix timestamp." });
+    return;
+  }
+
   const instrument = INSTRUMENTS[parsed.data.symbol];
   if (!instrument) {
     res.status(400).json({ error: "This market symbol is not supported." });
     return;
   }
 
-  const cacheKey = `${parsed.data.symbol}:${parsed.data.interval}`;
+  const cacheKey = `${parsed.data.symbol}:${parsed.data.interval}:${before ?? "latest"}`;
   const cached = cache.get(cacheKey);
   if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
     res.json(cached.candles);
@@ -184,13 +201,13 @@ router.get("/market/candles", async (req, res): Promise<void> => {
 
   try {
     const candles = instrument.provider === "yahoo"
-      ? await fetchYahoo(instrument, parsed.data.interval)
-      : await fetchCoinbase(instrument, parsed.data.interval);
-    if (candles.length < 2) throw new Error("Provider returned too few candles");
+      ? await fetchYahoo(instrument, parsed.data.interval, before)
+      : await fetchCoinbase(instrument, parsed.data.interval, before);
+    if (before === undefined && candles.length < 2) throw new Error("Provider returned too few candles");
     cache.set(cacheKey, { candles, fetchedAt: Date.now() });
     res.json(candles);
   } catch (error) {
-    req.log.warn({ symbol: parsed.data.symbol, interval: parsed.data.interval, error }, "Live market candles unavailable");
+    req.log.warn({ symbol: parsed.data.symbol, interval: parsed.data.interval, before, error }, "Live market candles unavailable");
     res.status(502).json({ error: "Live market data is temporarily unavailable." });
   }
 });

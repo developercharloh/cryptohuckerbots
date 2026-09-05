@@ -101,6 +101,7 @@ export default function TradePairPage() {
   const [tf, setTf] = useState<TF>("1h");
   const [candles, setCandles] = useState<Candle[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPrice, setCurrentPrice] = useState(meta.price);
   const [priceUp, setPriceUp]           = useState(true);
@@ -108,6 +109,9 @@ export default function TradePairPage() {
   const [rsi, setRsi] = useState(50);
   const priceRef = useRef(meta.price);
   const candlesRef = useRef<Candle[]>([]);
+  const olderRequestRef = useRef(false);
+  const sourceExhaustedRef = useRef(false);
+  const pendingPrependedRef = useRef(0);
 
   const chartRef      = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<ReturnType<typeof createChart> | null>(null);
@@ -117,9 +121,14 @@ export default function TradePairPage() {
 
   candlesRef.current = candles;
 
-  const fetchCandles = useCallback(async () => {
+  const fetchCandles = useCallback(async (before?: number) => {
+    const query = new URLSearchParams({
+      symbol,
+      interval: tf,
+    });
+    if (before !== undefined) query.set("before", String(before));
     const response = await fetchWithTimeout(
-      `${API_BASE}/api/market/candles?symbol=${encodeURIComponent(symbol)}&interval=${tf}`,
+      `${API_BASE}/api/market/candles?${query.toString()}`,
       { credentials: "include" },
     );
     if (!response.ok) throw new Error("Live market candles are temporarily unavailable.");
@@ -142,6 +151,8 @@ export default function TradePairPage() {
   const loadCandles = useCallback(async () => {
     setLoading(true);
     setError(null);
+    sourceExhaustedRef.current = false;
+    pendingPrependedRef.current = 0;
     try {
       const data = await fetchCandles();
       setCandles(data);
@@ -155,6 +166,33 @@ export default function TradePairPage() {
   }, [applyLatestCandle, fetchCandles]);
 
   useEffect(() => { loadCandles(); }, [loadCandles]);
+
+  const loadOlderCandles = useCallback(async () => {
+    const current = candlesRef.current;
+    if (olderRequestRef.current || sourceExhaustedRef.current || current.length < 2) return;
+
+    const before = current[0].time;
+    olderRequestRef.current = true;
+    setLoadingOlder(true);
+    try {
+      const incoming = await fetchCandles(before);
+      const oldestIncoming = incoming[0]?.time;
+      const merged = mergeCandles(current, incoming);
+      const added = merged.length - current.length;
+      if (!oldestIncoming || oldestIncoming >= before || added <= 0) {
+        sourceExhaustedRef.current = true;
+        return;
+      }
+      pendingPrependedRef.current += added;
+      setCandles(merged);
+      setRsi(calcRSI(merged));
+    } catch {
+      // Keep the current history and retry when the user reaches the edge again.
+    } finally {
+      olderRequestRef.current = false;
+      setLoadingOlder(false);
+    }
+  }, [fetchCandles]);
 
   /* ── Keep the header and chart moving with the source ───── */
   useEffect(() => { priceRef.current = currentPrice; }, [currentPrice]);
@@ -213,25 +251,40 @@ export default function TradePairPage() {
       chart.timeScale().fitContent();
     }
 
+    const onVisibleLogicalRangeChange = (range: { from: number; to: number } | null) => {
+      if (range && range.from <= 15) void loadOlderCandles();
+    };
+    chart.timeScale().subscribeVisibleLogicalRangeChange(onVisibleLogicalRangeChange);
+
     const obs = new ResizeObserver(() => {
       if (chartRef.current) chart.applyOptions({ width: chartRef.current.clientWidth });
     });
     obs.observe(chartRef.current);
     return () => {
       obs.disconnect();
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(onVisibleLogicalRangeChange);
       chart.remove();
       chartInstance.current = null;
       seriesRef.current = null;
       lastCandleRef.current = null;
     };
-  }, [meta.price, symbol]);
+  }, [loadOlderCandles, meta.price, symbol]);
 
   useEffect(() => {
     if (!seriesRef.current || candles.length === 0) return;
+    const pendingPrepended = pendingPrependedRef.current;
+    const visibleRange = chartInstance.current?.timeScale().getVisibleLogicalRange();
     seriesRef.current.setData(candles.map(c => ({ ...c, time: c.time as UTCTimestamp })));
     const wasEmpty = lastCandleRef.current === null;
     lastCandleRef.current = candles[candles.length - 1] ?? null;
     if (wasEmpty) chartInstance.current?.timeScale().fitContent();
+    else if (pendingPrepended > 0 && visibleRange) {
+      chartInstance.current?.timeScale().setVisibleLogicalRange({
+        from: visibleRange.from + pendingPrepended,
+        to: visibleRange.to + pendingPrepended,
+      });
+    }
+    pendingPrependedRef.current = 0;
   }, [candles]);
 
   const firstOpen = candles[0]?.open;
@@ -261,7 +314,7 @@ export default function TradePairPage() {
                 background: up ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)",
                 color: up ? "#22c55e" : "#ef4444",
               }}>
-                {up ? "+" : ""}{meta.change.toFixed(2)}%
+                {up ? "+" : ""}{liveChange.toFixed(2)}%
               </span>
             </div>
             <span style={{
@@ -296,11 +349,19 @@ export default function TradePairPage() {
             </div>
           )}
           <div ref={chartRef} style={{ width: "100%", height: 260 }} />
+          {loadingOlder && (
+            <div style={{ position: "absolute", top: 8, left: "50%", transform: "translateX(-50%)", borderRadius: 999, padding: "4px 9px", background: "rgba(15,17,23,0.9)", color: "#9CA3AF", fontSize: 10 }}>
+              Loading older source candles…
+            </div>
+          )}
           {error && !loading && (
             <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center", color: "#FCA5A5", fontSize: 12 }}>
               {error}
             </div>
           )}
+        </div>
+        <div style={{ padding: "5px 16px 0", color: "#6B7280", fontSize: 10 }}>
+          Drag the chart left to load older candles directly from the source.
         </div>
 
         {/* ── Indicators bar ──────────────────────────────── */}
