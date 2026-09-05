@@ -57,7 +57,22 @@ const COINBASE_INTERVALS: Record<Interval, { granularity: number; pageSeconds: n
 
 type CacheEntry = { candles: Candle[]; fetchedAt: number };
 const cache = new Map<string, CacheEntry>();
-const CACHE_TTL_MS = 15_000;
+
+function cacheTtlMs(interval: Interval): number {
+  switch (interval) {
+    case "1m":
+      return 5_000;
+    case "5m":
+      return 10_000;
+    case "15m":
+      return 15_000;
+    case "1h":
+    case "4h":
+      return 30_000;
+    case "1d":
+      return 60_000;
+  }
+}
 
 function aggregateCandles(candles: Candle[], hours: number): Candle[] {
   const bucketSeconds = hours * 60 * 60;
@@ -194,7 +209,7 @@ router.get("/market/candles", async (req, res): Promise<void> => {
 
   const cacheKey = `${parsed.data.symbol}:${parsed.data.interval}:${before ?? "latest"}`;
   const cached = cache.get(cacheKey);
-  if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
+  if (cached && Date.now() - cached.fetchedAt < cacheTtlMs(parsed.data.interval)) {
     res.json(cached.candles);
     return;
   }

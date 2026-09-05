@@ -217,7 +217,16 @@ export default function TradePairPage() {
         // Keep the last valid source candles visible during a transient provider failure.
       }
     };
-    const id = setInterval(refresh, 15_000);
+    const refreshMs = tf === "1m"
+      ? 5_000
+      : tf === "5m"
+        ? 10_000
+        : tf === "15m"
+          ? 15_000
+          : tf === "1h" || tf === "4h"
+            ? 30_000
+            : 60_000;
+    const id = setInterval(refresh, refreshMs);
     return () => {
       cancelled = true;
       clearInterval(id);
