@@ -82,10 +82,10 @@ function normalizeCandles(candles: Candle[], aggregateHours?: number): Candle[] 
   const normalized = candles
     .filter((candle) =>
       Number.isFinite(candle.time) &&
-      Number.isFinite(candle.open) &&
-      Number.isFinite(candle.high) &&
-      Number.isFinite(candle.low) &&
-      Number.isFinite(candle.close),
+      candle.open > 0 &&
+      candle.high > 0 &&
+      candle.low > 0 &&
+      candle.close > 0,
     )
     .sort((a, b) => a.time - b.time);
 
