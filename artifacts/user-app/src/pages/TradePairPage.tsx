@@ -80,6 +80,15 @@ function latestVisibleRange(totalCandles: number, chartWidth: number) {
   };
 }
 
+function formatSourceTime(timestamp: number): string {
+  return new Date(timestamp * 1000).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 /* ── Timeframes ─────────────────────────────────────────────────── */
 const TIMEFRAMES = ["1m","5m","15m","1h","4h","1d"] as const;
 type TF = typeof TIMEFRAMES[number];
@@ -317,6 +326,18 @@ export default function TradePairPage() {
   const firstOpen = candles[0]?.open;
   const liveChange = firstOpen ? ((currentPrice - firstOpen) / firstOpen) * 100 : meta.change;
   const up = liveChange >= 0;
+  const latestSourceTime = candles[candles.length - 1]?.time;
+  const staleThresholdMs = {
+    "1m": 3 * 60_000,
+    "5m": 10 * 60_000,
+    "15m": 30 * 60_000,
+    "1h": 3 * 60 * 60_000,
+    "4h": 12 * 60 * 60_000,
+    "1d": 3 * 24 * 60 * 60_000,
+  }[tf];
+  const sourceIsStale = meta.category !== "crypto"
+    && latestSourceTime !== undefined
+    && Date.now() - latestSourceTime * 1000 > staleThresholdMs;
   function formatPrice(p: number) {
     if (p > 1000) return p.toLocaleString("en-US", { maximumFractionDigits: 2 });
     if (p > 10)   return p.toFixed(3);
@@ -366,6 +387,16 @@ export default function TradePairPage() {
               color: tf === t ? "#fff" : "#9CA3AF", whiteSpace: "nowrap",
             }}>{t}</button>
           ))}
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 16px 0", color: sourceIsStale ? "#FBBF24" : "#86EFAC", fontSize: 10, fontWeight: 700 }}>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: sourceIsStale ? "#FBBF24" : "#22C55E", flexShrink: 0 }} />
+          <span>{sourceIsStale ? "Market closed / no recent source candle" : "Live market data"}</span>
+          {latestSourceTime !== undefined && (
+            <span style={{ color: "#6B7280", fontWeight: 500 }}>
+              · Last candle {formatSourceTime(latestSourceTime)}
+            </span>
+          )}
         </div>
 
         {/* ── Candlestick chart ───────────────────────────── */}
