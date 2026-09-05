@@ -1297,7 +1297,7 @@ export default function Trade() {
                   ? "AI confidence check complete"
                   : "AI is opening the next position";
             const feedSubtitle = completedSteps >= totalSteps
-              ? "Every selected pair is now being monitored by the server."
+              ? "Every selected pair is now being executed simultaneously."
               : currentSignal
                 ? `${currentSignal.pair} · ${currentSignal.direction} · ${currentSignal.confidence}% confidence`
                 : "Comparing available market opportunities";
