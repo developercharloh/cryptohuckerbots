@@ -1469,9 +1469,6 @@ export default function Trade() {
                   <p style={{ fontSize: 44, fontWeight: 900, color: "#22c55e", fontFamily: "monospace", lineHeight: 1 }}>
                     +${totalReward.toFixed(2)}
                   </p>
-                  <p style={{ fontSize: 13, color: "#6B7280", marginTop: 6 }}>
-                     ${signalAmount.toFixed(2)} × {bulkResultPositions.length} signal{bulkResultPositions.length === 1 ? "" : "s"} added to Main Wallet
-                  </p>
                 </div>
                 <div style={{
                   width: "100%", borderRadius: 16, padding: "13px 14px",
