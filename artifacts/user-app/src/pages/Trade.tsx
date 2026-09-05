@@ -1474,9 +1474,8 @@ export default function Trade() {
                   width: "100%", borderRadius: 16, padding: "13px 14px",
                   background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.24)",
                 }}>
-                  <p style={{ fontSize: 13, fontWeight: 850, color: "#fff" }}>AI-selected pairs completed successfully</p>
-                  <p style={{ fontSize: 11, lineHeight: 1.5, color: "#CBD5E1", marginTop: 4 }}>
-                     The fixed ${signalAmount.toFixed(2)} reward for each settled signal has been recorded in your Main Wallet and is reflected in your Portfolio Wallet.
+                  <p style={{ fontSize: 13, fontWeight: 850, lineHeight: 1.5, color: "#fff" }}>
+                    🎉 Congratulations, you nailed it! +${totalReward.toFixed(2)} has been added to your wallet...see you on the next signal! 🚀💰
                   </p>
                 </div>
                 <div style={{ width: "100%", background: "rgba(255,255,255,0.04)", borderRadius: 18, padding: "14px 16px", border: "1px solid rgba(255,255,255,0.07)" }}>
