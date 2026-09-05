@@ -1327,7 +1327,7 @@ export default function Trade() {
                     <div style={{ height: "100%", width: `${Math.max(progress, 3)}%`, borderRadius: 99, background: "linear-gradient(90deg, #F5B942, #4ade80)", boxShadow: "0 0 16px rgba(74,222,128,0.45)", transition: "width 500ms ease" }} />
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
-                    <span style={{ fontSize: 9, color: "#94A3B8" }}>{completedSteps >= totalSteps ? "Batch opened successfully" : "Reviewing available pairs"}</span>
+                    <span style={{ fontSize: 9, color: "#94A3B8" }}>{completedSteps >= totalSteps ? "Batch trades opened successfully" : "Reviewing available pairs"}</span>
                     <span style={{ fontSize: 9, color: "#94A3B8" }}>{bulkSignals.length} signal{bulkSignals.length === 1 ? "" : "s"} · server secured</span>
                   </div>
                 </div>
