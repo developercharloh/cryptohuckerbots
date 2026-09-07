@@ -1800,6 +1800,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/SupportChatState"
 
+  /support/chat/close:
+    post:
+      operationId: closeChat
+      tags: [support]
+      summary: Mark the current support conversation resolved
+      responses:
+        "200":
+          description: Conversation closed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminCloseChat"
+
   /support/chat/typing:
     post:
       operationId: sendChatTyping

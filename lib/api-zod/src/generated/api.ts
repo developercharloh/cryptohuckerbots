@@ -1877,6 +1877,15 @@ export const GetChatStateResponse = zod.object({
 })
 
 
+/**
+ * @summary Mark the current support conversation resolved
+ */
+export const CloseChatResponse = zod.object({
+  "status": zod.enum(['closed']),
+  "closedAt": zod.string()
+})
+
+
 export const SendChatTypingResponse = zod.unknown()
 
 

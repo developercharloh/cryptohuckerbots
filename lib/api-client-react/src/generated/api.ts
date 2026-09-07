@@ -6447,6 +6447,76 @@ export function useGetChatState<TData = Awaited<ReturnType<typeof getChatState>>
 
 
 
+export const getCloseChatUrl = () => {
+
+
+
+
+  return `/api/support/chat/close`
+}
+
+/**
+ * @summary Mark the current support conversation resolved
+ */
+export const closeChat = async ( options?: RequestInit): Promise<AdminCloseChat> => {
+
+  return customFetch<AdminCloseChat>(getCloseChatUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getCloseChatMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeChat>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof closeChat>>, TError,void, TContext> => {
+
+const mutationKey = ['closeChat'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof closeChat>>, void> = () => {
+
+
+          return  closeChat(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CloseChatMutationResult = NonNullable<Awaited<ReturnType<typeof closeChat>>>
+
+    export type CloseChatMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Mark the current support conversation resolved
+ */
+export const useCloseChat = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeChat>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof closeChat>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getCloseChatMutationOptions(options));
+    }
+
 export const getSendChatTypingUrl = () => {
 
 

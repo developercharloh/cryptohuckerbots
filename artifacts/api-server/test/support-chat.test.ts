@@ -15,6 +15,7 @@ const {
   chatMessagesTable,
   chatAttachmentsTable,
   notificationsTable,
+  supportTicketsTable,
   authRateLimitsTable,
   sessionsTable,
   usersTable,
@@ -280,6 +281,39 @@ test("live support action hands the conversation to the support team", { concurr
     message.sender === "bot" &&
     message.message.includes("connecting you with the VIXUS Support Team"),
   ));
+
+  const closed = await request<{ status: string; closedAt: string }>("/api/support/chat/close", {
+    method: "POST",
+  });
+  assert.equal(closed.response.status, 200);
+  assert.equal(closed.body.status, "closed");
+  assert.ok(closed.body.closedAt);
+
+  const closedState = await request<{ mode: string; status: string; category: string | null }>("/api/support/chat/state");
+  assert.equal(closedState.response.status, 200);
+  assert.equal(closedState.body.mode, "bot");
+  assert.equal(closedState.body.status, "closed");
+  assert.equal(closedState.body.category, null);
+  const ticketsAfterClose = await db.select({ status: supportTicketsTable.status })
+    .from(supportTicketsTable)
+    .where(eq(supportTicketsTable.userId, targetUserId));
+  assert.ok(ticketsAfterClose.length > 0);
+  assert.ok(ticketsAfterClose.every((ticket) => ticket.status !== "open"));
+
+  const newConversation = await request("/api/support/chat", {
+    method: "POST",
+    body: {
+      message: "I need help with a delayed deposit.",
+      category: "delayed_deposit",
+    },
+  });
+  assert.equal(newConversation.response.status, 201);
+
+  const reopenedState = await request<{ mode: string; status: string; category: string | null }>("/api/support/chat/state");
+  assert.equal(reopenedState.response.status, 200);
+  assert.equal(reopenedState.body.mode, "bot");
+  assert.equal(reopenedState.body.status, "open");
+  assert.equal(reopenedState.body.category, "delayed_deposit");
 });
 
 test("support attachments include admin-visible metadata and stay private when downloaded", { concurrency: false }, async (t) => {

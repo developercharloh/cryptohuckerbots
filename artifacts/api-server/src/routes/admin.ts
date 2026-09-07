@@ -1877,6 +1877,12 @@ router.post("/admin/chat/:userId/close", async (req, res) => {
     await tx.update(supportChatThreadsTable)
       .set({ status: "closed", mode: "admin", adminTypingUntil: null, updatedAt: new Date() })
       .where(eq(supportChatThreadsTable.userId, userId));
+    await tx.update(supportTicketsTable)
+      .set({ status: "closed", updatedAt: new Date() })
+      .where(and(
+        eq(supportTicketsTable.userId, userId),
+        eq(supportTicketsTable.status, "open"),
+      ));
 
     return createdMessage;
   });
