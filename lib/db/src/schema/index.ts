@@ -319,6 +319,30 @@ export const depositSessionsTable = pgTable("deposit_sessions", {
 
 export type DepositSession = typeof depositSessionsTable.$inferSelect;
 
+// Binance deposit history records. These are kept separately from user-facing
+// sessions so a serverless poll can be retried without ever crediting the same
+// blockchain transaction twice.
+export const binanceDepositEventsTable = pgTable("binance_deposit_events", {
+  id: serial("id").primaryKey(),
+  txid: varchar("txid", { length: 255 }).notNull().unique(),
+  amount: numeric("amount", { precision: 20, scale: 8 }).notNull(),
+  coin: varchar("coin", { length: 20 }).notNull(),
+  network: varchar("network", { length: 50 }).notNull(),
+  address: text("address").notNull(),
+  status: integer("status").notNull(),
+  confirmTimes: varchar("confirm_times", { length: 100 }),
+  insertTime: timestamp("insert_time").notNull(),
+  state: varchar("state", { length: 30 }).notNull().default("unmatched"),
+  matchedSessionId: integer("matched_session_id"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => [
+  index("binance_deposit_events_state_insert_time_idx").on(table.state, table.insertTime),
+  index("binance_deposit_events_matched_session_idx").on(table.matchedSessionId),
+]);
+
+export type BinanceDepositEvent = typeof binanceDepositEventsTable.$inferSelect;
+
 // A short-lived, one-time server challenge is required before a withdrawal can
 // be created. The raw token is never stored, so a database leak cannot replay
 // an unconsumed withdrawal confirmation.

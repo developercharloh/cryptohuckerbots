@@ -59,6 +59,7 @@ import {
   AdminUpdateSettingsBody,
   AdminBroadcastBody,
 } from "@workspace/api-zod";
+import { syncBinanceDeposits } from "../lib/binance-deposits";
 import {
   ADMIN_SESSION_COOKIE,
   clearAdminSessionCookie,
@@ -1200,6 +1201,11 @@ function mapDepositSession(
 
 router.get("/admin/deposit-sessions", async (req, res) => {
   const status = req.query.status as string | undefined;
+  try {
+    await syncBinanceDeposits();
+  } catch (error) {
+    req.log?.warn?.({ err: error }, "Binance deposit sync failed during admin refresh");
+  }
   const rows = await db
     .select({ session: depositSessionsTable, user: usersTable })
     .from(depositSessionsTable)

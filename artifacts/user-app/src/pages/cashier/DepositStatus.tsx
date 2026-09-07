@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import { useLocation, useParams } from "wouter";
-import { useGetDepositSession, useSubmitDepositTxid, useGetDashboardSummary } from "@workspace/api-client-react";
+import { useGetDepositSession, useGetDashboardSummary } from "@workspace/api-client-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import QRCode from "react-qr-code";
 import {
   ChevronLeft, Copy, Check, Loader2, AlertTriangle,
@@ -126,7 +125,6 @@ export default function DepositStatus() {
   const { toast }    = useToast();
 
   const [hasSent, setHasSent]   = useState(false);
-  const [txidInput, setTxidInput] = useState("");
 
   const { data: session, isLoading } = useGetDepositSession(Number(id), {
     query: {
@@ -144,27 +142,11 @@ export default function DepositStatus() {
     query: { enabled: session?.status === "completed" } as any,
   });
 
-  const submitTxid = useSubmitDepositTxid();
-
-  const handleSubmitTxid = () => {
-    if (!txidInput.trim()) { toast({ title: "Enter your Txid", variant: "destructive" }); return; }
+  const handlePaymentSent = () => {
     const analyticsNetwork = session?.network === "BEP-20" ? "bsc_bep20" : "unknown";
-    trackEvent("deposit_tx_hash_submission", { network: analyticsNetwork, result: "attempted" });
-    submitTxid.mutate(
-      { id: Number(id), data: { txid: txidInput.trim() } },
-      {
-        onSuccess: (updatedSession) => {
-          trackEvent("deposit_tx_hash_submission", { network: analyticsNetwork, result: "success" });
-          setTxidInput(updatedSession.txid ?? txidInput.trim());
-          setHasSent(true);
-          toast({ title: "Txid submitted" });
-        },
-        onError: (err: any) => {
-          trackEvent("deposit_tx_hash_submission", { network: analyticsNetwork, result: "failure" });
-          toast({ title: "Failed to submit Txid", description: err.message, variant: "destructive" });
-        },
-      }
-    );
+    trackEvent("deposit_payment_wait_started", { network: analyticsNetwork });
+    setHasSent(true);
+    toast({ title: "Waiting for Binance confirmation" });
   };
 
   useEffect(() => {
@@ -176,11 +158,8 @@ export default function DepositStatus() {
   }, [session?.id]);
 
   useEffect(() => {
-    if (session?.txid && !txidInput) {
-      setTxidInput(session.txid);
-      setHasSent(true);
-    }
-  }, [session?.txid, txidInput]);
+    if (session?.txid) setHasSent(true);
+  }, [session?.txid]);
 
   // ── Loading ────────────────────────────────────────────────────────────────
   if (isLoading) {
@@ -208,7 +187,7 @@ export default function DepositStatus() {
   const { status, amount, network, depositAddress, txid, confirmations, requiredConfirmations } = session;
   const assetSymbol = "USDT";
   const sendAmount = amount;
-  const displayedTxid = txid ?? txidInput.trim();
+  const displayedTxid = txid;
 
   // ── SCREEN 6: Success ──────────────────────────────────────────────────────
   if (status === "completed") {
@@ -304,7 +283,7 @@ export default function DepositStatus() {
             <span className="text-xs font-semibold text-emerald-400 bg-emerald-400/10 px-3 py-1 rounded-full border border-emerald-400/20">
               ● Payment detected
             </span>
-            <p className="text-xs text-muted-foreground">Waiting for network confirmations</p>
+            <p className="text-xs text-muted-foreground">Waiting for BNB Smart Chain confirmations</p>
           </div>
 
           {/* Timeline */}
@@ -362,17 +341,12 @@ export default function DepositStatus() {
             <TStep label="Funds Credited"   done={false} active={false} sub="Waiting..." />
           </div>
 
-          {/* Submitted Txid */}
-          {displayedTxid && (
-            <div className="rounded-2xl bg-card p-5 space-y-3">
-              <p className="text-sm font-semibold">Txid</p>
-              <div className="flex items-center gap-2">
-                <code className="text-[10px] font-mono break-all flex-1 leading-snug">{displayedTxid}</code>
-                <CopyBtn text={displayedTxid} />
-              </div>
-              <p className="text-xs text-muted-foreground">This hash has been submitted for verification.</p>
-            </div>
-          )}
+          <div className="rounded-2xl bg-card p-5 space-y-2">
+            <p className="text-sm font-semibold">Automatic confirmation</p>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              The BNB Smart Chain is checking the deposit. You do not need to enter a Txid. This screen will update automatically once the payment has enough confirmations.
+            </p>
+          </div>
 
           <Footer amount={sendAmount} network={network} assetSymbol={assetSymbol} />
         </div>
@@ -432,24 +406,18 @@ export default function DepositStatus() {
         {/* Copy Address button */}
         <CopyBtn text={depositAddress} label="Copy Address" />
 
-        {/* Txid */}
+        {/* Automatic confirmation */}
         <div className="rounded-2xl bg-card p-5 space-y-3">
-          <p className="text-sm font-semibold">Txid</p>
-          <Input
-            value={txidInput}
-            onChange={(e) => setTxidInput(e.target.value)}
-            placeholder="Paste your BSC Txid"
-            className="bg-background border-none h-12 rounded-xl font-mono text-xs"
-          />
+          <p className="text-sm font-semibold">No Txid required</p>
           <p className="text-[11px] leading-relaxed text-muted-foreground">
-            Enter the Txid before confirming that you have made the deposit. It will be securely attached to this deposit for verification.
+            After you send the exact amount, tap the button below. VIXUS will fetch the blockchain Txid automatically and wait for the required confirmations.
           </p>
         </div>
 
         {/* I've Made a Deposit */}
         <Button className="w-full h-13 rounded-xl text-base font-semibold shadow-none" style={{ height: "52px" }}
-          onClick={handleSubmitTxid} disabled={submitTxid.isPending || !txidInput.trim()}>
-          {submitTxid.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : "I've Made a Deposit"}
+          onClick={handlePaymentSent}>
+          I've Made a Deposit
         </Button>
 
         {/* Warning */}

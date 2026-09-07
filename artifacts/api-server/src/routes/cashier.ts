@@ -8,6 +8,7 @@ import { sendPushToAllAdmins } from "../lib/webPush";
 import { notifyAdminTransaction } from "../lib/loginAlarm";
 import { calculateWalletSnapshot } from "../utils/balance.js";
 import { BSC_PAYMENT_METHOD, isBscTxid, validateBscWithdrawal } from "../lib/payment-methods";
+import { syncBinanceDeposits } from "../lib/binance-deposits";
 
 const router = Router();
 
@@ -89,6 +90,12 @@ router.get("/cashier/deposit/session/:id", async (req, res) => {
 
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
+  try {
+    await syncBinanceDeposits();
+  } catch (error) {
+    req.log?.warn?.({ err: error }, "Binance deposit sync failed during user session refresh");
+  }
 
   const sessions = await db.select().from(depositSessionsTable)
     .where(and(eq(depositSessionsTable.id, id), eq(depositSessionsTable.userId, user.id)))

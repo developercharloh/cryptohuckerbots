@@ -28,3 +28,4 @@
 - [VIXUS AI public error boundaries](vixus-ai-public-errors.md) — client errors use safe retry copy; provider and infrastructure details are retained only in protected technical health incidents.
 - [VIXUS AI candlestick controls](vixus-ai-candlestick-controls.md) — lightweight-charts v5 custom zoom uses visible logical ranges; keep mobile chart gestures enabled.
 - [VIXUS AI form resolver compatibility](vixus-ai-form-resolver.md) — use @hookform/resolvers 5.x with the workspace's Zod peer to avoid pnpm resolving mismatched Zod type generations.
+- [VIXUS AI Binance deposits](vixus-ai-binance-deposits.md) — Binance account APIs can be geo-blocked; monitor BSC USDT transfer logs and credit only an exact, unambiguous session match.
