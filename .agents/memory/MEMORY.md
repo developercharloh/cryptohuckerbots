@@ -10,7 +10,7 @@
 - [VIXUS AI API origin](vixus-ai-api-origin.md) — browser requests must share the configured API-base helper; production fallback is the live api.vixus.trade origin.
 - [VIXUS AI wallet reconciliation](vixus-ai-wallet-reconciliation.md) — derive spendable wallet values from canonical transaction ledger rules; report locked VIP capital separately.
 - [Vercel serverless initialization](vixus-vercel-serverless-init.md) — background database migrations and seeds can be frozen after a fast health response; await readiness or initialize explicitly.
-- [VIXUS AI support inbox](vixus-ai-support-inbox.md) — system chat markers preserve full history while defining closed threads and pending admin replies.
+- [VIXUS AI support inbox](vixus-ai-support-inbox.md) — system markers preserve history; guided bot intake should collect details before explicit live-support escalation.
 - [VIXUS AI notification inbox](vixus-ai-notification-inbox.md) — show unread-only notifications, exact counts through 9, then +10, and remove read items immediately.
 - [VIXUS AI email auth](vixus-ai-email-auth.md) — password login must not restore stale browser sessions or issue a session until email verification and OTP are complete.
 - [VIXUS AI signal amount](vixus-ai-signal-amount.md) — the server-owned signal stake and reward are both fixed at $1.50; keep UI copy and settlement math aligned.
