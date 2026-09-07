@@ -114,6 +114,37 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /market/quote:
+    get:
+      operationId: getMarketQuote
+      tags: [market]
+      summary: Latest live quote for a supported instrument
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Latest live quote
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketQuote"
+        "400":
+          description: Unsupported market request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Market quote temporarily unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   # Auth
   /auth/register:
     post:
@@ -2111,6 +2142,20 @@ components:
         low: { type: number }
         close: { type: number }
       required: [time, open, high, low, close]
+
+    MarketQuote:
+      type: object
+      properties:
+        symbol: { type: string }
+        price: { type: number }
+        timestamp: { type: integer }
+        source:
+          type: string
+          enum: [twelve-data, yahoo]
+        status:
+          type: string
+          enum: [live]
+      required: [symbol, price, timestamp, source, status]
 
     ErrorResponse:
       type: object

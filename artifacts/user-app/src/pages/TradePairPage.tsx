@@ -46,6 +46,7 @@ const PAIR_META: Record<string, PairMeta> = {
 
 /* ── Candle data types ─────────────────────────────────────────── */
 interface Candle { time: number; open: number; high: number; low: number; close: number; }
+interface MarketQuote { symbol: string; price: number; timestamp: number; source: "twelve-data" | "yahoo"; status: "live"; }
 const CANDLE_BAR_SPACING = 14;
 
 function parseCandles(value: unknown): Candle[] {
@@ -132,6 +133,8 @@ export default function TradePairPage() {
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPrice, setCurrentPrice] = useState(meta.price);
+  const [quoteStatus, setQuoteStatus] = useState<"live" | "delayed" | "closed" | "unavailable">("unavailable");
+  const [quoteTimestamp, setQuoteTimestamp] = useState<number | null>(null);
   const [priceUp, setPriceUp]           = useState(true);
   const [priceFlash, setPriceFlash]     = useState(false);
   const [rsi, setRsi] = useState(50);
@@ -165,6 +168,31 @@ export default function TradePairPage() {
     return data;
   }, [symbol, tf]);
 
+  const fetchQuote = useCallback(async (): Promise<MarketQuote> => {
+    const response = await fetchWithTimeout(
+      `${API_BASE}/api/market/quote?symbol=${encodeURIComponent(symbol)}`,
+      { credentials: "include" },
+    );
+    if (!response.ok) throw new Error("Live market price is temporarily unavailable.");
+    const quote = await response.json() as Partial<MarketQuote>;
+    const price = quote.price;
+    const timestamp = quote.timestamp;
+    if (
+      quote.symbol !== symbol ||
+      typeof price !== "number" ||
+      !Number.isFinite(price) ||
+      price <= 0 ||
+      typeof timestamp !== "number" ||
+      !Number.isFinite(timestamp) ||
+      timestamp <= 0 ||
+      (quote.source !== "yahoo" && quote.source !== "twelve-data") ||
+      quote.status !== "live"
+    ) {
+      throw new Error("The market source returned an invalid live price.");
+    }
+    return { symbol, price, timestamp, source: quote.source, status: "live" };
+  }, [symbol]);
+
   const applyLatestCandle = useCallback((data: Candle[]) => {
     const latest = data[data.length - 1];
     if (!latest) return;
@@ -173,6 +201,15 @@ export default function TradePairPage() {
     setPriceFlash(true);
     setTimeout(() => setPriceFlash(false), 500);
     setRsi(calcRSI(data));
+  }, []);
+
+  const applyQuote = useCallback((quote: MarketQuote) => {
+    setPriceUp(quote.price >= priceRef.current);
+    setCurrentPrice(quote.price);
+    setQuoteTimestamp(quote.timestamp);
+    setQuoteStatus("live");
+    setPriceFlash(true);
+    setTimeout(() => setPriceFlash(false), 500);
   }, []);
 
   /* ── Load the full source history ─────────────────────── */
@@ -224,6 +261,27 @@ export default function TradePairPage() {
 
   /* ── Keep the header and chart moving with the source ───── */
   useEffect(() => { priceRef.current = currentPrice; }, [currentPrice]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const refreshQuote = async () => {
+      try {
+        const quote = await fetchQuote();
+        if (!cancelled) applyQuote(quote);
+      } catch {
+        if (!cancelled) {
+          setQuoteStatus(candlesRef.current.length > 0 ? "delayed" : "unavailable");
+        }
+      }
+    };
+    void refreshQuote();
+    const id = setInterval(refreshQuote, 5_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [applyQuote, fetchQuote]);
+
   useEffect(() => {
     let cancelled = false;
     const refresh = async () => {
@@ -348,6 +406,14 @@ export default function TradePairPage() {
   const sourceIsStale = meta.category !== "crypto"
     && latestSourceTime !== undefined
     && Date.now() - latestSourceTime * 1000 > staleThresholdMs;
+  const quoteIsStale = quoteTimestamp !== null && Date.now() - quoteTimestamp * 1000 > staleThresholdMs;
+  const marketState = quoteStatus === "live" && !quoteIsStale
+    ? "live"
+    : sourceIsStale || quoteStatus === "closed"
+      ? "closed"
+      : quoteStatus === "delayed"
+        ? "delayed"
+        : "unavailable";
   function formatPrice(p: number) {
     if (p > 1000) return p.toLocaleString("en-US", { maximumFractionDigits: 2 });
     if (p > 10)   return p.toFixed(3);
@@ -399,10 +465,23 @@ export default function TradePairPage() {
           ))}
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 16px 0", color: sourceIsStale ? "#FBBF24" : "#86EFAC", fontSize: 10, fontWeight: 700 }}>
-          <span style={{ width: 6, height: 6, borderRadius: "50%", background: sourceIsStale ? "#FBBF24" : "#22C55E", flexShrink: 0 }} />
-          <span>{sourceIsStale ? "Market closed / no recent source candle" : "Live market data"}</span>
-          {latestSourceTime !== undefined && (
+        <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 16px 0", color: marketState === "live" ? "#86EFAC" : "#FBBF24", fontSize: 10, fontWeight: 700 }}>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: marketState === "live" ? "#22C55E" : "#FBBF24", flexShrink: 0 }} />
+          <span>
+            {marketState === "live"
+              ? "Live price"
+              : marketState === "closed"
+                ? "Market closed · last source candle"
+                : marketState === "delayed"
+                  ? "Price delayed · showing last valid quote"
+                  : "Live price unavailable"}
+          </span>
+          {quoteTimestamp !== null && marketState === "live" && (
+            <span style={{ color: "#6B7280", fontWeight: 500 }}>
+              · Updated {formatSourceTime(quoteTimestamp)}
+            </span>
+          )}
+          {latestSourceTime !== undefined && marketState !== "live" && (
             <span style={{ color: "#6B7280", fontWeight: 500 }}>
               · Last candle {formatSourceTime(latestSourceTime)}
             </span>

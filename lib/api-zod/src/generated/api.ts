@@ -69,6 +69,22 @@ export const GetMarketCandlesResponseItem = zod.object({
 export const GetMarketCandlesResponse = zod.array(GetMarketCandlesResponseItem)
 
 
+/**
+ * @summary Latest live quote for a supported instrument
+ */
+export const GetMarketQuoteQueryParams = zod.object({
+  "symbol": zod.coerce.string()
+})
+
+export const GetMarketQuoteResponse = zod.object({
+  "symbol": zod.string(),
+  "price": zod.number(),
+  "timestamp": zod.number(),
+  "source": zod.enum(['twelve-data', 'yahoo']),
+  "status": zod.enum(['live'])
+})
+
+
 export const registerBodyReferralCodeMax = 15;
 
 

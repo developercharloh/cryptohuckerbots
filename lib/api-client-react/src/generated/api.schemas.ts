@@ -121,6 +121,29 @@ export interface MarketCandle {
   close: number;
 }
 
+export type MarketQuoteSource = typeof MarketQuoteSource[keyof typeof MarketQuoteSource];
+
+
+export const MarketQuoteSource = {
+  'twelve-data': 'twelve-data',
+  yahoo: 'yahoo',
+} as const;
+
+export type MarketQuoteStatus = typeof MarketQuoteStatus[keyof typeof MarketQuoteStatus];
+
+
+export const MarketQuoteStatus = {
+  live: 'live',
+} as const;
+
+export interface MarketQuote {
+  symbol: string;
+  price: number;
+  timestamp: number;
+  source: MarketQuoteSource;
+  status: MarketQuoteStatus;
+}
+
 export interface ErrorResponse {
   error: string;
 }
@@ -1367,6 +1390,10 @@ export const GetMarketCandlesInterval = {
   '4h': '4h',
   '1d': '1d',
 } as const;
+
+export type GetMarketQuoteParams = {
+symbol: string;
+};
 
 export type VerifyEmailParams = {
 token: VerifyEmailToken;

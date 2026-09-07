@@ -77,6 +77,7 @@ import type {
   ForgotPasswordInput,
   GetEarningsChartParams,
   GetMarketCandlesParams,
+  GetMarketQuoteParams,
   HealthStatus,
   KYCInput,
   KYCSession,
@@ -87,6 +88,7 @@ import type {
   LoginInput,
   MarketCandle,
   MarketNewsResponse,
+  MarketQuote,
   MarketplaceBot,
   Notification,
   NotificationSettings,
@@ -449,6 +451,90 @@ export function useGetMarketCandles<TData = Awaited<ReturnType<typeof getMarketC
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetMarketCandlesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMarketQuoteUrl = (params: GetMarketQuoteParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/market/quote?${stringifiedParams}` : `/api/market/quote`
+}
+
+/**
+ * @summary Latest live quote for a supported instrument
+ */
+export const getMarketQuote = async (params: GetMarketQuoteParams, options?: RequestInit): Promise<MarketQuote> => {
+
+  return customFetch<MarketQuote>(getGetMarketQuoteUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMarketQuoteQueryKey = (params?: GetMarketQuoteParams,) => {
+    return [
+    `/api/market/quote`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetMarketQuoteQueryOptions = <TData = Awaited<ReturnType<typeof getMarketQuote>>, TError = ErrorType<ErrorResponse>>(params: GetMarketQuoteParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMarketQuote>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMarketQuoteQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMarketQuote>>> = ({ signal }) => getMarketQuote(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMarketQuote>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMarketQuoteQueryResult = NonNullable<Awaited<ReturnType<typeof getMarketQuote>>>
+export type GetMarketQuoteQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Latest live quote for a supported instrument
+ */
+
+export function useGetMarketQuote<TData = Awaited<ReturnType<typeof getMarketQuote>>, TError = ErrorType<ErrorResponse>>(
+ params: GetMarketQuoteParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMarketQuote>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMarketQuoteQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

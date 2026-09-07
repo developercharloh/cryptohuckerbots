@@ -17,7 +17,7 @@ type YahooPayload = {
   chart?: {
     result?: Array<{
       timestamp?: number[];
-      meta?: { regularMarketPrice?: number };
+      meta?: { regularMarketPrice?: number; regularMarketTime?: number };
       indicators?: {
         quote?: Array<{
           open?: Array<number | null>;
@@ -28,6 +28,12 @@ type YahooPayload = {
       };
     }>;
   };
+};
+
+type MarketQuote = {
+  price: number;
+  timestamp: number;
+  source: "twelve-data" | "yahoo";
 };
 
 const INSTRUMENTS: Record<string, Instrument> = {
@@ -75,9 +81,9 @@ const COINBASE_INTERVALS: Record<Interval, { granularity: number; pageSeconds: n
 
 type CacheEntry = { candles: Candle[]; fetchedAt: number };
 const cache = new Map<string, CacheEntry>();
-type QuoteEntry = { price: number; fetchedAt: number };
+type QuoteEntry = { price: number; fetchedAt: number; timestamp: number; source: MarketQuote["source"] };
 const quoteCache = new Map<string, QuoteEntry>();
-const quoteInFlight = new Map<string, Promise<number | null>>();
+const quoteInFlight = new Map<string, Promise<MarketQuote | null>>();
 
 function cacheTtlMs(interval: Interval): number {
   switch (interval) {
@@ -182,17 +188,19 @@ function parseTwelveValues(value: unknown, aggregateHours?: number): Candle[] {
   return normalizeCandles(candles, aggregateHours);
 }
 
-async function fetchTwelveQuote(symbol: string): Promise<number | null> {
+async function fetchTwelveQuote(symbol: string): Promise<MarketQuote | null> {
   const key = process.env.TWELVE_DATA_API_KEY?.trim();
   if (!key) return null;
 
   const cached = quoteCache.get(symbol);
-  if (cached && Date.now() - cached.fetchedAt < 10_000) return cached.price;
+  if (cached && Date.now() - cached.fetchedAt < 5_000) {
+    return { price: cached.price, timestamp: cached.timestamp, source: cached.source };
+  }
 
   const existingRequest = quoteInFlight.get(symbol);
   if (existingRequest) return existingRequest;
 
-  const request = (async () => {
+  const request = (async (): Promise<MarketQuote | null> => {
     const url = new URL("https://api.twelvedata.com/price");
     url.searchParams.set("symbol", symbol);
     url.searchParams.set("apikey", key);
@@ -204,8 +212,9 @@ async function fetchTwelveQuote(symbol: string): Promise<number | null> {
     const payload = await response.json() as { price?: string | number; status?: string };
     const price = Number(payload.price);
     if (payload.status === "error" || !Number.isFinite(price) || price <= 0) return null;
-    quoteCache.set(symbol, { price, fetchedAt: Date.now() });
-    return price;
+    const timestamp = Math.floor(Date.now() / 1000);
+    quoteCache.set(symbol, { price, fetchedAt: Date.now(), timestamp, source: "twelve-data" });
+    return { price, timestamp, source: "twelve-data" };
   })()
     .catch(() => null)
     .finally(() => {
@@ -214,6 +223,33 @@ async function fetchTwelveQuote(symbol: string): Promise<number | null> {
 
   quoteInFlight.set(symbol, request);
   return request;
+}
+
+async function fetchYahooQuote(instrument: Instrument): Promise<MarketQuote | null> {
+  for (const host of ["query1.finance.yahoo.com", "query2.finance.yahoo.com"]) {
+    const url = new URL(`https://${host}/v8/finance/chart/${encodeURIComponent(instrument.symbol)}`);
+    url.searchParams.set("interval", "1m");
+    url.searchParams.set("range", "1d");
+    url.searchParams.set("includePrePost", "false");
+
+    try {
+      const response = await fetch(url, {
+        headers: { accept: "application/json", "user-agent": "VIXUS-AI-Market/1.0" },
+        signal: AbortSignal.timeout(8_000),
+      });
+      if (!response.ok) continue;
+      const payload = await response.json() as YahooPayload;
+      const result = payload.chart?.result?.[0];
+      const price = Number(result?.meta?.regularMarketPrice);
+      const timestamp = Number(result?.meta?.regularMarketTime ?? result?.timestamp?.at(-1));
+      if (Number.isFinite(price) && price > 0 && Number.isFinite(timestamp) && timestamp > 0) {
+        return { price, timestamp, source: "yahoo" };
+      }
+    } catch {
+      // Try Yahoo's alternate host before reporting the quote as unavailable.
+    }
+  }
+  return null;
 }
 
 async function fetchTwelve(
@@ -261,12 +297,12 @@ async function fetchTwelve(
   // A quote is deliberately applied only to the newest page. Historical pages
   // must remain source OHLC and must never be manufactured from a live price.
   if (before === undefined && candles.length > 0) {
-    const livePrice = await fetchTwelveQuote(instrument.twelveSymbol);
+    const liveQuote = await fetchTwelveQuote(instrument.twelveSymbol);
     const latest = candles[candles.length - 1];
-    if (livePrice !== null && latest.time >= Math.floor(Date.now() / 60_000) * 60 - 120) {
-      latest.high = Math.max(latest.high, livePrice);
-      latest.low = Math.min(latest.low, livePrice);
-      latest.close = livePrice;
+    if (liveQuote !== null && latest.time >= Math.floor(Date.now() / 60_000) * 60 - 120) {
+      latest.high = Math.max(latest.high, liveQuote.price);
+      latest.low = Math.min(latest.low, liveQuote.price);
+      latest.close = liveQuote.price;
     }
   }
 
@@ -436,6 +472,39 @@ router.get("/market/candles", async (req, res): Promise<void> => {
       error: error instanceof Error ? error.message : String(error),
     }, "Live market candles unavailable");
     res.status(502).json({ error: "Live market data is temporarily unavailable." });
+  }
+});
+
+router.get("/market/quote", async (req, res): Promise<void> => {
+  const rawSymbol = req.query.symbol;
+  const symbol = typeof rawSymbol === "string" ? rawSymbol : "";
+  const instrument = INSTRUMENTS[symbol];
+  if (!instrument) {
+    res.status(400).json({ error: "Choose a supported market symbol." });
+    return;
+  }
+
+  try {
+    let quote: MarketQuote | null = null;
+    if (instrument.twelveSymbol && process.env.TWELVE_DATA_API_KEY?.trim()) {
+      quote = await fetchTwelveQuote(instrument.twelveSymbol);
+    }
+    quote ??= await fetchYahooQuote(instrument);
+    if (!quote) throw new Error("No live quote returned by the market providers");
+
+    res.json({
+      symbol,
+      price: quote.price,
+      timestamp: quote.timestamp,
+      source: quote.source,
+      status: "live",
+    });
+  } catch (error) {
+    req.log.warn({
+      symbol,
+      error: error instanceof Error ? error.message : String(error),
+    }, "Live market quote unavailable");
+    res.status(503).json({ error: "Live market price is temporarily unavailable." });
   }
 });
 
