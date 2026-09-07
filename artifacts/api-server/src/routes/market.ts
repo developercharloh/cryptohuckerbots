@@ -13,6 +13,23 @@ type Instrument = {
   twelveSymbol?: string;
 };
 
+type YahooPayload = {
+  chart?: {
+    result?: Array<{
+      timestamp?: number[];
+      meta?: { regularMarketPrice?: number };
+      indicators?: {
+        quote?: Array<{
+          open?: Array<number | null>;
+          high?: Array<number | null>;
+          low?: Array<number | null>;
+          close?: Array<number | null>;
+        }>;
+      };
+    }>;
+  };
+};
+
 const INSTRUMENTS: Record<string, Instrument> = {
   "EUR-USD": { provider: "yahoo", symbol: "EURUSD=X", twelveSymbol: "EUR/USD" },
   "GBP-USD": { provider: "yahoo", symbol: "GBPUSD=X", twelveSymbol: "GBP/USD" },
@@ -258,30 +275,38 @@ async function fetchTwelve(
 
 async function fetchYahoo(instrument: Instrument, interval: Interval, before?: number): Promise<Candle[]> {
   const config = YAHOO_INTERVALS[interval];
-  const url = new URL(`https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(instrument.symbol)}`);
-  url.searchParams.set("interval", config.interval);
-  if (before) {
-    url.searchParams.set("period1", String(Math.max(0, before - config.pageSeconds)));
-    url.searchParams.set("period2", String(before));
-  } else {
-    url.searchParams.set("range", config.range);
-  }
-  url.searchParams.set("includePrePost", "false");
-  const response = await fetch(url, {
-    headers: { accept: "application/json", "user-agent": "VIXUS-AI-Market/1.0" },
-    signal: AbortSignal.timeout(8_000),
-  });
-  if (!response.ok) throw new Error(`Yahoo returned ${response.status}`);
+  const yahooHosts = ["query1.finance.yahoo.com", "query2.finance.yahoo.com"];
+  let payload: YahooPayload | null = null;
+  let lastError: Error | null = null;
 
-  const payload = await response.json() as {
-    chart?: {
-      result?: Array<{
-        timestamp?: number[];
-        meta?: { regularMarketPrice?: number };
-        indicators?: { quote?: Array<{ open?: Array<number | null>; high?: Array<number | null>; low?: Array<number | null>; close?: Array<number | null> }> };
-      }>;
-    };
-  };
+  for (const host of yahooHosts) {
+    const url = new URL(`https://${host}/v8/finance/chart/${encodeURIComponent(instrument.symbol)}`);
+    url.searchParams.set("interval", config.interval);
+    if (before) {
+      url.searchParams.set("period1", String(Math.max(0, before - config.pageSeconds)));
+      url.searchParams.set("period2", String(before));
+    } else {
+      url.searchParams.set("range", config.range);
+    }
+    url.searchParams.set("includePrePost", "false");
+
+    try {
+      const response = await fetch(url, {
+        headers: { accept: "application/json", "user-agent": "VIXUS-AI-Market/1.0" },
+        signal: AbortSignal.timeout(8_000),
+      });
+      if (!response.ok) {
+        lastError = new Error(`Yahoo returned ${response.status}`);
+        continue;
+      }
+      payload = await response.json() as YahooPayload;
+      break;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+    }
+  }
+
+  if (!payload) throw lastError ?? new Error("Yahoo did not return market data");
   const result = payload.chart?.result?.[0];
   const timestamps = result?.timestamp ?? [];
   const quote = result?.indicators?.quote?.[0];
