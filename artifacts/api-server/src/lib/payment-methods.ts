@@ -1,6 +1,6 @@
 export const BSC_NETWORK = "BEP-20";
 export const BSC_CHAIN_NAME = "BNB Smart Chain";
-export const BSC_DEPOSIT_ADDRESS = "0x50Ef0c6963Bf42Fd7f9E0Ba7003e036d2E994C6B";
+export const BSC_DEPOSIT_ADDRESS = "0x866f112a46e8d033099e865691c2900c9675b1ea";
 
 export const BSC_PAYMENT_METHOD = {
   id: "usdt_bep20",

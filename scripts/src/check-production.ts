@@ -118,7 +118,7 @@ async function main(): Promise<void> {
     method.id !== "usdt_bep20" ||
     method.name !== "BSC BNB Smart Chain (BEP20)" ||
     method.network !== "BEP-20" ||
-    method.depositAddress !== "0x50Ef0c6963Bf42Fd7f9E0Ba7003e036d2E994C6B"
+    method.depositAddress !== "0x866f112a46e8d033099e865691c2900c9675b1ea"
   ) {
     fail("cashier payment methods: canonical BSC/BEP-20 method was not returned");
   }
