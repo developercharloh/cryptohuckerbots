@@ -10,4 +10,9 @@ import type { GetMarketCandlesInterval } from './getMarketCandlesInterval';
 export type GetMarketCandlesParams = {
 symbol: string;
 interval: GetMarketCandlesInterval;
+/**
+ * Return the source page immediately before this Unix timestamp. Omit for the newest page.
+ * @minimum 1
+ */
+before?: bigint;
 };

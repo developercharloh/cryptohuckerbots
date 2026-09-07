@@ -16,4 +16,9 @@ export interface ChatConversation {
   unreadCount: number;
   status: ChatConversationStatus;
   pendingReply: boolean;
+  /** @nullable */
+  category: string | null;
+  mode: string;
+  userOnline: boolean;
+  supportStatus: string;
 }

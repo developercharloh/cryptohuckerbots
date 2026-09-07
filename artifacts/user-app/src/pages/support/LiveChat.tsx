@@ -2,8 +2,8 @@ import { useRef, useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { Layout } from "@/components/Layout";
 import { VixusLogo } from "@/components/VixusLogo";
-import { ChevronLeft, Send, Loader2, LockKeyhole, Paperclip, Camera, X, RotateCcw, FileText } from "lucide-react";
-import { useGetChatMessages, useSendChatMessage } from "@workspace/api-client-react";
+import { ChevronLeft, Send, Loader2, LockKeyhole, Paperclip, Camera, X, RotateCcw, FileText, Bot, Circle } from "lucide-react";
+import { useGetChatMessages, useGetChatState, useSendChatMessage, useSendChatTyping } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { upload } from "@vercel/blob/client";
@@ -61,10 +61,15 @@ export default function LiveChat() {
   const { data: messages = [], isLoading } = useGetChatMessages({
     query: { refetchInterval: 5000 } as any,
   });
+  const { data: chatState } = useGetChatState({
+    query: { refetchInterval: 3000 } as any,
+  });
 
   const mutation = useSendChatMessage();
+  const typingMutation = useSendChatTyping();
   const latestMessage = messages[messages.length - 1];
   const isClosed = latestMessage?.sender === "system";
+  const [botTyping, setBotTyping] = useState(false);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -134,6 +139,7 @@ export default function LiveChat() {
     const readyAttachments = pendingAttachments.filter((item) => item.pathname && item.uploadProof && !item.error);
     const hasUploading = pendingAttachments.some((item) => !item.error && !item.pathname);
     if ((!trimmed && readyAttachments.length === 0) || hasUploading || mutation.isPending) return;
+    setBotTyping(true);
     mutation.mutate(
       {
         data: {
@@ -152,7 +158,9 @@ export default function LiveChat() {
           setText("");
           setPendingAttachments([]);
           queryClient.invalidateQueries({ queryKey: ["getChatMessages"] });
+          window.setTimeout(() => setBotTyping(false), 700);
         },
+        onError: () => setBotTyping(false),
       }
     );
   };
@@ -168,6 +176,21 @@ export default function LiveChat() {
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const sendCategory = (category: "delayed_deposit" | "pending_kyc" | "technical") => {
+    if (mutation.isPending) return;
+    setBotTyping(true);
+    mutation.mutate(
+      { data: { message: `I need help with ${category === "delayed_deposit" ? "a delayed deposit" : category === "pending_kyc" ? "pending KYC review" : "a technical issue"}`, category } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["getChatMessages"] });
+          window.setTimeout(() => setBotTyping(false), 700);
+        },
+        onError: () => setBotTyping(false),
+      },
+    );
   };
 
   return (
@@ -205,9 +228,25 @@ export default function LiveChat() {
                 <Send className="w-6 h-6 text-blue-500" />
               </div>
               <p className="text-sm font-semibold">Start a conversation</p>
-              <p className="text-xs text-muted-foreground max-w-[220px]">
-                Send a message below and our support team will reply shortly.
+              <p className="text-xs text-muted-foreground max-w-[240px]">
+                Start with the guided assistant. A support teammate joins whenever the assistant cannot resolve it.
               </p>
+              <div className="grid w-full max-w-[280px] gap-2 pt-2">
+                {[
+                  ["delayed_deposit", "Delayed deposit"],
+                  ["pending_kyc", "Pending KYC review"],
+                  ["technical", "Technical issue"],
+                ].map(([category, label]) => (
+                  <button
+                    key={category}
+                    type="button"
+                    onClick={() => sendCategory(category as "delayed_deposit" | "pending_kyc" | "technical")}
+                    className="rounded-xl border border-border/60 bg-card px-3 py-2 text-left text-xs hover:border-primary/50 transition-colors"
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
           ) : (
             messages.map((msg) => {
@@ -229,7 +268,10 @@ export default function LiveChat() {
                       : "bg-card text-foreground rounded-bl-md"
                   }`}>
                     {!isUser && (
-                      <p className="text-[10px] font-semibold text-primary mb-1">Support</p>
+                      <p className="flex items-center gap-1 text-[10px] font-semibold text-primary mb-1">
+                        {msg.sender === "bot" ? <Bot className="h-3 w-3" /> : <Circle className="h-2 w-2 fill-current" />}
+                        {msg.sender === "bot" ? "VIXUS Assistant" : "Support"}
+                      </p>
                     )}
                     <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.message}</p>
                     {msg.attachments?.length > 0 && (
@@ -258,6 +300,12 @@ export default function LiveChat() {
             })
           )}
           <div ref={bottomRef} />
+          {(botTyping || chatState?.adminTyping) && (
+            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+              <span className="flex gap-0.5"><span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current" /><span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current [animation-delay:120ms]" /><span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current [animation-delay:240ms]" /></span>
+              {chatState?.adminTyping ? "Support is typing…" : "Assistant is typing…"}
+            </div>
+          )}
         </div>
 
         {isClosed && (
@@ -297,7 +345,10 @@ export default function LiveChat() {
             </div>
             <textarea
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={(e) => {
+                setText(e.target.value);
+                if (!typingMutation.isPending) typingMutation.mutate();
+              }}
               onKeyDown={handleKey}
               placeholder={isClosed ? "Start a new conversation…" : "Type a message…"}
               rows={1}

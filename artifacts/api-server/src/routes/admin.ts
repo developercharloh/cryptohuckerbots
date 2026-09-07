@@ -15,6 +15,7 @@ import {
   signalScheduleAuditTable,
   chatMessagesTable,
   chatAttachmentsTable,
+  supportChatThreadsTable,
   depositSessionsTable,
   broadcastsTable,
   adminLoginNotificationsTable,
@@ -72,6 +73,7 @@ import {
 import { hashPassword, verifyPassword } from "../lib/password";
 import { consumeRateLimit, recordSecurityEvent, rejectRateLimited, requestIp } from "../lib/security";
 import { BSC_PAYMENT_METHOD, BSC_PAYMENT_METHOD_SETTINGS } from "../lib/payment-methods";
+import { getAuthEmailBaseUrl, sendTransactionalEmail } from "../lib/email";
 
 const router = Router();
 
@@ -1194,7 +1196,8 @@ router.post("/admin/transactions/:id/review", async (req, res) => {
 // ---------------- Deposit Sessions ----------------
 function mapDepositSession(
   s: typeof depositSessionsTable.$inferSelect,
-  u: typeof usersTable.$inferSelect | null
+  u: typeof usersTable.$inferSelect | null,
+  verificationState: string | null = null,
 ) {
   return {
     id: s.id,
@@ -1209,6 +1212,7 @@ function mapDepositSession(
     network: s.network,
     depositAddress: s.depositAddress,
     txid: s.txid ?? null,
+    verificationState,
     confirmations: s.confirmations,
     requiredConfirmations: s.requiredConfirmations,
     cryptoAsset: s.cryptoAsset ?? null,
@@ -1234,9 +1238,53 @@ router.get("/admin/deposit-sessions", async (req, res) => {
     .where(isNotNull(depositSessionsTable.txid))
     .orderBy(desc(depositSessionsTable.createdAt));
 
-  let result = rows.map((r) => mapDepositSession(r.session, r.user));
+  const txids = rows.map((row) => row.session.txid).filter((txid): txid is string => Boolean(txid));
+  const events = txids.length
+    ? await db.select({
+      txid: binanceDepositEventsTable.txid,
+      state: binanceDepositEventsTable.state,
+    }).from(binanceDepositEventsTable).where(inArray(binanceDepositEventsTable.txid, txids))
+    : [];
+  const verificationByTxid = new Map(events.map((event) => [event.txid, event.state]));
+  let result = rows.map((r) => mapDepositSession(r.session, r.user, r.session.txid ? verificationByTxid.get(r.session.txid) ?? "not_matched" : null));
   if (status && status !== "all") result = result.filter((s) => s.status === status);
   return res.json(result);
+});
+
+router.get("/admin/deposit-events", async (req, res) => {
+  try {
+    await syncBinanceDeposits();
+  } catch (error) {
+    req.log?.warn?.({ err: error }, "Binance deposit sync failed during event refresh");
+  }
+  const rows = await db.select({
+    event: binanceDepositEventsTable,
+    session: depositSessionsTable,
+    user: usersTable,
+  })
+    .from(binanceDepositEventsTable)
+    .leftJoin(depositSessionsTable, eq(depositSessionsTable.id, binanceDepositEventsTable.matchedSessionId))
+    .leftJoin(usersTable, eq(usersTable.id, depositSessionsTable.userId))
+    .orderBy(desc(binanceDepositEventsTable.insertTime))
+    .limit(200);
+  return res.json(rows.map(({ event, session, user }) => ({
+    id: event.id,
+    txid: event.txid,
+    amount: Number(event.amount),
+    coin: event.coin,
+    network: event.network,
+    address: event.address,
+    confirmations: Number(event.confirmTimes?.split("/", 1)[0] ?? 0),
+    requiredConfirmations: Number(event.confirmTimes?.split("/", 2)[1] ?? BSC_PAYMENT_METHOD.requiredConfirmations),
+    state: event.state,
+    userId: session?.userId ?? null,
+    userName: user?.fullName ?? null,
+    userEmail: user?.email ?? null,
+    accountUid: user?.accountUid ?? null,
+    sessionId: session?.id ?? null,
+    insertTime: event.insertTime.toISOString(),
+    updatedAt: event.updatedAt.toISOString(),
+  })));
 });
 
 router.post("/admin/deposit-reconciliation/lookup", async (req, res) => {
@@ -1453,6 +1501,19 @@ router.post("/admin/tickets/:id/reply", async (req, res) => {
     title: `Reply to: ${ticket.subject}`,
     message: parsed.data.reply,
   });
+  const [recipient] = await db.select({ email: usersTable.email })
+    .from(usersTable)
+    .where(eq(usersTable.id, ticket.userId))
+    .limit(1);
+  if (recipient) {
+    const supportUrl = `${getAuthEmailBaseUrl()}/support/chat`;
+    void sendTransactionalEmail({
+      to: recipient.email,
+      subject: "New message from VIXUS Support",
+      text: `VIXUS Support replied to your ticket. Open your support chat: ${supportUrl}`,
+      html: `<p>VIXUS Support replied to your ticket.</p><p><a href="${supportUrl}">Open your support chat</a></p>`,
+    }).catch((error) => req.log?.warn?.({ err: error }, "Support ticket email notification failed"));
+  }
 
   const [row] = await db
     .select({ ticket: supportTicketsTable, user: usersTable })
@@ -1652,11 +1713,11 @@ router.get("/admin/chat", async (req, res) => {
       latest.message AS last_message,
       latest.created_at AS last_message_at,
       CASE WHEN latest.sender = 'system' THEN 'closed' ELSE 'open' END AS status,
-      CASE WHEN latest.sender = 'user' THEN true ELSE false END AS pending_reply,
-      CASE WHEN latest.sender = 'user' THEN (
+       CASE WHEN latest.sender IN ('user', 'bot') THEN true ELSE false END AS pending_reply,
+       CASE WHEN latest.sender IN ('user', 'bot') THEN (
         SELECT COUNT(*) FROM chat_messages cm2
-        WHERE cm2.user_id = latest.user_id
-          AND cm2.sender = 'user'
+       WHERE cm2.user_id = latest.user_id
+           AND cm2.sender = 'user'
           AND cm2.created_at > GREATEST(
             COALESCE((SELECT MAX(cm3.created_at) FROM chat_messages cm3 WHERE cm3.user_id = latest.user_id AND cm3.sender = 'admin'), TIMESTAMP '1970-01-01'),
             COALESCE((SELECT MAX(cm4.created_at) FROM chat_messages cm4 WHERE cm4.user_id = latest.user_id AND cm4.sender = 'system'), TIMESTAMP '1970-01-01')
@@ -1668,15 +1729,29 @@ router.get("/admin/chat", async (req, res) => {
   `);
 
   const rows = Array.isArray(result) ? result : (result as any).rows ?? [];
+  const threads = await db.select().from(supportChatThreadsTable);
+  const threadsByUser = new Map(threads.map((thread) => [thread.userId, thread]));
   return res.json(rows.map((r: any) => ({
+    ...(() => {
+      const thread = threadsByUser.get(Number(r.user_id));
+      const userOnline = thread
+        ? Date.now() - thread.userLastSeenAt.getTime() < 90_000
+        : false;
+      return {
+        category: thread?.category ?? null,
+        mode: thread?.mode ?? "admin",
+        userOnline,
+        supportStatus: thread?.status ?? r.status,
+      };
+    })(),
     userId: Number(r.user_id),
     userName: r.full_name,
     userEmail: r.email,
     lastMessage: r.last_message,
     lastMessageAt: new Date(r.last_message_at).toISOString(),
     unreadCount: Number(r.unread_count),
-    status: r.status,
-    pendingReply: Boolean(r.pending_reply),
+    status: threadsByUser.get(Number(r.user_id))?.status === "escalated" ? "escalated" : r.status,
+    pendingReply: Boolean(r.pending_reply) || threadsByUser.get(Number(r.user_id))?.status === "escalated",
   })));
 });
 
@@ -1799,6 +1874,9 @@ router.post("/admin/chat/:userId/close", async (req, res) => {
       message: "Your VIXUS Support conversation was closed. Start a new conversation if you still need help.",
       isRead: false,
     });
+    await tx.update(supportChatThreadsTable)
+      .set({ status: "closed", mode: "admin", adminTypingUntil: null, updatedAt: new Date() })
+      .where(eq(supportChatThreadsTable.userId, userId));
 
     return createdMessage;
   });
@@ -1807,6 +1885,23 @@ router.post("/admin/chat/:userId/close", async (req, res) => {
     status: "closed",
     closedAt: closedMessage.createdAt.toISOString(),
   });
+});
+
+router.post("/admin/chat/:userId/typing", async (req, res) => {
+  const userId = parseInt(req.params.userId, 10);
+  if (isNaN(userId)) return res.status(400).json({ error: "Invalid user id" });
+  const [targetUser] = await db.select({ id: usersTable.id }).from(usersTable)
+    .where(eq(usersTable.id, userId)).limit(1);
+  if (!targetUser) return res.status(404).json({ error: "User not found" });
+  const thread = await db.select({ id: supportChatThreadsTable.id })
+    .from(supportChatThreadsTable)
+    .where(eq(supportChatThreadsTable.userId, userId))
+    .limit(1);
+  if (!thread[0]) await db.insert(supportChatThreadsTable).values({ userId }).onConflictDoNothing();
+  await db.update(supportChatThreadsTable)
+    .set({ adminTypingUntil: new Date(Date.now() + 5_000), updatedAt: new Date() })
+    .where(eq(supportChatThreadsTable.userId, userId));
+  return res.json({ ok: true });
 });
 
 router.post("/admin/chat/:userId", async (req, res) => {
@@ -1882,6 +1977,9 @@ router.post("/admin/chat/:userId", async (req, res) => {
         message: trimmedMessage || "VIXUS Support sent an attachment.",
         isRead: false,
       });
+      await tx.update(supportChatThreadsTable)
+        .set({ mode: "admin", status: "open", adminTypingUntil: null, updatedAt: new Date() })
+        .where(eq(supportChatThreadsTable.userId, userId));
 
       return createdMessage;
     });
@@ -1892,6 +1990,20 @@ router.post("/admin/chat/:userId", async (req, res) => {
   const savedAttachments = attachments.length
     ? await db.select().from(chatAttachmentsTable).where(eq(chatAttachmentsTable.messageId, msg.id))
     : [];
+
+  const [recipient] = await db.select({ email: usersTable.email, fullName: usersTable.fullName })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId))
+    .limit(1);
+  if (recipient) {
+    const supportUrl = `${getAuthEmailBaseUrl()}/support/chat`;
+    void sendTransactionalEmail({
+      to: recipient.email,
+      subject: "New message from VIXUS Support",
+      text: `VIXUS Support sent you a new message. Open your support chat: ${supportUrl}`,
+      html: `<p>VIXUS Support sent you a new message.</p><p><a href="${supportUrl}">Open your support chat</a></p>`,
+    }).catch((error) => req.log?.warn?.({ err: error }, "Support email notification failed"));
+  }
 
   return res.status(201).json({
     id: msg.id,

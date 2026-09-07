@@ -19,7 +19,9 @@ export interface AdminDepositSession {
   network: string;
   depositAddress: string;
   /** @nullable */
-  txid?: string | null;
+  txid: string | null;
+  /** @nullable */
+  verificationState: string | null;
   confirmations: number;
   requiredConfirmations: number;
   /** @nullable */

@@ -6,9 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ChatAttachmentInput } from './chatAttachmentInput';
+import type { SendChatMessageInputCategory } from './sendChatMessageInputCategory';
 
 export interface SendChatMessageInput {
   message: string;
+  category?: SendChatMessageInputCategory;
   /** @maxItems 10 */
   attachments?: ChatAttachmentInput[];
 }

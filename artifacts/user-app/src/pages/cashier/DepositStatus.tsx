@@ -187,7 +187,7 @@ export default function DepositStatus() {
   const { status, amount, network, depositAddress, txid, confirmations, requiredConfirmations } = session;
   const assetSymbol = "USDT";
   const sendAmount = amount;
-  const displayedTxid = txid;
+  const displayedTxid = status === "completed" ? txid : null;
 
   // ── SCREEN 6: Success ──────────────────────────────────────────────────────
   if (status === "completed") {
@@ -262,56 +262,30 @@ export default function DepositStatus() {
     );
   }
 
-  const isConfirming = status === "payment_detected" || status === "confirming";
+  const isProcessing = status === "processing" || status === "payment_detected" || status === "confirming";
   const isWaiting    = status === "waiting_payment" || status === "created";
 
-  // ── SCREEN 5: Confirmations ────────────────────────────────────────────────
-  if (isConfirming) {
+  if (isProcessing) {
     return (
       <Layout>
-        <div className="p-5 pb-8 space-y-5">
-          <div className="flex items-center gap-3">
-            <button onClick={() => setLocation("/cashier")} className="w-9 h-9 flex items-center justify-center rounded-xl bg-card">
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <h1 className="text-xl font-bold tracking-tight">Deposit Status</h1>
+        <div className="p-5 pb-10 flex flex-col items-center text-center gap-5 pt-12">
+          <ClockCircle />
+          <div>
+            <h1 className="text-2xl font-bold">Deposit under review</h1>
+            <p className="text-sm text-muted-foreground mt-2 max-w-[290px]">
+              We are checking your payment. If it takes longer than expected, contact Support and paste the TxID from your wallet.
+            </p>
           </div>
-
-          {/* Circular progress */}
-          <div className="flex flex-col items-center gap-3 py-2">
-            <CircularProgress value={confirmations} max={requiredConfirmations} label="Confirmations" />
-            <span className="text-xs font-semibold text-emerald-400 bg-emerald-400/10 px-3 py-1 rounded-full border border-emerald-400/20">
-              ● Payment verified
-            </span>
-            <p className="text-xs text-muted-foreground">Waiting for admin approval</p>
-          </div>
-
-          {/* Timeline */}
-          <div className="rounded-2xl bg-card p-5">
-            <TStep label="Request Created"   done={true}  active={false} />
-            <TStep label="Payment Detected"  done={true}  active={false} />
-            <TStep label="Confirmations"     done={true} active={false}
-              sub={`${confirmations} of ${requiredConfirmations}`} />
-            <TStep label="Admin Approval"    done={false} active={true} sub="Waiting..." />
-          </div>
-
-          {/* Txid if available */}
-          {displayedTxid && (
-            <div className="rounded-xl bg-card p-4 space-y-1.5">
-              <p className="text-xs text-muted-foreground font-medium">Txid</p>
-              <div className="flex items-center gap-2">
-                <code className="text-[10px] font-mono break-all flex-1 leading-snug">{displayedTxid}</code>
-                <CopyBtn text={displayedTxid} />
-              </div>
-            </div>
-          )}
-
+          <Button className="w-full h-13 rounded-xl" style={{ height: "52px" }} onClick={() => setLocation("/support/chat")}>
+            Contact Support
+          </Button>
           <Footer amount={sendAmount} network={network} assetSymbol={assetSymbol} />
         </div>
       </Layout>
     );
   }
 
+  // ── SCREEN 5: Confirmations ────────────────────────────────────────────────
   // ── SCREEN 4: Waiting for payment (after "I've Made a Deposit") ─────────────
   if (isWaiting && hasSent) {
     return (
@@ -344,7 +318,7 @@ export default function DepositStatus() {
           <div className="rounded-2xl bg-card p-5 space-y-2">
             <p className="text-sm font-semibold">Automatic confirmation</p>
             <p className="text-xs leading-relaxed text-muted-foreground">
-              The BNB Smart Chain is checking the deposit. You do not need to enter a Txid. This screen will update automatically once the payment has enough confirmations.
+              The BNB Smart Chain is checking the deposit. If it is delayed, contact Support and paste the TxID from your wallet so the team can investigate.
             </p>
           </div>
 
@@ -409,7 +383,7 @@ export default function DepositStatus() {
         {/* Automatic confirmation */}
         <div className="rounded-2xl bg-card p-5 space-y-3">
           <p className="text-[11px] leading-relaxed text-muted-foreground">
-            After you send the exact amount, tap the button below. VIXUS will fetch the blockchain Txid automatically and wait for the required confirmations.
+            After you send the exact amount, tap the button below. If the deposit is delayed, contact Support and paste the blockchain TxID from your wallet.
           </p>
         </div>
 

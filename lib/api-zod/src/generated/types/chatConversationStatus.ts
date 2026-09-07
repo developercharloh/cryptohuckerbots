@@ -12,4 +12,5 @@ export type ChatConversationStatus = typeof ChatConversationStatus[keyof typeof 
 export const ChatConversationStatus = {
   open: 'open',
   closed: 'closed',
+  escalated: 'escalated',
 } as const;

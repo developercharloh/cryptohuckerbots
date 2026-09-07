@@ -34,7 +34,7 @@ function mapSession(s: typeof depositSessionsTable.$inferSelect) {
     network: s.network,
     depositAddress: s.depositAddress,
     txid: s.txid ?? null,
-    confirmations: s.confirmations,
+    confirmations: s.status === "completed" ? s.confirmations : 0,
     requiredConfirmations: s.requiredConfirmations,
     cryptoAsset: s.cryptoAsset ?? null,
     cryptoAmount: s.cryptoAmount ? parseFloat(s.cryptoAmount) : null,

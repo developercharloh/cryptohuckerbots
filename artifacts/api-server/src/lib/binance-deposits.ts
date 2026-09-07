@@ -4,7 +4,7 @@ import {
   db,
   depositSessionsTable,
 } from "@workspace/db";
-import { and, eq, gte, isNull, lte, inArray } from "drizzle-orm";
+import { and, eq, gte, isNull, lte, inArray, desc } from "drizzle-orm";
 import { BSC_DEPOSIT_ADDRESS, BSC_PAYMENT_METHOD } from "./payment-methods";
 
 const BSC_RPC_URL = process.env.BSC_RPC_URL?.trim() || "https://bsc.publicnode.com";
@@ -47,6 +47,11 @@ type DepositScanBatch = {
   deposits: ChainDeposit[];
   cursor: number;
   nextBlock: number;
+};
+
+export type UserDepositTxidResult = {
+  outcome: "not_matched" | "matching" | "matched";
+  sessionId: number | null;
 };
 
 let lastSyncAt = 0;
@@ -293,10 +298,111 @@ async function classifyAndPrepareEvent(eventId: number): Promise<void> {
   });
 }
 
+async function linkEventToSubmittedSession(eventId: number): Promise<UserDepositTxidResult | null> {
+  const [event] = await db.select().from(binanceDepositEventsTable)
+    .where(eq(binanceDepositEventsTable.id, eventId))
+    .limit(1);
+  if (!event) return null;
+
+  const [session] = await db.select().from(depositSessionsTable)
+    .where(eq(depositSessionsTable.txid, event.txid))
+    .limit(1);
+  if (!session) return null;
+
+  if (
+    Number(event.amount) !== Number(session.amount)
+    || event.coin !== "USDT"
+    || event.network !== "BSC"
+    || event.address.toLowerCase() !== session.depositAddress.toLowerCase()
+  ) {
+    await db.update(binanceDepositEventsTable)
+      .set({ state: "ambiguous", updatedAt: new Date() })
+      .where(eq(binanceDepositEventsTable.id, event.id));
+    return { outcome: "not_matched", sessionId: session.id };
+  }
+
+  const state = event.status === 1 ? "pending_approval" : "matching";
+  await db.update(binanceDepositEventsTable)
+    .set({
+      state,
+      matchedSessionId: session.id,
+      updatedAt: new Date(),
+    })
+    .where(eq(binanceDepositEventsTable.id, event.id));
+  return {
+    outcome: event.status === 1 ? "matched" : "matching",
+    sessionId: session.id,
+  };
+}
+
+export async function submitUserDepositTxid(
+  userId: number,
+  txid: string,
+): Promise<UserDepositTxidResult> {
+  const [session] = await db.select().from(depositSessionsTable)
+    .where(and(
+      eq(depositSessionsTable.userId, userId),
+      isNull(depositSessionsTable.txid),
+      inArray(depositSessionsTable.status, ["created", "waiting_payment", "payment_detected", "confirming"]),
+    ))
+    .orderBy(desc(depositSessionsTable.createdAt))
+    .limit(1);
+  if (!session) return { outcome: "not_matched", sessionId: null };
+
+  const [existingEvent] = await db.select().from(binanceDepositEventsTable)
+    .where(eq(binanceDepositEventsTable.txid, txid))
+    .limit(1);
+  const [existingSessionForTxid] = await db.select({ id: depositSessionsTable.id })
+    .from(depositSessionsTable)
+    .where(eq(depositSessionsTable.txid, txid))
+    .limit(1);
+  if (existingSessionForTxid && existingSessionForTxid.id !== session.id) {
+    return { outcome: "not_matched", sessionId: session.id };
+  }
+
+  const createdPlaceholder = !existingEvent;
+  if (!existingEvent) {
+    await db.insert(binanceDepositEventsTable).values({
+      txid,
+      amount: session.amount,
+      coin: "USDT",
+      network: "BSC",
+      address: session.depositAddress,
+      status: 0,
+      confirmTimes: null,
+      insertTime: new Date(),
+      state: "unmatched",
+      matchedSessionId: null,
+    }).onConflictDoNothing();
+  }
+
+  await db.update(depositSessionsTable)
+    .set({
+      txid,
+      status: "payment_detected",
+      updatedAt: new Date(),
+    })
+    .where(eq(depositSessionsTable.id, session.id));
+
+  const [event] = await db.select().from(binanceDepositEventsTable)
+    .where(eq(binanceDepositEventsTable.txid, txid))
+    .limit(1);
+  if (!event) return { outcome: "not_matched", sessionId: session.id };
+  if (createdPlaceholder) {
+    await db.update(binanceDepositEventsTable)
+      .set({ state: "matching", matchedSessionId: session.id, updatedAt: new Date() })
+      .where(eq(binanceDepositEventsTable.id, event.id));
+    return { outcome: "not_matched", sessionId: session.id };
+  }
+  const result = await linkEventToSubmittedSession(event.id);
+  return result ?? { outcome: "not_matched", sessionId: session.id };
+}
+
 export async function processBscDeposit(deposit: ChainDeposit): Promise<void> {
   const event = await recordBinanceDeposit(deposit);
   if (event && event.status === 1 && !["credited", "pending_approval"].includes(event.state)) {
-    await classifyAndPrepareEvent(event.id);
+    const linked = await linkEventToSubmittedSession(event.id);
+    if (!linked) await classifyAndPrepareEvent(event.id);
   }
 }
 

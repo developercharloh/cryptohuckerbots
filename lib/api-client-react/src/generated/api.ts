@@ -29,6 +29,7 @@ import type {
   AdminBroadcast,
   AdminBroadcastInput,
   AdminCloseChat,
+  AdminDepositEvent,
   AdminDepositSession,
   AdminKycItem,
   AdminKycReviewInput,
@@ -101,6 +102,7 @@ import type {
   SignalScheduleAudit,
   SubmitTxidInput,
   SuccessResponse,
+  SupportChatState,
   SupportTicket,
   SupportTicketInput,
   TechnicalErrorInput,
@@ -2163,6 +2165,77 @@ export function useAdminListDepositSessions<TData = Awaited<ReturnType<typeof ad
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getAdminListDepositSessionsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAdminListDepositEventsUrl = () => {
+
+
+
+
+  return `/api/admin/deposit-events`
+}
+
+export const adminListDepositEvents = async ( options?: RequestInit): Promise<AdminDepositEvent[]> => {
+
+  return customFetch<AdminDepositEvent[]>(getAdminListDepositEventsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminListDepositEventsQueryKey = () => {
+    return [
+    `/api/admin/deposit-events`
+    ] as const;
+    }
+
+
+export const getAdminListDepositEventsQueryOptions = <TData = Awaited<ReturnType<typeof adminListDepositEvents>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListDepositEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminListDepositEventsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminListDepositEvents>>> = ({ signal }) => adminListDepositEvents({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminListDepositEvents>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminListDepositEventsQueryResult = NonNullable<Awaited<ReturnType<typeof adminListDepositEvents>>>
+export type AdminListDepositEventsQueryError = ErrorType<unknown>
+
+
+
+export function useAdminListDepositEvents<TData = Awaited<ReturnType<typeof adminListDepositEvents>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListDepositEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminListDepositEventsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -6301,6 +6374,205 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getSendChatMessageMutationOptions(options));
+    }
+
+export const getGetChatStateUrl = () => {
+
+
+
+
+  return `/api/support/chat/state`
+}
+
+export const getChatState = async ( options?: RequestInit): Promise<SupportChatState> => {
+
+  return customFetch<SupportChatState>(getGetChatStateUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetChatStateQueryKey = () => {
+    return [
+    `/api/support/chat/state`
+    ] as const;
+    }
+
+
+export const getGetChatStateQueryOptions = <TData = Awaited<ReturnType<typeof getChatState>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getChatState>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetChatStateQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getChatState>>> = ({ signal }) => getChatState({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getChatState>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetChatStateQueryResult = NonNullable<Awaited<ReturnType<typeof getChatState>>>
+export type GetChatStateQueryError = ErrorType<unknown>
+
+
+
+export function useGetChatState<TData = Awaited<ReturnType<typeof getChatState>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getChatState>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetChatStateQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSendChatTypingUrl = () => {
+
+
+
+
+  return `/api/support/chat/typing`
+}
+
+export const sendChatTyping = async ( options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getSendChatTypingUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getSendChatTypingMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendChatTyping>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendChatTyping>>, TError,void, TContext> => {
+
+const mutationKey = ['sendChatTyping'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendChatTyping>>, void> = () => {
+
+
+          return  sendChatTyping(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendChatTypingMutationResult = NonNullable<Awaited<ReturnType<typeof sendChatTyping>>>
+
+    export type SendChatTypingMutationError = ErrorType<unknown>
+
+    export const useSendChatTyping = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendChatTyping>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendChatTyping>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getSendChatTypingMutationOptions(options));
+    }
+
+export const getAdminSendChatTypingUrl = (userId: number,) => {
+
+
+
+
+  return `/api/admin/chat/${userId}/typing`
+}
+
+export const adminSendChatTyping = async (userId: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getAdminSendChatTypingUrl(userId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getAdminSendChatTypingMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminSendChatTyping>>, TError,{userId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminSendChatTyping>>, TError,{userId: number}, TContext> => {
+
+const mutationKey = ['adminSendChatTyping'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminSendChatTyping>>, {userId: number}> = (props) => {
+          const {userId} = props ?? {};
+
+          return  adminSendChatTyping(userId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminSendChatTypingMutationResult = NonNullable<Awaited<ReturnType<typeof adminSendChatTyping>>>
+
+    export type AdminSendChatTypingMutationError = ErrorType<unknown>
+
+    export const useAdminSendChatTyping = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminSendChatTyping>>, TError,{userId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminSendChatTyping>>,
+        TError,
+        {userId: number},
+        TContext
+      > => {
+      return useMutation(getAdminSendChatTypingMutationOptions(options));
     }
 
 export const getAdminListChatsUrl = () => {

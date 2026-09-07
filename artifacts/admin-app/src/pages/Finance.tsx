@@ -4,9 +4,11 @@ import {
   useAdminReviewTransaction,
   useAdminListReferrals,
   useAdminListDepositSessions,
+  useAdminListDepositEvents,
   useAdminReviewDepositSession,
   useLookupDepositReconciliation,
   type DepositReconciliation,
+  type AdminDepositEvent,
   getAdminListTransactionsQueryKey,
   getAdminListDepositSessionsQueryKey,
 } from "@workspace/api-client-react";
@@ -197,6 +199,9 @@ function DepositSessionsTab() {
     { status: filterStatus !== "all" ? filterStatus : undefined },
     { query: { refetchInterval: 10000 } as any }
   );
+  const { data: depositEvents = [] } = useAdminListDepositEvents({
+    query: { refetchInterval: 10000 } as any,
+  });
   const reviewSession = useAdminReviewDepositSession();
   const reviewTransaction = useAdminReviewTransaction();
   const lookupReconciliation = useLookupDepositReconciliation();
@@ -228,6 +233,7 @@ function DepositSessionsTab() {
             setReconciliationInput("");
           }
           queryClient.invalidateQueries({ queryKey: getAdminListDepositSessionsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: ["/api/admin/deposit-events"] });
         },
         onError: (err) => {
           trackEvent("admin_deposit_session_action", {
@@ -269,9 +275,50 @@ function DepositSessionsTab() {
     expired: "Expired",
     cancelled: "Cancelled",
   };
+  const eventStateLabel: Record<string, string> = {
+    unmatched: "Not matched",
+    matching: "Matching",
+    ambiguous: "Needs manual review",
+    pending_approval: "Matched — awaiting admin approval",
+    credited: "Credited",
+  };
 
   return (
     <div className="space-y-3">
+      <Card className="rounded-2xl border-amber-400/30 bg-amber-500/5">
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold">BSC deposit event queue</p>
+              <p className="text-[11px] text-muted-foreground">
+                Scanner events are evidence for review only. Nothing is credited until an admin verifies and approves it.
+              </p>
+            </div>
+          </div>
+          {depositEvents.length === 0 ? (
+            <p className="text-[11px] text-muted-foreground">No blockchain events are waiting for review.</p>
+          ) : (
+            <div className="space-y-2">
+              {depositEvents.slice(0, 12).map((event: AdminDepositEvent) => (
+                <div key={event.id} className="rounded-xl border border-border/60 bg-background/60 p-3 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <Badge variant={event.state === "pending_approval" ? "default" : event.state === "credited" ? "secondary" : "outline"} className="text-[10px]">
+                      {eventStateLabel[event.state] ?? event.state}
+                    </Badge>
+                    <span className="text-xs font-semibold text-emerald-400">${event.amount.toFixed(2)}</span>
+                  </div>
+                  <p className="font-mono text-[10px] break-all text-muted-foreground">{event.txid}</p>
+                  <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+                    <span>{event.confirmations}/{event.requiredConfirmations} confirmations</span>
+                    <span>{event.userEmail ?? "Unassigned event"}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
       <Card className="rounded-2xl border-primary/30 bg-primary/5">
         <CardContent className="p-4 space-y-3">
           <div className="flex items-start gap-2">

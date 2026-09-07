@@ -11,6 +11,7 @@ export type ChatMessageSender = typeof ChatMessageSender[keyof typeof ChatMessag
 
 export const ChatMessageSender = {
   user: 'user',
+  bot: 'bot',
   admin: 'admin',
   system: 'system',
 } as const;

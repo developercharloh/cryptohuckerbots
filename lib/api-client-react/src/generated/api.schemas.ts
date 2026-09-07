@@ -1125,7 +1125,9 @@ export interface AdminDepositSession {
   network: string;
   depositAddress: string;
   /** @nullable */
-  txid?: string | null;
+  txid: string | null;
+  /** @nullable */
+  verificationState: string | null;
   confirmations: number;
   requiredConfirmations: number;
   /** @nullable */
@@ -1136,6 +1138,30 @@ export interface AdminDepositSession {
   conversionRate?: number | null;
   expiresAt: string;
   createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminDepositEvent {
+  id: number;
+  txid: string;
+  amount: number;
+  coin: string;
+  network: string;
+  address: string;
+  confirmations: number;
+  requiredConfirmations: number;
+  state: string;
+  /** @nullable */
+  userId: number | null;
+  /** @nullable */
+  userName: string | null;
+  /** @nullable */
+  userEmail: string | null;
+  /** @nullable */
+  accountUid: string | null;
+  /** @nullable */
+  sessionId: number | null;
+  insertTime: string;
   updatedAt: string;
 }
 
@@ -1173,6 +1199,7 @@ export type ChatMessageSender = typeof ChatMessageSender[keyof typeof ChatMessag
 
 export const ChatMessageSender = {
   user: 'user',
+  bot: 'bot',
   admin: 'admin',
   system: 'system',
 } as const;
@@ -1193,6 +1220,16 @@ export interface ChatMessage {
   attachments: ChatAttachment[];
 }
 
+export type SendChatMessageInputCategory = typeof SendChatMessageInputCategory[keyof typeof SendChatMessageInputCategory];
+
+
+export const SendChatMessageInputCategory = {
+  delayed_deposit: 'delayed_deposit',
+  pending_kyc: 'pending_kyc',
+  technical: 'technical',
+  other: 'other',
+} as const;
+
 export interface ChatAttachmentInput {
   pathname: string;
   filename: string;
@@ -1203,6 +1240,7 @@ export interface ChatAttachmentInput {
 
 export interface SendChatMessageInput {
   message: string;
+  category?: SendChatMessageInputCategory;
   /** @maxItems 10 */
   attachments?: ChatAttachmentInput[];
 }
@@ -1213,6 +1251,7 @@ export type ChatConversationStatus = typeof ChatConversationStatus[keyof typeof 
 export const ChatConversationStatus = {
   open: 'open',
   closed: 'closed',
+  escalated: 'escalated',
 } as const;
 
 export interface ChatConversation {
@@ -1224,6 +1263,20 @@ export interface ChatConversation {
   unreadCount: number;
   status: ChatConversationStatus;
   pendingReply: boolean;
+  /** @nullable */
+  category: string | null;
+  mode: string;
+  userOnline: boolean;
+  supportStatus: string;
+}
+
+export interface SupportChatState {
+  /** @nullable */
+  category: string | null;
+  mode: string;
+  status: string;
+  adminTyping: boolean;
+  adminOnline: boolean;
 }
 
 export type AdminCloseChatStatus = typeof AdminCloseChatStatus[keyof typeof AdminCloseChatStatus];
@@ -1254,6 +1307,11 @@ export interface AdminBroadcast {
 export type GetMarketCandlesParams = {
 symbol: string;
 interval: GetMarketCandlesInterval;
+/**
+ * Return the source page immediately before this Unix timestamp. Omit for the newest page.
+ * @minimum 1
+ */
+before?: number;
 };
 
 export type GetMarketCandlesInterval = typeof GetMarketCandlesInterval[keyof typeof GetMarketCandlesInterval];

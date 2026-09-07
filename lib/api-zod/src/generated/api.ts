@@ -50,9 +50,13 @@ export const ListMarketNewsResponse = zod.object({
 /**
  * @summary Live OHLC candlesticks for a supported instrument
  */
+
+
+
 export const GetMarketCandlesQueryParams = zod.object({
   "symbol": zod.coerce.string(),
-  "interval": zod.enum(['1m', '5m', '15m', '1h', '4h', '1d'])
+  "interval": zod.enum(['1m', '5m', '15m', '1h', '4h', '1d']),
+  "before": zod.coerce.number().min(1).optional().describe('Return the source page immediately before this Unix timestamp. Omit for the newest page.')
 })
 
 export const GetMarketCandlesResponseItem = zod.object({
@@ -63,6 +67,8 @@ export const GetMarketCandlesResponseItem = zod.object({
   "close": zod.number()
 })
 export const GetMarketCandlesResponse = zod.array(GetMarketCandlesResponseItem)
+
+
 export const registerBodyReferralCodeMax = 15;
 
 
@@ -503,7 +509,8 @@ export const AdminListDepositSessionsResponseItem = zod.object({
   "paymentMethodName": zod.string(),
   "network": zod.string(),
   "depositAddress": zod.string(),
-  "txid": zod.string().nullish(),
+  "txid": zod.string().nullable(),
+  "verificationState": zod.string().nullable(),
   "confirmations": zod.number(),
   "requiredConfirmations": zod.number(),
   "cryptoAsset": zod.string().nullish(),
@@ -514,6 +521,27 @@ export const AdminListDepositSessionsResponseItem = zod.object({
   "updatedAt": zod.string()
 })
 export const AdminListDepositSessionsResponse = zod.array(AdminListDepositSessionsResponseItem)
+
+
+export const AdminListDepositEventsResponseItem = zod.object({
+  "id": zod.number(),
+  "txid": zod.string(),
+  "amount": zod.number(),
+  "coin": zod.string(),
+  "network": zod.string(),
+  "address": zod.string(),
+  "confirmations": zod.number(),
+  "requiredConfirmations": zod.number(),
+  "state": zod.string(),
+  "userId": zod.number().nullable(),
+  "userName": zod.string().nullable(),
+  "userEmail": zod.string().nullable(),
+  "accountUid": zod.string().nullable(),
+  "sessionId": zod.number().nullable(),
+  "insertTime": zod.string(),
+  "updatedAt": zod.string()
+})
+export const AdminListDepositEventsResponse = zod.array(AdminListDepositEventsResponseItem)
 
 
 export const AdminReviewDepositSessionParams = zod.object({
@@ -538,7 +566,8 @@ export const AdminReviewDepositSessionResponse = zod.object({
   "paymentMethodName": zod.string(),
   "network": zod.string(),
   "depositAddress": zod.string(),
-  "txid": zod.string().nullish(),
+  "txid": zod.string().nullable(),
+  "verificationState": zod.string().nullable(),
   "confirmations": zod.number(),
   "requiredConfirmations": zod.number(),
   "cryptoAsset": zod.string().nullish(),
@@ -1794,7 +1823,7 @@ export const AdminCloseTicketResponse = zod.object({
 
 export const GetChatMessagesResponseItem = zod.object({
   "id": zod.number(),
-  "sender": zod.enum(['user', 'admin', 'system']),
+  "sender": zod.enum(['user', 'bot', 'admin', 'system']),
   "message": zod.string(),
   "createdAt": zod.string(),
   "attachments": zod.array(zod.object({
@@ -1814,6 +1843,7 @@ export const sendChatMessageBodyAttachmentsMax = 10;
 
 export const SendChatMessageBody = zod.object({
   "message": zod.string(),
+  "category": zod.enum(['delayed_deposit', 'pending_kyc', 'technical', 'other']).optional(),
   "attachments": zod.array(zod.object({
   "pathname": zod.string(),
   "filename": zod.string(),
@@ -1825,7 +1855,7 @@ export const SendChatMessageBody = zod.object({
 
 export const SendChatMessageResponse = zod.object({
   "id": zod.number(),
-  "sender": zod.enum(['user', 'admin', 'system']),
+  "sender": zod.enum(['user', 'bot', 'admin', 'system']),
   "message": zod.string(),
   "createdAt": zod.string(),
   "attachments": zod.array(zod.object({
@@ -1838,6 +1868,25 @@ export const SendChatMessageResponse = zod.object({
 })
 
 
+export const GetChatStateResponse = zod.object({
+  "category": zod.string().nullable(),
+  "mode": zod.string(),
+  "status": zod.string(),
+  "adminTyping": zod.boolean(),
+  "adminOnline": zod.boolean()
+})
+
+
+export const SendChatTypingResponse = zod.unknown()
+
+
+export const AdminSendChatTypingParams = zod.object({
+  "userId": zod.coerce.number()
+})
+
+export const AdminSendChatTypingResponse = zod.unknown()
+
+
 export const AdminListChatsResponseItem = zod.object({
   "userId": zod.number(),
   "userName": zod.string(),
@@ -1845,8 +1894,12 @@ export const AdminListChatsResponseItem = zod.object({
   "lastMessage": zod.string(),
   "lastMessageAt": zod.string(),
   "unreadCount": zod.number(),
-  "status": zod.enum(['open', 'closed']),
-  "pendingReply": zod.boolean()
+  "status": zod.enum(['open', 'closed', 'escalated']),
+  "pendingReply": zod.boolean(),
+  "category": zod.string().nullable(),
+  "mode": zod.string(),
+  "userOnline": zod.boolean(),
+  "supportStatus": zod.string()
 })
 export const AdminListChatsResponse = zod.array(AdminListChatsResponseItem)
 
@@ -1857,7 +1910,7 @@ export const AdminGetChatParams = zod.object({
 
 export const AdminGetChatResponseItem = zod.object({
   "id": zod.number(),
-  "sender": zod.enum(['user', 'admin', 'system']),
+  "sender": zod.enum(['user', 'bot', 'admin', 'system']),
   "message": zod.string(),
   "createdAt": zod.string(),
   "attachments": zod.array(zod.object({
@@ -1881,6 +1934,7 @@ export const adminSendChatMessageBodyAttachmentsMax = 10;
 
 export const AdminSendChatMessageBody = zod.object({
   "message": zod.string(),
+  "category": zod.enum(['delayed_deposit', 'pending_kyc', 'technical', 'other']).optional(),
   "attachments": zod.array(zod.object({
   "pathname": zod.string(),
   "filename": zod.string(),
@@ -1892,7 +1946,7 @@ export const AdminSendChatMessageBody = zod.object({
 
 export const AdminSendChatMessageResponse = zod.object({
   "id": zod.number(),
-  "sender": zod.enum(['user', 'admin', 'system']),
+  "sender": zod.enum(['user', 'bot', 'admin', 'system']),
   "message": zod.string(),
   "createdAt": zod.string(),
   "attachments": zod.array(zod.object({

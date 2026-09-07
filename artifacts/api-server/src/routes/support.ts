@@ -1,8 +1,18 @@
 import { Router } from "express";
-import { db, supportTicketsTable, faqTable, chatMessagesTable, chatAttachmentsTable, notificationsTable } from "@workspace/db";
-import { eq, desc, inArray } from "drizzle-orm";
+import {
+  db,
+  supportTicketsTable,
+  faqTable,
+  chatMessagesTable,
+  chatAttachmentsTable,
+  notificationsTable,
+  supportChatThreadsTable,
+} from "@workspace/db";
+import { and, eq, desc, inArray } from "drizzle-orm";
 import { CreateSupportTicketBody } from "@workspace/api-zod";
 import { getRequestToken, getUserForSession } from "../lib/session";
+import { submitUserDepositTxid, syncBinanceDeposits } from "../lib/binance-deposits";
+import { sendPushToAllAdmins } from "../lib/webPush";
 import {
   confirmUploadedAttachments,
   cleanupUploadedAttachments,
@@ -18,6 +28,131 @@ const router = Router();
 
 async function getUserFromToken(token: string | undefined) {
   return getUserForSession(token);
+}
+
+async function getOrCreateThread(userId: number) {
+  const [existing] = await db.select().from(supportChatThreadsTable)
+    .where(eq(supportChatThreadsTable.userId, userId))
+    .limit(1);
+  if (existing) return existing;
+  const [created] = await db.insert(supportChatThreadsTable).values({ userId }).returning();
+  return created;
+}
+
+function categoryFromMessage(message: string): string | null {
+  const value = message.toLowerCase();
+  if (value.includes("deposit") || value.includes("txid") || value.includes("transaction")) return "delayed_deposit";
+  if (value.includes("kyc") || value.includes("verification") || value.includes("verify my identity")) return "pending_kyc";
+  if (value.includes("technical") || value.includes("bug") || value.includes("error") || value.includes("not working")) return "technical";
+  if (value.includes("other")) return "other";
+  return null;
+}
+
+function botMessageForCategory(category: string | null): string {
+  if (category === "delayed_deposit") {
+    return "I can help check your deposit. Please paste the BNB Smart Chain (BEP-20) TxID from your wallet or exchange.";
+  }
+  if (category === "pending_kyc") {
+    return "Your KYC review is handled securely by our verification team. If you have already submitted your documents, please allow the review team time to complete the checks. If your status has not changed after the expected review period, I can send this to Support.";
+  }
+  if (category === "technical") {
+    return "Please describe what is not working and include the screen or error message if possible. I will try the common fixes first, then send it to Support if it needs account-level investigation.";
+  }
+  if (category === "other") {
+    return "Please describe what you need help with. I will try to resolve it here and escalate it to Support if a team member is needed.";
+  }
+  return "Welcome to VIXUS Support. Choose a topic so I can help you faster: delayed deposit, pending KYC review, or another technical issue.";
+}
+
+async function addBotMessage(userId: number, message: string) {
+  return db.insert(chatMessagesTable).values({
+    userId,
+    sender: "bot",
+    message,
+  }).returning();
+}
+
+async function escalateToSupport(userId: number, category: string, userMessage: string) {
+  const now = new Date();
+  await db.transaction(async (tx) => {
+    await tx.update(supportChatThreadsTable)
+      .set({ mode: "admin", status: "escalated", updatedAt: now })
+      .where(eq(supportChatThreadsTable.userId, userId));
+    const [existingTicket] = await tx.select({ id: supportTicketsTable.id })
+      .from(supportTicketsTable)
+      .where(and(eq(supportTicketsTable.userId, userId), eq(supportTicketsTable.status, "open")))
+      .limit(1);
+    if (!existingTicket) {
+      await tx.insert(supportTicketsTable).values({
+        userId,
+        subject: `Live chat escalation: ${category.replace("_", " ")}`,
+        message: userMessage,
+        category,
+        status: "open",
+      });
+    }
+  });
+  void sendPushToAllAdmins({
+    title: "Support escalation",
+    body: `A user needs help with ${category.replace("_", " ")}.`,
+    tag: "vixus-support-escalation",
+    data: { type: "support_escalation", userId },
+  }).catch(() => {});
+}
+
+async function handleBotTurn(userId: number, thread: typeof supportChatThreadsTable.$inferSelect, message: string, requestedCategory?: string) {
+  const category = requestedCategory || thread.category || categoryFromMessage(message);
+  if (category && category !== thread.category) {
+    await db.update(supportChatThreadsTable)
+      .set({ category, botState: category === "delayed_deposit" ? "awaiting_txid" : "awaiting_details", updatedAt: new Date() })
+      .where(eq(supportChatThreadsTable.userId, userId));
+  }
+
+  if (!category) {
+    await db.update(supportChatThreadsTable)
+      .set({ botState: "choose_category", updatedAt: new Date() })
+      .where(eq(supportChatThreadsTable.userId, userId));
+    return;
+  }
+
+  if (category === "delayed_deposit") {
+    const txid = message.match(/0x[a-fA-F0-9]{64}/)?.[0];
+    if (!txid) {
+      await addBotMessage(userId, botMessageForCategory(category));
+      return;
+    }
+
+    try {
+      await syncBinanceDeposits();
+    } catch {
+      // The submitted TxID remains visible to admins even if the poller is unavailable.
+    }
+    const result = await submitUserDepositTxid(userId, txid);
+    if (result.outcome === "matched" || result.outcome === "matching") {
+      await addBotMessage(userId, "Thanks. I received your TxID and sent the deposit for review. Support will update you here after the account check.");
+      return;
+    }
+    await addBotMessage(userId, "Thanks. I received your TxID, but it needs a Support review before it can be confirmed. We will update you here.");
+    await escalateToSupport(userId, category, message);
+    return;
+  }
+
+  const lower = message.toLowerCase();
+  if (category === "technical" && (lower.includes("login") || lower.includes("password"))) {
+    await addBotMessage(userId, "For login or password problems, use Forgot password on the sign-in screen. If the reset email does not arrive, check spam and then reply here so Support can investigate.");
+    return;
+  }
+  if (category === "technical" && (lower.includes("email") || lower.includes("verify"))) {
+    await addBotMessage(userId, "Please check your inbox and spam folder for the verification email. If the link has expired, open the verification screen again to request a fresh code.");
+    return;
+  }
+  if (category === "pending_kyc" && (lower.includes("how long") || lower.includes("status"))) {
+    await addBotMessage(userId, "Your documents are reviewed by the verification team. Keep this conversation open and Support will message you here if anything else is required.");
+    return;
+  }
+
+  await addBotMessage(userId, "I could not resolve that automatically, so I sent it to Support. A team member will reply in this conversation.");
+  await escalateToSupport(userId, category || "other", message);
 }
 
 router.get("/support/tickets", async (req, res) => {
@@ -73,6 +208,10 @@ router.get("/support/chat", async (req, res) => {
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
+  const thread = await getOrCreateThread(user.id);
+  await db.update(supportChatThreadsTable)
+    .set({ userLastSeenAt: new Date(), updatedAt: new Date() })
+    .where(eq(supportChatThreadsTable.id, thread.id));
   const messages = await db.select().from(chatMessagesTable)
     .where(eq(chatMessagesTable.userId, user.id))
     .orderBy(chatMessagesTable.createdAt);
@@ -100,6 +239,32 @@ router.get("/support/chat", async (req, res) => {
       downloadUrl: `/api/support/attachments/${attachment.id}`,
     })),
   })));
+});
+
+router.get("/support/chat/state", async (req, res) => {
+  const token = getRequestToken(req);
+  const user = await getUserForSession(token);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+  const thread = await getOrCreateThread(user.id);
+  const adminOnline = thread.adminTypingUntil != null && thread.adminTypingUntil.getTime() > Date.now();
+  return res.json({
+    category: thread.category,
+    mode: thread.mode,
+    status: thread.status,
+    adminTyping: adminOnline,
+    adminOnline,
+  });
+});
+
+router.post("/support/chat/typing", async (req, res) => {
+  const token = getRequestToken(req);
+  const user = await getUserForSession(token);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+  const thread = await getOrCreateThread(user.id);
+  await db.update(supportChatThreadsTable)
+    .set({ userLastSeenAt: new Date(), updatedAt: new Date() })
+    .where(eq(supportChatThreadsTable.id, thread.id));
+  return res.json({ ok: true });
 });
 
 router.post("/support/attachments/session", async (req, res) => {
@@ -152,13 +317,19 @@ router.post("/support/chat", async (req, res) => {
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
-  const { message, attachments: rawAttachments } = req.body as { message?: string; attachments?: unknown };
+  const { message, category, attachments: rawAttachments } = req.body as { message?: string; category?: string; attachments?: unknown };
   const trimmedMessage = typeof message === "string" ? message.trim() : "";
   if (!trimmedMessage && (!Array.isArray(rawAttachments) || rawAttachments.length === 0)) {
     return res.status(400).json({ error: "message or attachment is required" });
   }
   if (trimmedMessage.length > 2000) {
     return res.status(400).json({ error: "message must be 2000 characters or fewer" });
+  }
+  const thread = await getOrCreateThread(user.id);
+  if (thread.status === "closed") {
+    await db.update(supportChatThreadsTable)
+      .set({ status: "open", mode: "bot", botState: "choose_category", updatedAt: new Date(), userLastSeenAt: new Date() })
+      .where(eq(supportChatThreadsTable.id, thread.id));
   }
   let attachments;
   try {
@@ -219,6 +390,14 @@ router.post("/support/chat", async (req, res) => {
   const savedAttachments = attachments.length
     ? await db.select().from(chatAttachmentsTable).where(eq(chatAttachmentsTable.messageId, msg.id))
     : [];
+
+  const requestedCategory = typeof category === "string" && ["delayed_deposit", "pending_kyc", "technical", "other"].includes(category)
+    ? category
+    : undefined;
+  const currentThread = await getOrCreateThread(user.id);
+  if (currentThread.mode === "bot" || requestedCategory) {
+    await handleBotTurn(user.id, currentThread, trimmedMessage, requestedCategory);
+  }
 
   return res.status(201).json({
     id: msg.id,

@@ -373,11 +373,11 @@ export const withdrawalConfirmationsTable = pgTable("withdrawal_confirmations", 
 
 export type WithdrawalConfirmation = typeof withdrawalConfirmationsTable.$inferSelect;
 
-// Live Chat (user ↔ admin)
+// Live Chat (user ↔ bot ↔ admin)
 export const chatMessagesTable = pgTable("chat_messages", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
-  sender: varchar("sender", { length: 10 }).notNull(), // 'user' | 'admin'
+  sender: varchar("sender", { length: 10 }).notNull(), // 'user' | 'bot' | 'admin' | 'system'
   message: text("message").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => [
@@ -385,6 +385,24 @@ export const chatMessagesTable = pgTable("chat_messages", {
 ]);
 
 export type ChatMessage = typeof chatMessagesTable.$inferSelect;
+
+export const supportChatThreadsTable = pgTable("support_chat_threads", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().unique(),
+  category: varchar("category", { length: 50 }),
+  mode: varchar("mode", { length: 20 }).notNull().default("bot"),
+  status: varchar("status", { length: 30 }).notNull().default("open"),
+  botState: varchar("bot_state", { length: 50 }).notNull().default("choose_category"),
+  userLastSeenAt: timestamp("user_last_seen_at").notNull().defaultNow(),
+  adminTypingUntil: timestamp("admin_typing_until"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => [
+  index("support_chat_threads_status_updated_at_idx").on(table.status, table.updatedAt),
+  index("support_chat_threads_user_last_seen_idx").on(table.userLastSeenAt),
+]);
+
+export type SupportChatThread = typeof supportChatThreadsTable.$inferSelect;
 
 export const chatAttachmentsTable = pgTable("chat_attachments", {
   id: serial("id").primaryKey(),

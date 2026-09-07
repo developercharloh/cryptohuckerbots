@@ -7,6 +7,7 @@ import {
   useAdminListChats,
   useAdminGetChat,
   useAdminSendChatMessage,
+  useAdminSendChatTyping,
   useAdminCloseChat,
   getAdminListTicketsQueryKey,
   getAdminGetChatQueryKey,
@@ -14,7 +15,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { CheckCircle2, MessageSquare, Clock, ChevronRight, Send, Loader2, ArrowLeft, XCircle, Inbox } from "lucide-react";
+import { CheckCircle2, MessageSquare, Clock, ChevronRight, Send, Loader2, ArrowLeft, XCircle, Inbox, Bot, Circle } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -245,6 +246,8 @@ function ChatThread({
   );
 
   const mutation = useAdminSendChatMessage();
+  const typingMutation = useAdminSendChatTyping();
+  const lastTypingSentAt = useRef(0);
   const closeMutation = useAdminCloseChat();
   const latestMessage = messages[messages.length - 1];
   const isClosed = messages.length > 0 ? latestMessage?.sender === "system" : initialStatus === "closed";
@@ -339,7 +342,12 @@ function ChatThread({
             return (
               <div key={msg.id} className={`flex ${isAdmin ? "justify-end" : "justify-start"}`}>
                 <div className={`max-w-[75%] rounded-2xl px-3 py-2 ${isAdmin ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-card text-foreground rounded-bl-sm"}`}>
-                  {!isAdmin && <p className="text-[9px] font-semibold text-primary mb-0.5">{userName}</p>}
+                  {!isAdmin && (
+                    <p className="flex items-center gap-1 text-[9px] font-semibold text-primary mb-0.5">
+                      {msg.sender === "bot" ? <Bot className="h-3 w-3" /> : <Circle className="h-2 w-2 fill-current" />}
+                      {msg.sender === "bot" ? "VIXUS Assistant" : userName}
+                    </p>
+                  )}
                   <p className="text-xs leading-relaxed whitespace-pre-wrap">{msg.message}</p>
                   {msg.attachments?.length > 0 && (
                     <div className="mt-1.5 space-y-1">
@@ -376,7 +384,13 @@ function ChatThread({
           <AdminChatAttachmentPicker userId={userId} disabled={isClosed} onChange={(attachments, uploading) => { setChatAttachments(attachments); setAttachmentsUploading(uploading); }} />
           <textarea
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => {
+              setText(e.target.value);
+              if (Date.now() - lastTypingSentAt.current > 2000 && !typingMutation.isPending) {
+                lastTypingSentAt.current = Date.now();
+                typingMutation.mutate({ userId });
+              }
+            }}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
             placeholder={isClosed ? "Reply unavailable until the user starts a new conversation…" : "Type a reply…"}
             rows={1}
@@ -485,11 +499,15 @@ function ChatTab() {
                   <div className="flex items-center justify-between mb-0.5">
                      <div className="flex items-center gap-2 min-w-0">
                        <p className="text-sm font-semibold truncate">{conv.userName}</p>
-                       <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium ${
-                         conv.status === "closed" ? "bg-secondary text-muted-foreground" : "bg-emerald-500/10 text-emerald-400"
+                        <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium ${
+                          conv.status === "closed" ? "bg-secondary text-muted-foreground" : conv.status === "escalated" ? "bg-amber-500/10 text-amber-400" : "bg-emerald-500/10 text-emerald-400"
                        }`}>
-                         {conv.status === "closed" ? "Closed" : "Open"}
+                          {conv.status === "closed" ? "Closed" : conv.status === "escalated" ? "Escalated" : "Open"}
                        </span>
+                        <span className={`flex items-center gap-1 text-[9px] ${conv.userOnline ? "text-emerald-400" : "text-muted-foreground"}`}>
+                          <Circle className={`h-1.5 w-1.5 fill-current ${conv.userOnline ? "" : "opacity-40"}`} />
+                          {conv.userOnline ? "Online" : "Offline"}
+                        </span>
                      </div>
                     <span className="text-[10px] text-muted-foreground shrink-0 ml-2">{format(new Date(conv.lastMessageAt), "MMM d, HH:mm")}</span>
                   </div>

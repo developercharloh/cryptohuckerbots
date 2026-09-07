@@ -627,6 +627,20 @@ paths:
                 items:
                   $ref: "#/components/schemas/AdminDepositSession"
 
+  /admin/deposit-events:
+    get:
+      operationId: adminListDepositEvents
+      tags: [admin]
+      responses:
+        "200":
+          description: Blockchain deposit events for admin review
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminDepositEvent"
+
   /admin/deposit-sessions/{id}/review:
     post:
       operationId: adminReviewDepositSession
@@ -1773,6 +1787,40 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ChatMessage"
+
+  /support/chat/state:
+    get:
+      operationId: getChatState
+      tags: [support]
+      responses:
+        "200":
+          description: Support chat state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportChatState"
+
+  /support/chat/typing:
+    post:
+      operationId: sendChatTyping
+      tags: [support]
+      responses:
+        "200":
+          description: Presence updated
+
+  /admin/chat/{userId}/typing:
+    post:
+      operationId: adminSendChatTyping
+      tags: [admin]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Typing state updated
 
   /admin/chat:
     get:
@@ -3436,6 +3484,7 @@ components:
         network: { type: string }
         depositAddress: { type: string }
         txid: { type: ["string", "null"] }
+        verificationState: { type: ["string", "null"] }
         confirmations: { type: integer }
         requiredConfirmations: { type: integer }
         cryptoAsset: { type: ["string", "null"] }
@@ -3444,7 +3493,28 @@ components:
         expiresAt: { type: string }
         createdAt: { type: string }
         updatedAt: { type: string }
-      required: [id, userId, userName, userEmail, accountUid, status, amount, paymentMethodId, paymentMethodName, network, depositAddress, confirmations, requiredConfirmations, expiresAt, createdAt, updatedAt]
+      required: [id, userId, userName, userEmail, accountUid, status, amount, paymentMethodId, paymentMethodName, network, depositAddress, txid, verificationState, confirmations, requiredConfirmations, expiresAt, createdAt, updatedAt]
+
+    AdminDepositEvent:
+      type: object
+      properties:
+        id: { type: integer }
+        txid: { type: string }
+        amount: { type: number }
+        coin: { type: string }
+        network: { type: string }
+        address: { type: string }
+        confirmations: { type: integer }
+        requiredConfirmations: { type: integer }
+        state: { type: string }
+        userId: { type: ["integer", "null"] }
+        userName: { type: ["string", "null"] }
+        userEmail: { type: ["string", "null"] }
+        accountUid: { type: ["string", "null"] }
+        sessionId: { type: ["integer", "null"] }
+        insertTime: { type: string }
+        updatedAt: { type: string }
+      required: [id, txid, amount, coin, network, address, confirmations, requiredConfirmations, state, userId, userName, userEmail, accountUid, sessionId, insertTime, updatedAt]
 
     AdminReviewDepositInput:
       type: object
@@ -3482,7 +3552,7 @@ components:
       type: object
       properties:
         id: { type: integer }
-        sender: { type: string, enum: [user, admin, system] }
+        sender: { type: string, enum: [user, bot, admin, system] }
         message: { type: string }
         createdAt: { type: string }
         attachments:
@@ -3495,6 +3565,7 @@ components:
       type: object
       properties:
         message: { type: string }
+        category: { type: string, enum: [delayed_deposit, pending_kyc, technical, other] }
         attachments:
           type: array
           maxItems: 10
@@ -3531,9 +3602,23 @@ components:
         lastMessage: { type: string }
         lastMessageAt: { type: string }
         unreadCount: { type: integer }
-        status: { type: string, enum: [open, closed] }
+        status: { type: string, enum: [open, closed, escalated] }
         pendingReply: { type: boolean }
-      required: [userId, userName, userEmail, lastMessage, lastMessageAt, unreadCount, status, pendingReply]
+        category: { type: ["string", "null"] }
+        mode: { type: string }
+        userOnline: { type: boolean }
+        supportStatus: { type: string }
+      required: [userId, userName, userEmail, lastMessage, lastMessageAt, unreadCount, status, pendingReply, category, mode, userOnline, supportStatus]
+
+    SupportChatState:
+      type: object
+      properties:
+        category: { type: ["string", "null"] }
+        mode: { type: string }
+        status: { type: string }
+        adminTyping: { type: boolean }
+        adminOnline: { type: boolean }
+      required: [category, mode, status, adminTyping, adminOnline]
 
     AdminCloseChat:
       type: object

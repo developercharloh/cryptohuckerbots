@@ -134,6 +134,13 @@
       "when": 1788766174657,
       "tag": "0018_gray_cerise",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1788769230294,
+      "tag": "0019_empty_vin_gonzales",
+      "breakpoints": true
     }
   ]
 }
