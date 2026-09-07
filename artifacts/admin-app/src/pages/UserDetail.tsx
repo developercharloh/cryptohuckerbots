@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { useParams, Link } from "wouter";
+import { useParams, Link, useLocation } from "wouter";
 import { 
   useAdminGetUser, 
   useAdminSetUserStatus,
   useAdminResetUserPassword,
   useAdminResetUserHistory,
   useAdminAdjustBalance,
+  useAdminDeleteUser,
   useAdminSendChatMessage,
   useAdminListChats,
   getAdminGetChatQueryKey,
@@ -16,7 +17,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { ArrowLeft, Ban, CheckCircle, KeyRound, Plus, Minus, CreditCard, Copy, Check, ShieldCheck, ShieldOff, MessageSquare, Loader2, Send, RotateCcw, Clock3 } from "lucide-react";
+import { ArrowLeft, Ban, CheckCircle, KeyRound, Plus, Minus, CreditCard, Copy, Check, ShieldCheck, ShieldOff, MessageSquare, Loader2, Send, RotateCcw, Clock3, Trash2, UsersRound, UserRound } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -57,6 +58,7 @@ function CopyAddressButton({ text }: { text: string }) {
 
 export default function UserDetail() {
   const { id } = useParams<{ id: string }>();
+  const [, setLocation] = useLocation();
   const userId = parseInt(id || "0", 10);
   
   const { data: user, isLoading, error } = useAdminGetUser(userId, { 
@@ -74,6 +76,7 @@ export default function UserDetail() {
   const passwordMutation = useAdminResetUserPassword();
   const historyMutation = useAdminResetUserHistory();
   const balanceMutation = useAdminAdjustBalance();
+  const deleteMutation = useAdminDeleteUser();
   const messageMutation = useAdminSendChatMessage();
 
   const [balanceAmount, setBalanceAmount] = useState("");
@@ -85,6 +88,8 @@ export default function UserDetail() {
   const [isMessageOpen, setIsMessageOpen] = useState(false);
   const [tempPassword, setTempPassword] = useState("");
   const [promoteLoading, setPromoteLoading] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
 
   const handleToggleStatus = () => {
     if (!user) return;
@@ -134,6 +139,25 @@ export default function UserDetail() {
         },
         onError: (err) => {
           toast({ title: "Failed to reset user history", description: err.message, variant: "destructive" });
+        },
+      },
+    );
+  };
+
+  const handleDeleteUser = () => {
+    if (!user || deleteConfirmation.trim() !== user.accountUid) return;
+    deleteMutation.mutate(
+      { id: userId, data: { confirmation: deleteConfirmation.trim() } },
+      {
+        onSuccess: (data) => {
+          toast({ title: "User permanently deleted", description: data.message });
+          setIsDeleteOpen(false);
+          setDeleteConfirmation("");
+          queryClient.invalidateQueries({ queryKey: getAdminListUsersQueryKey() });
+          setLocation("/users");
+        },
+        onError: (err) => {
+          toast({ title: "User was not deleted", description: err.message, variant: "destructive" });
         },
       },
     );
@@ -341,6 +365,16 @@ export default function UserDetail() {
                   >
                     <MessageSquare className="w-4 h-4 mr-2" /> Message User
                   </Button>
+                  {!user.isAdmin && (
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsDeleteOpen(true)}
+                      className="border-destructive/40 text-destructive hover:bg-destructive/10"
+                      data-testid="btn-delete-user"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" /> Delete User
+                    </Button>
+                  )}
                   {pendingConversation && (
                     <Link href={`/support?userId=${userId}`}>
                       <Button
@@ -367,6 +401,64 @@ export default function UserDetail() {
                       ? <><ShieldOff className="w-4 h-4 mr-2" /> Revoke Admin</>
                       : <><ShieldCheck className="w-4 h-4 mr-2" /> Promote to Admin</>}
                   </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><UsersRound className="w-4 h-4 text-primary" /> Referral Network</CardTitle>
+                <CardDescription>See who referred this user and the people they referred.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">Referred by</div>
+                  {user.referredBy ? (
+                    <Link href={`/users/${user.referredBy.id}`}>
+                      <div className="rounded-xl border border-border/60 p-3 hover:border-primary/50 transition-colors cursor-pointer">
+                        <div className="flex items-center gap-2">
+                          <UserRound className="w-4 h-4 text-primary" />
+                          <span className="font-medium text-sm">{user.referredBy.fullName}</span>
+                          <Badge variant={user.referredBy.status === "active" ? "default" : "destructive"} className="ml-auto text-[10px]">
+                            {user.referredBy.status}
+                          </Badge>
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">{user.referredBy.email}</div>
+                        <div className="font-mono text-[10px] text-primary/80 mt-1">{user.referredBy.accountUid}</div>
+                      </div>
+                    </Link>
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-border/60 p-3 text-xs text-muted-foreground">No referring user recorded.</div>
+                  )}
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Users referred by this account</div>
+                    <Badge variant="secondary" className="text-[10px]">{user.referredUsers.length}</Badge>
+                  </div>
+                  {user.referredUsers.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border/60 p-3 text-xs text-muted-foreground">This user has not referred anyone.</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {user.referredUsers.map((referred) => (
+                        <Link key={referred.id} href={`/users/${referred.id}`}>
+                          <div className="rounded-xl border border-border/60 p-3 hover:border-primary/50 transition-colors cursor-pointer">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm truncate">{referred.fullName}</span>
+                              <Badge variant={referred.activityStatus === "active" ? "default" : "secondary"} className={`ml-auto text-[10px] ${referred.activityStatus === "active" ? "bg-emerald-600 hover:bg-emerald-600" : ""}`}>
+                                {referred.activityStatus}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center justify-between gap-2 mt-1 text-xs text-muted-foreground">
+                              <span className="truncate">{referred.email}</span>
+                              <span className="shrink-0">VIP {referred.currentVipLevel}</span>
+                            </div>
+                            <div className="font-mono text-[10px] text-primary/80 mt-1">{referred.accountUid}</div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -628,6 +720,41 @@ export default function UserDetail() {
           </div>
         </div>
       </div>
+      <Dialog open={isDeleteOpen} onOpenChange={(open) => {
+        setIsDeleteOpen(open);
+        if (!open) setDeleteConfirmation("");
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2"><Trash2 className="w-5 h-5" /> Permanently delete user?</DialogTitle>
+            <DialogDescription>
+              This removes the account, support chats, tickets, referrals, sessions, KYC records, and all non-financial history. Financial accounts cannot be deleted. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-3">
+            <label className="text-sm font-medium">Type the exact Account UID to confirm</label>
+            <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2 font-mono text-xs">{user.accountUid}</div>
+            <Input
+              value={deleteConfirmation}
+              onChange={(event) => setDeleteConfirmation(event.target.value)}
+              placeholder="Enter Account UID"
+              className="font-mono"
+              autoComplete="off"
+            />
+            <p className="text-xs text-muted-foreground">The account must be suspended first. Admin accounts are protected.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsDeleteOpen(false)} disabled={deleteMutation.isPending}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteUser}
+              disabled={deleteMutation.isPending || deleteConfirmation.trim() !== user.accountUid || user.status !== "suspended"}
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Permanently Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

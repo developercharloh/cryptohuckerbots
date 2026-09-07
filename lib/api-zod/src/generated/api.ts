@@ -1344,6 +1344,25 @@ export const AdminGetUserResponse = zod.object({
   "signalAccessStartedAt": zod.string().nullable(),
   "signalPairsRemaining": zod.number().nullable(),
   "signalPairAllowance": zod.number(),
+  "referredBy": zod.union([zod.object({
+  "id": zod.number(),
+  "accountUid": zod.string(),
+  "fullName": zod.string(),
+  "email": zod.string(),
+  "status": zod.string()
+}),zod.null()]),
+  "referredUsers": zod.array(zod.object({
+  "id": zod.number(),
+  "accountUid": zod.string(),
+  "fullName": zod.string(),
+  "email": zod.string(),
+  "status": zod.string(),
+  "activityStatus": zod.enum(['active', 'inactive']),
+  "currentVipLevel": zod.number(),
+  "createdAt": zod.string(),
+  "referralStatus": zod.string(),
+  "referralCreatedAt": zod.string()
+})),
   "bots": zod.array(zod.object({
   "id": zod.number(),
   "botId": zod.number(),
@@ -1370,6 +1389,20 @@ export const AdminGetUserResponse = zod.object({
   "cryptoAsset": zod.string().nullish(),
   "conversionRate": zod.number().nullish()
 }))
+})
+
+
+export const AdminDeleteUserParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AdminDeleteUserBody = zod.object({
+  "confirmation": zod.string()
+})
+
+export const AdminDeleteUserResponse = zod.object({
+  "deletedUserId": zod.number(),
+  "message": zod.string()
 })
 
 

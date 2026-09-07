@@ -5,6 +5,8 @@
  * Quantum FX Bot API
  * OpenAPI spec version: 0.1.0
  */
+import type { AdminReferralUser } from './adminReferralUser';
+import type { AdminReferredUser } from './adminReferredUser';
 import type { AdminTransaction } from './adminTransaction';
 import type { AdminUserBot } from './adminUserBot';
 
@@ -46,6 +48,8 @@ export interface AdminUserDetail {
   /** @nullable */
   signalPairsRemaining: number | null;
   signalPairAllowance: number;
+  referredBy: AdminReferralUser | null;
+  referredUsers: AdminReferredUser[];
   bots: AdminUserBot[];
   transactions: AdminTransaction[];
 }

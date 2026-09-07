@@ -1374,6 +1374,28 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdminUserDetail"
+    delete:
+      operationId: adminDeleteUser
+      tags: [admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminDeleteUserInput"
+      responses:
+        "200":
+          description: User deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminDeleteUserResult"
 
   /admin/users/{id}/status:
     post:
@@ -3198,19 +3220,64 @@ components:
         signalAccessStartedAt: { type: ["string", "null"] }
         signalPairsRemaining: { type: ["integer", "null"] }
         signalPairAllowance: { type: integer }
+        referredBy:
+          oneOf:
+            - $ref: "#/components/schemas/AdminReferralUser"
+            - type: "null"
+        referredUsers:
+          type: array
+          items: { $ref: "#/components/schemas/AdminReferredUser" }
         bots:
           type: array
           items: { $ref: "#/components/schemas/AdminUserBot" }
         transactions:
           type: array
           items: { $ref: "#/components/schemas/AdminTransaction" }
-      required: [id, accountUid, fullName, email, status, kycStatus, mainWalletBalance, vaultCapital, portfolioBalance, availableBalance, pendingOutflow, balance, totalBots, totalDeposits, totalWithdrawals, createdAt, signalTrialActive, signalTrialExpired, signalTrialStartedAt, signalTrialEndsAt, signalTrialRemainingMs, signalTrialReminderSentAt, signalAccessStartedAt, signalPairsRemaining, signalPairAllowance, bots, transactions]
+      required: [id, accountUid, fullName, email, status, kycStatus, mainWalletBalance, vaultCapital, portfolioBalance, availableBalance, pendingOutflow, balance, totalBots, totalDeposits, totalWithdrawals, createdAt, signalTrialActive, signalTrialExpired, signalTrialStartedAt, signalTrialEndsAt, signalTrialRemainingMs, signalTrialReminderSentAt, signalAccessStartedAt, signalPairsRemaining, signalPairAllowance, referredBy, referredUsers, bots, transactions]
+
+    AdminReferralUser:
+      type: object
+      properties:
+        id: { type: integer }
+        accountUid: { type: string }
+        fullName: { type: string }
+        email: { type: string }
+        status: { type: string }
+      required: [id, accountUid, fullName, email, status]
+
+    AdminReferredUser:
+      type: object
+      properties:
+        id: { type: integer }
+        accountUid: { type: string }
+        fullName: { type: string }
+        email: { type: string }
+        status: { type: string }
+        activityStatus: { type: string, enum: [active, inactive] }
+        currentVipLevel: { type: integer }
+        createdAt: { type: string }
+        referralStatus: { type: string }
+        referralCreatedAt: { type: string }
+      required: [id, accountUid, fullName, email, status, activityStatus, currentVipLevel, createdAt, referralStatus, referralCreatedAt]
 
     AdminUserStatusInput:
       type: object
       properties:
         status: { type: string }
       required: [status]
+
+    AdminDeleteUserInput:
+      type: object
+      properties:
+        confirmation: { type: string }
+      required: [confirmation]
+
+    AdminDeleteUserResult:
+      type: object
+      properties:
+        deletedUserId: { type: integer }
+        message: { type: string }
+      required: [deletedUserId, message]
 
     AdminRefundByUidInput:
       type: object

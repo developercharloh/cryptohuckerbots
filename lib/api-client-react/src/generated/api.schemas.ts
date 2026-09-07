@@ -847,6 +847,35 @@ export interface AdminUserBot {
   createdAt: string;
 }
 
+export interface AdminReferralUser {
+  id: number;
+  accountUid: string;
+  fullName: string;
+  email: string;
+  status: string;
+}
+
+export type AdminReferredUserActivityStatus = typeof AdminReferredUserActivityStatus[keyof typeof AdminReferredUserActivityStatus];
+
+
+export const AdminReferredUserActivityStatus = {
+  active: 'active',
+  inactive: 'inactive',
+} as const;
+
+export interface AdminReferredUser {
+  id: number;
+  accountUid: string;
+  fullName: string;
+  email: string;
+  status: string;
+  activityStatus: AdminReferredUserActivityStatus;
+  currentVipLevel: number;
+  createdAt: string;
+  referralStatus: string;
+  referralCreatedAt: string;
+}
+
 export interface AdminUserDetail {
   id: number;
   accountUid: string;
@@ -885,12 +914,23 @@ export interface AdminUserDetail {
   /** @nullable */
   signalPairsRemaining: number | null;
   signalPairAllowance: number;
+  referredBy: AdminReferralUser | null;
+  referredUsers: AdminReferredUser[];
   bots: AdminUserBot[];
   transactions: AdminTransaction[];
 }
 
 export interface AdminUserStatusInput {
   status: string;
+}
+
+export interface AdminDeleteUserInput {
+  confirmation: string;
+}
+
+export interface AdminDeleteUserResult {
+  deletedUserId: number;
+  message: string;
 }
 
 export interface AdminRefundByUidInput {

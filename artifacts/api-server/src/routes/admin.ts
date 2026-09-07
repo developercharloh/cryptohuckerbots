@@ -28,6 +28,12 @@ import {
   referralsTable,
   technicalIncidentsTable,
   binanceDepositEventsTable,
+  withdrawalConfirmationsTable,
+  notificationSettingsTable,
+  passwordResetTokensTable,
+  emailVerificationTokensTable,
+  loginOtpChallengesTable,
+  securityEventsTable,
   type PaymentMethod,
 } from "@workspace/db";
 import { eq, and, desc, sql, inArray, ilike, or, gte, isNotNull, ne, lt } from "drizzle-orm";
@@ -640,6 +646,46 @@ router.get("/admin/users/:id", async (req, res) => {
   }
   const account = await getAccountBalanceSnapshot(id);
   const signalTrial = getSignalTrialStatus(user);
+  const [parentReferral] = await db.select().from(referralsTable)
+    .where(eq(referralsTable.referredUserId, id))
+    .limit(1);
+  const [referrer] = parentReferral
+    ? await db.select({
+      id: usersTable.id,
+      accountUid: usersTable.accountUid,
+      fullName: usersTable.fullName,
+      email: usersTable.email,
+      status: usersTable.status,
+    }).from(usersTable).where(eq(usersTable.id, parentReferral.referrerUserId)).limit(1)
+    : [];
+  const childReferrals = await db.select().from(referralsTable)
+    .where(eq(referralsTable.referrerUserId, id))
+    .orderBy(desc(referralsTable.createdAt));
+  const childIds = childReferrals.map((referral) => referral.referredUserId);
+  const [children, childVipPurchases] = childIds.length > 0
+    ? await Promise.all([
+      db.select({
+        id: usersTable.id,
+        accountUid: usersTable.accountUid,
+        fullName: usersTable.fullName,
+        email: usersTable.email,
+        status: usersTable.status,
+        createdAt: usersTable.createdAt,
+      }).from(usersTable).where(inArray(usersTable.id, childIds)),
+      db.select({
+        userId: vipPackagePurchasesTable.userId,
+        vipLevel: vipPackagePurchasesTable.vipLevel,
+      }).from(vipPackagePurchasesTable).where(and(
+        inArray(vipPackagePurchasesTable.userId, childIds),
+        eq(vipPackagePurchasesTable.status, "completed"),
+      )).orderBy(desc(vipPackagePurchasesTable.vipLevel)),
+    ])
+    : [[], []];
+  const childMap = new Map(children.map((child) => [child.id, child]));
+  const childVipMap = new Map<number, number>();
+  for (const purchase of childVipPurchases) {
+    if (!childVipMap.has(purchase.userId)) childVipMap.set(purchase.userId, purchase.vipLevel);
+  }
 
   return res.json({
     id: user.id,
@@ -672,6 +718,30 @@ router.get("/admin/users/:id", async (req, res) => {
     signalAccessStartedAt: user.signalAccessStartedAt?.toISOString() ?? null,
     signalPairsRemaining: user.signalPairsRemaining,
     signalPairAllowance: SIGNAL_PAIR_ALLOWANCE,
+    referredBy: referrer ? {
+      id: referrer.id,
+      accountUid: referrer.accountUid,
+      fullName: referrer.fullName,
+      email: referrer.email,
+      status: referrer.status,
+    } : null,
+    referredUsers: childReferrals.flatMap((referral) => {
+      const child = childMap.get(referral.referredUserId);
+      if (!child) return [];
+      const currentVipLevel = childVipMap.get(child.id) ?? 0;
+      return [{
+        id: child.id,
+        accountUid: child.accountUid,
+        fullName: child.fullName,
+        email: child.email,
+        status: child.status,
+        activityStatus: currentVipLevel >= 1 ? "active" : "inactive",
+        currentVipLevel,
+        createdAt: child.createdAt.toISOString(),
+        referralStatus: referral.status,
+        referralCreatedAt: referral.createdAt.toISOString(),
+      }];
+    }),
     bots: userBots.map((b) => ({
       id: b.ub.id,
       botId: b.ub.botId,
@@ -698,6 +768,85 @@ router.get("/admin/users/:id", async (req, res) => {
       conversionRate: t.conversionRate ? parseFloat(t.conversionRate) : null,
     })),
   });
+});
+
+router.delete("/admin/users/:id", async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) {
+    res.status(400).json({ error: "Invalid id" });
+    return;
+  }
+  const confirmation = typeof req.body?.confirmation === "string" ? req.body.confirmation.trim() : "";
+  const [user] = await db.select({
+    id: usersTable.id,
+    accountUid: usersTable.accountUid,
+    fullName: usersTable.fullName,
+    status: usersTable.status,
+    isAdmin: usersTable.isAdmin,
+  }).from(usersTable).where(eq(usersTable.id, id)).limit(1);
+  if (!user) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+  if (user.isAdmin) {
+    res.status(403).json({ error: "Admin accounts cannot be deleted." });
+    return;
+  }
+  if (user.status !== "suspended") {
+    res.status(409).json({ error: "Suspend the account before deleting it." });
+    return;
+  }
+  if (confirmation !== user.accountUid) {
+    res.status(400).json({ error: "Type the exact Account UID to confirm deletion." });
+    return;
+  }
+
+  const [financialHistory] = await db.select({
+    count: sql<number>`count(*)::int`,
+  }).from(transactionsTable).where(eq(transactionsTable.userId, id));
+  if (Number(financialHistory?.count ?? 0) > 0) {
+    res.status(409).json({ error: "This account has financial history and cannot be deleted. Suspend it instead." });
+    return;
+  }
+
+  const attachments = await db.select({
+    pathname: chatAttachmentsTable.pathname,
+  }).from(chatAttachmentsTable).where(eq(chatAttachmentsTable.userId, id));
+
+  await db.transaction(async (tx) => {
+    await tx.delete(signalClaimsTable).where(eq(signalClaimsTable.userId, id));
+    await tx.delete(positionsTable).where(eq(positionsTable.userId, id));
+    await tx.delete(userBotsTable).where(eq(userBotsTable.userId, id));
+    await tx.delete(earningsTable).where(eq(earningsTable.userId, id));
+    await tx.delete(vipPackagePurchasesTable).where(eq(vipPackagePurchasesTable.userId, id));
+    await tx.delete(vipInvestmentCapitalTable).where(eq(vipInvestmentCapitalTable.userId, id));
+    await tx.delete(depositSessionsTable).where(eq(depositSessionsTable.userId, id));
+    await tx.delete(withdrawalConfirmationsTable).where(eq(withdrawalConfirmationsTable.userId, id));
+    await tx.delete(notificationsTable).where(eq(notificationsTable.userId, id));
+    await tx.delete(notificationSettingsTable).where(eq(notificationSettingsTable.userId, id));
+    await tx.delete(referralsTable).where(or(
+      eq(referralsTable.referrerUserId, id),
+      eq(referralsTable.referredUserId, id),
+    ));
+    await tx.delete(kycTable).where(eq(kycTable.userId, id));
+    await tx.delete(sessionsTable).where(eq(sessionsTable.userId, id));
+    await tx.delete(passwordResetTokensTable).where(eq(passwordResetTokensTable.userId, id));
+    await tx.delete(emailVerificationTokensTable).where(eq(emailVerificationTokensTable.userId, id));
+    await tx.delete(loginOtpChallengesTable).where(eq(loginOtpChallengesTable.userId, id));
+    await tx.delete(chatAttachmentsTable).where(eq(chatAttachmentsTable.userId, id));
+    await tx.delete(supportTicketsTable).where(eq(supportTicketsTable.userId, id));
+    await tx.delete(supportChatThreadsTable).where(eq(supportChatThreadsTable.userId, id));
+    await tx.delete(chatMessagesTable).where(eq(chatMessagesTable.userId, id));
+    await tx.delete(adminLoginNotificationsTable).where(eq(adminLoginNotificationsTable.userId, id));
+    await tx.delete(securityEventsTable).where(eq(securityEventsTable.userId, id));
+    await tx.delete(userProfilesTable).where(eq(userProfilesTable.userId, id));
+    await tx.delete(usersTable).where(eq(usersTable.id, id));
+  });
+  await cleanupUploadedAttachments(attachments).catch((error) => {
+    req.log?.warn({ err: error, userId: id }, "Failed to remove deleted user's support attachments");
+  });
+  await recordSecurityEvent(req, "admin_user_deleted", undefined, { deletedUserId: id, accountUid: user.accountUid });
+  res.json({ deletedUserId: id, message: `${user.fullName} was permanently deleted.` });
 });
 
 async function getAdminUser(id: number) {
