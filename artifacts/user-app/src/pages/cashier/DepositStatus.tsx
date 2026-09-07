@@ -382,8 +382,9 @@ export default function DepositStatus() {
 
         {/* Automatic confirmation */}
         <div className="rounded-2xl bg-card p-5 space-y-3">
+          <p className="text-sm font-semibold">Deposit verification</p>
           <p className="text-[11px] leading-relaxed text-muted-foreground">
-            After you send the exact amount, tap the button below. If the deposit is delayed, contact Support and paste the blockchain TxID from your wallet.
+            After you send the exact amount, tap the button below. VIXUS will verify the payment on BNB Smart Chain. If it is delayed, open Support and paste the blockchain TxID from your wallet so the team can investigate.
           </p>
         </div>
 
