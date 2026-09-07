@@ -1,4 +1,5 @@
 import {
+  bscDepositScanStateTable,
   binanceDepositEventsTable,
   db,
   depositSessionsTable,
@@ -9,7 +10,10 @@ import { BSC_DEPOSIT_ADDRESS, BSC_PAYMENT_METHOD } from "./payment-methods";
 const BSC_RPC_URL = process.env.BSC_RPC_URL?.trim() || "https://bsc.publicnode.com";
 const USDT_BSC_CONTRACT = "0x55d398326f99059fF775485246999027B3197955";
 const TRANSFER_EVENT_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
-const BSC_SCAN_BLOCK_WINDOW = 1_000;
+const BSC_RPC_LOG_CHUNK = 1_000;
+const BSC_SCAN_INITIAL_LOOKBACK = 10_000;
+const BSC_SCAN_OVERLAP = 25;
+const BSC_SCAN_STATE_ID = "usdt-bsc-deposits";
 const SESSION_EXPIRY_GRACE_MS = 2 * 60 * 60 * 1000;
 const SYNC_THROTTLE_MS = 15_000;
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -35,6 +39,14 @@ type ChainDeposit = {
   txId?: string;
   insertTime?: number;
   confirmTimes?: string;
+};
+
+export type { ChainDeposit };
+
+type DepositScanBatch = {
+  deposits: ChainDeposit[];
+  cursor: number;
+  nextBlock: number;
 };
 
 let lastSyncAt = 0;
@@ -73,19 +85,74 @@ function formatUnits(value: bigint, decimals: number): string {
   return `${whole}.${fraction.toString().padStart(decimals, "0").replace(/0+$/, "")}`;
 }
 
-async function fetchBscDeposits(): Promise<ChainDeposit[]> {
+async function getScanCursor(safeBlock: number): Promise<number> {
+  const initialNextBlock = Math.max(0, safeBlock - BSC_SCAN_INITIAL_LOOKBACK + 1);
+  await db.insert(bscDepositScanStateTable).values({
+    id: BSC_SCAN_STATE_ID,
+    nextBlock: initialNextBlock,
+  }).onConflictDoNothing();
+
+  const [state] = await db.select({ nextBlock: bscDepositScanStateTable.nextBlock })
+    .from(bscDepositScanStateTable)
+    .where(eq(bscDepositScanStateTable.id, BSC_SCAN_STATE_ID))
+    .limit(1);
+  return state?.nextBlock ?? initialNextBlock;
+}
+
+async function advanceScanCursor(cursor: number, nextBlock: number): Promise<void> {
+  await db.update(bscDepositScanStateTable)
+    .set({ nextBlock, updatedAt: new Date() })
+    .where(and(
+      eq(bscDepositScanStateTable.id, BSC_SCAN_STATE_ID),
+      eq(bscDepositScanStateTable.nextBlock, cursor),
+    ));
+}
+
+export function getBscScanRange(cursor: number, latestBlock: number): {
+  fromBlock: number;
+  safeBlock: number;
+  nextBlock: number;
+} | null {
+  const safeBlock = latestBlock - BSC_PAYMENT_METHOD.requiredConfirmations + 1;
+  if (safeBlock < 0) return null;
+  const fromBlock = Math.max(0, cursor - BSC_SCAN_OVERLAP);
+  return {
+    fromBlock,
+    safeBlock,
+    nextBlock: safeBlock + 1,
+  };
+}
+
+async function fetchBscDeposits(): Promise<DepositScanBatch> {
   const latestHex = await bscRpc<string>("eth_blockNumber", []);
   const latestBlock = Number.parseInt(latestHex, 16);
   if (!Number.isFinite(latestBlock)) throw new Error("BSC RPC returned an invalid block number");
 
-  const fromBlock = Math.max(0, latestBlock - BSC_SCAN_BLOCK_WINDOW);
+  // Only scan blocks that are old enough to satisfy the confirmation policy.
+  // This means a successful cursor advance never leaves an unconfirmed event
+  // stranded outside the next scan range.
+  const safeRange = getBscScanRange(0, latestBlock);
+  if (!safeRange) return { deposits: [], cursor: 0, nextBlock: 0 };
+
+  const cursor = await getScanCursor(safeRange.safeBlock);
+  const range = getBscScanRange(cursor, latestBlock);
+  if (!range || range.fromBlock > range.safeBlock) {
+    return { deposits: [], cursor, nextBlock: cursor };
+  }
+  const { fromBlock, safeBlock } = range;
+
   const recipientTopic = `0x${BSC_DEPOSIT_ADDRESS.slice(2).toLowerCase().padStart(64, "0")}`;
-  const logs = await bscRpc<BscTransferLog[]>("eth_getLogs", [{
-    address: USDT_BSC_CONTRACT,
-    fromBlock: `0x${fromBlock.toString(16)}`,
-    toBlock: latestHex,
-    topics: [TRANSFER_EVENT_TOPIC, null, recipientTopic],
-  }]);
+  const logs: BscTransferLog[] = [];
+  for (let chunkStart = fromBlock; chunkStart <= safeBlock; chunkStart += BSC_RPC_LOG_CHUNK) {
+    const chunkEnd = Math.min(safeBlock, chunkStart + BSC_RPC_LOG_CHUNK - 1);
+    const chunkLogs = await bscRpc<BscTransferLog[]>("eth_getLogs", [{
+      address: USDT_BSC_CONTRACT,
+      fromBlock: `0x${chunkStart.toString(16)}`,
+      toBlock: `0x${chunkEnd.toString(16)}`,
+      topics: [TRANSFER_EVENT_TOPIC, null, recipientTopic],
+    }]);
+    logs.push(...chunkLogs);
+  }
 
   const timestamps = new Map<string, number>();
   for (const log of logs) {
@@ -95,7 +162,7 @@ async function fetchBscDeposits(): Promise<ChainDeposit[]> {
     if (Number.isFinite(timestamp)) timestamps.set(log.blockNumber, timestamp);
   }
 
-  return logs.map((log) => {
+  const deposits = logs.map((log) => {
     const blockNumber = Number.parseInt(log.blockNumber ?? "0x0", 16);
     const confirmations = Math.max(0, latestBlock - blockNumber + 1);
     const rawAmount = BigInt(log.data ?? "0x0");
@@ -110,6 +177,12 @@ async function fetchBscDeposits(): Promise<ChainDeposit[]> {
       confirmTimes: `${confirmations}/${BSC_PAYMENT_METHOD.requiredConfirmations}`,
     };
   });
+
+  return {
+    deposits,
+    cursor,
+    nextBlock: range.nextBlock,
+  };
 }
 
 function isUsdtBscDeposit(item: ChainDeposit): boolean {
@@ -220,13 +293,20 @@ async function classifyAndPrepareEvent(eventId: number): Promise<void> {
   });
 }
 
+export async function processBscDeposit(deposit: ChainDeposit): Promise<void> {
+  const event = await recordBinanceDeposit(deposit);
+  if (event && event.status === 1 && !["credited", "pending_approval"].includes(event.state)) {
+    await classifyAndPrepareEvent(event.id);
+  }
+}
+
 async function runBinanceDepositSync(): Promise<void> {
-  const deposits = await fetchBscDeposits();
-  for (const deposit of deposits) {
-    const event = await recordBinanceDeposit(deposit);
-    if (event && event.status === 1 && !["credited", "pending_approval"].includes(event.state)) {
-      await classifyAndPrepareEvent(event.id);
-    }
+  const batch = await fetchBscDeposits();
+  for (const deposit of batch.deposits) {
+    await processBscDeposit(deposit);
+  }
+  if (batch.nextBlock > batch.cursor) {
+    await advanceScanCursor(batch.cursor, batch.nextBlock);
   }
 }
 

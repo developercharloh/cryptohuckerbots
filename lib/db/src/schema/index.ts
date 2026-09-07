@@ -343,6 +343,16 @@ export const binanceDepositEventsTable = pgTable("binance_deposit_events", {
 
 export type BinanceDepositEvent = typeof binanceDepositEventsTable.$inferSelect;
 
+// Persistent BSC scan position shared by short-lived serverless instances.
+// The cursor advances only after the corresponding events are recorded.
+export const bscDepositScanStateTable = pgTable("bsc_deposit_scan_state", {
+  id: varchar("id", { length: 50 }).primaryKey(),
+  nextBlock: bigint("next_block", { mode: "number" }).notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type BscDepositScanState = typeof bscDepositScanStateTable.$inferSelect;
+
 // A short-lived, one-time server challenge is required before a withdrawal can
 // be created. The raw token is never stored, so a database leak cannot replay
 // an unconsumed withdrawal confirmation.

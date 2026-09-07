@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
 import { after, before, test } from "node:test";
 import { BSC_DEPOSIT_ADDRESS } from "../src/lib/payment-methods.ts";
+import { processBscDeposit } from "../src/lib/binance-deposits.ts";
 
 process.env.NODE_ENV = "test";
 process.env.ADMIN_PANEL_PASSWORD = "wallet-integration-admin-password";
@@ -15,7 +16,9 @@ const {
   pool,
   sql,
   binanceDepositEventsTable,
+   and,
   eq,
+   inArray,
   adminLoginNotificationsTable,
   authRateLimitsTable,
   depositSessionsTable,
@@ -36,6 +39,15 @@ const origin = "https://vixus.trade";
 const password = "WalletIntegrationTestPassword1!";
 const adminEmail = `wallet-integration-admin-${Date.now()}-${process.pid}@example.test`;
 const userEmail = `wallet-integration-user-${Date.now()}-${process.pid}@example.test`;
+const testTxids = new Set<string>();
+const testTxidRunPrefix = `${Date.now().toString(16)}${process.pid.toString(16)}`;
+
+function testTxid(marker: string): string {
+  const body = `${marker}${testTxidRunPrefix}`.repeat(8).slice(0, 64);
+  const txid = `0x${body}`;
+  testTxids.add(txid);
+  return txid;
+}
 
 class CookieJar {
   private readonly cookies = new Map<string, string>();
@@ -132,6 +144,10 @@ before(async () => {
 });
 
 after(async () => {
+  if (testTxids.size) {
+    await db.delete(binanceDepositEventsTable)
+      .where(inArray(binanceDepositEventsTable.txid, [...testTxids]));
+  }
   for (const userId of [adminUserId, targetUserId]) {
     if (!userId) continue;
     await db.delete(adminLoginNotificationsTable).where(eq(adminLoginNotificationsTable.userId, userId));
@@ -174,13 +190,14 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
   assert.equal(afterAdminCredit.body.lockedInvestmentCapital, 0);
   assert.equal(afterAdminCredit.body.totalBalance, 125);
 
+  const pendingDepositTxid = testTxid("01");
   const pendingDeposit = await request<{ id: number }>("/api/cashier/deposit", {
     method: "POST",
-    body: { amount: 250, paymentMethod: "BSC BNB Smart Chain (BEP20)", walletAddress: "test-wallet", txid: `0x${"01".repeat(32)}` },
+    body: { amount: 250, paymentMethod: "BSC BNB Smart Chain (BEP20)", walletAddress: "test-wallet", txid: pendingDepositTxid },
   });
   assert.equal(pendingDeposit.response.status, 201);
   await db.insert(binanceDepositEventsTable).values({
-    txid: `0x${"01".repeat(32)}`,
+    txid: pendingDepositTxid,
     amount: "250.00",
     coin: "USDT",
     network: "BSC",
@@ -197,7 +214,7 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
   const approvedDeposit = await request(`/api/admin/transactions/${pendingDeposit.body.id}/review`, {
     method: "POST",
     cookieJar: adminJar,
-    body: { action: "approve", txid: `0x${"01".repeat(32)}` },
+    body: { action: "approve", txid: pendingDepositTxid },
   });
   assert.equal(approvedDeposit.response.status, 200);
   assert.equal(approvedDeposit.body.status, "completed");
@@ -252,7 +269,7 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
   assert.equal(depositSession.body.status, "waiting_payment");
   assert.equal(depositSession.body.amount, 80);
 
-  const submittedTxid = `0x${"ab".repeat(32)}`;
+  const submittedTxid = testTxid("ab");
   const submittedDeposit = await request<{ txid: string; status: string }>(`/api/cashier/deposit/session/${depositSession.body.id}/txid`, {
     method: "POST",
     body: { txid: submittedTxid },
@@ -284,13 +301,26 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
     body: { amount: 90, paymentMethodId: "usdt_bep20" },
   });
   assert.equal(hashlessSession.response.status, 201);
+  const automaticallyDetectedTxid = testTxid("ef");
+  await processBscDeposit({
+    amount: "90.00",
+    coin: "USDT",
+    network: "BSC",
+    status: 1,
+    address: BSC_DEPOSIT_ADDRESS,
+    txId: automaticallyDetectedTxid,
+    insertTime: Date.now(),
+    confirmTimes: "20/20",
+  });
+  const afterAutomaticDetection = await request<{ mainWalletBalance: number }>("/api/dashboard/summary");
+  assert.equal(afterAutomaticDetection.body.mainWalletBalance, 425);
 
   const unverifiedSession = await request<{ id: number }>("/api/cashier/deposit/session", {
     method: "POST",
     body: { amount: 91, paymentMethodId: "usdt_bep20" },
   });
   assert.equal(unverifiedSession.response.status, 201);
-  const unverifiedTxid = `0x${"cd".repeat(32)}`;
+  const unverifiedTxid = testTxid("cd");
   await db.update(depositSessionsTable)
     .set({ txid: unverifiedTxid, status: "payment_detected", confirmations: 15 })
     .where(eq(depositSessionsTable.id, unverifiedSession.body.id));
@@ -311,7 +341,12 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
   assert.ok(adminDeposit);
   assert.equal(adminDeposit.txid, submittedTxid);
   assert.equal(adminDeposit.depositAddress, BSC_DEPOSIT_ADDRESS);
-  assert.equal(adminDepositSessions.body.some((entry) => entry.id === hashlessSession.body.id), false);
+  const automaticallyDetectedAdminDeposit = adminDepositSessions.body.find((entry) => entry.id === hashlessSession.body.id);
+  assert.ok(automaticallyDetectedAdminDeposit);
+  assert.equal(automaticallyDetectedAdminDeposit.txid, automaticallyDetectedTxid);
+  const unverifiedAdminDeposit = adminDepositSessions.body.find((entry) => entry.id === unverifiedSession.body.id);
+  assert.ok(unverifiedAdminDeposit);
+  assert.equal(unverifiedAdminDeposit.txid, unverifiedTxid);
 
   const reconciliationLookup = await request<{
     realName: string;
@@ -497,4 +532,37 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
   assert.equal(earningsChart.body.length, 30);
   assert.equal(earningsChart.body.reduce((sum, point) => sum + point.profit, 0), 53);
   assert.equal(earningsChart.body.at(-1)?.cumulative, 53);
+
+  const beforeAutomaticallyDetectedApproval = await request<{ mainWalletBalance: number }>("/api/dashboard/summary");
+  assert.equal(beforeAutomaticallyDetectedApproval.body.mainWalletBalance, 508);
+  const automaticApproval = await request(`/api/admin/deposit-sessions/${hashlessSession.body.id}/review`, {
+    method: "POST",
+    cookieJar: adminJar,
+    body: { action: "approve", txid: automaticallyDetectedTxid },
+  });
+  assert.equal(automaticApproval.response.status, 200);
+  assert.equal(automaticApproval.body.status, "completed");
+
+  const afterAutomaticallyDetectedApproval = await request<{
+    mainWalletBalance: number;
+    availableBalance: number;
+  }>("/api/dashboard/summary");
+  assert.equal(afterAutomaticallyDetectedApproval.body.mainWalletBalance, 598);
+  assert.equal(afterAutomaticallyDetectedApproval.body.availableBalance, 172);
+
+  const [automaticCredit] = await db.select({ id: transactionsTable.id })
+    .from(transactionsTable)
+    .where(and(
+      eq(transactionsTable.userId, targetUserId),
+      eq(transactionsTable.txid, automaticallyDetectedTxid),
+    ))
+    .limit(2);
+  assert.ok(automaticCredit);
+  const duplicateAutomaticCredits = await db.select({ id: transactionsTable.id })
+    .from(transactionsTable)
+    .where(and(
+      eq(transactionsTable.userId, targetUserId),
+      eq(transactionsTable.txid, automaticallyDetectedTxid),
+    ));
+  assert.equal(duplicateAutomaticCredits.length, 1);
 });
