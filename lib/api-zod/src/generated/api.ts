@@ -1872,6 +1872,7 @@ export const GetChatStateResponse = zod.object({
   "category": zod.string().nullable(),
   "mode": zod.string(),
   "status": zod.string(),
+  "botState": zod.string(),
   "adminTyping": zod.boolean(),
   "adminOnline": zod.boolean()
 })

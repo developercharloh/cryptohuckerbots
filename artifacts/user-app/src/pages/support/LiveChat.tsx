@@ -75,9 +75,9 @@ export default function LiveChat() {
   const latestMessage = messages[messages.length - 1];
   const isClosed = latestMessage?.sender === "system";
   const isDelayedDepositFlow = chatState?.mode === "bot" && chatState.category === "delayed_deposit";
-  const showCategoryChoices = !chatState || (chatState.mode === "bot" && !chatState.category);
+  const showCategoryChoices = !chatState || (chatState.mode === "bot" && !chatState.category) || isClosed;
   const firstName = user?.fullName?.trim().split(/\s+/)[0] || "there";
-  const isLiveSupport = chatState?.mode === "admin";
+  const isLiveSupport = chatState?.mode === "admin" && !isClosed;
   const [botTyping, setBotTyping] = useState(false);
 
   useEffect(() => {
@@ -192,23 +192,14 @@ export default function LiveChat() {
     }
   };
 
-  const sendCategory = (category: SupportCategory) => {
+  const sendSupportMessage = (message: string, category?: SupportCategory) => {
     if (mutation.isPending) return;
     setSendError(null);
     setBotTyping(true);
     mutation.mutate(
       {
         data: {
-          message:
-            category === "delayed_deposit"
-              ? "I need help with a delayed deposit."
-              : category === "pending_kyc"
-                ? "I need help with my pending KYC review."
-                : category === "technical"
-                  ? "I need help with a technical issue."
-                  : category === "live_support"
-                    ? "Please connect me to live support."
-                    : "I have another support question.",
+          message,
           category,
         },
       },
@@ -223,6 +214,21 @@ export default function LiveChat() {
           setSendError("That support option could not be started. Please try again.");
         },
       },
+    );
+  };
+
+  const sendCategory = (category: SupportCategory) => {
+    sendSupportMessage(
+      category === "delayed_deposit"
+        ? "I need help with a delayed deposit."
+        : category === "pending_kyc"
+          ? "I need help with my pending KYC review."
+          : category === "technical"
+            ? "I need help with a technical issue."
+            : category === "live_support"
+              ? "Please connect me to live support."
+              : "I have another support question.",
+      category,
     );
   };
 
@@ -255,6 +261,56 @@ export default function LiveChat() {
       </div>
     </div>
   );
+
+  const guidedChoices = chatState?.mode === "bot" && !isClosed ? (
+    <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3">
+      {chatState.botState === "awaiting_kyc_issue" && (
+        <>
+          <p className="mb-2 text-xs font-semibold">What best describes your verification issue?</p>
+          <div className="grid gap-2">
+            {[
+              "I have not started verification yet.",
+              "My verification is still pending.",
+              "My document upload is failing.",
+              "My verification was rejected.",
+              "I cannot access the verification page.",
+            ].map((choice) => (
+              <button key={choice} type="button" onClick={() => sendSupportMessage(choice)} disabled={mutation.isPending} className="rounded-xl border border-border/60 bg-background/40 px-3 py-2 text-left text-xs transition-colors hover:border-primary/50 disabled:opacity-50">
+                {choice}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+      {chatState.botState === "awaiting_technical_issue" && (
+        <>
+          <p className="mb-2 text-xs font-semibold">What is not working?</p>
+          <div className="grid gap-2">
+            {[
+              "I cannot log in or reset my password.",
+              "I did not receive the verification email or code.",
+              "The app or page is not loading.",
+              "My deposit or withdrawal is not working.",
+              "My trading or bot is not working.",
+              "Something else is not working.",
+            ].map((choice) => (
+              <button key={choice} type="button" onClick={() => sendSupportMessage(choice)} disabled={mutation.isPending} className="rounded-xl border border-border/60 bg-background/40 px-3 py-2 text-left text-xs transition-colors hover:border-primary/50 disabled:opacity-50">
+                {choice}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+      {chatState.botState === "offer_support" && chatState.category !== "live_support" && (
+        <>
+          <p className="mb-2 text-xs text-muted-foreground">Need account-specific help after trying that guidance?</p>
+          <button type="button" onClick={() => sendCategory("live_support")} disabled={mutation.isPending} className="w-full rounded-xl border border-primary/40 bg-primary/10 px-3 py-2 text-left text-xs font-semibold text-primary transition-colors hover:bg-primary/15 disabled:opacity-50">
+            Talk to Support about this
+          </button>
+        </>
+      )}
+    </div>
+  ) : null;
 
   return (
     <Layout>
@@ -347,6 +403,7 @@ export default function LiveChat() {
             })
           )}
           {showCategoryChoices && categoryChoices}
+          {guidedChoices}
           <div ref={bottomRef} />
           {(botTyping || chatState?.adminTyping) && (
             <div className="flex items-center gap-2 text-[11px] text-muted-foreground">

@@ -69,18 +69,32 @@ function botMessageForCategory(category: string | null): string {
     return "I understand that your deposit has not appeared yet. I can help submit it for verification. Please paste the full BNB Smart Chain (BEP-20) transaction hash (TxID) from your wallet or exchange. It starts with 0x.";
   }
   if (category === "pending_kyc") {
-    return "I can help with your verification review. If you have already submitted your documents, please tell me whether you are waiting for approval, unable to upload a document, or seeing an error. You can also connect directly with live Support.";
+    return "I can help with your verification review. What best describes the issue: a pending review, a document upload problem, a rejected verification, or trouble opening the verification page?";
   }
   if (category === "technical") {
-    return "I’m ready to help troubleshoot that. Tell me what you were trying to do, what happened instead, and any exact error message you saw. I’ll guide you through the next step or connect you with Support.";
+    return "I’m ready to help troubleshoot that. What is not working: login, email or verification code, the app or page, deposits or withdrawals, or trading and bots?";
   }
   if (category === "other") {
-    return "Of course. Tell me what you need help with and I’ll point you in the right direction. If it needs account-level attention, I can connect you with live Support.";
+    return "Of course. Tell me what you need help with in one sentence. I’ll try to guide you first, then you can connect with Support if it needs account-level attention.";
   }
   if (category === "live_support") {
     return "Absolutely — I’m connecting you with the VIXUS Support Team now. Please leave any useful details below while a support specialist joins this private conversation.";
   }
   return botWelcomeMessage();
+}
+
+function isExplicitSupportRequest(message: string) {
+  const lower = message.toLowerCase();
+  return [
+    "live support",
+    "support team",
+    "talk to support",
+    "contact support",
+    "support agent",
+    "human agent",
+    "real person",
+    "connect me",
+  ].some((phrase) => lower.includes(phrase));
 }
 
 async function addBotMessage(userId: number, message: string) {
@@ -119,6 +133,17 @@ async function escalateToSupport(userId: number, category: string, userMessage: 
   }).catch(() => {});
 }
 
+async function setBotState(userId: number, botState: string) {
+  await db.update(supportChatThreadsTable)
+    .set({ botState, updatedAt: new Date() })
+    .where(eq(supportChatThreadsTable.userId, userId));
+}
+
+async function offerSupportAfterGuidance(userId: number, message: string) {
+  await setBotState(userId, "offer_support");
+  await addBotMessage(userId, `${message} If you still need account-specific help, choose “Talk to Support” below and I’ll send this conversation to the team.`);
+}
+
 async function handleBotTurn(
   userId: number,
   thread: typeof supportChatThreadsTable.$inferSelect,
@@ -126,10 +151,24 @@ async function handleBotTurn(
   requestedCategory?: string,
   fullName?: string | null,
 ) {
-  const category = requestedCategory || thread.category || categoryFromMessage(message);
-  if (category && category !== thread.category) {
+  const explicitSupport = requestedCategory === "live_support" || (!requestedCategory && isExplicitSupportRequest(message));
+  const category = explicitSupport ? "live_support" : requestedCategory || thread.category || categoryFromMessage(message);
+  const categoryChanged = Boolean(category && category !== thread.category);
+  if (categoryChanged) {
     await db.update(supportChatThreadsTable)
-      .set({ category, botState: category === "delayed_deposit" ? "awaiting_txid" : "awaiting_details", updatedAt: new Date() })
+      .set({
+        category,
+        botState: category === "delayed_deposit"
+          ? "awaiting_txid"
+          : category === "pending_kyc"
+            ? "awaiting_kyc_issue"
+            : category === "technical"
+              ? "awaiting_technical_issue"
+              : category === "other"
+                ? "awaiting_other_details"
+                : "awaiting_details",
+        updatedAt: new Date(),
+      })
       .where(eq(supportChatThreadsTable.userId, userId));
   }
 
@@ -148,6 +187,10 @@ async function handleBotTurn(
   }
 
   if (category === "delayed_deposit") {
+    if (categoryChanged) {
+      await addBotMessage(userId, botMessageForCategory(category));
+      return;
+    }
     const txid = message.match(/0x[a-fA-F0-9]{64}/)?.[0];
     if (!txid) {
       await addBotMessage(userId, botMessageForCategory(category));
@@ -170,21 +213,95 @@ async function handleBotTurn(
   }
 
   const lower = message.toLowerCase();
-  if (category === "technical" && (lower.includes("login") || lower.includes("password"))) {
-    await addBotMessage(userId, "For login or password problems, use Forgot password on the sign-in screen. If the reset email does not arrive, check spam and then reply here so Support can investigate.");
-    return;
-  }
-  if (category === "technical" && (lower.includes("email") || lower.includes("verify"))) {
-    await addBotMessage(userId, "Please check your inbox and spam folder for the verification email. If the link has expired, open the verification screen again to request a fresh code.");
-    return;
-  }
-  if (category === "pending_kyc" && (lower.includes("how long") || lower.includes("status"))) {
-    await addBotMessage(userId, "Your documents are reviewed by the verification team. Keep this conversation open and Support will message you here if anything else is required.");
+  if (category === "pending_kyc") {
+    if (categoryChanged) {
+      await addBotMessage(userId, botMessageForCategory(category));
+      return;
+    }
+    if (lower.includes("not started") || lower.includes("haven't started") || lower.includes("have not started")) {
+      await offerSupportAfterGuidance(userId, "You can start verification from the KYC section in your account. Follow each step carefully and use a clear, valid document.");
+      return;
+    }
+    if (lower.includes("pending") || lower.includes("waiting") || lower.includes("how long") || lower.includes("status")) {
+      await offerSupportAfterGuidance(userId, "Your documents are reviewed by the verification team. Keep the account details consistent and leave this conversation open while the review is in progress.");
+      return;
+    }
+    if (lower.includes("upload") || lower.includes("document") || lower.includes("photo")) {
+      await offerSupportAfterGuidance(userId, "For upload issues, use a clear image with all document edges visible, check your connection, and try again from the latest version of the app or browser.");
+      return;
+    }
+    if (lower.includes("reject") || lower.includes("failed") || lower.includes("declined")) {
+      await offerSupportAfterGuidance(userId, "Please review the rejection reason shown in the KYC screen and submit a clearer, valid document if requested. Do not send sensitive document numbers in chat.");
+      return;
+    }
+    if (lower.includes("access") || lower.includes("open") || lower.includes("page")) {
+      await offerSupportAfterGuidance(userId, "Try signing out and back in, then open the KYC section again. If the page still will not open, tell us what you see or attach a screenshot.");
+      return;
+    }
+    await addBotMessage(userId, "Please choose the verification issue that best matches your situation, or describe the exact step and message you see.");
+    await setBotState(userId, "awaiting_kyc_issue");
     return;
   }
 
-  await addBotMessage(userId, "I could not resolve that automatically, so I sent it to Support. A team member will reply in this conversation.");
-  await escalateToSupport(userId, category || "other", message);
+  if (category === "technical") {
+    if (categoryChanged) {
+      await addBotMessage(userId, botMessageForCategory(category));
+      return;
+    }
+    if (lower.includes("login") || lower.includes("password") || lower.includes("sign in")) {
+      await offerSupportAfterGuidance(userId, "For login or password problems, use Forgot password on the sign-in screen. If the reset email does not arrive, check spam and then tell us what happened.");
+      return;
+    }
+    if (lower.includes("email") || lower.includes("code") || lower.includes("verify")) {
+      await offerSupportAfterGuidance(userId, "Check your inbox and spam folder for the verification email or code. If the link has expired, open the verification screen again to request a fresh code.");
+      return;
+    }
+    if (lower.includes("load") || lower.includes("blank") || lower.includes("error") || lower.includes("page") || lower.includes("app")) {
+      await offerSupportAfterGuidance(userId, "Please tell us the exact error, what you were trying to do, and whether you are using the app or a browser. A screenshot can help Support investigate quickly.");
+      return;
+    }
+    if (lower.includes("deposit") || lower.includes("withdraw")) {
+      await offerSupportAfterGuidance(userId, "Tell us whether this concerns a deposit or withdrawal, what status you see, and the approximate amount. Never share a password or private key.");
+      return;
+    }
+    if (lower.includes("trading") || lower.includes("trade") || lower.includes("bot")) {
+      await offerSupportAfterGuidance(userId, "Tell us which bot or trading pair is affected, what you expected to happen, and the exact message or status you see.");
+      return;
+    }
+    await offerSupportAfterGuidance(userId, "Please describe what you were trying to do, what happened instead, and any exact error message. You can also attach a screenshot.");
+    return;
+  }
+
+  if (category === "other") {
+    if (categoryChanged) {
+      await addBotMessage(userId, botMessageForCategory(category));
+      return;
+    }
+    const detectedTopic = categoryFromMessage(message);
+    if (detectedTopic === "live_support") {
+      await addBotMessage(userId, botMessageForCategory("live_support"));
+      await escalateToSupport(userId, "live_support", message);
+      return;
+    }
+    if (detectedTopic === "delayed_deposit") {
+      await db.update(supportChatThreadsTable)
+        .set({ category: "delayed_deposit", botState: "awaiting_txid", updatedAt: new Date() })
+        .where(eq(supportChatThreadsTable.userId, userId));
+      await addBotMessage(userId, botMessageForCategory("delayed_deposit"));
+      return;
+    }
+    if (detectedTopic === "pending_kyc" || detectedTopic === "technical") {
+      await db.update(supportChatThreadsTable)
+        .set({ category: detectedTopic, botState: detectedTopic === "pending_kyc" ? "awaiting_kyc_issue" : "awaiting_technical_issue", updatedAt: new Date() })
+        .where(eq(supportChatThreadsTable.userId, userId));
+      await addBotMessage(userId, botMessageForCategory(detectedTopic));
+      return;
+    }
+    await offerSupportAfterGuidance(userId, "Thanks for explaining that. I have captured the details you shared and can keep helping here.");
+    return;
+  }
+
+  await offerSupportAfterGuidance(userId, "I have captured the details you shared.");
 }
 
 router.get("/support/tickets", async (req, res) => {
@@ -283,6 +400,7 @@ router.get("/support/chat/state", async (req, res) => {
     category: thread.category,
     mode: thread.mode,
     status: thread.status,
+    botState: thread.botState,
     adminTyping: adminOnline,
     adminOnline,
   });

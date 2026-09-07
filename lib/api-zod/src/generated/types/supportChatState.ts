@@ -11,6 +11,7 @@ export interface SupportChatState {
   category: string | null;
   mode: string;
   status: string;
+  botState: string;
   adminTyping: boolean;
   adminOnline: boolean;
 }

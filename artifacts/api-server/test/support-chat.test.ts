@@ -20,6 +20,7 @@ const {
   sessionsTable,
   usersTable,
   sql,
+  and,
   eq,
 } = { ...database, ...drizzle };
 const { attachmentStorage } = await import("../src/lib/chat-attachments.ts");
@@ -253,6 +254,53 @@ test("guided support categories respond and typing presence is accepted", { conc
     message.message.includes("BNB Smart Chain") &&
     message.message.includes("TxID"),
   ));
+
+  const kycCategory = await request("/api/support/chat", {
+    method: "POST",
+    body: {
+      message: "I need help with my pending KYC review.",
+      category: "pending_kyc",
+    },
+  });
+  assert.equal(kycCategory.response.status, 201);
+
+  let guidedState = await request<{ category: string | null; mode: string; botState: string }>("/api/support/chat/state");
+  assert.equal(guidedState.body.category, "pending_kyc");
+  assert.equal(guidedState.body.mode, "bot");
+  assert.equal(guidedState.body.botState, "awaiting_kyc_issue");
+
+  const kycDetails = await request("/api/support/chat", {
+    method: "POST",
+    body: { message: "My documents are still pending." },
+  });
+  assert.equal(kycDetails.response.status, 201);
+
+  guidedState = await request<{ category: string | null; mode: string; botState: string }>("/api/support/chat/state");
+  assert.equal(guidedState.body.category, "pending_kyc");
+  assert.equal(guidedState.body.mode, "bot");
+  assert.equal(guidedState.body.botState, "offer_support");
+  const openGuidedTickets = await db.select({ id: supportTicketsTable.id })
+    .from(supportTicketsTable)
+    .where(and(eq(supportTicketsTable.userId, targetUserId), eq(supportTicketsTable.status, "open")));
+  assert.equal(openGuidedTickets.length, 0);
+
+  const technicalCategory = await request("/api/support/chat", {
+    method: "POST",
+    body: {
+      message: "I need help with a technical issue.",
+      category: "technical",
+    },
+  });
+  assert.equal(technicalCategory.response.status, 201);
+  const technicalDetails = await request("/api/support/chat", {
+    method: "POST",
+    body: { message: "I cannot log in or reset my password." },
+  });
+  assert.equal(technicalDetails.response.status, 201);
+  guidedState = await request<{ category: string | null; mode: string; botState: string }>("/api/support/chat/state");
+  assert.equal(guidedState.body.category, "technical");
+  assert.equal(guidedState.body.mode, "bot");
+  assert.equal(guidedState.body.botState, "offer_support");
 });
 
 test("live support action hands the conversation to the support team", { concurrency: false }, async (t) => {

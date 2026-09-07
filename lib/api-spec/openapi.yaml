@@ -3616,9 +3616,10 @@ components:
         category: { type: ["string", "null"] }
         mode: { type: string }
         status: { type: string }
+        botState: { type: string }
         adminTyping: { type: boolean }
         adminOnline: { type: boolean }
-      required: [category, mode, status, adminTyping, adminOnline]
+      required: [category, mode, status, botState, adminTyping, adminOnline]
 
     AdminCloseChat:
       type: object
