@@ -312,12 +312,14 @@ function ChatThread({
         </div>
         {!isClosed && (
           <button
+            type="button"
             onClick={handleClose}
             disabled={closeMutation.isPending}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-destructive/30 px-2.5 py-1.5 text-[10px] font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
+            aria-label="Mark conversation as resolved"
+            className="relative z-10 inline-flex items-center gap-1.5 rounded-xl border border-destructive/30 px-2.5 py-1.5 text-[10px] font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
           >
             <XCircle className="w-3.5 h-3.5" />
-            {closeMutation.isPending ? "Closing…" : "Close conversation"}
+            {closeMutation.isPending ? "Closing…" : "Mark as resolved"}
           </button>
         )}
       </div>

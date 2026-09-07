@@ -288,63 +288,6 @@ router.get("/support/chat/state", async (req, res) => {
   });
 });
 
-router.post("/support/chat/close", async (req, res) => {
-  const token = getRequestToken(req);
-  const user = await getUserForSession(token);
-  if (!user) return res.status(401).json({ error: "Unauthorized" });
-
-  const [latestMessage] = await db.select({
-    sender: chatMessagesTable.sender,
-    createdAt: chatMessagesTable.createdAt,
-  }).from(chatMessagesTable)
-    .where(eq(chatMessagesTable.userId, user.id))
-    .orderBy(desc(chatMessagesTable.createdAt), desc(chatMessagesTable.id))
-    .limit(1);
-
-  if (!latestMessage) {
-    return res.status(400).json({ error: "Cannot close a conversation with no messages." });
-  }
-
-  if (latestMessage.sender === "system") {
-    return res.json({
-      status: "closed",
-      closedAt: latestMessage.createdAt.toISOString(),
-    });
-  }
-
-  const closedMessage = await db.transaction(async (tx) => {
-    const [createdMessage] = await tx.insert(chatMessagesTable).values({
-      userId: user.id,
-      sender: "system",
-      message: "This conversation was marked resolved. Start a new conversation below if you need more help.",
-    }).returning();
-
-    await tx.update(supportChatThreadsTable)
-      .set({
-        status: "closed",
-        mode: "bot",
-        category: null,
-        botState: "choose_category",
-        adminTypingUntil: null,
-        updatedAt: new Date(),
-      })
-      .where(eq(supportChatThreadsTable.userId, user.id));
-    await tx.update(supportTicketsTable)
-      .set({ status: "closed", updatedAt: new Date() })
-      .where(and(
-        eq(supportTicketsTable.userId, user.id),
-        eq(supportTicketsTable.status, "open"),
-      ));
-
-    return createdMessage;
-  });
-
-  return res.json({
-    status: "closed",
-    closedAt: closedMessage.createdAt.toISOString(),
-  });
-});
-
 router.post("/support/chat/typing", async (req, res) => {
   const token = getRequestToken(req);
   const user = await getUserForSession(token);

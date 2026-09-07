@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { Layout } from "@/components/Layout";
 import { VixusLogo } from "@/components/VixusLogo";
 import { ChevronLeft, Send, Loader2, LockKeyhole, Paperclip, Camera, X, RotateCcw, FileText, Bot, Circle } from "lucide-react";
-import { useCloseChat, useGetChatMessages, useGetChatState, useSendChatMessage, useSendChatTyping } from "@workspace/api-client-react";
+import { useGetChatMessages, useGetChatState, useSendChatMessage, useSendChatTyping } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { upload } from "@vercel/blob/client";
@@ -71,7 +71,6 @@ export default function LiveChat() {
   });
 
   const mutation = useSendChatMessage();
-  const closeMutation = useCloseChat();
   const typingMutation = useSendChatTyping();
   const latestMessage = messages[messages.length - 1];
   const isClosed = latestMessage?.sender === "system";
@@ -80,19 +79,6 @@ export default function LiveChat() {
   const firstName = user?.fullName?.trim().split(/\s+/)[0] || "there";
   const isLiveSupport = chatState?.mode === "admin";
   const [botTyping, setBotTyping] = useState(false);
-
-  const handleResolve = () => {
-    if (closeMutation.isPending || isClosed) return;
-    closeMutation.mutate(undefined, {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["getChatMessages"] });
-        queryClient.invalidateQueries({ queryKey: ["getChatState"] });
-      },
-      onError: () => {
-        setSendError("The conversation could not be closed. Please try again.");
-      },
-    });
-  };
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -372,17 +358,7 @@ export default function LiveChat() {
 
         {isLiveSupport && (
           <div className="mx-4 mb-2 rounded-xl border border-primary/25 bg-primary/5 px-3 py-2 text-[11px] text-muted-foreground">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p><span className="font-semibold text-primary">Live Support requested.</span> Your conversation is with the Support Team now. Leave any helpful details here and we’ll reply in this private chat.</p>
-              <button
-                type="button"
-                onClick={handleResolve}
-                disabled={closeMutation.isPending}
-                className="inline-flex shrink-0 items-center justify-center rounded-lg border border-primary/40 px-2.5 py-1.5 text-[10px] font-semibold text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
-              >
-                {closeMutation.isPending ? "Closing…" : "Mark as resolved"}
-              </button>
-            </div>
+            <p><span className="font-semibold text-primary">Live Support requested.</span> Your conversation is with the Support Team now. Leave any helpful details here and we’ll reply in this private chat.</p>
           </div>
         )}
 

@@ -282,8 +282,9 @@ test("live support action hands the conversation to the support team", { concurr
     message.message.includes("connecting you with the VIXUS Support Team"),
   ));
 
-  const closed = await request<{ status: string; closedAt: string }>("/api/support/chat/close", {
+  const closed = await request<{ status: string; closedAt: string }>(`/api/admin/chat/${targetUserId}/close`, {
     method: "POST",
+    cookieJar: adminJar,
   });
   assert.equal(closed.response.status, 200);
   assert.equal(closed.body.status, "closed");
@@ -291,9 +292,9 @@ test("live support action hands the conversation to the support team", { concurr
 
   const closedState = await request<{ mode: string; status: string; category: string | null }>("/api/support/chat/state");
   assert.equal(closedState.response.status, 200);
-  assert.equal(closedState.body.mode, "bot");
+  assert.equal(closedState.body.mode, "admin");
   assert.equal(closedState.body.status, "closed");
-  assert.equal(closedState.body.category, null);
+  assert.equal(closedState.body.category, "live_support");
   const ticketsAfterClose = await db.select({ status: supportTicketsTable.status })
     .from(supportTicketsTable)
     .where(eq(supportTicketsTable.userId, targetUserId));
