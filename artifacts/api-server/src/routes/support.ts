@@ -394,7 +394,19 @@ router.post("/support/chat", async (req, res) => {
   const requestedCategory = typeof category === "string" && ["delayed_deposit", "pending_kyc", "technical", "other"].includes(category)
     ? category
     : undefined;
-  const currentThread = await getOrCreateThread(user.id);
+  let currentThread = await getOrCreateThread(user.id);
+  if (requestedCategory && currentThread.mode !== "bot") {
+    await db.update(supportChatThreadsTable)
+      .set({
+        mode: "bot",
+        status: "open",
+        category: null,
+        botState: "choose_category",
+        updatedAt: new Date(),
+      })
+      .where(eq(supportChatThreadsTable.userId, user.id));
+    currentThread = await getOrCreateThread(user.id);
+  }
   if (currentThread.mode === "bot" || requestedCategory) {
     await handleBotTurn(user.id, currentThread, trimmedMessage, requestedCategory);
   }

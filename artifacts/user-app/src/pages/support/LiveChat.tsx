@@ -57,6 +57,7 @@ export default function LiveChat() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+  const [sendError, setSendError] = useState<string | null>(null);
 
   const { data: messages = [], isLoading } = useGetChatMessages({
     query: { refetchInterval: 5000 } as any,
@@ -139,6 +140,7 @@ export default function LiveChat() {
     const readyAttachments = pendingAttachments.filter((item) => item.pathname && item.uploadProof && !item.error);
     const hasUploading = pendingAttachments.some((item) => !item.error && !item.pathname);
     if ((!trimmed && readyAttachments.length === 0) || hasUploading || mutation.isPending) return;
+    setSendError(null);
     setBotTyping(true);
     mutation.mutate(
       {
@@ -160,7 +162,10 @@ export default function LiveChat() {
           queryClient.invalidateQueries({ queryKey: ["getChatMessages"] });
           window.setTimeout(() => setBotTyping(false), 700);
         },
-        onError: () => setBotTyping(false),
+        onError: () => {
+          setBotTyping(false);
+          setSendError("Your message could not be sent. Please try again.");
+        },
       }
     );
   };
@@ -180,6 +185,7 @@ export default function LiveChat() {
 
   const sendCategory = (category: "delayed_deposit" | "pending_kyc" | "technical") => {
     if (mutation.isPending) return;
+    setSendError(null);
     setBotTyping(true);
     mutation.mutate(
       { data: { message: `I need help with ${category === "delayed_deposit" ? "a delayed deposit" : category === "pending_kyc" ? "pending KYC review" : "a technical issue"}`, category } },
@@ -188,10 +194,36 @@ export default function LiveChat() {
           queryClient.invalidateQueries({ queryKey: ["getChatMessages"] });
           window.setTimeout(() => setBotTyping(false), 700);
         },
-        onError: () => setBotTyping(false),
+        onError: () => {
+          setBotTyping(false);
+          setSendError("That support option could not be started. Please try again.");
+        },
       },
     );
   };
+
+  const categoryChoices = (
+    <div className="rounded-2xl border border-border/50 bg-card/60 p-3">
+      <p className="mb-2 text-xs font-semibold">Choose a support topic</p>
+      <div className="grid gap-2">
+        {[
+          ["delayed_deposit", "Delayed deposit"],
+          ["pending_kyc", "Pending KYC review"],
+          ["technical", "Technical issue"],
+        ].map(([category, label]) => (
+          <button
+            key={category}
+            type="button"
+            onClick={() => sendCategory(category as "delayed_deposit" | "pending_kyc" | "technical")}
+            disabled={mutation.isPending}
+            className="rounded-xl border border-border/60 bg-background/40 px-3 py-2 text-left text-xs hover:border-primary/50 disabled:opacity-50 transition-colors"
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <Layout>
@@ -231,22 +263,6 @@ export default function LiveChat() {
               <p className="text-xs text-muted-foreground max-w-[240px]">
                 Start with the guided assistant. A support teammate joins whenever the assistant cannot resolve it.
               </p>
-              <div className="grid w-full max-w-[280px] gap-2 pt-2">
-                {[
-                  ["delayed_deposit", "Delayed deposit"],
-                  ["pending_kyc", "Pending KYC review"],
-                  ["technical", "Technical issue"],
-                ].map(([category, label]) => (
-                  <button
-                    key={category}
-                    type="button"
-                    onClick={() => sendCategory(category as "delayed_deposit" | "pending_kyc" | "technical")}
-                    className="rounded-xl border border-border/60 bg-card px-3 py-2 text-left text-xs hover:border-primary/50 transition-colors"
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
             </div>
           ) : (
             messages.map((msg) => {
@@ -299,6 +315,7 @@ export default function LiveChat() {
               );
             })
           )}
+          {categoryChoices}
           <div ref={bottomRef} />
           {(botTyping || chatState?.adminTyping) && (
             <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
@@ -316,6 +333,11 @@ export default function LiveChat() {
 
         {/* Input */}
         <div className="shrink-0 p-4 border-t border-border/40">
+          {sendError && (
+            <div className="mb-3 rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              {sendError}
+            </div>
+          )}
           {pendingAttachments.length > 0 && (
             <div className="mb-3 space-y-1.5">
               {pendingAttachments.map((item) => (

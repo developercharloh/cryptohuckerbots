@@ -220,6 +220,35 @@ test("support inbox tracks pending replies and closed conversation boundaries", 
   assert.equal(thread.body[2].message, "New conversation started.");
 });
 
+test("guided support categories respond and typing presence is accepted", async (t) => {
+  if (!databaseAvailable) {
+    t.skip("requires a provisioned PostgreSQL test schema");
+    return;
+  }
+
+  const category = await request("/api/support/chat", {
+    method: "POST",
+    body: {
+      message: "I need help with a delayed deposit.",
+      category: "delayed_deposit",
+    },
+  });
+  assert.equal(category.response.status, 201);
+
+  const typing = await request<{ ok: boolean }>("/api/support/chat/typing", {
+    method: "POST",
+  });
+  assert.equal(typing.response.status, 200);
+  assert.deepEqual(typing.body, { ok: true });
+
+  const thread = await request<Array<{ sender: string; message: string }>>("/api/support/chat");
+  assert.ok(thread.body.some((message) =>
+    message.sender === "bot" &&
+    message.message.includes("BNB Smart Chain") &&
+    message.message.includes("TxID"),
+  ));
+});
+
 test("support attachments include admin-visible metadata and stay private when downloaded", async (t) => {
   if (!databaseAvailable) {
     t.skip("requires a provisioned PostgreSQL test schema");
