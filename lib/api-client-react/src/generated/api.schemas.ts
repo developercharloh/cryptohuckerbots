@@ -1228,6 +1228,7 @@ export const SendChatMessageInputCategory = {
   pending_kyc: 'pending_kyc',
   technical: 'technical',
   other: 'other',
+  live_support: 'live_support',
 } as const;
 
 export interface ChatAttachmentInput {

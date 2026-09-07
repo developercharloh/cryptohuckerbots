@@ -3565,7 +3565,7 @@ components:
       type: object
       properties:
         message: { type: string }
-        category: { type: string, enum: [delayed_deposit, pending_kyc, technical, other] }
+        category: { type: string, enum: [delayed_deposit, pending_kyc, technical, other, live_support] }
         attachments:
           type: array
           maxItems: 10

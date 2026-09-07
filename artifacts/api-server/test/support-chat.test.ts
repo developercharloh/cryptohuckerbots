@@ -143,7 +143,7 @@ after(async () => {
   });
 });
 
-test("support inbox tracks pending replies and closed conversation boundaries", async (t) => {
+test("support inbox tracks pending replies and closed conversation boundaries", { concurrency: false }, async (t) => {
   if (!databaseAvailable) {
     t.skip("requires a provisioned PostgreSQL test schema");
     return;
@@ -215,12 +215,12 @@ test("support inbox tracks pending replies and closed conversation boundaries", 
   const thread = await request<Array<{ sender: string; message: string }>>(`/api/admin/chat/${targetUserId}`, {
     cookieJar: adminJar,
   });
-  assert.deepEqual(thread.body.map((message) => message.sender), ["user", "system", "system", "user", "admin"]);
-  assert.match(thread.body[1].message, /closed by VIXUS Support/);
-  assert.equal(thread.body[2].message, "New conversation started.");
+  assert.deepEqual(thread.body.map((message) => message.sender), ["user", "bot", "system", "system", "user", "bot", "admin"]);
+  assert.match(thread.body[2].message, /closed by VIXUS Support/);
+  assert.equal(thread.body[3].message, "New conversation started.");
 });
 
-test("guided support categories respond and typing presence is accepted", async (t) => {
+test("guided support categories respond and typing presence is accepted", { concurrency: false }, async (t) => {
   if (!databaseAvailable) {
     t.skip("requires a provisioned PostgreSQL test schema");
     return;
@@ -254,7 +254,35 @@ test("guided support categories respond and typing presence is accepted", async 
   ));
 });
 
-test("support attachments include admin-visible metadata and stay private when downloaded", async (t) => {
+test("live support action hands the conversation to the support team", { concurrency: false }, async (t) => {
+  if (!databaseAvailable) {
+    t.skip("requires a provisioned PostgreSQL test schema");
+    return;
+  }
+
+  const response = await request("/api/support/chat", {
+    method: "POST",
+    body: {
+      message: "Please connect me to live support.",
+      category: "live_support",
+    },
+  });
+  assert.equal(response.response.status, 201);
+
+  const state = await request<{ mode: string; status: string; category: string | null }>("/api/support/chat/state");
+  assert.equal(state.response.status, 200);
+  assert.equal(state.body.mode, "admin");
+  assert.equal(state.body.status, "escalated");
+  assert.equal(state.body.category, "live_support");
+
+  const thread = await request<Array<{ sender: string; message: string }>>("/api/support/chat");
+  assert.ok(thread.body.some((message) =>
+    message.sender === "bot" &&
+    message.message.includes("connecting you with the VIXUS Support Team"),
+  ));
+});
+
+test("support attachments include admin-visible metadata and stay private when downloaded", { concurrency: false }, async (t) => {
   if (!databaseAvailable) {
     t.skip("requires a provisioned PostgreSQL test schema");
     return;

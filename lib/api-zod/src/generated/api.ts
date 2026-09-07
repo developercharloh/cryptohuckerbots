@@ -1843,7 +1843,7 @@ export const sendChatMessageBodyAttachmentsMax = 10;
 
 export const SendChatMessageBody = zod.object({
   "message": zod.string(),
-  "category": zod.enum(['delayed_deposit', 'pending_kyc', 'technical', 'other']).optional(),
+  "category": zod.enum(['delayed_deposit', 'pending_kyc', 'technical', 'other', 'live_support']).optional(),
   "attachments": zod.array(zod.object({
   "pathname": zod.string(),
   "filename": zod.string(),
@@ -1934,7 +1934,7 @@ export const adminSendChatMessageBodyAttachmentsMax = 10;
 
 export const AdminSendChatMessageBody = zod.object({
   "message": zod.string(),
-  "category": zod.enum(['delayed_deposit', 'pending_kyc', 'technical', 'other']).optional(),
+  "category": zod.enum(['delayed_deposit', 'pending_kyc', 'technical', 'other', 'live_support']).optional(),
   "attachments": zod.array(zod.object({
   "pathname": zod.string(),
   "filename": zod.string(),

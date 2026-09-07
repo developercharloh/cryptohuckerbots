@@ -41,6 +41,14 @@ async function getOrCreateThread(userId: number) {
 
 function categoryFromMessage(message: string): string | null {
   const value = message.toLowerCase();
+  if (
+    value.includes("live support") ||
+    value.includes("support team") ||
+    value.includes("talk to a person") ||
+    value.includes("speak to a human") ||
+    value.includes("human agent") ||
+    value.includes("real person")
+  ) return "live_support";
   if (value.includes("deposit") || value.includes("txid") || value.includes("transaction")) return "delayed_deposit";
   if (value.includes("kyc") || value.includes("verification") || value.includes("verify my identity")) return "pending_kyc";
   if (value.includes("technical") || value.includes("bug") || value.includes("error") || value.includes("not working")) return "technical";
@@ -48,20 +56,31 @@ function categoryFromMessage(message: string): string | null {
   return null;
 }
 
+function firstNameFrom(fullName: string | null | undefined) {
+  return fullName?.trim().split(/\s+/)[0] || "there";
+}
+
+function botWelcomeMessage(fullName?: string | null) {
+  return `Hello ${firstNameFrom(fullName)}, welcome to VIXUS Support. I’m here to help with deposits, verification, withdrawals, account access, and technical questions. Choose a topic below, or connect with our live Support Team at any time.`;
+}
+
 function botMessageForCategory(category: string | null): string {
   if (category === "delayed_deposit") {
-    return "I can help check your deposit. Please paste the BNB Smart Chain (BEP-20) TxID from your wallet or exchange.";
+    return "I understand that your deposit has not appeared yet. I can help submit it for verification. Please paste the full BNB Smart Chain (BEP-20) transaction hash (TxID) from your wallet or exchange. It starts with 0x.";
   }
   if (category === "pending_kyc") {
-    return "Your KYC review is handled securely by our verification team. If you have already submitted your documents, please allow the review team time to complete the checks. If your status has not changed after the expected review period, I can send this to Support.";
+    return "I can help with your verification review. If you have already submitted your documents, please tell me whether you are waiting for approval, unable to upload a document, or seeing an error. You can also connect directly with live Support.";
   }
   if (category === "technical") {
-    return "Please describe what is not working and include the screen or error message if possible. I will try the common fixes first, then send it to Support if it needs account-level investigation.";
+    return "I’m ready to help troubleshoot that. Tell me what you were trying to do, what happened instead, and any exact error message you saw. I’ll guide you through the next step or connect you with Support.";
   }
   if (category === "other") {
-    return "Please describe what you need help with. I will try to resolve it here and escalate it to Support if a team member is needed.";
+    return "Of course. Tell me what you need help with and I’ll point you in the right direction. If it needs account-level attention, I can connect you with live Support.";
   }
-  return "Welcome to VIXUS Support. Choose a topic so I can help you faster: delayed deposit, pending KYC review, or another technical issue.";
+  if (category === "live_support") {
+    return "Absolutely — I’m connecting you with the VIXUS Support Team now. Please leave any useful details below while a support specialist joins this private conversation.";
+  }
+  return botWelcomeMessage();
 }
 
 async function addBotMessage(userId: number, message: string) {
@@ -100,7 +119,13 @@ async function escalateToSupport(userId: number, category: string, userMessage: 
   }).catch(() => {});
 }
 
-async function handleBotTurn(userId: number, thread: typeof supportChatThreadsTable.$inferSelect, message: string, requestedCategory?: string) {
+async function handleBotTurn(
+  userId: number,
+  thread: typeof supportChatThreadsTable.$inferSelect,
+  message: string,
+  requestedCategory?: string,
+  fullName?: string | null,
+) {
   const category = requestedCategory || thread.category || categoryFromMessage(message);
   if (category && category !== thread.category) {
     await db.update(supportChatThreadsTable)
@@ -112,6 +137,13 @@ async function handleBotTurn(userId: number, thread: typeof supportChatThreadsTa
     await db.update(supportChatThreadsTable)
       .set({ botState: "choose_category", updatedAt: new Date() })
       .where(eq(supportChatThreadsTable.userId, userId));
+    await addBotMessage(userId, botWelcomeMessage(fullName));
+    return;
+  }
+
+  if (category === "live_support") {
+    await addBotMessage(userId, botMessageForCategory(category));
+    await escalateToSupport(userId, category, message);
     return;
   }
 
@@ -391,7 +423,7 @@ router.post("/support/chat", async (req, res) => {
     ? await db.select().from(chatAttachmentsTable).where(eq(chatAttachmentsTable.messageId, msg.id))
     : [];
 
-  const requestedCategory = typeof category === "string" && ["delayed_deposit", "pending_kyc", "technical", "other"].includes(category)
+  const requestedCategory = typeof category === "string" && ["delayed_deposit", "pending_kyc", "technical", "other", "live_support"].includes(category)
     ? category
     : undefined;
   let currentThread = await getOrCreateThread(user.id);
@@ -408,7 +440,7 @@ router.post("/support/chat", async (req, res) => {
     currentThread = await getOrCreateThread(user.id);
   }
   if (currentThread.mode === "bot" || requestedCategory) {
-    await handleBotTurn(user.id, currentThread, trimmedMessage, requestedCategory);
+    await handleBotTurn(user.id, currentThread, trimmedMessage, requestedCategory, user.fullName);
   }
 
   return res.status(201).json({

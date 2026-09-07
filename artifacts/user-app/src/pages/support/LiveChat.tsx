@@ -8,6 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { upload } from "@vercel/blob/client";
 import { API_BASE, fetchWithTimeout } from "@/lib/api-base";
+import { useAuth } from "@/contexts/AuthContext";
 
 type PendingAttachment = {
   id: string;
@@ -17,6 +18,8 @@ type PendingAttachment = {
   progress: number;
   error?: string;
 };
+
+type SupportCategory = "delayed_deposit" | "pending_kyc" | "technical" | "other" | "live_support";
 
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -50,6 +53,7 @@ function PrivateImage({ href, alt, filename }: { href: string; alt: string; file
 
 export default function LiveChat() {
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
   const [text, setText] = useState("");
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const pendingAttachmentsRef = useRef<PendingAttachment[]>([]);
@@ -72,6 +76,8 @@ export default function LiveChat() {
   const isClosed = latestMessage?.sender === "system";
   const isDelayedDepositFlow = chatState?.mode === "bot" && chatState.category === "delayed_deposit";
   const showCategoryChoices = !chatState || (chatState.mode === "bot" && !chatState.category);
+  const firstName = user?.fullName?.trim().split(/\s+/)[0] || "there";
+  const isLiveSupport = chatState?.mode === "admin";
   const [botTyping, setBotTyping] = useState(false);
 
   useEffect(() => {
@@ -186,12 +192,26 @@ export default function LiveChat() {
     }
   };
 
-  const sendCategory = (category: "delayed_deposit" | "pending_kyc" | "technical") => {
+  const sendCategory = (category: SupportCategory) => {
     if (mutation.isPending) return;
     setSendError(null);
     setBotTyping(true);
     mutation.mutate(
-      { data: { message: `I need help with ${category === "delayed_deposit" ? "a delayed deposit" : category === "pending_kyc" ? "pending KYC review" : "a technical issue"}`, category } },
+      {
+        data: {
+          message:
+            category === "delayed_deposit"
+              ? "I need help with a delayed deposit."
+              : category === "pending_kyc"
+                ? "I need help with my pending KYC review."
+                : category === "technical"
+                  ? "I need help with a technical issue."
+                  : category === "live_support"
+                    ? "Please connect me to live support."
+                    : "I have another support question.",
+          category,
+        },
+      },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: ["getChatMessages"] });
@@ -208,19 +228,26 @@ export default function LiveChat() {
 
   const categoryChoices = (
     <div className="rounded-2xl border border-border/50 bg-card/60 p-3">
-      <p className="mb-2 text-xs font-semibold">Choose a support topic</p>
+      <p className="mb-1 text-xs font-semibold">How can we help today?</p>
+      <p className="mb-2 text-[11px] text-muted-foreground">Choose an option and we’ll guide you from there.</p>
       <div className="grid gap-2">
         {[
-          ["delayed_deposit", "Delayed deposit"],
-          ["pending_kyc", "Pending KYC review"],
-          ["technical", "Technical issue"],
+          ["delayed_deposit", "Deposit not received"],
+          ["pending_kyc", "KYC or verification"],
+          ["technical", "Technical problem"],
+          ["other", "Another question"],
+          ["live_support", "Connect me to live support"],
         ].map(([category, label]) => (
           <button
             key={category}
             type="button"
-            onClick={() => sendCategory(category as "delayed_deposit" | "pending_kyc" | "technical")}
+            onClick={() => sendCategory(category as SupportCategory)}
             disabled={mutation.isPending}
-            className="rounded-xl border border-border/60 bg-background/40 px-3 py-2 text-left text-xs hover:border-primary/50 disabled:opacity-50 transition-colors"
+            className={`rounded-xl border px-3 py-2 text-left text-xs transition-colors disabled:opacity-50 ${
+              category === "live_support"
+                ? "border-primary/40 bg-primary/5 text-primary hover:bg-primary/10"
+                : "border-border/60 bg-background/40 hover:border-primary/50"
+            }`}
           >
             {label}
           </button>
@@ -263,9 +290,9 @@ export default function LiveChat() {
               <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center">
                 <Send className="w-6 h-6 text-blue-500" />
               </div>
-              <p className="text-sm font-semibold">Start a conversation</p>
+              <p className="text-sm font-semibold">Hello {firstName}, welcome to VIXUS Support.</p>
               <p className="text-xs text-muted-foreground max-w-[240px]">
-                Start with the guided assistant. A support teammate joins whenever the assistant cannot resolve it.
+                I’m here to help with your account, deposits, verification, withdrawals, and technical questions.
               </p>
             </div>
           ) : (
@@ -328,6 +355,12 @@ export default function LiveChat() {
             </div>
           )}
         </div>
+
+        {isLiveSupport && (
+          <div className="mx-4 mb-2 rounded-xl border border-primary/25 bg-primary/5 px-3 py-2 text-[11px] text-muted-foreground">
+            <span className="font-semibold text-primary">Live Support requested.</span> Your conversation is with the Support Team now. Leave any helpful details here and we’ll reply in this private chat.
+          </div>
+        )}
 
         {isClosed && (
           <div className="mx-4 mb-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-[11px] text-muted-foreground">
