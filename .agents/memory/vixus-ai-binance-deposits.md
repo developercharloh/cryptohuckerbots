@@ -7,4 +7,4 @@ The Binance exchange deposit-history API may return HTTP 451 from server locatio
 
 **Why:** The API key could be stored securely and signed correctly, but the runtime location was rejected by Binance before account data was returned. The public BSC RPC remained reachable.
 
-**How to apply:** Treat the blockchain TxID as the source record, deduplicate it in the deposit-event ledger, and auto-credit only when the exact USDT amount maps to one active deposit session. Keep ambiguous or unmatched deposits uncredited until an admin workflow exists.
+**How to apply:** Treat the blockchain TxID as the source record, deduplicate it in the deposit-event ledger, and attach a confirmed event to exactly one active session without crediting it. Require an admin approval transaction to recheck the event, exact amount/address/asset/network, and confirmation threshold before creating the wallet credit. Keep ambiguous or unmatched deposits uncredited.
