@@ -10,20 +10,21 @@ type Provider = "yahoo" | "coinbase";
 type Instrument = {
   provider: Provider;
   symbol: string;
+  twelveSymbol?: string;
 };
 
 const INSTRUMENTS: Record<string, Instrument> = {
-  "EUR-USD": { provider: "yahoo", symbol: "EURUSD=X" },
-  "GBP-USD": { provider: "yahoo", symbol: "GBPUSD=X" },
-  "USD-JPY": { provider: "yahoo", symbol: "USDJPY=X" },
-  "USD-CHF": { provider: "yahoo", symbol: "USDCHF=X" },
-  "AUD-USD": { provider: "yahoo", symbol: "AUDUSD=X" },
-  "NZD-USD": { provider: "yahoo", symbol: "NZDUSD=X" },
-  "USD-CAD": { provider: "yahoo", symbol: "USDCAD=X" },
-  "EUR-GBP": { provider: "yahoo", symbol: "EURGBP=X" },
-  "EUR-JPY": { provider: "yahoo", symbol: "EURJPY=X" },
-  "GBP-JPY": { provider: "yahoo", symbol: "GBPJPY=X" },
-  "XAU-USD": { provider: "yahoo", symbol: "GC=F" },
+  "EUR-USD": { provider: "yahoo", symbol: "EURUSD=X", twelveSymbol: "EUR/USD" },
+  "GBP-USD": { provider: "yahoo", symbol: "GBPUSD=X", twelveSymbol: "GBP/USD" },
+  "USD-JPY": { provider: "yahoo", symbol: "USDJPY=X", twelveSymbol: "USD/JPY" },
+  "USD-CHF": { provider: "yahoo", symbol: "USDCHF=X", twelveSymbol: "USD/CHF" },
+  "AUD-USD": { provider: "yahoo", symbol: "AUDUSD=X", twelveSymbol: "AUD/USD" },
+  "NZD-USD": { provider: "yahoo", symbol: "NZDUSD=X", twelveSymbol: "NZD/USD" },
+  "USD-CAD": { provider: "yahoo", symbol: "USDCAD=X", twelveSymbol: "USD/CAD" },
+  "EUR-GBP": { provider: "yahoo", symbol: "EURGBP=X", twelveSymbol: "EUR/GBP" },
+  "EUR-JPY": { provider: "yahoo", symbol: "EURJPY=X", twelveSymbol: "EUR/JPY" },
+  "GBP-JPY": { provider: "yahoo", symbol: "GBPJPY=X", twelveSymbol: "GBP/JPY" },
+  "XAU-USD": { provider: "yahoo", symbol: "GC=F", twelveSymbol: "XAU/USD" },
   "XAG-USD": { provider: "yahoo", symbol: "SI=F" },
   "OIL-USD": { provider: "yahoo", symbol: "CL=F" },
   "GAS-USD": { provider: "yahoo", symbol: "NG=F" },
@@ -57,6 +58,9 @@ const COINBASE_INTERVALS: Record<Interval, { granularity: number; pageSeconds: n
 
 type CacheEntry = { candles: Candle[]; fetchedAt: number };
 const cache = new Map<string, CacheEntry>();
+type QuoteEntry = { price: number; fetchedAt: number };
+const quoteCache = new Map<string, QuoteEntry>();
+const quoteInFlight = new Map<string, Promise<number | null>>();
 
 function cacheTtlMs(interval: Interval): number {
   switch (interval) {
@@ -113,6 +117,145 @@ function normalizeCandles(candles: Candle[], aggregateHours?: number): Candle[] 
   return aggregateHours ? aggregateCandles(normalized, aggregateHours) : normalized;
 }
 
+function addSampledMovement(candles: Candle[]): Candle[] {
+  return candles.map((candle, index) => {
+    if (candle.high !== candle.low || candle.open !== candle.close) return candle;
+    const previousClose = candles[index - 1]?.close ?? candle.open;
+    const open = previousClose;
+    return {
+      ...candle,
+      open,
+      high: Math.max(open, candle.close),
+      low: Math.min(open, candle.close),
+    };
+  });
+}
+
+const TWELVE_INTERVALS: Record<Interval, string> = {
+  "1m": "1min",
+  "5m": "5min",
+  "15m": "15min",
+  "1h": "1h",
+  "4h": "4h",
+  "1d": "1day",
+};
+
+function twelveOutputSize(interval: Interval): number {
+  return interval === "1m" || interval === "5m" || interval === "15m" ? 5000 : 2000;
+}
+
+function parseTwelveDate(value: unknown): number {
+  if (typeof value !== "string") return NaN;
+  const parsed = Date.parse(`${value.replace(" ", "T")}Z`);
+  return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : NaN;
+}
+
+function parseTwelveValues(value: unknown, aggregateHours?: number): Candle[] {
+  if (!Array.isArray(value)) return [];
+  const candles: Candle[] = value.map((row) => {
+    const item = row && typeof row === "object" ? row as Record<string, unknown> : {};
+    return {
+      time: parseTwelveDate(item.datetime),
+      open: Number(item.open),
+      high: Number(item.high),
+      low: Number(item.low),
+      close: Number(item.close),
+    };
+  });
+  return normalizeCandles(candles, aggregateHours);
+}
+
+async function fetchTwelveQuote(symbol: string): Promise<number | null> {
+  const key = process.env.TWELVE_DATA_API_KEY?.trim();
+  if (!key) return null;
+
+  const cached = quoteCache.get(symbol);
+  if (cached && Date.now() - cached.fetchedAt < 10_000) return cached.price;
+
+  const existingRequest = quoteInFlight.get(symbol);
+  if (existingRequest) return existingRequest;
+
+  const request = (async () => {
+    const url = new URL("https://api.twelvedata.com/price");
+    url.searchParams.set("symbol", symbol);
+    url.searchParams.set("apikey", key);
+    const response = await fetch(url, {
+      headers: { accept: "application/json", "user-agent": "VIXUS-AI-Market/1.0" },
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!response.ok) return null;
+    const payload = await response.json() as { price?: string | number; status?: string };
+    const price = Number(payload.price);
+    if (payload.status === "error" || !Number.isFinite(price) || price <= 0) return null;
+    quoteCache.set(symbol, { price, fetchedAt: Date.now() });
+    return price;
+  })()
+    .catch(() => null)
+    .finally(() => {
+      quoteInFlight.delete(symbol);
+    });
+
+  quoteInFlight.set(symbol, request);
+  return request;
+}
+
+async function fetchTwelve(
+  instrument: Instrument,
+  interval: Interval,
+  before?: number,
+): Promise<Candle[]> {
+  const key = process.env.TWELVE_DATA_API_KEY?.trim();
+  if (!key || !instrument.twelveSymbol) throw new Error("Twelve Data is not configured");
+
+  const url = new URL("https://api.twelvedata.com/time_series");
+  url.searchParams.set("symbol", instrument.twelveSymbol);
+  url.searchParams.set("interval", TWELVE_INTERVALS[interval]);
+  url.searchParams.set("outputsize", String(twelveOutputSize(interval)));
+  url.searchParams.set("timezone", "UTC");
+  if (before !== undefined) {
+    url.searchParams.set(
+      "end_date",
+      new Date(before * 1000).toISOString().replace("T", " ").slice(0, 19),
+    );
+  }
+
+  const response = await fetch(url, {
+    headers: { accept: "application/json", "user-agent": "VIXUS-AI-Market/1.0" },
+    signal: AbortSignal.timeout(8_000),
+  });
+  if (!response.ok) throw new Error(`Twelve Data returned ${response.status}`);
+
+  const payload = await response.json() as {
+    status?: string;
+    code?: number;
+    message?: string;
+    values?: unknown;
+  };
+  if (payload.status === "error") {
+    throw new Error(payload.message ?? `Twelve Data returned ${payload.code ?? "an error"}`);
+  }
+
+  const candles = parseTwelveValues(payload.values, interval === "4h" ? 4 : undefined)
+    .filter((candle) => before === undefined || candle.time < before);
+  if (before === undefined && candles.length < 2) {
+    throw new Error("Twelve Data returned too few candles");
+  }
+
+  // A quote is deliberately applied only to the newest page. Historical pages
+  // must remain source OHLC and must never be manufactured from a live price.
+  if (before === undefined && candles.length > 0) {
+    const livePrice = await fetchTwelveQuote(instrument.twelveSymbol);
+    const latest = candles[candles.length - 1];
+    if (livePrice !== null && latest.time >= Math.floor(Date.now() / 60_000) * 60 - 120) {
+      latest.high = Math.max(latest.high, livePrice);
+      latest.low = Math.min(latest.low, livePrice);
+      latest.close = livePrice;
+    }
+  }
+
+  return candles;
+}
+
 async function fetchYahoo(instrument: Instrument, interval: Interval, before?: number): Promise<Candle[]> {
   const config = YAHOO_INTERVALS[interval];
   const url = new URL(`https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(instrument.symbol)}`);
@@ -134,6 +277,7 @@ async function fetchYahoo(instrument: Instrument, interval: Interval, before?: n
     chart?: {
       result?: Array<{
         timestamp?: number[];
+        meta?: { regularMarketPrice?: number };
         indicators?: { quote?: Array<{ open?: Array<number | null>; high?: Array<number | null>; low?: Array<number | null>; close?: Array<number | null> }> };
       }>;
     };
@@ -143,17 +287,33 @@ async function fetchYahoo(instrument: Instrument, interval: Interval, before?: n
   const quote = result?.indicators?.quote?.[0];
   if (!quote) return [];
 
-  const candles: Candle[] = timestamps.map((time, index) => ({
+  let candles: Candle[] = timestamps.map((time, index) => ({
     time,
     open: Number(quote.open?.[index]),
     high: Number(quote.high?.[index]),
     low: Number(quote.low?.[index]),
     close: Number(quote.close?.[index]),
   }));
-  return normalizeCandles(
+  candles = normalizeCandles(
     before === undefined ? candles : candles.filter((candle) => candle.time < before),
     config.aggregateHours,
   );
+  candles = addSampledMovement(candles);
+
+  const livePrice = Number(result.meta?.regularMarketPrice);
+  const latest = candles[candles.length - 1];
+  if (
+    before === undefined &&
+    latest &&
+    Number.isFinite(livePrice) &&
+    livePrice > 0 &&
+    latest.time >= Math.floor(Date.now() / 60_000) * 60 - 120
+  ) {
+    latest.high = Math.max(latest.high, livePrice);
+    latest.low = Math.min(latest.low, livePrice);
+    latest.close = livePrice;
+  }
+  return candles;
 }
 
 async function fetchCoinbase(instrument: Instrument, interval: Interval, before?: number): Promise<Candle[]> {
@@ -221,14 +381,35 @@ router.get("/market/candles", async (req, res): Promise<void> => {
   }
 
   try {
-    const candles = instrument.provider === "yahoo"
-      ? await fetchYahoo(instrument, parsed.data.interval, before)
-      : await fetchCoinbase(instrument, parsed.data.interval, before);
+    let candles: Candle[];
+    if (instrument.provider === "yahoo") {
+      if (instrument.twelveSymbol && process.env.TWELVE_DATA_API_KEY?.trim()) {
+        try {
+          candles = await fetchTwelve(instrument, parsed.data.interval, before);
+        } catch (error) {
+          req.log.warn({
+            symbol: parsed.data.symbol,
+            interval: parsed.data.interval,
+            error: error instanceof Error ? error.message : String(error),
+          }, "Preferred live market source unavailable; using sampled fallback");
+          candles = await fetchYahoo(instrument, parsed.data.interval, before);
+        }
+      } else {
+        candles = await fetchYahoo(instrument, parsed.data.interval, before);
+      }
+    } else {
+      candles = await fetchCoinbase(instrument, parsed.data.interval, before);
+    }
     if (before === undefined && candles.length < 2) throw new Error("Provider returned too few candles");
     cache.set(cacheKey, { candles, fetchedAt: Date.now() });
     res.json(candles);
   } catch (error) {
-    req.log.warn({ symbol: parsed.data.symbol, interval: parsed.data.interval, before, error }, "Live market candles unavailable");
+    req.log.warn({
+      symbol: parsed.data.symbol,
+      interval: parsed.data.interval,
+      before,
+      error: error instanceof Error ? error.message : String(error),
+    }, "Live market candles unavailable");
     res.status(502).json({ error: "Live market data is temporarily unavailable." });
   }
 });

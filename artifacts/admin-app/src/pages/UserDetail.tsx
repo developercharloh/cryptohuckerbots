@@ -365,7 +365,7 @@ export default function UserDetail() {
                   >
                     <MessageSquare className="w-4 h-4 mr-2" /> Message User
                   </Button>
-                  {!user.isAdmin && (
+                  {!(user as any).isAdmin && (
                     <Button
                       variant="outline"
                       onClick={() => setIsDeleteOpen(true)}
