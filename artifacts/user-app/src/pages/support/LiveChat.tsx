@@ -70,6 +70,8 @@ export default function LiveChat() {
   const typingMutation = useSendChatTyping();
   const latestMessage = messages[messages.length - 1];
   const isClosed = latestMessage?.sender === "system";
+  const isDelayedDepositFlow = chatState?.mode === "bot" && chatState.category === "delayed_deposit";
+  const showCategoryChoices = !chatState || (chatState.mode === "bot" && !chatState.category);
   const [botTyping, setBotTyping] = useState(false);
 
   useEffect(() => {
@@ -160,6 +162,7 @@ export default function LiveChat() {
           setText("");
           setPendingAttachments([]);
           queryClient.invalidateQueries({ queryKey: ["getChatMessages"] });
+          queryClient.invalidateQueries({ queryKey: ["getChatState"] });
           window.setTimeout(() => setBotTyping(false), 700);
         },
         onError: () => {
@@ -192,6 +195,7 @@ export default function LiveChat() {
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: ["getChatMessages"] });
+          queryClient.invalidateQueries({ queryKey: ["getChatState"] });
           window.setTimeout(() => setBotTyping(false), 700);
         },
         onError: () => {
@@ -315,7 +319,7 @@ export default function LiveChat() {
               );
             })
           )}
-          {categoryChoices}
+          {showCategoryChoices && categoryChoices}
           <div ref={bottomRef} />
           {(botTyping || chatState?.adminTyping) && (
             <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
@@ -336,6 +340,11 @@ export default function LiveChat() {
           {sendError && (
             <div className="mb-3 rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
               {sendError}
+            </div>
+          )}
+          {isDelayedDepositFlow && (
+            <div className="mb-3 rounded-xl border border-amber-300/30 bg-amber-300/5 px-3 py-2 text-xs text-amber-100/80">
+              Next step: paste the full BNB Smart Chain transaction hash starting with <span className="font-mono text-amber-100">0x</span>.
             </div>
           )}
           {pendingAttachments.length > 0 && (
@@ -372,7 +381,7 @@ export default function LiveChat() {
                 if (!typingMutation.isPending) typingMutation.mutate();
               }}
               onKeyDown={handleKey}
-              placeholder={isClosed ? "Start a new conversation…" : "Type a message…"}
+              placeholder={isDelayedDepositFlow ? "Paste your BNB Smart Chain TxID…" : isClosed ? "Start a new conversation…" : "Type a message…"}
               rows={1}
               className="flex-1 resize-none bg-card rounded-2xl px-4 py-3 text-sm outline-none border border-border/40 focus:border-primary/50 transition-colors max-h-28 overflow-y-auto"
               style={{ lineHeight: "1.5" }}

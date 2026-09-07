@@ -235,6 +235,11 @@ test("guided support categories respond and typing presence is accepted", async 
   });
   assert.equal(category.response.status, 201);
 
+  const state = await request<{ category: string | null; mode: string }>("/api/support/chat/state");
+  assert.equal(state.response.status, 200);
+  assert.equal(state.body.category, "delayed_deposit");
+  assert.equal(state.body.mode, "bot");
+
   const typing = await request<{ ok: boolean }>("/api/support/chat/typing", {
     method: "POST",
   });
