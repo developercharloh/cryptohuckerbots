@@ -408,7 +408,6 @@ export default function DepositStatus() {
 
         {/* Automatic confirmation */}
         <div className="rounded-2xl bg-card p-5 space-y-3">
-          <p className="text-sm font-semibold">No Txid required</p>
           <p className="text-[11px] leading-relaxed text-muted-foreground">
             After you send the exact amount, tap the button below. VIXUS will fetch the blockchain Txid automatically and wait for the required confirmations.
           </p>
