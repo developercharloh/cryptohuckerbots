@@ -1880,12 +1880,32 @@ router.get("/admin/chat", async (req, res) => {
   const rows = Array.isArray(result) ? result : (result as any).rows ?? [];
   const threads = await db.select().from(supportChatThreadsTable);
   const threadsByUser = new Map(threads.map((thread) => [thread.userId, thread]));
+  const chatUserIds = rows.map((row: any) => Number(row.user_id)).filter(Number.isInteger);
+  const activeSessions = chatUserIds.length > 0
+    ? await db.select({
+      userId: sessionsTable.userId,
+      lastActive: sessionsTable.lastActive,
+    }).from(sessionsTable).where(inArray(sessionsTable.userId, chatUserIds))
+    : [];
+  const sessionLastActiveByUser = new Map<number, Date>();
+  for (const session of activeSessions) {
+    const previous = sessionLastActiveByUser.get(session.userId);
+    if (!previous || session.lastActive > previous) {
+      sessionLastActiveByUser.set(session.userId, session.lastActive);
+    }
+  }
+  // Session activity is refreshed while the user uses any authenticated area
+  // of the app. Support chat activity remains a faster signal for chat users.
+  const globalOnlineWindowMs = 10 * 60_000;
   return res.json(rows.map((r: any) => ({
     ...(() => {
       const thread = threadsByUser.get(Number(r.user_id));
-      const userOnline = thread
-        ? Date.now() - thread.userLastSeenAt.getTime() < 90_000
+      const threadOnline = thread && Date.now() - thread.userLastSeenAt.getTime() < 90_000;
+      const sessionLastActive = sessionLastActiveByUser.get(Number(r.user_id));
+      const sessionOnline = sessionLastActive
+        ? Date.now() - sessionLastActive.getTime() < globalOnlineWindowMs
         : false;
+      const userOnline = Boolean(threadOnline || sessionOnline);
       return {
         category: thread?.category ?? null,
         mode: thread?.mode ?? "admin",

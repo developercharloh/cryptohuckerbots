@@ -64,6 +64,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { data: meData, error: meError, isError } = useGetMe({
     query: {
       enabled: Boolean(token && shouldValidateSession),
+      // Keep the server-side session activity timestamp fresh so admin
+      // presence reflects users browsing the whole app, not only Support.
+      refetchInterval: 60_000,
       retry: (failureCount: number, error: unknown) => {
         // A missing/expired session is definitive. Network, server, and
         // transient proxy failures must not log a real user out.
