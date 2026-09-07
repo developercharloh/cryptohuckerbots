@@ -2,7 +2,6 @@ import {
   binanceDepositEventsTable,
   db,
   depositSessionsTable,
-  transactionsTable,
 } from "@workspace/db";
 import { and, eq, gte, isNull, lte, inArray } from "drizzle-orm";
 import { BSC_DEPOSIT_ADDRESS, BSC_PAYMENT_METHOD } from "./payment-methods";
@@ -154,11 +153,11 @@ async function recordBinanceDeposit(item: ChainDeposit) {
   return event;
 }
 
-async function classifyAndCreditEvent(eventId: number): Promise<void> {
+async function classifyAndPrepareEvent(eventId: number): Promise<void> {
   const [event] = await db.select().from(binanceDepositEventsTable)
     .where(eq(binanceDepositEventsTable.id, eventId))
     .limit(1);
-  if (!event || event.state === "credited") return;
+  if (!event || event.state === "credited" || event.state === "pending_approval") return;
 
   const graceStart = new Date(event.insertTime.getTime() - SESSION_EXPIRY_GRACE_MS);
   const candidates = await db.select().from(depositSessionsTable)
@@ -186,45 +185,25 @@ async function classifyAndCreditEvent(eventId: number): Promise<void> {
       .where(eq(depositSessionsTable.id, candidate.id))
       .for("update")
       .limit(1);
-    if (!lockedSession || lockedSession.txid || lockedSession.status === "completed") {
+    if (!lockedSession || lockedSession.status === "completed") {
       await tx.update(binanceDepositEventsTable)
         .set({ state: "credited", matchedSessionId: candidate.id, updatedAt: new Date() })
         .where(eq(binanceDepositEventsTable.id, event.id));
       return;
     }
 
-    const [existingSessionTxid, existingTransactionTxid] = await Promise.all([
-      tx.select({ id: depositSessionsTable.id }).from(depositSessionsTable)
-        .where(eq(depositSessionsTable.txid, event.txid)).limit(1),
-      tx.select({ id: transactionsTable.id }).from(transactionsTable)
-        .where(eq(transactionsTable.txid, event.txid)).limit(1),
-    ]);
-    if (existingSessionTxid[0] || existingTransactionTxid[0]) {
+    if (lockedSession.txid && lockedSession.txid !== event.txid) {
       await tx.update(binanceDepositEventsTable)
-        .set({ state: "credited", matchedSessionId: candidate.id, updatedAt: new Date() })
+        .set({ state: "ambiguous", updatedAt: new Date() })
         .where(eq(binanceDepositEventsTable.id, event.id));
       return;
     }
-
-    const [transaction] = await tx.insert(transactionsTable).values({
-      userId: lockedSession.userId,
-      type: "deposit",
-      amount: lockedSession.amount,
-      status: "completed",
-      paymentMethod: lockedSession.paymentMethodName,
-      walletAddress: lockedSession.depositAddress,
-      txid: event.txid,
-      description: `Automatically confirmed Binance deposit via ${lockedSession.paymentMethodName}`,
-      cryptoAmount: event.amount,
-      cryptoAsset: event.coin,
-    }).returning();
 
     await tx.update(depositSessionsTable)
       .set({
         txid: event.txid,
-        status: "completed",
+        status: "payment_detected",
         confirmations: lockedSession.requiredConfirmations,
-        transactionId: transaction.id,
         cryptoAmount: event.amount,
         cryptoAsset: event.coin,
         updatedAt: new Date(),
@@ -233,7 +212,7 @@ async function classifyAndCreditEvent(eventId: number): Promise<void> {
 
     await tx.update(binanceDepositEventsTable)
       .set({
-        state: "credited",
+        state: "pending_approval",
         matchedSessionId: lockedSession.id,
         updatedAt: new Date(),
       })
@@ -245,8 +224,8 @@ async function runBinanceDepositSync(): Promise<void> {
   const deposits = await fetchBscDeposits();
   for (const deposit of deposits) {
     const event = await recordBinanceDeposit(deposit);
-    if (event && event.status === 1 && event.state !== "credited") {
-      await classifyAndCreditEvent(event.id);
+    if (event && event.status === 1 && !["credited", "pending_approval"].includes(event.state)) {
+      await classifyAndPrepareEvent(event.id);
     }
   }
 }

@@ -14,6 +14,7 @@ const {
   db,
   pool,
   sql,
+  binanceDepositEventsTable,
   eq,
   adminLoginNotificationsTable,
   authRateLimitsTable,
@@ -178,6 +179,17 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
     body: { amount: 250, paymentMethod: "BSC BNB Smart Chain (BEP20)", walletAddress: "test-wallet", txid: `0x${"01".repeat(32)}` },
   });
   assert.equal(pendingDeposit.response.status, 201);
+  await db.insert(binanceDepositEventsTable).values({
+    txid: `0x${"01".repeat(32)}`,
+    amount: "250.00",
+    coin: "USDT",
+    network: "BSC",
+    address: BSC_DEPOSIT_ADDRESS,
+    status: 1,
+    confirmTimes: "15/15",
+    insertTime: new Date(),
+    state: "unmatched",
+  });
 
   const beforeApproval = await request<{ mainWalletBalance: number }>("/api/dashboard/summary");
   assert.equal(beforeApproval.body.mainWalletBalance, 125);
@@ -248,6 +260,18 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
   assert.equal(submittedDeposit.response.status, 200);
   assert.equal(submittedDeposit.body.status, "payment_detected");
   assert.equal(submittedDeposit.body.txid, submittedTxid);
+  await db.insert(binanceDepositEventsTable).values({
+    txid: submittedTxid,
+    amount: "80.00",
+    coin: "USDT",
+    network: "BSC",
+    address: BSC_DEPOSIT_ADDRESS,
+    status: 1,
+    confirmTimes: "15/15",
+    insertTime: new Date(),
+    state: "pending_approval",
+    matchedSessionId: depositSession.body.id,
+  });
 
   const duplicateHash = await request("/api/cashier/deposit", {
     method: "POST",
@@ -260,6 +284,22 @@ test("admin credits, approved deposits, returns, and locked capital reconcile in
     body: { amount: 90, paymentMethodId: "usdt_bep20" },
   });
   assert.equal(hashlessSession.response.status, 201);
+
+  const unverifiedSession = await request<{ id: number }>("/api/cashier/deposit/session", {
+    method: "POST",
+    body: { amount: 91, paymentMethodId: "usdt_bep20" },
+  });
+  assert.equal(unverifiedSession.response.status, 201);
+  const unverifiedTxid = `0x${"cd".repeat(32)}`;
+  await db.update(depositSessionsTable)
+    .set({ txid: unverifiedTxid, status: "payment_detected", confirmations: 15 })
+    .where(eq(depositSessionsTable.id, unverifiedSession.body.id));
+  const blockedApproval = await request(`/api/admin/deposit-sessions/${unverifiedSession.body.id}/review`, {
+    method: "POST",
+    cookieJar: adminJar,
+    body: { action: "approve", txid: unverifiedTxid },
+  });
+  assert.equal(blockedApproval.response.status, 409);
 
   const adminDepositSessions = await request<Array<{
     id: number;

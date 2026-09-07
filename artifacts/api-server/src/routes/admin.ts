@@ -26,6 +26,7 @@ import {
   vipPackagePurchasesTable,
   referralsTable,
   technicalIncidentsTable,
+  binanceDepositEventsTable,
   type PaymentMethod,
 } from "@workspace/db";
 import { eq, and, desc, sql, inArray, ilike, or, gte, isNotNull, ne, lt } from "drizzle-orm";
@@ -70,7 +71,7 @@ import {
 } from "../lib/session";
 import { hashPassword, verifyPassword } from "../lib/password";
 import { consumeRateLimit, recordSecurityEvent, rejectRateLimited, requestIp } from "../lib/security";
-import { BSC_PAYMENT_METHOD_SETTINGS } from "../lib/payment-methods";
+import { BSC_PAYMENT_METHOD, BSC_PAYMENT_METHOD_SETTINGS } from "../lib/payment-methods";
 
 const router = Router();
 
@@ -1153,6 +1154,26 @@ router.post("/admin/transactions/:id/review", async (req, res) => {
   if (row.txn.status !== "pending") {
     return res.status(409).json({ error: "Transaction has already been reviewed" });
   }
+  if (row.txn.type === "deposit") {
+    const [verifiedEvent] = await db.select().from(binanceDepositEventsTable)
+      .where(and(
+        eq(binanceDepositEventsTable.txid, row.txn.txid!),
+        eq(binanceDepositEventsTable.status, 1),
+        eq(binanceDepositEventsTable.coin, "USDT"),
+        eq(binanceDepositEventsTable.network, "BSC"),
+        eq(binanceDepositEventsTable.address, BSC_PAYMENT_METHOD_SETTINGS.address),
+      ))
+      .limit(1);
+    const confirmationCount = Number(verifiedEvent?.confirmTimes?.split("/", 1)[0] ?? 0);
+    if (
+      !verifiedEvent ||
+      !Number.isFinite(confirmationCount) ||
+      confirmationCount < BSC_PAYMENT_METHOD.requiredConfirmations ||
+      Number(verifiedEvent.amount) !== Number(row.txn.amount)
+    ) {
+      return res.status(409).json({ error: "Deposit is not verified on-chain and cannot be approved" });
+    }
+  }
 
   const newStatus = parsed.data.action === "approve" ? "completed" : "rejected";
   const [updated] = await db.update(transactionsTable)
@@ -1321,6 +1342,25 @@ router.post("/admin/deposit-sessions/:id/review", async (req, res) => {
       if (!lockedSession.txid) {
         return { error: "Deposit cannot be reconciled without a Txid" } as const;
       }
+      const [verifiedEvent] = await tx.select().from(binanceDepositEventsTable)
+        .where(and(
+          eq(binanceDepositEventsTable.txid, lockedSession.txid),
+          eq(binanceDepositEventsTable.status, 1),
+          eq(binanceDepositEventsTable.state, "pending_approval"),
+          eq(binanceDepositEventsTable.coin, "USDT"),
+          eq(binanceDepositEventsTable.network, "BSC"),
+          eq(binanceDepositEventsTable.address, lockedSession.depositAddress),
+        ))
+        .limit(1);
+      const confirmationCount = Number(verifiedEvent?.confirmTimes?.split("/", 1)[0] ?? 0);
+      if (
+        !verifiedEvent ||
+        !Number.isFinite(confirmationCount) ||
+        confirmationCount < lockedSession.requiredConfirmations ||
+        Number(verifiedEvent.amount) !== Number(lockedSession.amount)
+      ) {
+        return { error: "Deposit is not verified on-chain and ready for approval" } as const;
+      }
 
       const [txn] = await tx.insert(transactionsTable).values({
         userId: lockedSession.userId,
@@ -1330,11 +1370,16 @@ router.post("/admin/deposit-sessions/:id/review", async (req, res) => {
         paymentMethod: lockedSession.paymentMethodName,
         walletAddress: lockedSession.depositAddress,
         txid: lockedSession.txid,
-        description: `Crypto deposit via ${lockedSession.paymentMethodName}`,
+        description: `Admin-approved network-verified deposit via ${lockedSession.paymentMethodName}`,
+        cryptoAmount: verifiedEvent.amount,
+        cryptoAsset: verifiedEvent.coin,
       }).returning();
       await tx.update(depositSessionsTable)
         .set({ status: "completed", transactionId: txn.id, confirmations: lockedSession.requiredConfirmations, updatedAt: new Date() })
         .where(and(eq(depositSessionsTable.id, id), ne(depositSessionsTable.status, "completed")));
+      await tx.update(binanceDepositEventsTable)
+        .set({ state: "credited", updatedAt: new Date() })
+        .where(eq(binanceDepositEventsTable.id, verifiedEvent.id));
       return { ok: true } as const;
     });
     if ("error" in result) return res.status(409).json({ error: result.error });

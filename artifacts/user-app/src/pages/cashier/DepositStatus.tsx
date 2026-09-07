@@ -146,7 +146,7 @@ export default function DepositStatus() {
     const analyticsNetwork = session?.network === "BEP-20" ? "bsc_bep20" : "unknown";
     trackEvent("deposit_payment_wait_started", { network: analyticsNetwork });
     setHasSent(true);
-    toast({ title: "Waiting for Binance confirmation" });
+    toast({ title: "Waiting for network verification" });
   };
 
   useEffect(() => {
@@ -281,18 +281,18 @@ export default function DepositStatus() {
           <div className="flex flex-col items-center gap-3 py-2">
             <CircularProgress value={confirmations} max={requiredConfirmations} label="Confirmations" />
             <span className="text-xs font-semibold text-emerald-400 bg-emerald-400/10 px-3 py-1 rounded-full border border-emerald-400/20">
-              ● Payment detected
+              ● Payment verified
             </span>
-            <p className="text-xs text-muted-foreground">Waiting for BNB Smart Chain confirmations</p>
+            <p className="text-xs text-muted-foreground">Waiting for admin approval</p>
           </div>
 
           {/* Timeline */}
           <div className="rounded-2xl bg-card p-5">
             <TStep label="Request Created"   done={true}  active={false} />
             <TStep label="Payment Detected"  done={true}  active={false} />
-            <TStep label="Confirmations"     done={false} active={true}
+            <TStep label="Confirmations"     done={true} active={false}
               sub={`${confirmations} of ${requiredConfirmations}`} />
-            <TStep label="Funds Credited"    done={false} active={false} sub="Waiting..." />
+            <TStep label="Admin Approval"    done={false} active={true} sub="Waiting..." />
           </div>
 
           {/* Txid if available */}

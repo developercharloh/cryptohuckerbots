@@ -262,7 +262,7 @@ function DepositSessionsTab() {
   const statusLabel: Record<string, string> = {
     created: "Created",
     waiting_payment: "Waiting Payment",
-    payment_detected: "Detected",
+    payment_detected: "Verified — Awaiting Approval",
     confirming: "Confirming",
     completed: "Completed",
     failed: "Failed",
@@ -467,6 +467,14 @@ function DepositSessionsTab() {
                           className="flex-1 h-8 text-[11px] text-blue-400 border-blue-400/30 hover:bg-blue-400/10 rounded-xl"
                           onClick={() => act(s.id, "detect")} disabled={reviewSession.isPending}>
                           <Eye className="w-3 h-3 mr-1" /> Mark Detected
+                        </Button>
+                      )}
+                      {s.status === "payment_detected" && s.txid && (
+                        <Button size="sm" variant="outline"
+                          className="flex-1 h-8 text-[11px] text-emerald-400 border-emerald-400/30 hover:bg-emerald-400/10 rounded-xl"
+                          onClick={() => act(s.id, "approve", { txid: s.txid })}
+                          disabled={reviewSession.isPending}>
+                          <CheckCircle className="w-3 h-3 mr-1" /> Approve & Credit
                         </Button>
                       )}
                       <Button size="sm" variant="outline"
