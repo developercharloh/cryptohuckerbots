@@ -84,16 +84,16 @@ function formatMarketPrice(value: number): string {
 }
 
 const VIP_LEVELS = [
-  { level: 1, dailySignals: 2 },
-  { level: 2, dailySignals: 3 },
-  { level: 3, dailySignals: 4 },
-  { level: 4, dailySignals: 5 },
-  { level: 5, dailySignals: 6 },
-  { level: 6, dailySignals: 7 },
-  { level: 7, dailySignals: 8 },
-  { level: 8, dailySignals: 9 },
-  { level: 9, dailySignals: 10 },
-  { level: 10, dailySignals: 11 },
+  { level: 1, dailySignals: 2, referralRequirement: 0 },
+  { level: 2, dailySignals: 3, referralRequirement: 5 },
+  { level: 3, dailySignals: 4, referralRequirement: 10 },
+  { level: 4, dailySignals: 5, referralRequirement: 20 },
+  { level: 5, dailySignals: 6, referralRequirement: 35 },
+  { level: 6, dailySignals: 7, referralRequirement: 55 },
+  { level: 7, dailySignals: 8, referralRequirement: 80 },
+  { level: 8, dailySignals: 9, referralRequirement: 110 },
+  { level: 9, dailySignals: 10, referralRequirement: 145 },
+  { level: 10, dailySignals: 11, referralRequirement: 185 },
 ] as const;
 
 function AIWave() {
@@ -429,6 +429,7 @@ export default function Trade() {
 
   const vaultCapital = summary?.vaultCapital ?? summary?.lockedInvestmentCapital ?? 0;
   const signalAmount = vipAccess?.signalAmount ?? 1.5;
+  const qualifiedReferrals = vipAccess?.qualifiedReferrals ?? 0;
 
   const handleRefreshSignals = useCallback(async () => {
     if (refreshingSignals) return;
@@ -999,20 +1000,40 @@ export default function Trade() {
                     </div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                       {VIP_LEVELS.map((tier) => (
+                        (() => {
+                          const locked = tier.level > (vipAccess?.vipLevel ?? 0) &&
+                            (tier.level > 1
+                              ? (vipAccess?.vipLevel ?? 0) < 1 || qualifiedReferrals < tier.referralRequirement
+                              : false);
+                          return (
                         <button
                           key={tier.level}
+                          type="button"
                           onClick={() => setLocation("/vip-packages")}
+                          disabled={locked}
+                          aria-label={locked
+                            ? `VIP ${tier.level} locked; requires ${tier.referralRequirement} active referrals`
+                            : `View VIP ${tier.level}`}
+                          title={locked ? `Requires ${tier.referralRequirement} active referrals` : undefined}
                           style={{
                             flex: "1 0 54px", minHeight: 54, borderRadius: 8, padding: "6px 4px",
-                            border: `1px solid ${vipAccess.vipLevel === tier.level ? "rgba(245,185,66,0.65)" : "rgba(255,255,255,0.1)"}`,
-                            background: vipAccess.vipLevel === tier.level ? "rgba(245,185,66,0.14)" : "rgba(255,255,255,0.035)",
-                            color: vipAccess.vipLevel === tier.level ? "#FFD86B" : "#CBD5E1",
-                            cursor: "pointer", textAlign: "center",
+                            border: `1px solid ${vipAccess.vipLevel === tier.level ? "rgba(245,185,66,0.65)" : locked ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.1)"}`,
+                            background: vipAccess.vipLevel === tier.level ? "rgba(245,185,66,0.14)" : locked ? "rgba(255,255,255,0.018)" : "rgba(255,255,255,0.035)",
+                            color: vipAccess.vipLevel === tier.level ? "#FFD86B" : locked ? "#64748B" : "#CBD5E1",
+                            cursor: locked ? "not-allowed" : "pointer", textAlign: "center",
+                            opacity: locked ? 0.58 : 1,
                           }}
                         >
-                          <span style={{ display: "block", fontSize: 10, fontWeight: 900 }}>VIP {tier.level}</span>
-                           <span style={{ display: "block", fontSize: 7.5, lineHeight: 1.15, marginTop: 3, color: "#94A3B8" }}>{tier.dailySignals} signals per day</span>
+                          <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 2, fontSize: 10, fontWeight: 900 }}>
+                            {locked && <LockKeyhole style={{ width: 9, height: 9 }} />}
+                            VIP {tier.level}
+                          </span>
+                          <span style={{ display: "block", fontSize: 7.5, lineHeight: 1.15, marginTop: 3, color: locked ? "#64748B" : "#94A3B8" }}>
+                            {locked ? `${tier.referralRequirement} referrals needed` : `${tier.dailySignals} signals per day`}
+                          </span>
                         </button>
+                          );
+                        })()
                       ))}
                     </div>
                   </div>

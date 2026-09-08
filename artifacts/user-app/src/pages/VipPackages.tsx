@@ -244,25 +244,31 @@ export default function VipPackages({ showBack = true }: { showBack?: boolean })
                     const selectedRow = selectedLevel === pkg.level;
                     const referralRequirement = Number(pkg.referralRequirement ?? 0);
                     const bonusTotal = referralRequirement * 20;
+                    const lockedUpgrade = pkg.level > activeLevel && !pkg.isAvailable;
                     return (
                       <tr
                         key={pkg.level}
-                        onClick={() => setSelectedLevel(pkg.level)}
+                        onClick={lockedUpgrade ? undefined : () => setSelectedLevel(pkg.level)}
                         onKeyDown={(event) => {
+                          if (lockedUpgrade) return;
                           if (event.key === "Enter" || event.key === " ") {
                             event.preventDefault();
                             setSelectedLevel(pkg.level);
                           }
                         }}
-                        tabIndex={0}
-                        className={`cursor-pointer border-b border-white/[0.06] text-center transition last:border-b-0 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-amber-300/70 ${
+                        tabIndex={lockedUpgrade ? -1 : 0}
+                        aria-disabled={lockedUpgrade}
+                        aria-label={lockedUpgrade
+                          ? `VIP ${pkg.level} locked; requires ${referralRequirement} active referrals`
+                          : `Select VIP ${pkg.level}`}
+                        title={lockedUpgrade ? `Requires ${referralRequirement} active referrals` : undefined}
+                        className={`${lockedUpgrade ? "cursor-not-allowed opacity-45" : "cursor-pointer"} border-b border-white/[0.06] text-center transition last:border-b-0 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-amber-300/70 ${
                           selectedRow
                             ? "bg-amber-300/10"
                             : active
                               ? "bg-green-400/[0.07]"
                               : "hover:bg-white/[0.05]"
                         }`}
-                        aria-label={`Select VIP ${pkg.level}`}
                       >
                         <td className="px-3 py-3">
                           <div className="flex items-center justify-center gap-2">
