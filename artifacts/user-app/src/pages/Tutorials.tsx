@@ -4,7 +4,6 @@ import {
   ArrowRight,
   BarChart3,
   BookOpen,
-  Bot,
   CheckCircle2,
   ChevronDown,
   CircleHelp,
@@ -67,7 +66,7 @@ const TUTORIALS: Tutorial[] = [
     accent: "#A78BFA",
     steps: [
       "Review the available signal and its confidence information.",
-      "Choose one signal or use Execute All when your VIP allowance permits.",
+      "Choose one signal or use Execute All when your daily allowance permits.",
       "Follow the activity feed as each selected signal is opened.",
     ],
     href: "/trade",
@@ -87,21 +86,6 @@ const TUTORIALS: Tutorial[] = [
     ],
     href: "/cashier",
     action: "Open wallet",
-  },
-  {
-    id: "vip-tools",
-    label: "Grow your toolkit",
-    title: "Explore VIP tools and bots",
-    description: "See what each VIP level includes and review bot activity before starting or managing an automated strategy.",
-    icon: Bot,
-    accent: "#FB7185",
-    steps: [
-      "Compare the allowances and features available at each VIP level.",
-      "Review bot details, stake requirements, and active positions.",
-      "Use the analytics view to follow bot performance and activity.",
-    ],
-    href: "/bots",
-    action: "View VIP levels",
   },
 ];
 
@@ -188,7 +172,7 @@ export default function Tutorials() {
                 Trade with a clearer view.
               </h1>
               <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
-                Learn the essentials of the platform, from reading market information to reviewing signals, managing wallets, and using VIP tools.
+                Learn the essentials of the platform, from reading market information to reviewing signals, managing wallets, and using account tools.
               </p>
               <div className="mt-6 flex flex-wrap gap-3 text-xs font-semibold text-foreground/80">
                 <span className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/40 px-3 py-2">

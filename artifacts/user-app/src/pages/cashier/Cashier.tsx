@@ -148,7 +148,7 @@ export default function Cashier() {
               </div>
               <div>
                  <p className="text-sm font-semibold">Earn</p>
-                 <p className="text-[11px] text-muted-foreground">VIP trading capital · not available to withdraw</p>
+                 <p className="text-[11px] text-muted-foreground">Reserved trading capital · not available to withdraw</p>
               </div>
             </div>
             <p className="text-sm font-bold text-blue-200">

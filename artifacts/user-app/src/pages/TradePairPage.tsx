@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useLocation } from "wouter";
 import { createChart, CandlestickSeries, UTCTimestamp, ISeriesApi } from "lightweight-charts";
 import { Layout } from "@/components/Layout";
-import { useGetTradeAccess } from "@workspace/api-client-react";
 import { API_BASE, fetchWithTimeout } from "@/lib/api-base";
 import { ArrowLeft, TrendingUp, TrendingDown, Activity, ChevronDown, ArrowRight, Zap, ShieldCheck } from "lucide-react";
 
@@ -171,7 +170,6 @@ export default function TradePairPage() {
   const params = useParams<{ symbol: string }>();
   const symbol = params.symbol ?? "BTC-USD";
   const [, setLocation] = useLocation();
-  const { data: vipAccess } = useGetTradeAccess({ query: { refetchInterval: 15000 } as any });
   const meta = PAIR_META[symbol] ?? {
     label: symbol.replace("-", "/"), price: 1, change: 0, vol: "-", category: "forex" as const
   };
@@ -652,30 +650,12 @@ export default function TradePairPage() {
             <p style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.5, marginBottom: 14 }}>
               Review the live signal and confirm consent before execution.
             </p>
-            {vipAccess && (
-              <div style={{ borderRadius: 10, padding: "9px 10px", marginBottom: 12, background: vipAccess.vipLevel > 0 ? "rgba(245,185,66,0.08)" : "rgba(239,68,68,0.08)", border: `1px solid ${vipAccess.vipLevel > 0 ? "rgba(245,185,66,0.18)" : "rgba(239,68,68,0.18)"}` }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                  <p style={{ fontSize: 10, color: vipAccess.vipLevel > 0 ? "#FFD86B" : "#FCA5A5", fontWeight: 700 }}>
-                    {vipAccess.withdrawalGateActive
-                      ? `Signal access paused · refer ${vipAccess.withdrawalReferralRequirement} users or upgrade to VIP 2`
-                      : vipAccess.vipLevel > 0
-                        ? `VIP ${vipAccess.vipLevel} · ${vipAccess.remainingToday} signal${vipAccess.remainingToday === 1 ? "" : "s"} remaining today`
-                      : "VIP 1 access required before signal execution"}
-                  </p>
-                  {vipAccess.vipLevel > 0 && (vipAccess.nextLevel || vipAccess.withdrawalGateActive) && (
-                    <button onClick={() => setLocation("/vip-packages")} style={{ flexShrink: 0, border: "none", background: "transparent", color: "#FFD86B", fontSize: 10, fontWeight: 800, cursor: "pointer" }}>
-                      {vipAccess.withdrawalGateActive ? "Unlock VIP 2" : "Upgrade"}
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-            <button onClick={() => setLocation(vipAccess?.vipLevel === 0 ? "/vip-packages" : `/trade?pair=${encodeURIComponent(meta.label)}`)} style={{
+            <button onClick={() => setLocation(`/trade?pair=${encodeURIComponent(meta.label)}`)} style={{
               width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "14px 0", borderRadius: 12,
               border: "none", cursor: "pointer", fontSize: 14, fontWeight: 900, color: "#fff",
               background: "linear-gradient(135deg, #F5B942, #2563EB)",
             }}>
-              {vipAccess?.vipLevel === 0 ? "BUY VIP PACKAGE" : vipAccess?.withdrawalGateActive ? "UNLOCK VIP 2" : "REVIEW AI SIGNAL"} <ArrowRight size={16} />
+              REVIEW AI SIGNAL <ArrowRight size={16} />
             </button>
           </div>
 

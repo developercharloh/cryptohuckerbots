@@ -1,10 +1,15 @@
-import VipPackages from "@/pages/VipPackages";
+import { useEffect } from "react";
+import { useLocation } from "wouter";
 
 /**
- * The AI Signals tab is the VIP access screen.
- * The /bots route remains for compatibility with existing navigation links,
- * but no bot or marketplace UI is rendered here.
+ * Keep legacy bot links pointed at the current signal workspace.
  */
 export default function Bots() {
-  return <VipPackages showBack={false} />;
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    setLocation("/trade");
+  }, [setLocation]);
+
+  return <div className="min-h-screen bg-background" aria-label="Opening signal workspace" />;
 }

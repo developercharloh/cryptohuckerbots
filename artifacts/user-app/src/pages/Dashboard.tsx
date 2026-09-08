@@ -67,7 +67,7 @@ export default function Dashboard() {
   const walletShare = totalCapital > 0 ? Math.min(100, (walletCapital / totalCapital) * 100) : 0;
   const capitalRows = [
     { name: "Spot Wallet", symbol: "Spendable balance", icon: "₮", color: "#26A17B", value: walletCapital, pct: walletShare },
-    { name: "Earn", symbol: "VIP trading capital", icon: "E", color: "#60A5FA", value: lockedCapital, pct: Math.max(0, 100 - walletShare) },
+    { name: "Earn", symbol: "Reserved trading capital", icon: "E", color: "#60A5FA", value: lockedCapital, pct: Math.max(0, 100 - walletShare) },
   ];
 
   return (

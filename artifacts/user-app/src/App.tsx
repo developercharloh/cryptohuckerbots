@@ -157,7 +157,6 @@ const News = lazy(() => import("@/pages/News"));
 const Tutorials = lazy(() => import("@/pages/Tutorials"));
 const TradePairPage = lazy(() => import("@/pages/TradePairPage"));
 const Trade = lazy(() => import("@/pages/Trade"));
-const VipPackages = lazy(() => import("@/pages/VipPackages"));
 const Orders = lazy(() => import("@/pages/Orders"));
 const Profile = lazy(() => import("@/pages/profile/Profile"));
 const PersonalInfo = lazy(() => import("@/pages/profile/PersonalInfo"));
@@ -270,9 +269,6 @@ function Router() {
       </Route>
       <Route path="/trade">
         <AuthGuard><Trade /></AuthGuard>
-      </Route>
-      <Route path="/vip-packages">
-        <AuthGuard><VipPackages /></AuthGuard>
       </Route>
       <Route path="/trade/:symbol">
         <AuthGuard><TradePairPage /></AuthGuard>

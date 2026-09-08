@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
-import { useGetProfile, useGetReferralSummary, useGetTradeAccess } from "@workspace/api-client-react";
+import { useGetProfile, useGetReferralSummary } from "@workspace/api-client-react";
 import { Layout } from "@/components/Layout";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -18,7 +18,6 @@ export default function Profile() {
   const { user, logout } = useAuth();
   const { data: profile, isLoading } = useGetProfile();
   const { data: referralSummary, isLoading: referralsLoading } = useGetReferralSummary();
-  const { data: tradeAccess, isLoading: tradeAccessLoading } = useGetTradeAccess();
   const [copied, setCopied] = useState(false);
   const [referralCopied, setReferralCopied] = useState(false);
   const queryClient = useQueryClient();
@@ -196,27 +195,15 @@ export default function Profile() {
                   Referral Rewards
                 </p>
                 <p style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.5 }}>
-                   Invite friends and earn $20 when they activate VIP 1.
+                   Invite friends and earn extra bonuses.
                 </p>
               </div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8, marginTop: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8, marginTop: 14 }}>
               <div style={{ background: "rgba(0,0,0,0.18)", borderRadius: 10, padding: "9px 8px", textAlign: "center" }}>
                 <p style={{ fontSize: 9, color: "#6B7280", marginBottom: 3 }}>SUCCESSFUL REFERRALS</p>
                 <p style={{ fontSize: 17, color: "#4ADE80", fontWeight: 800 }}>
                   {referralsLoading ? "…" : successfulReferralCount}
-                </p>
-              </div>
-              <div style={{ background: "rgba(0,0,0,0.18)", borderRadius: 10, padding: "9px 8px", textAlign: "center" }}>
-                <p style={{ fontSize: 9, color: "#6B7280", marginBottom: 3 }}>AMOUNT CREDITED</p>
-                <p style={{ fontSize: 17, color: "#FFD86B", fontWeight: 800 }}>
-                  {referralsLoading ? "…" : `$${(referralSummary?.totalEarned ?? 0).toFixed(2)}`}
-                </p>
-              </div>
-              <div style={{ background: "rgba(0,0,0,0.18)", borderRadius: 10, padding: "9px 8px", textAlign: "center" }}>
-                <p style={{ fontSize: 9, color: "#6B7280", marginBottom: 3 }}>CURRENT VIP LEVEL</p>
-                <p style={{ fontSize: 17, color: "#93C5FD", fontWeight: 800 }}>
-                  {tradeAccessLoading ? "…" : `VIP ${tradeAccess?.vipLevel ?? 0}`}
                 </p>
               </div>
             </div>
@@ -262,9 +249,7 @@ export default function Profile() {
                         <th style={{ padding: "0 8px 3px", fontWeight: 700 }}>REFERRED USER</th>
                         <th style={{ padding: "0 8px 3px", fontWeight: 700 }}>ACCOUNT DETAILS</th>
                         <th style={{ padding: "0 8px 3px", fontWeight: 700 }}>PHONE</th>
-                        <th style={{ padding: "0 8px 3px", fontWeight: 700 }}>VIP</th>
                         <th style={{ padding: "0 8px 3px", fontWeight: 700 }}>ACTIVITY</th>
-                        <th style={{ padding: "0 8px 3px", fontWeight: 700, textAlign: "right" }}>BONUS</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -297,17 +282,11 @@ export default function Profile() {
                                 {referral.referredPhone ?? "Not provided"}
                               </span>
                             </td>
-                            <td style={{ padding: "10px 8px", color: "#93C5FD", fontWeight: 700, verticalAlign: "top", whiteSpace: "nowrap" }}>
-                              VIP {referral.currentVipLevel}
-                            </td>
                             <td style={{ padding: "10px 8px", verticalAlign: "top", whiteSpace: "nowrap" }}>
                               <span style={{ display: "inline-flex", alignItems: "center", gap: 4, color: isActive ? "#4ADE80" : "#9CA3AF", background: isActive ? "rgba(34,197,94,0.1)" : "rgba(156,163,175,0.1)", border: `1px solid ${isActive ? "rgba(34,197,94,0.2)" : "rgba(156,163,175,0.18)"}`, borderRadius: 999, padding: "4px 7px", fontWeight: 700 }}>
                                 {isActive ? <CircleCheck style={{ width: 11, height: 11 }} /> : <CircleX style={{ width: 11, height: 11 }} />}
                                 {isActive ? "Active" : "Inactive"}
                               </span>
-                            </td>
-                            <td style={{ padding: "10px 8px", borderRadius: "0 10px 10px 0", color: referral.status === "credited" ? "#FFD86B" : "#EAB308", fontWeight: 800, textAlign: "right", verticalAlign: "top", whiteSpace: "nowrap" }}>
-                              ${referral.bonusAmount.toFixed(2)}
                             </td>
                           </tr>
                         );

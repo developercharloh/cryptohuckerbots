@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { useLocation } from "wouter";
 import {
   useListTradeSignals, useGetTradeAccess, useExecuteTrade, useExecuteAllTradeSignals,
   useListTradePositions, useCloseTradePosition, useGetDashboardSummary,
@@ -12,7 +11,7 @@ import {
   Zap, Activity, Check,
   ArrowUpRight, ArrowDownRight, ChevronDown, CheckCircle2,
   XCircle, BarChart2, Bell, ChevronLeft, ShieldCheck, WalletCards, Sparkles,
-  Loader2, LockKeyhole,
+  Loader2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -83,19 +82,6 @@ function formatMarketPrice(value: number): string {
   return value.toFixed(5);
 }
 
-const VIP_LEVELS = [
-  { level: 1, dailySignals: 2, referralRequirement: 0 },
-  { level: 2, dailySignals: 3, referralRequirement: 5 },
-  { level: 3, dailySignals: 4, referralRequirement: 10 },
-  { level: 4, dailySignals: 5, referralRequirement: 20 },
-  { level: 5, dailySignals: 6, referralRequirement: 35 },
-  { level: 6, dailySignals: 7, referralRequirement: 55 },
-  { level: 7, dailySignals: 8, referralRequirement: 80 },
-  { level: 8, dailySignals: 9, referralRequirement: 110 },
-  { level: 9, dailySignals: 10, referralRequirement: 145 },
-  { level: 10, dailySignals: 11, referralRequirement: 185 },
-] as const;
-
 function AIWave() {
   return (
     <>
@@ -163,7 +149,6 @@ type SignalInfo = { id?: string | number; opportunityId?: number; confidence?: n
 type SavedBulkTrade = { positionIds: number[]; signals: SignalInfo[]; activityStep?: number };
 
 export default function Trade() {
-  const [, setLocation] = useLocation();
   const { data: signals = [] } = useListTradeSignals();
   const { data: vipAccess } = useGetTradeAccess({ query: { refetchInterval: 15000 } as any });
   const { data: positions } = useListTradePositions({ query: { refetchInterval: 4000 } as any });
@@ -429,21 +414,19 @@ export default function Trade() {
 
   const vaultCapital = summary?.vaultCapital ?? summary?.lockedInvestmentCapital ?? 0;
   const signalAmount = vipAccess?.signalAmount ?? 1.5;
-  const qualifiedReferrals = vipAccess?.qualifiedReferrals ?? 0;
-
   const handleRefreshSignals = useCallback(async () => {
     if (refreshingSignals) return;
     if (vipAccess?.vip2Required) {
       toast({
-        title: "VIP 2 required",
-        description: "Your 60 signal-pair allowance has been completed. Upgrade to VIP 2 to continue receiving signals.",
+        title: "Signal access paused",
+        description: "Your current signal access allowance has been completed. Please contact support for assistance.",
       });
       return;
     }
     if (vipAccess?.withdrawalGateActive) {
       toast({
         title: "Signal execution paused",
-        description: `Complete ${vipAccess.withdrawalReferralRequirement} active referrals or upgrade to VIP 2 after reaching $${vipAccess.withdrawalSignalThreshold.toFixed(2)} in withdrawals.`,
+        description: "Signal execution is temporarily unavailable. Please contact support for assistance.",
       });
       return;
     }
@@ -482,24 +465,22 @@ export default function Trade() {
     const signal = bestSignal;
     if (vipAccess?.vip2Required) {
       toast({
-        title: "VIP 2 required",
-        description: "Your 60 signal-pair allowance has been completed. Upgrade to VIP 2 to continue receiving and executing signals.",
+        title: "Signal access paused",
+        description: "Your current signal access allowance has been completed. Please contact support for assistance.",
       });
-      setLocation("/vip-packages");
       return;
     }
     if (vipAccess?.vipLevel === 0) {
       toast({
-        title: "Unlock AI Signals",
-        description: "Purchase a VIP package to execute AI Signals.",
+        title: "Signal access unavailable",
+        description: "Signal access is not currently available for this account. Please contact support for assistance.",
       });
-      setLocation("/vip-packages");
       return;
     }
     if (vipAccess?.withdrawalGateActive) {
       toast({
         title: "Signal execution paused",
-        description: `You have withdrawn $${vipAccess.totalWithdrawn.toFixed(2)}. Refer ${vipAccess.withdrawalReferralRequirement} active users or upgrade to VIP 2 to continue receiving signals.`,
+        description: "Signal execution is temporarily unavailable. Please contact support for assistance.",
       });
       return;
     }
@@ -527,7 +508,7 @@ export default function Trade() {
     }
     const signalAmount = vipAccess?.signalAmount ?? 1.5;
     if (signalAmount > vaultCapital) {
-      toast({ title: "Insufficient Earn balance", description: `Your Earn balance is $${vaultCapital.toFixed(2)}. Activate or upgrade VIP and try again.`, variant: "destructive" });
+      toast({ title: "Insufficient trading balance", description: `Your available trading balance is $${vaultCapital.toFixed(2)}. Add funds and try again.`, variant: "destructive" });
       return;
     }
     const secs = runtime * 60;
@@ -573,24 +554,22 @@ export default function Trade() {
   const handleExecuteAll = () => {
     if (vipAccess?.vip2Required) {
       toast({
-        title: "VIP 2 required",
-        description: "Your 60 signal-pair allowance has been completed. Upgrade to VIP 2 to continue receiving and executing signals.",
+        title: "Signal access paused",
+        description: "Your current signal access allowance has been completed. Please contact support for assistance.",
       });
-      setLocation("/vip-packages");
       return;
     }
     if (vipAccess?.vipLevel === 0) {
       toast({
-        title: "Unlock AI Signals",
-        description: "Purchase a VIP package to execute AI Signals.",
+        title: "Signal access unavailable",
+        description: "Signal access is not currently available for this account. Please contact support for assistance.",
       });
-      setLocation("/vip-packages");
       return;
     }
     if (vipAccess?.withdrawalGateActive) {
       toast({
         title: "Signal execution paused",
-        description: `You have withdrawn $${vipAccess.totalWithdrawn.toFixed(2)}. Refer ${vipAccess.withdrawalReferralRequirement} active users or upgrade to VIP 2 to continue receiving signals.`,
+        description: "Signal execution is temporarily unavailable. Please contact support for assistance.",
       });
       return;
     }
@@ -763,11 +742,11 @@ export default function Trade() {
     : executePending
     ? "Executing signal…"
     : vipAccess?.vip2Required
-      ? "Upgrade to VIP 2 to continue"
+      ? "Signal access paused"
       : vipAccess?.vipLevel === 0
-      ? "Unlock AI Signals"
+      ? "Signal access unavailable"
       : withdrawalGateActive
-        ? "Upgrade to VIP 2 to continue"
+        ? "Execution paused"
       : cooldownActive
         ? "24-hour cooldown active"
       : vipAccess?.remainingToday === 0
@@ -909,137 +888,6 @@ export default function Trade() {
           {/* ── CONFIGURE ── */}
           {step === "configure" && (
             <div className="space-y-5">
-              {/* VIP access summary */}
-              {vipAccess && (
-                <div style={{ borderRadius: 16, padding: 14, border: "1px solid rgba(245,185,66,0.3)", background: "linear-gradient(135deg, rgba(245,185,66,0.12), rgba(37,99,235,0.08))" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                    <div>
-                      <p style={{ fontSize: 9, color: "#F5B942", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 800 }}>VIP Signal Access</p>
-                      <p style={{ fontSize: 18, color: "#fff", fontWeight: 900, marginTop: 3 }}>
-                        {vipAccess.vipLevel > 0 ? `VIP ${vipAccess.vipLevel}` : "VIP access locked"}
-                      </p>
-                    </div>
-                    <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 3, textAlign: "right" }}>
-                      {vipAccess.hasPackage
-                        ? vipAccess.vipLevel === 1
-                          ? "$350 VIP 1 activation completed"
-                          : "Referral upgrade active"
-                        : "Activate VIP 1 to unlock signals"}
-                    </p>
-                  </div>
-                   {vipAccess.vip2Required ? (
-                     <div style={{
-                       marginTop: 12,
-                       padding: 12,
-                       borderRadius: 12,
-                       border: "1px solid rgba(251,191,36,0.42)",
-                       background: "rgba(251,191,36,0.08)",
-                     }}>
-                       <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                         <LockKeyhole style={{ width: 17, height: 17, color: "#FCD34D", flexShrink: 0, marginTop: 1 }} />
-                         <div style={{ flex: 1 }}>
-                           <p style={{ fontSize: 12, fontWeight: 900, color: "#FDE68A" }}>VIP 2 required</p>
-                           <p style={{ fontSize: 10, color: "#FDE68A", lineHeight: 1.5, marginTop: 4 }}>
-                              You have completed all 60 signal pairs. Upgrade to VIP 2 to continue receiving and executing signals.
-                           </p>
-                         </div>
-                       </div>
-                       <button onClick={() => setLocation("/vip-packages")} style={{ width: "100%", marginTop: 10, border: "1px solid rgba(252,211,77,0.36)", borderRadius: 9, padding: "8px 10px", background: "rgba(252,211,77,0.12)", color: "#FDE68A", fontSize: 10, fontWeight: 900, cursor: "pointer" }}>
-                         View VIP 2 upgrade
-                       </button>
-                     </div>
-                  ) : vipAccess.withdrawalGateActive ? (
-                     <div style={{
-                       marginTop: 12,
-                       padding: 12,
-                       borderRadius: 12,
-                       border: "1px solid rgba(251,191,36,0.42)",
-                       background: "rgba(251,191,36,0.08)",
-                     }}>
-                       <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                         <LockKeyhole style={{ width: 17, height: 17, color: "#FCD34D", flexShrink: 0, marginTop: 1 }} />
-                         <div style={{ flex: 1 }}>
-                           <p style={{ fontSize: 12, fontWeight: 900, color: "#FDE68A" }}>Signal execution paused</p>
-                           <p style={{ fontSize: 10, color: "#FDE68A", lineHeight: 1.5, marginTop: 4 }}>
-                             Completed withdrawals: ${vipAccess.totalWithdrawn.toFixed(2)} of ${vipAccess.withdrawalSignalThreshold.toFixed(2)} threshold.
-                             Refer {vipAccess.withdrawalReferralRequirement} active users or upgrade to VIP 2 to continue receiving and executing signals.
-                           </p>
-                         </div>
-                       </div>
-                       <button onClick={() => setLocation("/vip-packages")} style={{ width: "100%", marginTop: 10, border: "1px solid rgba(252,211,77,0.36)", borderRadius: 9, padding: "8px 10px", background: "rgba(252,211,77,0.12)", color: "#FDE68A", fontSize: 10, fontWeight: 900, cursor: "pointer" }}>
-                         View VIP 2 upgrade
-                       </button>
-                     </div>
-                   ) : vipAccess.vipLevel === 0 ? (
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 10 }}>
-                      <p style={{ fontSize: 11, color: "#FCD34D", lineHeight: 1.5 }}>
-                         Activate VIP 1 to unlock AI Signals.
-                      </p>
-                      <button onClick={() => setLocation("/vip-packages")} style={{ flexShrink: 0, border: "none", borderRadius: 9, padding: "8px 10px", background: "linear-gradient(135deg, #F5B942, #2563EB)", color: "#fff", fontSize: 10, fontWeight: 800, cursor: "pointer" }}>
-                        Buy VIP Package
-                      </button>
-                    </div>
-                  ) : vipAccess.nextLevel ? (
-                    <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
-                      <button onClick={() => setLocation("/vip-packages")} style={{ flexShrink: 0, border: "1px solid rgba(245,185,66,0.35)", borderRadius: 9, padding: "8px 10px", background: "rgba(245,185,66,0.08)", color: "#FFD86B", fontSize: 10, fontWeight: 800, cursor: "pointer" }}>
-                        Upgrade VIP
-                      </button>
-                    </div>
-                  ) : null}
-                  <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
-                      <p style={{ fontSize: 9, color: "#FFD86B", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 800 }}>
-                        VIP Levels
-                      </p>
-                      <button
-                        onClick={() => setLocation("/vip-packages")}
-                        style={{ border: "none", background: "transparent", color: "#93C5FD", fontSize: 10, fontWeight: 800, cursor: "pointer", padding: 0 }}
-                      >
-                        View details
-                      </button>
-                    </div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                      {VIP_LEVELS.map((tier) => (
-                        (() => {
-                          const locked = tier.level > (vipAccess?.vipLevel ?? 0) &&
-                            (tier.level > 1
-                              ? (vipAccess?.vipLevel ?? 0) < 1 || qualifiedReferrals < tier.referralRequirement
-                              : false);
-                          return (
-                        <button
-                          key={tier.level}
-                          type="button"
-                          onClick={() => setLocation("/vip-packages")}
-                          disabled={locked}
-                          aria-label={locked
-                            ? `VIP ${tier.level} locked; requires ${tier.referralRequirement} active referrals`
-                            : `View VIP ${tier.level}`}
-                          title={locked ? `Requires ${tier.referralRequirement} active referrals` : undefined}
-                          style={{
-                            flex: "1 0 54px", minHeight: 54, borderRadius: 8, padding: "6px 4px",
-                            border: `1px solid ${vipAccess.vipLevel === tier.level ? "rgba(245,185,66,0.65)" : locked ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.1)"}`,
-                            background: vipAccess.vipLevel === tier.level ? "rgba(245,185,66,0.14)" : locked ? "rgba(255,255,255,0.018)" : "rgba(255,255,255,0.035)",
-                            color: vipAccess.vipLevel === tier.level ? "#FFD86B" : locked ? "#64748B" : "#CBD5E1",
-                            cursor: locked ? "not-allowed" : "pointer", textAlign: "center",
-                            opacity: locked ? 0.58 : 1,
-                          }}
-                        >
-                          <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 2, fontSize: 10, fontWeight: 900 }}>
-                            {locked && <LockKeyhole style={{ width: 9, height: 9 }} />}
-                            VIP {tier.level}
-                          </span>
-                          <span style={{ display: "block", fontSize: 7.5, lineHeight: 1.15, marginTop: 3, color: locked ? "#64748B" : "#94A3B8" }}>
-                            {tier.dailySignals} signals per day
-                          </span>
-                        </button>
-                          );
-                        })()
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* Execution mode */}
               {vipAccess?.vipLevel !== 0 && !withdrawalGateActive && (
                 <div style={{
@@ -1081,7 +929,7 @@ export default function Trade() {
                   </div>
                   <p style={{ fontSize: 10, color: "#94A3B8", lineHeight: 1.45, marginTop: 9 }}>
                     {executionMode === "all"
-                      ? `AI will choose up to ${bulkSignalCount} highest-confidence available pairs from your VIP allowance.`
+                      ? `AI will choose up to ${bulkSignalCount} highest-confidence available pairs from your daily allowance.`
                       : "Review the selected pair and execute one signal at a time."}
                   </p>
                 </div>
@@ -1105,7 +953,7 @@ export default function Trade() {
                     </div>
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: 13, fontWeight: 850, color: "#fff" }}>
-                        VIP {vipAccess.vipLevel} daily allowance complete
+                        Daily signal allowance complete
                       </p>
                       <p style={{ fontSize: 11, color: "#CBD5E1", lineHeight: 1.5, marginTop: 4 }}>
                         Your next signal window opens after the server-controlled 24-hour cooldown.
@@ -1180,9 +1028,9 @@ export default function Trade() {
               )}
               {!bestSignal && vipAccess?.vipLevel === 0 && (
                 <div style={{ borderRadius: 16, padding: 16, border: "1px solid rgba(245,185,66,0.25)", background: "rgba(245,185,66,0.06)" }}>
-                  <p style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>VIP 1 access required</p>
+                  <p style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>Signal access unavailable</p>
                   <p style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.5, marginTop: 6 }}>
-                    AI Signals unlock after you purchase a VIP package from your available wallet balance.
+                    AI Signals are not currently available for this account. Please contact support for assistance.
                   </p>
                 </div>
               )}
@@ -1205,8 +1053,8 @@ export default function Trade() {
                       <ShieldCheck style={{ width: 20, height: 20, color: "#FFD86B" }} />
                     </div>
                     <div>
-                       <p style={{ fontSize: 14, fontWeight: 850, color: "#fff" }}>{vipAccess?.vip2Required ? "VIP 2 required" : withdrawalGateActive ? "Execution locked" : "Ready to execute"}</p>
-                       <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 3 }}>{vipAccess?.vip2Required ? "Upgrade to continue receiving signals" : withdrawalGateActive ? "Complete the referral requirement or upgrade to VIP 2" : "Simple, server-controlled signal entry"}</p>
+                       <p style={{ fontSize: 14, fontWeight: 850, color: "#fff" }}>{vipAccess?.vip2Required || withdrawalGateActive ? "Execution paused" : "Ready to execute"}</p>
+                       <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 3 }}>{vipAccess?.vip2Required || withdrawalGateActive ? "Signal execution is temporarily unavailable" : "Simple, server-controlled signal entry"}</p>
                     </div>
                   </div>
                   <div style={{
@@ -1272,7 +1120,7 @@ export default function Trade() {
                     </strong>
                     <span style={{ display: "block", color: "#9CA3AF", marginTop: 3 }}>
                        {executionMode === "all"
-                         ? `I consent to AI auto-selecting and executing the best ${bulkSignalCount >= 2 ? `${bulkSignalCount} available pairs` : "available pair"} within my VIP allowance.`
+                         ? `I consent to AI auto-selecting and executing the best ${bulkSignalCount >= 2 ? `${bulkSignalCount} available pairs` : "available pair"} within my daily allowance.`
                          : "I have reviewed this live signal and consent to execute it."}
                     </span>
                   </span>

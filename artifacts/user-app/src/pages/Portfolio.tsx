@@ -306,7 +306,7 @@ export default function Portfolio() {
                         <p className="mt-2 font-mono text-lg font-bold text-sky-200">
                           {balanceVisible ? formatUSD(vault) : "••••••"}
                         </p>
-                        <p className="mt-1 text-[10px] text-slate-500">Locked in VIP strategy</p>
+                        <p className="mt-1 text-[10px] text-slate-500">Reserved for active strategies</p>
                       </div>
                     </div>
                     <div className="mt-5">
@@ -554,8 +554,8 @@ export default function Portfolio() {
                 <div className="space-y-3"><Skeleton className="h-8 w-32 bg-white/[0.08]" /><Skeleton className="h-12 w-full rounded-xl bg-white/[0.05]" /><Skeleton className="h-10 w-full rounded-xl bg-white/[0.05]" /></div>
               ) : (
                 <>
-                  <p className="font-mono text-[28px] font-bold tracking-[-0.05em] text-amber-100">{formatUSD(referralSummary?.totalEarned)}</p>
-                  <p className="mt-1 text-xs text-slate-500">Total earned from qualified referrals</p>
+                  <p className="text-lg font-bold text-amber-100">Invite friends and earn extra bonuses</p>
+                  <p className="mt-1 text-xs text-slate-500">Share your referral code with friends and grow your network.</p>
                   <div className="mt-5 grid grid-cols-2 gap-2">
                     <div className="rounded-xl border border-white/[0.07] bg-black/10 p-3">
                       <p className="text-[10px] uppercase tracking-[0.1em] text-slate-500">Invited</p>
