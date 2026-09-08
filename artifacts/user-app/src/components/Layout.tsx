@@ -46,14 +46,15 @@ function ThemeToggle() {
 interface LayoutProps {
   children: ReactNode;
   showNav?: boolean;
+  showThemeToggle?: boolean;
 }
 
-export function Layout({ children, showNav = false }: LayoutProps) {
+export function Layout({ children, showNav = false, showThemeToggle = true }: LayoutProps) {
   const [location] = useLocation();
 
   return (
     <div className="user-layout min-h-[100dvh] bg-background text-foreground relative overflow-x-hidden">
-      <ThemeToggle />
+      {showThemeToggle && <ThemeToggle />}
       {showNav && (
         <nav className="desktop-user-nav hidden lg:flex fixed top-0 left-0 right-0 z-50 h-16 items-center border-b border-border/60 bg-background/90 px-8 backdrop-blur-xl">
           <div className="mx-auto flex w-full max-w-[1440px] items-center gap-10 pr-20">

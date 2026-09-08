@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useLocation } from "wouter";
-import { createChart, CandlestickSeries, UTCTimestamp, ISeriesApi } from "lightweight-charts";
 import {
   useListTradeSignals, useGetTradeAccess, useExecuteTrade, useExecuteAllTradeSignals,
   useListTradePositions, useCloseTradePosition, useGetDashboardSummary,
@@ -10,7 +9,7 @@ import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  TrendingUp, TrendingDown, Zap, Activity, Check,
+  Zap, Activity, Check,
   ArrowUpRight, ArrowDownRight, ChevronDown, CheckCircle2,
   XCircle, BarChart2, Bell, ChevronLeft, ShieldCheck, WalletCards, Sparkles,
   Loader2, LockKeyhole,
@@ -62,51 +61,10 @@ const PAIR_INFO: Record<string, { base: string; price: string; change: number; i
   "XAU/USD": { base: "XAU", price: "2,342.80", change: -0.09, icon: "🥇" },
 };
 
-interface LiveCandle {
-  time: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-}
-
 interface LiveQuote {
   price: number;
   timestamp: number;
-}
-
-const COMPACT_INTERVAL_SECONDS = 60;
-
-function normalizeCompactTime(time: number): number {
-  return Math.floor(time / COMPACT_INTERVAL_SECONDS) * COMPACT_INTERVAL_SECONDS;
-}
-
-function parseLiveCandles(value: unknown): LiveCandle[] {
-  if (!Array.isArray(value)) return [];
-  const byTime = new Map<number, LiveCandle>();
-  for (const item of value) {
-    if (!item || typeof item !== "object") continue;
-    const candle = item as Partial<LiveCandle>;
-    const parsed = {
-      time: normalizeCompactTime(Number(candle.time)),
-      open: Number(candle.open),
-      high: Number(candle.high),
-      low: Number(candle.low),
-      close: Number(candle.close),
-    };
-    if (
-      Object.values(parsed).every(Number.isFinite) &&
-      parsed.open > 0 &&
-      parsed.high > 0 &&
-      parsed.low > 0 &&
-      parsed.close > 0 &&
-      parsed.high >= Math.max(parsed.open, parsed.close) &&
-      parsed.low <= Math.min(parsed.open, parsed.close)
-    ) {
-      byTime.set(parsed.time, parsed);
-    }
-  }
-  return [...byTime.values()].sort((a, b) => a.time - b.time);
+  source?: string;
 }
 
 function parseLiveQuote(value: unknown): LiveQuote | null {
@@ -115,42 +73,8 @@ function parseLiveQuote(value: unknown): LiveQuote | null {
   const price = Number(quote.price);
   const timestamp = Number(quote.timestamp);
   return Number.isFinite(price) && price > 0 && Number.isFinite(timestamp) && timestamp > 0
-    ? { price, timestamp }
+    ? { price, timestamp, source: typeof quote.source === "string" ? quote.source : undefined }
     : null;
-}
-
-function applyLiveQuote(candles: LiveCandle[], quote: LiveQuote | null): LiveCandle[] {
-  if (!quote || candles.length === 0) return candles;
-  const next = candles.map((candle) => ({ ...candle }));
-  const bucket = normalizeCompactTime(quote.timestamp);
-  const latest = next[next.length - 1];
-  if (bucket < latest.time) return next;
-
-  const current = next.find((candle) => candle.time === bucket);
-  if (current) {
-    current.high = Math.max(current.high, quote.price);
-    current.low = Math.min(current.low, quote.price);
-    current.close = quote.price;
-    return next;
-  }
-
-  const previous = [...next].reverse().find((candle) => candle.time < bucket);
-  next.push({
-    time: bucket,
-    open: previous?.close ?? quote.price,
-    high: quote.price,
-    low: quote.price,
-    close: quote.price,
-  });
-  return next.sort((a, b) => a.time - b.time);
-}
-
-function latestCompactVisibleRange(totalCandles: number, chartWidth: number) {
-  const visibleCount = Math.max(28, Math.floor(chartWidth / 7));
-  return {
-    from: Math.max(0, totalCandles - visibleCount),
-    to: totalCandles + 2,
-  };
 }
 
 function formatMarketPrice(value: number): string {
@@ -266,11 +190,11 @@ export default function Trade() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [refreshingSignals, setRefreshingSignals] = useState(false);
 
-  // Chart state
+  // Live market summary state
   const [selectedPair, setSelectedPair] = useState("EUR/USD");
   const [requestedDirection] = useState(() => new URLSearchParams(window.location.search).get("direction")?.toUpperCase() ?? "");
   const [pairDropOpen, setPairDropOpen] = useState(false);
-  const [marketCandles, setMarketCandles] = useState<LiveCandle[]>([]);
+  const [marketQuote, setMarketQuote] = useState<LiveQuote | null>(null);
   const [marketLoading, setMarketLoading] = useState(true);
   const [marketError, setMarketError] = useState<string | null>(null);
 
@@ -279,42 +203,25 @@ export default function Trade() {
   const finishedRef  = useRef(false);
   const restoringRef = useRef<SavedTrade | null>(null);
   const positionsReadyRef = useRef(false);
-  const marketCandlesRef = useRef<LiveCandle[]>([]);
-  const compactChartRef = useRef<HTMLDivElement>(null);
-  const compactChartInstance = useRef<ReturnType<typeof createChart> | null>(null);
-  const compactSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
 
-  marketCandlesRef.current = marketCandles;
-  const latestMarketCandle = marketCandles[marketCandles.length - 1];
-  const firstMarketOpen = marketCandles[0]?.open;
-  const marketChange = firstMarketOpen && latestMarketCandle
-    ? ((latestMarketCandle.close - firstMarketOpen) / firstMarketOpen) * 100
-    : undefined;
-  const priceUp = (marketChange ?? 0) >= 0;
-  const marketIsLive = latestMarketCandle
-    ? Date.now() / 1000 - latestMarketCandle.time < 2 * 60
+  const marketIsLive = marketQuote
+    ? Date.now() / 1000 - marketQuote.timestamp < 30
     : false;
 
-  const fetchMarketCandles = useCallback(async () => {
-    const query = new URLSearchParams({
-      symbol: selectedPair.replace("/", "-"),
-      interval: "1m",
-    });
-    const [candlesResponse, quoteResponse] = await Promise.all([
-      fetchWithTimeout(
-        `${API_BASE}/api/market/candles?${query.toString()}`,
-        { credentials: "include" },
-      ),
-      fetchWithTimeout(
-        `${API_BASE}/api/market/quote?symbol=${encodeURIComponent(selectedPair.replace("/", "-"))}`,
-        { credentials: "include" },
-      ),
-    ]);
-    if (!candlesResponse.ok) throw new Error("Live market candles are temporarily unavailable.");
-    const data = parseLiveCandles(await candlesResponse.json());
-    if (data.length < 2) throw new Error("The market source returned too few candles.");
-    const quote = quoteResponse.ok ? parseLiveQuote(await quoteResponse.json()) : null;
-    return applyLiveQuote(data, quote);
+  useEffect(() => {
+    document.documentElement.classList.add("dark");
+    localStorage.setItem("vixus_theme", "dark");
+  }, []);
+
+  const fetchMarketQuote = useCallback(async () => {
+    const response = await fetchWithTimeout(
+      `${API_BASE}/api/market/quote?symbol=${encodeURIComponent(selectedPair.replace("/", "-"))}`,
+      { credentials: "include" },
+    );
+    if (!response.ok) throw new Error("Live market price is temporarily unavailable.");
+    const quote = parseLiveQuote(await response.json());
+    if (!quote) throw new Error("The market source returned an invalid live price.");
+    return quote;
   }, [selectedPair]);
 
   useEffect(() => {
@@ -324,9 +231,9 @@ export default function Trade() {
 
     const refresh = async () => {
       try {
-        const data = await fetchMarketCandles();
+        const quote = await fetchMarketQuote();
         if (cancelled) return;
-        setMarketCandles(data);
+        setMarketQuote(quote);
         setMarketError(null);
       } catch (error) {
         if (cancelled) return;
@@ -342,74 +249,7 @@ export default function Trade() {
       cancelled = true;
       clearInterval(id);
     };
-  }, [fetchMarketCandles]);
-
-  useEffect(() => {
-    const container = compactChartRef.current;
-    if (!container) return;
-    container.innerHTML = "";
-
-    const chart = createChart(container, {
-      width: container.clientWidth,
-      height: 152,
-      layout: { background: { color: "transparent" }, textColor: "#6B7280", attributionLogo: false },
-      grid: { vertLines: { color: "rgba(255,255,255,0.025)" }, horzLines: { color: "rgba(255,255,255,0.025)" } },
-      rightPriceScale: { visible: false },
-      leftPriceScale: { visible: false },
-      timeScale: {
-        visible: false,
-        rightOffset: 2,
-        barSpacing: 7,
-        minBarSpacing: 4,
-        shiftVisibleRangeOnNewBar: true,
-      },
-      handleScale: false,
-      handleScroll: false,
-    });
-    compactChartInstance.current = chart;
-
-    const series = chart.addSeries(CandlestickSeries, {
-      upColor: "#22c55e",
-      downColor: "#ef4444",
-      borderVisible: false,
-      wickUpColor: "#22c55e",
-      wickDownColor: "#ef4444",
-      priceLineVisible: false,
-      lastValueVisible: false,
-      priceFormat: { type: "price", precision: 5, minMove: 0.00001 },
-    });
-    compactSeriesRef.current = series;
-    if (marketCandlesRef.current.length > 0) {
-      series.setData(marketCandlesRef.current.map((candle) => ({ ...candle, time: candle.time as UTCTimestamp })));
-      chart.timeScale().setVisibleLogicalRange(
-        latestCompactVisibleRange(marketCandlesRef.current.length, container.clientWidth),
-      );
-    }
-
-    const resizeObserver = new ResizeObserver(() => {
-      if (compactChartRef.current) chart.applyOptions({ width: compactChartRef.current.clientWidth });
-    });
-    resizeObserver.observe(container);
-
-    return () => {
-      resizeObserver.disconnect();
-      chart.remove();
-      compactChartInstance.current = null;
-      compactSeriesRef.current = null;
-    };
-  }, [selectedPair]);
-
-  useEffect(() => {
-    if (!compactSeriesRef.current || marketCandles.length === 0) return;
-    compactSeriesRef.current.setData(
-      marketCandles.map((candle) => ({ ...candle, time: candle.time as UTCTimestamp })),
-    );
-    if (compactChartRef.current) {
-      compactChartInstance.current?.timeScale().setVisibleLogicalRange(
-        latestCompactVisibleRange(marketCandles.length, compactChartRef.current.clientWidth),
-      );
-    }
-  }, [marketCandles]);
+  }, [fetchMarketQuote]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1016,7 +856,7 @@ export default function Trade() {
   );
 
   return (
-    <Layout showNav>
+    <Layout showNav showThemeToggle={false}>
       {showConfetti && <Confetti />}
       <div className="user-trade-page" style={{ background: "#07091A", minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
 
@@ -1047,12 +887,12 @@ export default function Trade() {
             {/* Live price */}
             <div>
               <p style={{ fontSize: 18, fontWeight: 800, color: "#fff", lineHeight: 1 }}>
-                {latestMarketCandle ? formatMarketPrice(latestMarketCandle.close) : "—"}
+                {marketQuote ? formatMarketPrice(marketQuote.price) : "—"}
               </p>
               <div style={{ display: "flex", alignItems: "center", gap: 3, marginTop: 2 }}>
-                {priceUp ? <TrendingUp style={{ width: 10, height: 10, color: "#22c55e" }} /> : <TrendingDown style={{ width: 10, height: 10, color: "#ef4444" }} />}
-                <span style={{ fontSize: 11, fontWeight: 700, color: priceUp ? "#22c55e" : "#ef4444" }}>
-                  {marketChange === undefined ? "—" : `${priceUp ? "+" : ""}${marketChange.toFixed(2)}%`}
+                <span style={{ width: 5, height: 5, borderRadius: "50%", background: marketIsLive ? "#22c55e" : "#FBBF24" }} />
+                <span style={{ fontSize: 11, fontWeight: 700, color: marketIsLive ? "#22c55e" : "#FBBF24" }}>
+                  {marketIsLive ? "Live price" : "Source price"}
                 </span>
               </div>
             </div>
@@ -1066,19 +906,52 @@ export default function Trade() {
           </div>
         </div>
 
-        {/* ── Price Chart ── */}
-        <div className="user-trade-chart" style={{ padding: "8px 0 0", height: 160, position: "relative" }}>
-          <div ref={compactChartRef} style={{ width: "100%", height: "100%" }} />
-          {marketLoading && marketCandles.length === 0 && (
-            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF", fontSize: 11 }}>
-              Loading live candles…
+        {/* ── Live market snapshot ── */}
+        <div style={{ padding: "14px 16px 16px" }}>
+          <div style={{
+            borderRadius: 16,
+            padding: 14,
+            border: "1px solid rgba(96,165,250,0.2)",
+            background: "linear-gradient(135deg, rgba(37,99,235,0.1), rgba(15,23,42,0.65))",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <div>
+                <p style={{ fontSize: 9, color: "#93C5FD", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 800 }}>
+                  Live market snapshot
+                </p>
+                <p style={{ fontSize: 13, fontWeight: 800, color: "#fff", marginTop: 4 }}>
+                  {selectedPair}
+                </p>
+              </div>
+              <span style={{
+                borderRadius: 999,
+                padding: "4px 8px",
+                fontSize: 9,
+                fontWeight: 800,
+                color: marketIsLive ? "#86EFAC" : "#FDE68A",
+                background: marketIsLive ? "rgba(34,197,94,0.12)" : "rgba(245,158,11,0.12)",
+                border: `1px solid ${marketIsLive ? "rgba(34,197,94,0.22)" : "rgba(245,158,11,0.22)"}`,
+              }}>
+                {marketIsLive ? "LIVE SOURCE" : "SOURCE CHECK"}
+              </span>
             </div>
-          )}
-          {marketError && marketCandles.length === 0 && (
-            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, textAlign: "center", color: "#FCA5A5", fontSize: 11 }}>
-              {marketError}
+            <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12, marginTop: 14 }}>
+              <div>
+                <p style={{ fontSize: 28, lineHeight: 1, fontWeight: 900, color: "#fff", letterSpacing: "-0.04em" }}>
+                  {marketQuote ? formatMarketPrice(marketQuote.price) : marketLoading ? "Loading…" : "—"}
+                </p>
+                <p style={{ fontSize: 10, color: "#94A3B8", marginTop: 7 }}>
+                  {marketError ?? "Real provider quote refreshed every 5 seconds"}
+                </p>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <p style={{ fontSize: 9, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 800 }}>
+                  Signal timeframe
+                </p>
+                <p style={{ fontSize: 13, color: "#E2E8F0", fontWeight: 800, marginTop: 4 }}>15 minutes</p>
+              </div>
             </div>
-          )}
+          </div>
         </div>
 
         {/* ── Divider ── */}
@@ -1185,7 +1058,7 @@ export default function Trade() {
                           key={tier.level}
                           onClick={() => setLocation("/vip-packages")}
                           style={{
-                            flex: "1 0 54px", borderRadius: 8, padding: "6px 4px",
+                            flex: "1 0 54px", minHeight: 54, borderRadius: 8, padding: "6px 4px",
                             border: `1px solid ${vipAccess.vipLevel === tier.level ? "rgba(245,185,66,0.65)" : "rgba(255,255,255,0.1)"}`,
                             background: vipAccess.vipLevel === tier.level ? "rgba(245,185,66,0.14)" : "rgba(255,255,255,0.035)",
                             color: vipAccess.vipLevel === tier.level ? "#FFD86B" : "#CBD5E1",
@@ -1193,7 +1066,7 @@ export default function Trade() {
                           }}
                         >
                           <span style={{ display: "block", fontSize: 10, fontWeight: 900 }}>VIP {tier.level}</span>
-                          <span style={{ display: "block", fontSize: 8, marginTop: 2, color: "#94A3B8" }}>{tier.dailySignals}/day</span>
+                           <span style={{ display: "block", fontSize: 7.5, lineHeight: 1.15, marginTop: 3, color: "#94A3B8" }}>{tier.dailySignals} signals per day</span>
                         </button>
                       ))}
                     </div>
