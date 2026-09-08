@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useLocation } from "wouter";
-import { createChart, CandlestickSeries, UTCTimestamp, ISeriesApi } from "lightweight-charts";
+import { createChart, CandlestickSeries, TickMarkType, Time, UTCTimestamp, ISeriesApi } from "lightweight-charts";
 import { Layout } from "@/components/Layout";
 import { useGetTradeAccess } from "@workspace/api-client-react";
 import { API_BASE, fetchWithTimeout } from "@/lib/api-base";
@@ -382,6 +382,8 @@ export default function TradePairPage() {
         borderColor: "rgba(255,255,255,0.08)",
         timeVisible: true,
         secondsVisible: false,
+         tickMarkFormatter: (_time: Time, tickMarkType: TickMarkType) =>
+           tickMarkType === TickMarkType.DayOfMonth ? "" : null,
         rightOffset: 2,
         barSpacing: CANDLE_BAR_SPACING,
         minBarSpacing: CANDLE_BAR_SPACING,
