@@ -383,7 +383,7 @@ export default function TradePairPage() {
     const chart = createChart(chartRef.current, {
       width: chartRef.current.clientWidth,
       height: 260,
-      layout: { background: { color: "#0F1117" }, textColor: "#9CA3AF" },
+      layout: { background: { color: "#0F1117" }, textColor: "#9CA3AF", attributionLogo: false },
       grid: { vertLines: { color: "rgba(255,255,255,0.04)" }, horzLines: { color: "rgba(255,255,255,0.04)" } },
       crosshair: { mode: 1 },
       rightPriceScale: { borderColor: "rgba(255,255,255,0.08)" },
