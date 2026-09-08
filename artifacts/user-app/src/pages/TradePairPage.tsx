@@ -103,6 +103,47 @@ function formatSourceTime(timestamp: number): string {
 /* ── Timeframes ─────────────────────────────────────────────────── */
 const TIMEFRAMES = ["1m","5m","15m","1h","4h","1d"] as const;
 type TF = typeof TIMEFRAMES[number];
+const TF_SECONDS: Record<TF, number> = {
+  "1m": 60,
+  "5m": 5 * 60,
+  "15m": 15 * 60,
+  "1h": 60 * 60,
+  "4h": 4 * 60 * 60,
+  "1d": 24 * 60 * 60,
+};
+
+function applyQuoteToCandles(candles: Candle[], quote: MarketQuote, timeframe: TF): Candle[] {
+  if (candles.length === 0) return candles;
+
+  const bucketSeconds = TF_SECONDS[timeframe];
+  const liveBucket = Math.floor(quote.timestamp / bucketSeconds) * bucketSeconds;
+  const latest = candles[candles.length - 1];
+
+  if (liveBucket === latest.time) {
+    const updated = {
+      ...latest,
+      high: Math.max(latest.high, quote.price),
+      low: Math.min(latest.low, quote.price),
+      close: quote.price,
+    };
+    return [...candles.slice(0, -1), updated];
+  }
+
+  if (liveBucket === latest.time + bucketSeconds) {
+    return [
+      ...candles,
+      {
+        time: liveBucket,
+        open: latest.close,
+        high: Math.max(latest.close, quote.price),
+        low: Math.min(latest.close, quote.price),
+        close: quote.price,
+      },
+    ];
+  }
+
+  return candles;
+}
 
 /* ── Simple RSI calculation ─────────────────────────────────────── */
 function calcRSI(candles: Candle[], period = 14): number {
@@ -149,6 +190,7 @@ export default function TradePairPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const seriesRef     = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const lastCandleRef = useRef<Candle | null>(null);
+  const liveQuoteRef = useRef<MarketQuote | null>(null);
 
   candlesRef.current = candles;
 
@@ -204,18 +246,23 @@ export default function TradePairPage() {
   }, []);
 
   const applyQuote = useCallback((quote: MarketQuote) => {
+    liveQuoteRef.current = quote;
     setPriceUp(quote.price >= priceRef.current);
     setCurrentPrice(quote.price);
     setQuoteTimestamp(quote.timestamp);
     setQuoteStatus("live");
+    setCandles((current) => {
+      return applyQuoteToCandles(current, quote, tf);
+    });
     setPriceFlash(true);
     setTimeout(() => setPriceFlash(false), 500);
-  }, []);
+  }, [tf]);
 
   /* ── Load the full source history ─────────────────────── */
   const loadCandles = useCallback(async () => {
     setLoading(true);
     setError(null);
+    liveQuoteRef.current = null;
     sourceExhaustedRef.current = false;
     pendingPrependedRef.current = 0;
     try {
@@ -229,6 +276,10 @@ export default function TradePairPage() {
       setLoading(false);
     }
   }, [applyLatestCandle, fetchCandles]);
+
+  useEffect(() => {
+    if (candles.length > 0) setRsi(calcRSI(candles));
+  }, [candles]);
 
   useEffect(() => { loadCandles(); }, [loadCandles]);
 
@@ -288,7 +339,12 @@ export default function TradePairPage() {
       try {
         const incoming = await fetchCandles();
         if (cancelled) return;
-        setCandles((current) => mergeCandles(current, incoming));
+        setCandles((current) => {
+          const merged = mergeCandles(current, incoming);
+          return liveQuoteRef.current
+            ? applyQuoteToCandles(merged, liveQuoteRef.current, tf)
+            : merged;
+        });
         applyLatestCandle(incoming);
       } catch {
         // Keep the last valid source candles visible during a transient provider failure.
