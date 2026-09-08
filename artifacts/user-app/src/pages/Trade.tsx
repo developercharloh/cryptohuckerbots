@@ -195,7 +195,6 @@ export default function Trade() {
   const [requestedDirection] = useState(() => new URLSearchParams(window.location.search).get("direction")?.toUpperCase() ?? "");
   const [pairDropOpen, setPairDropOpen] = useState(false);
   const [marketQuote, setMarketQuote] = useState<LiveQuote | null>(null);
-  const [marketLoading, setMarketLoading] = useState(true);
   const [marketError, setMarketError] = useState<string | null>(null);
 
   const timerRef     = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -226,7 +225,6 @@ export default function Trade() {
 
   useEffect(() => {
     let cancelled = false;
-    setMarketLoading(true);
     setMarketError(null);
 
     const refresh = async () => {
@@ -237,9 +235,7 @@ export default function Trade() {
         setMarketError(null);
       } catch (error) {
         if (cancelled) return;
-        setMarketError(error instanceof Error ? error.message : "Live market candles are temporarily unavailable.");
-      } finally {
-        if (!cancelled) setMarketLoading(false);
+        setMarketError(error instanceof Error ? error.message : "Live market price is temporarily unavailable.");
       }
     };
 
@@ -892,7 +888,7 @@ export default function Trade() {
               <div style={{ display: "flex", alignItems: "center", gap: 3, marginTop: 2 }}>
                 <span style={{ width: 5, height: 5, borderRadius: "50%", background: marketIsLive ? "#22c55e" : "#FBBF24" }} />
                 <span style={{ fontSize: 11, fontWeight: 700, color: marketIsLive ? "#22c55e" : "#FBBF24" }}>
-                  {marketIsLive ? "Live price" : "Source price"}
+                  {marketError ? "Source unavailable" : marketIsLive ? "Live price" : "Source price"}
                 </span>
               </div>
             </div>
@@ -905,57 +901,6 @@ export default function Trade() {
             </div>
           </div>
         </div>
-
-        {/* ── Live market snapshot ── */}
-        <div style={{ padding: "14px 16px 16px" }}>
-          <div style={{
-            borderRadius: 16,
-            padding: 14,
-            border: "1px solid rgba(96,165,250,0.2)",
-            background: "linear-gradient(135deg, rgba(37,99,235,0.1), rgba(15,23,42,0.65))",
-          }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-              <div>
-                <p style={{ fontSize: 9, color: "#93C5FD", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 800 }}>
-                  Live market snapshot
-                </p>
-                <p style={{ fontSize: 13, fontWeight: 800, color: "#fff", marginTop: 4 }}>
-                  {selectedPair}
-                </p>
-              </div>
-              <span style={{
-                borderRadius: 999,
-                padding: "4px 8px",
-                fontSize: 9,
-                fontWeight: 800,
-                color: marketIsLive ? "#86EFAC" : "#FDE68A",
-                background: marketIsLive ? "rgba(34,197,94,0.12)" : "rgba(245,158,11,0.12)",
-                border: `1px solid ${marketIsLive ? "rgba(34,197,94,0.22)" : "rgba(245,158,11,0.22)"}`,
-              }}>
-                {marketIsLive ? "LIVE SOURCE" : "SOURCE CHECK"}
-              </span>
-            </div>
-            <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12, marginTop: 14 }}>
-              <div>
-                <p style={{ fontSize: 28, lineHeight: 1, fontWeight: 900, color: "#fff", letterSpacing: "-0.04em" }}>
-                  {marketQuote ? formatMarketPrice(marketQuote.price) : marketLoading ? "Loading…" : "—"}
-                </p>
-                <p style={{ fontSize: 10, color: "#94A3B8", marginTop: 7 }}>
-                  {marketError ?? "Real provider quote refreshed every 5 seconds"}
-                </p>
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <p style={{ fontSize: 9, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 800 }}>
-                  Signal timeframe
-                </p>
-                <p style={{ fontSize: 13, color: "#E2E8F0", fontWeight: 800, marginTop: 4 }}>15 minutes</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Divider ── */}
-        <div style={{ height: 1, background: "rgba(255,255,255,0.06)", margin: "0 16px" }} />
 
         {/* ── Trade Panel ── */}
         <div className="user-trade-panel" style={{ flex: 1, overflowY: "auto", padding: "12px 16px", paddingBottom: 88 }}>
