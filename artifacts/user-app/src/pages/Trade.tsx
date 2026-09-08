@@ -70,6 +70,17 @@ interface LiveCandle {
   close: number;
 }
 
+interface LiveQuote {
+  price: number;
+  timestamp: number;
+}
+
+const COMPACT_INTERVAL_SECONDS = 60;
+
+function normalizeCompactTime(time: number): number {
+  return Math.floor(time / COMPACT_INTERVAL_SECONDS) * COMPACT_INTERVAL_SECONDS;
+}
+
 function parseLiveCandles(value: unknown): LiveCandle[] {
   if (!Array.isArray(value)) return [];
   const byTime = new Map<number, LiveCandle>();
@@ -77,7 +88,7 @@ function parseLiveCandles(value: unknown): LiveCandle[] {
     if (!item || typeof item !== "object") continue;
     const candle = item as Partial<LiveCandle>;
     const parsed = {
-      time: Number(candle.time),
+      time: normalizeCompactTime(Number(candle.time)),
       open: Number(candle.open),
       high: Number(candle.high),
       low: Number(candle.low),
@@ -96,6 +107,50 @@ function parseLiveCandles(value: unknown): LiveCandle[] {
     }
   }
   return [...byTime.values()].sort((a, b) => a.time - b.time);
+}
+
+function parseLiveQuote(value: unknown): LiveQuote | null {
+  if (!value || typeof value !== "object") return null;
+  const quote = value as Partial<LiveQuote>;
+  const price = Number(quote.price);
+  const timestamp = Number(quote.timestamp);
+  return Number.isFinite(price) && price > 0 && Number.isFinite(timestamp) && timestamp > 0
+    ? { price, timestamp }
+    : null;
+}
+
+function applyLiveQuote(candles: LiveCandle[], quote: LiveQuote | null): LiveCandle[] {
+  if (!quote || candles.length === 0) return candles;
+  const next = candles.map((candle) => ({ ...candle }));
+  const bucket = normalizeCompactTime(quote.timestamp);
+  const latest = next[next.length - 1];
+  if (bucket < latest.time) return next;
+
+  const current = next.find((candle) => candle.time === bucket);
+  if (current) {
+    current.high = Math.max(current.high, quote.price);
+    current.low = Math.min(current.low, quote.price);
+    current.close = quote.price;
+    return next;
+  }
+
+  const previous = [...next].reverse().find((candle) => candle.time < bucket);
+  next.push({
+    time: bucket,
+    open: previous?.close ?? quote.price,
+    high: quote.price,
+    low: quote.price,
+    close: quote.price,
+  });
+  return next.sort((a, b) => a.time - b.time);
+}
+
+function latestCompactVisibleRange(totalCandles: number, chartWidth: number) {
+  const visibleCount = Math.max(28, Math.floor(chartWidth / 7));
+  return {
+    from: Math.max(0, totalCandles - visibleCount),
+    to: totalCandles + 2,
+  };
 }
 
 function formatMarketPrice(value: number): string {
@@ -245,14 +300,21 @@ export default function Trade() {
       symbol: selectedPair.replace("/", "-"),
       interval: "1m",
     });
-    const response = await fetchWithTimeout(
-      `${API_BASE}/api/market/candles?${query.toString()}`,
-      { credentials: "include" },
-    );
-    if (!response.ok) throw new Error("Live market candles are temporarily unavailable.");
-    const data = parseLiveCandles(await response.json());
+    const [candlesResponse, quoteResponse] = await Promise.all([
+      fetchWithTimeout(
+        `${API_BASE}/api/market/candles?${query.toString()}`,
+        { credentials: "include" },
+      ),
+      fetchWithTimeout(
+        `${API_BASE}/api/market/quote?symbol=${encodeURIComponent(selectedPair.replace("/", "-"))}`,
+        { credentials: "include" },
+      ),
+    ]);
+    if (!candlesResponse.ok) throw new Error("Live market candles are temporarily unavailable.");
+    const data = parseLiveCandles(await candlesResponse.json());
     if (data.length < 2) throw new Error("The market source returned too few candles.");
-    return data;
+    const quote = quoteResponse.ok ? parseLiveQuote(await quoteResponse.json()) : null;
+    return applyLiveQuote(data, quote);
   }, [selectedPair]);
 
   useEffect(() => {
@@ -290,7 +352,7 @@ export default function Trade() {
     const chart = createChart(container, {
       width: container.clientWidth,
       height: 152,
-      layout: { background: { color: "transparent" }, textColor: "#6B7280" },
+      layout: { background: { color: "transparent" }, textColor: "#6B7280", attributionLogo: false },
       grid: { vertLines: { color: "rgba(255,255,255,0.025)" }, horzLines: { color: "rgba(255,255,255,0.025)" } },
       rightPriceScale: { visible: false },
       leftPriceScale: { visible: false },
@@ -319,7 +381,9 @@ export default function Trade() {
     compactSeriesRef.current = series;
     if (marketCandlesRef.current.length > 0) {
       series.setData(marketCandlesRef.current.map((candle) => ({ ...candle, time: candle.time as UTCTimestamp })));
-      chart.timeScale().fitContent();
+      chart.timeScale().setVisibleLogicalRange(
+        latestCompactVisibleRange(marketCandlesRef.current.length, container.clientWidth),
+      );
     }
 
     const resizeObserver = new ResizeObserver(() => {
@@ -340,7 +404,11 @@ export default function Trade() {
     compactSeriesRef.current.setData(
       marketCandles.map((candle) => ({ ...candle, time: candle.time as UTCTimestamp })),
     );
-    compactChartInstance.current?.timeScale().fitContent();
+    if (compactChartRef.current) {
+      compactChartInstance.current?.timeScale().setVisibleLogicalRange(
+        latestCompactVisibleRange(marketCandles.length, compactChartRef.current.clientWidth),
+      );
+    }
   }, [marketCandles]);
 
   useEffect(() => {
