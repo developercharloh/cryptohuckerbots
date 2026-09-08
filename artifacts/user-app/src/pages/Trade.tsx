@@ -1029,7 +1029,7 @@ export default function Trade() {
                             VIP {tier.level}
                           </span>
                           <span style={{ display: "block", fontSize: 7.5, lineHeight: 1.15, marginTop: 3, color: locked ? "#64748B" : "#94A3B8" }}>
-                            {locked ? `${tier.referralRequirement} referrals needed` : `${tier.dailySignals} signals per day`}
+                            {tier.dailySignals} signals per day
                           </span>
                         </button>
                           );
