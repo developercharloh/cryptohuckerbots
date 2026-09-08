@@ -49,7 +49,7 @@ interface Candle { time: number; open: number; high: number; low: number; close:
 interface MarketQuote { symbol: string; price: number; timestamp: number; source: "twelve-data" | "yahoo"; status: "live"; }
 const CANDLE_BAR_SPACING = 14;
 
-function parseCandles(value: unknown): Candle[] {
+function parseCandles(value: unknown, bucketSeconds = 1): Candle[] {
   if (!Array.isArray(value)) return [];
   const byTime = new Map<number, Candle>();
   for (const item of value) {
@@ -71,7 +71,8 @@ function parseCandles(value: unknown): Candle[] {
       parsed.high >= Math.max(parsed.open, parsed.close) &&
       parsed.low <= Math.min(parsed.open, parsed.close)
     ) {
-      byTime.set(parsed.time, parsed);
+      const time = Math.floor(parsed.time / bucketSeconds) * bucketSeconds;
+      byTime.set(time, { ...parsed, time });
     }
   }
   return [...byTime.values()].sort((a, b) => a.time - b.time);
@@ -118,31 +119,38 @@ function applyQuoteToCandles(candles: Candle[], quote: MarketQuote, timeframe: T
   const bucketSeconds = TF_SECONDS[timeframe];
   const liveBucket = Math.floor(quote.timestamp / bucketSeconds) * bucketSeconds;
   const latest = candles[candles.length - 1];
+  const latestBucket = Math.floor(latest.time / bucketSeconds) * bucketSeconds;
+  const normalizedLatest = latest.time === latestBucket
+    ? latest
+    : { ...latest, time: latestBucket };
 
-  if (liveBucket === latest.time) {
+  if (liveBucket < latestBucket) {
+    return candles;
+  }
+
+  if (liveBucket === latestBucket) {
     const updated = {
-      ...latest,
-      high: Math.max(latest.high, quote.price),
-      low: Math.min(latest.low, quote.price),
+      ...normalizedLatest,
+      high: Math.max(normalizedLatest.high, quote.price),
+      low: Math.min(normalizedLatest.low, quote.price),
       close: quote.price,
     };
     return [...candles.slice(0, -1), updated];
   }
 
-  if (liveBucket === latest.time + bucketSeconds) {
-    return [
-      ...candles,
-      {
-        time: liveBucket,
-        open: latest.close,
-        high: Math.max(latest.close, quote.price),
-        low: Math.min(latest.close, quote.price),
-        close: quote.price,
-      },
-    ];
-  }
-
-  return candles;
+  // Keep the provider's real history intact and append only the current
+  // provider quote. Missing buckets remain missing instead of being invented.
+  return [
+    ...candles.slice(0, -1),
+    normalizedLatest,
+    {
+      time: liveBucket,
+      open: normalizedLatest.close,
+      high: Math.max(normalizedLatest.close, quote.price),
+      low: Math.min(normalizedLatest.close, quote.price),
+      close: quote.price,
+    },
+  ];
 }
 
 /* ── Simple RSI calculation ─────────────────────────────────────── */
@@ -190,6 +198,7 @@ export default function TradePairPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const seriesRef     = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const lastCandleRef = useRef<Candle | null>(null);
+  const candleCountRef = useRef(0);
   const liveQuoteRef = useRef<MarketQuote | null>(null);
 
   candlesRef.current = candles;
@@ -205,7 +214,7 @@ export default function TradePairPage() {
       { credentials: "include" },
     );
     if (!response.ok) throw new Error("Live market candles are temporarily unavailable.");
-    const data = parseCandles(await response.json());
+    const data = parseCandles(await response.json(), TF_SECONDS[tf]);
     if (data.length < 2) throw new Error("The market source returned too few candles.");
     return data;
   }, [symbol, tf]);
@@ -345,7 +354,7 @@ export default function TradePairPage() {
             ? applyQuoteToCandles(merged, liveQuoteRef.current, tf)
             : merged;
         });
-        applyLatestCandle(incoming);
+        if (!liveQuoteRef.current) applyLatestCandle(incoming);
       } catch {
         // Keep the last valid source candles visible during a transient provider failure.
       }
@@ -404,6 +413,7 @@ export default function TradePairPage() {
     if (candlesRef.current.length > 0) {
       candleSeries.setData(candlesRef.current.map(c => ({ ...c, time: c.time as UTCTimestamp })));
       lastCandleRef.current = candlesRef.current[candlesRef.current.length - 1] ?? null;
+      candleCountRef.current = candlesRef.current.length;
       chart.timeScale().setVisibleLogicalRange(
         latestVisibleRange(candlesRef.current.length, chartRef.current.clientWidth),
       );
@@ -425,6 +435,7 @@ export default function TradePairPage() {
       chartInstance.current = null;
       seriesRef.current = null;
       lastCandleRef.current = null;
+      candleCountRef.current = 0;
     };
   }, [loadOlderCandles, meta.price, symbol]);
 
@@ -432,6 +443,10 @@ export default function TradePairPage() {
     if (!seriesRef.current || candles.length === 0) return;
     const pendingPrepended = pendingPrependedRef.current;
     const visibleRange = chartInstance.current?.timeScale().getVisibleLogicalRange();
+    const previousCount = candleCountRef.current;
+    const wasAtLiveEdge = visibleRange === null
+      || previousCount === 0
+      || (visibleRange?.to ?? Number.NEGATIVE_INFINITY) >= previousCount - 3;
     seriesRef.current.setData(candles.map(c => ({ ...c, time: c.time as UTCTimestamp })));
     const wasEmpty = lastCandleRef.current === null;
     lastCandleRef.current = candles[candles.length - 1] ?? null;
@@ -446,6 +461,12 @@ export default function TradePairPage() {
         to: visibleRange.to + pendingPrepended,
       });
     }
+    else if (wasAtLiveEdge && candles.length > previousCount && chartRef.current) {
+      chartInstance.current?.timeScale().setVisibleLogicalRange(
+        latestVisibleRange(candles.length, chartRef.current.clientWidth),
+      );
+    }
+    candleCountRef.current = candles.length;
     pendingPrependedRef.current = 0;
   }, [candles]);
 

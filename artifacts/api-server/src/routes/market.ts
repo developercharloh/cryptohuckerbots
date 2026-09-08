@@ -163,6 +163,20 @@ const TWELVE_INTERVALS: Record<Interval, string> = {
   "1d": "1day",
 };
 
+const INTERVAL_SECONDS: Record<Interval, number> = {
+  "1m": 60,
+  "5m": 5 * 60,
+  "15m": 15 * 60,
+  "1h": 60 * 60,
+  "4h": 4 * 60 * 60,
+  "1d": 24 * 60 * 60,
+};
+
+function bucketTime(time: number, interval: Interval): number {
+  const bucketSeconds = INTERVAL_SECONDS[interval];
+  return Math.floor(time / bucketSeconds) * bucketSeconds;
+}
+
 function twelveOutputSize(interval: Interval): number {
   return interval === "1m" || interval === "5m" || interval === "15m" ? 5000 : 2000;
 }
@@ -173,12 +187,13 @@ function parseTwelveDate(value: unknown): number {
   return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : NaN;
 }
 
-function parseTwelveValues(value: unknown, aggregateHours?: number): Candle[] {
+function parseTwelveValues(value: unknown, interval: Interval, aggregateHours?: number): Candle[] {
   if (!Array.isArray(value)) return [];
   const candles: Candle[] = value.map((row) => {
     const item = row && typeof row === "object" ? row as Record<string, unknown> : {};
+    const time = parseTwelveDate(item.datetime);
     return {
-      time: parseTwelveDate(item.datetime),
+      time: Number.isFinite(time) ? bucketTime(time, interval) : time,
       open: Number(item.open),
       high: Number(item.high),
       low: Number(item.low),
@@ -288,7 +303,7 @@ async function fetchTwelve(
     throw new Error(payload.message ?? `Twelve Data returned ${payload.code ?? "an error"}`);
   }
 
-  const candles = parseTwelveValues(payload.values, interval === "4h" ? 4 : undefined)
+  const candles = parseTwelveValues(payload.values, interval, interval === "4h" ? 4 : undefined)
     .filter((candle) => before === undefined || candle.time < before);
   if (before === undefined && candles.length < 2) {
     throw new Error("Twelve Data returned too few candles");
@@ -299,7 +314,7 @@ async function fetchTwelve(
   if (before === undefined && candles.length > 0) {
     const liveQuote = await fetchTwelveQuote(instrument.twelveSymbol);
     const latest = candles[candles.length - 1];
-    if (liveQuote !== null && latest.time >= Math.floor(Date.now() / 60_000) * 60 - 120) {
+    if (liveQuote !== null && latest.time === bucketTime(Math.floor(Date.now() / 1000), interval)) {
       latest.high = Math.max(latest.high, liveQuote.price);
       latest.low = Math.min(latest.low, liveQuote.price);
       latest.close = liveQuote.price;
@@ -348,8 +363,9 @@ async function fetchYahoo(instrument: Instrument, interval: Interval, before?: n
   const quote = result?.indicators?.quote?.[0];
   if (!quote) return [];
 
+  const sourceInterval: Interval = config.aggregateHours ? "1h" : interval;
   let candles: Candle[] = timestamps.map((time, index) => ({
-    time,
+    time: bucketTime(time, sourceInterval),
     open: Number(quote.open?.[index]),
     high: Number(quote.high?.[index]),
     low: Number(quote.low?.[index]),
@@ -368,7 +384,7 @@ async function fetchYahoo(instrument: Instrument, interval: Interval, before?: n
     latest &&
     Number.isFinite(livePrice) &&
     livePrice > 0 &&
-    latest.time >= Math.floor(Date.now() / 60_000) * 60 - 120
+    latest.time === bucketTime(Math.floor(Date.now() / 1000), interval)
   ) {
     latest.high = Math.max(latest.high, livePrice);
     latest.low = Math.min(latest.low, livePrice);
